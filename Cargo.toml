@@ -35,8 +35,6 @@ uuid = { version = "1.11.0", features = ["v4"] }
 indicatif = "0.17.7"
 console = "0.15.7"
 colored = "2.1.0"
-ratatui = "0.26.0"
-crossterm = "0.27.0"
 
 # Contract Testing dependencies
 reqwest = { version = "0.11", features = ["json", "stream"] }
@@ -56,7 +54,3 @@ path = "src/bin/pulse_sim.rs"
 [[bin]]
 name = "pulse"
 path = "src/bin/pulse_main.rs"
-
-[[bin]]
-name = "pulse-tui"
-path = "src/bin/pulse_tui.rs"
