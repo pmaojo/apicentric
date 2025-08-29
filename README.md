@@ -50,6 +50,39 @@ npm run pulse -- run
 npm run pulse:watch
 ```
 
+## 🚀 Qualitas Setup (host app)
+
+- Directorio de trabajo: ejecuta los comandos desde `qualitas-cloud-2-frontend/`.
+- Servicios mock: los YAML están en `mock_services/` (puertos 9011 y 9012).
+
+Comandos útiles:
+
+```bash
+# 1) Validar YAMLs del simulador
+npm run pulse:sim -- simulator validate --path mock_services --verbose
+
+# 2) Arrancar simulador (Ctrl+C para parar)
+npm run pulse:sim -- simulator start --services-dir mock_services
+
+# 3) Ejecutar tests en vivo (watch)
+npm run pulse -- watch
+
+# 4) Modo avión (simulador + dev + watch + docs)
+npm run start:airplane:watch
+
+# 5) Integración real + contrato de login público + watch
+npm run start:watch
+```
+
+Endpoints de ejemplo (simulador):
+
+- Login público: `http://localhost:9011/api/v1/public/login`
+- Core público (logout): `http://localhost:9012/api/v1/logout`
+
+Notas:
+- `services_dir` en `pulse.json` del host debe ser `"mock_services"`.
+- Los scripts `start:*` ya exportan `VITE_*` para apuntar a los mocks o al backend real según el caso.
+
 ## ⚡ Características Clave
 
 ```
@@ -62,76 +95,44 @@ npm run pulse:watch
 │                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
-╭─ SERVER MANAGEMENT ──────────────────────────────────────────────────────────────────╮
+╭─ GESTIÓN DE SERVIDOR ───────────────────────────────────────────────────────────────╮
 │                                                                                      │
-│  🚀 AUTO-START          │ Automatically launch development servers                  │
-│  💓 HEALTH CHECKS       │ Configurable server health monitoring                     │
-│  🔧 PROCESS CONTROL     │ Clean server lifecycle management                         │
-│  ⏱️  TIMEOUT HANDLING    │ Smart timeout and retry configurations                    │
-│                                                                                      │
-╰──────────────────────────────────────────────────────────────────────────────────────╯
-
-╭─ REPORTING & METRICS ────────────────────────────────────────────────────────────────╮
-│                                                                                      │
-│  📋 JUNIT REPORTS       │ Standard XML test reports with consolidation              │
-│  🎭 ALLURE INTEGRATION  │ Rich test reporting with screenshots and logs             │
-│  📊 PROMETHEUS METRICS  │ Performance and reliability metrics                       │
-│  🔍 SENTRY MONITORING   │ Error tracking and performance monitoring                 │
+│  🚀 AUTO-START          │ Arranque automático del servidor de desarrollo            │
+│  💓 HEALTH CHECKS       │ Comprobaciones de salud configurables                     │
+│  🔧 CONTROL DE PROCESOS │ Gestión limpia del ciclo de vida del servidor             │
+│  ⏱️  TIMEOUTS            │ Esperas y reintentos configurables                       │
 │                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
-╭─ DEVELOPER EXPERIENCE ───────────────────────────────────────────────────────────────╮
+╭─ REPORTING Y MÉTRICAS ──────────────────────────────────────────────────────────────╮
 │                                                                                      │
-│  🎛️  EXECUTION MODES     │ CI, Development, and Debug modes                          │
-│  🏃 DRY RUN             │ Preview test execution without running                     │
-│  📦 NPM INTEGRATION     │ Seamless package.json script setup                        │
-│  🔍 VERBOSE LOGGING     │ Detailed debugging and execution information              │
-│  🦐 MOCK API SIMULATOR  │ YAML-driven local API (endpoints, delays, scenarios)       │
+│  📋 JUNIT REPORTS       │ Informes XML estándar con consolidación                   │
+│  🎭 ALLURE              │ Reportes vistosos con capturas y logs                     │
+│  📊 PROMETHEUS          │ Métricas de rendimiento y fiabilidad                      │
+│  🔍 SENTRY              │ Trazado de errores y rendimiento                          │
 │                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
-## 🛠️ INSTALLATION
-
-```
-
-┌─ SYSTEM REQUIREMENTS ───────────────────────────────────────────────────────────────┐
-│ │
-│ ⚙️ RUST │ v1.70+ │ Core runtime engine │
-│ 📦 NODE.JS │ v16+ │ Cypress integration layer │
-│ 🌐 NPM │ Latest │ Package management │
-│ 🧪 CYPRESS │ v12+ │ Test execution framework │
-│ │
-└──────────────────────────────────────────────────────────────────────────────────────┘
-
-```
-
-```
-
-╭─ BUILD PROCESS ──────────────────────────────────────────────────────────────────────╮
-│ │
-│ $ cd utils/pulse │
-│ $ cargo build --release │
-│ │
-│ ✅ Binary location: utils/pulse/target/release/pulse │
-│ │
+╭─ EXPERIENCIA DESARROLLADOR ─────────────────────────────────────────────────────────╮
+│                                                                                      │
+│  🎛️  MODOS DE EJECUCIÓN  │ CI, Development y Debug                                   │
+│  🏃 DRY RUN             │ Simulación de ejecución sin correr pruebas                 │
+│  📦 INTEGRACIÓN NPM     │ Configuración automática de scripts en package.json        │
+│  🔍 LOGS DETALLADOS     │ Depuración y trazas detalladas                            │
+│  🦐 SIMULADOR MOCK API  │ API local definida por YAML (endpoints, delays, escenarios)│
+│                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
-````
+## 🛠️ Requisitos
 
-## Quick Start
+- Rust 1.70+ (toolchain estable)
+- Node.js 18+ (Cypress/TypeDoc)
+- npm reciente
+- Cypress 15+
 
-### 1. Initialize Configuration
-```bash
-# Create a default pulse.json configuration
-pulse init
+## Configuración básica
 
-# Or initialize with force overwrite
-pulse init --force
-````
-
-### 2. Configure Your Project
-
-Edit the generated `pulse.json` file:
+Ejemplo de `pulse.json` mínimo:
 
 ```json
 {
@@ -158,26 +159,26 @@ Edit the generated `pulse.json` file:
 }
 ```
 
-### 3. Set Up NPM Scripts
+### Scripts NPM
 
 ```bash
-# Add pulse scripts to package.json
+# Añade scripts Pulse al package.json
 pulse setup-npm
 
-# Or just show instructions
+# Solo mostrar instrucciones
 pulse setup-npm --instructions-only
 ```
 
-### 4. Run Tests
+### Ejecutar pruebas
 
 ```bash
-# Watch mode - runs impacted tests on file changes
+# Modo watch - ejecuta tests impactados al cambiar archivos
 pulse watch
 
-# Run all tests once
+# Ejecutar toda la suite una vez
 pulse run
 
-# Run with custom configuration
+# Ejecutar con configuración personalizada
 pulse --config custom-pulse.json run --workers 8 --retries 2
 ```
 
@@ -450,7 +451,7 @@ El API Simulator permite agrupar múltiples servicios YAML con base paths y plan
 
 ```bash
 # Validar servicios (sin arrancar)
-pulse simulator validate --path pulse/examples
+pulse simulator validate --path mock_services --recursive --verbose
 
 # Arrancar (usa pulse.json):
 export PULSE_API_SIMULATOR=true   # también puedes habilitar en el JSON
@@ -577,9 +578,11 @@ pulse simulator validate --path pulse/examples --recursive --verbose
 - **RouteIndexer**: Maps routes to test files
 - **JUnitAdapter**: Processes and consolidates test reports
 
-#### Metrics System
+#### Sistema de Métricas
 
-- **AllureAdapter**: Generates rich test reports
+- **AllureAdapter**: Genera reportes Allure
+- **PrometheusAdapter**: Expone métricas de ejecución
+- **SentryAdapter**: Reporta errores y rendimiento
 
 ## 🔒 Seguridad y Buenas Prácticas
 
@@ -595,8 +598,6 @@ pulse simulator validate --path pulse/examples --recursive --verbose
 - Recomendaciones: unificar tipos de error, homogeneizar logs con `tracing`, reemplazar dependencias externas frágiles (p.ej. `curl`) por clientes HTTP embebidos.
 
 > Resultado: Pulse está listo para integrarse en monorepos JavaScript/TypeScript con una DX de primera, tiempos de ejecución bajos y visibilidad operativa de nivel producción.
-- **PrometheusAdapter**: Exposes performance metrics
-- **SentryAdapter**: Tracks errors and performance issues
 
 #### Utilities
 
@@ -727,7 +728,6 @@ pulse watch --debounce-ms 2000
 ### Compilación
 
 ```bash
-cargo build
 cargo build
 ```
 
