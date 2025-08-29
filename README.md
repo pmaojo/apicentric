@@ -8,18 +8,18 @@
 ║  ██║     ╚██████╔╝███████╗███████║███████╗       ██║   ███████╗███████║   ██║       ║
 ║  ╚═╝      ╚═════╝ ╚══════╝╚══════╝╚══════╝       ╚═╝   ╚══════╝╚══════╝   ╚═╝       ║
 ║                                                                                      ║
-║                    ⚡ INTELLIGENT RUST-POWERED TEST RUNNER ⚡                       ║
+║              ⚡ EJECUTOR INTELIGENTE DE PRUEBAS IMPULSADO POR RUST ⚡               ║
 ║                                                                                      ║
 ╚══════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 ```
-┌─ SYSTEM STATUS ──────────────────────────────────────────────────────────────────────┐
+┌─ ESTADO DEL SISTEMA ─────────────────────────────────────────────────────────────────┐
 │                                                                                      │
-│  🎯 MISSION: High-performance intelligent test execution for modern web apps         │
-│  🔧 ENGINE:  Rust-powered with Cypress integration                                   │
-│  📊 METRICS: Real-time monitoring with Prometheus, Sentry & Allure                   │
-│  🚀 SPEED:   Parallel execution with smart impact analysis                           │
+│  🎯 MISIÓN: Ejecución inteligente y de alto rendimiento para apps web modernas       │
+│  🔧 MOTOR:  Rust + integración con Cypress                                           │
+│  📊 MÉTRICAS: Monitorización en tiempo real (Prometheus, Sentry y Allure)            │
+│  🚀 VELOCIDAD: Paralelismo + análisis de impacto                                      │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -50,15 +50,15 @@ npm run pulse -- run
 npm run pulse:watch
 ```
 
-## ⚡ CORE FEATURES
+## ⚡ Características Clave
 
 ```
-╭─ SMART EXECUTION ENGINE ─────────────────────────────────────────────────────────────╮
+╭─ MOTOR DE EJECUCIÓN ────────────────────────────────────────────────────────────────╮
 │                                                                                      │
-│  🧠 IMPACT ANALYSIS     │ Maps code changes → relevant test files automatically     │
-│  ⚡ PARALLEL WORKERS     │ Configurable worker pools for maximum throughput         │
-│  🔄 RETRY LOGIC         │ Intelligent retry mechanism for flaky test handling       │
-│  👁️  WATCH MODE          │ Real-time file monitoring with debounced execution       │
+│  🧠 ANÁLISIS DE IMPACTO  │ Cambios → tests relevantes automáticamente               │
+│  ⚡ EJECUCIÓN EN PARALELO │ Grado de paralelismo configurable                        │
+│  🔄 REINTENTOS           │ Manejo inteligente de tests inestables (flaky)           │
+│  👁️  MODO WATCH           │ Observa cambios con debounce y ejecuta al vuelo          │
 │                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
@@ -642,129 +642,129 @@ pulse --config pulse.dev.json --mode development watch
     pulse --mode ci --config pulse.ci.json run --workers 4
 ```
 
-### Debugging
+### Depuración
 
 ```bash
-# Enable debug mode with verbose output
+# Activar modo debug con salida detallada
 pulse --mode debug --verbose watch
 
-# Dry run to see what would be executed
+# Simulación (dry-run) para ver qué se ejecutaría
 pulse --dry-run run
 ```
 
-## Troubleshooting
+## Resolución de Problemas
 
-### Common Issues
+### Problemas Comunes
 
-#### Server Not Starting
+#### El servidor no arranca
 
 ```bash
-# Check server configuration
+# Verifica configuración del servidor
 pulse --verbose run
 
-# Test server command manually
+# Prueba el comando manualmente
 npm run dev
 ```
 
-#### No Tests Found
+#### No se encuentran tests
 
 ```bash
-# Verify specs pattern
+# Verifica el patrón de especificaciones
 pulse --dry-run run
 
-# Check file paths in config
+# Comprueba rutas de archivos en la configuración
 ls -la app/routes/**/test/*.cy.ts
 ```
 
-#### Git Integration Issues
+#### Problemas con la integración Git
 
 ```bash
-# Ensure you're in a git repository
+# Asegúrate de estar en un repo git
 git status
 
-# Check for uncommitted changes
+# Cambios sin commitear
 git diff --name-only
 ```
 
-#### Prometheus Port Conflicts
+#### Conflictos de puerto Prometheus
 
 ```bash
-# If port 9091 is in use, change it in pulse.json
+# Si el puerto 9091 está en uso, cámbialo en pulse.json
 {
   "metrics": {
     "prometheus": {
       "enabled": true,
-      "port": 9092  // Try alternative ports: 9092, 8080, 8090
+  "port": 9092  // Alternativas: 9092, 8080, 8090
     }
   }
 }
 
-# Check what's using the port
+# Comprueba qué proceso usa el puerto
 lsof -i :9091
 ```
 
-### Performance Tuning
+### Rendimiento
 
-#### Optimize Worker Count
+#### Optimiza el número de workers
 
 ```bash
-# Find optimal worker count (usually CPU cores - 1)
-pulse run --workers $(nproc --ignore=1)
+# Estima un valor razonable (p.ej. núm. de CPUs - 1)
+pulse run --workers 4
 ```
 
-#### Adjust Debounce Time
+#### Ajusta el tiempo de debounce
 
 ```bash
-# Reduce debounce for faster feedback
+# Reduce para feedback más rápido
 pulse watch --debounce-ms 500
 
-# Increase for slower systems
+# Aumenta en equipos más lentos
 pulse watch --debounce-ms 2000
 ```
 
-## Development
+## Desarrollo
 
-### Building
+### Compilación
 
 ```bash
-cd utils/pulse
+cargo build
 cargo build
 ```
 
-### Testing
+### Pruebas
 
 ```bash
-# Run unit tests
+# Unit tests
 cargo test
 
-# Run integration tests
+# Integration tests
 cargo test --test integration_tests
 
-# Run with coverage
-cargo test --coverage
+# Cobertura (si está configurada)
+# cargo test --coverage
 ```
 
-### Contributing
+### Contribuir
 
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+1. Haz fork del repositorio
+2. Crea una rama de feature
+3. Añade tests para la nueva funcionalidad
+4. Asegúrate de que todo pasa en CI
+5. Abre un Pull Request
 
-## License
+## Licencia
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+Proyecto con licencia MIT. Consulta el archivo LICENSE para más detalles.
 
-## Changelog
+## Cambios
 
 ### v0.1.0
 
-- Initial release
-- Smart test execution with impact analysis
-- Parallel test running
-- Server management
-- Multiple reporting formats
-- Watch mode with file monitoring
-- NPM integration
-- CI/CD support
+- Versión inicial
+- Ejecución inteligente con análisis de impacto
+- Paralelización de pruebas
+- Gestión de servidor de desarrollo
+- Múltiples formatos de reporte
+- Modo watch con monitorización de archivos
+- Integración con NPM
+- Soporte CI/CD
