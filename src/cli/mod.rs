@@ -237,8 +237,6 @@ pub enum ContractAction {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Launch the interactive TUI dashboard
-    Tui,
 
     /// Watch for changes and run impacted tests
     Watch {

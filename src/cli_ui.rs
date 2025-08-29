@@ -287,15 +287,15 @@ impl CliUiAdapter {
         Self::print_banner();
         println!(
             "{}",
-            "🎯 Launching interactive TUI dashboard..."
+            "🎯 Preparando herramientas de línea de comandos..."
                 .bright_cyan()
                 .bold()
         );
         println!(
             "{}",
-            "   Use keyboard shortcuts for navigation".bright_white()
+            "   Usa 'pulse watch' para ejecutar al vuelo".bright_white()
         );
-        println!("{}", "   Press 'h' for help, 'q' to quit".bright_black());
+        println!("{}", "   Pulsa Ctrl+C para salir".bright_black());
         println!();
 
         // Brief pause for effect
