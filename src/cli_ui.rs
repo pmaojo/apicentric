@@ -274,7 +274,7 @@ impl CliUiAdapter {
         println!();
         println!(
             "{}",
-            "💡 Tip: Use 'pulse tui' for an interactive dashboard experience!"
+            "💡 Consejo: Usa 'pulse watch' para ejecutar pruebas al vuelo y 'pulse simulator status' para ver el simulador"
                 .bright_blue()
                 .italic()
         );
