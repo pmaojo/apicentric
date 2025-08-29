@@ -24,6 +24,32 @@
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## ✨ Guía Rápida
+
+```
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ 1) Configura pulse.json                                                       │
+│ 2) Integra scripts npm (pulse setup-npm)                                      │
+│ 3) Ejecuta: npm run pulse -- run | watch                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+```bash
+# Inicializa config por defecto (si aún no tienes pulse.json)
+pulse init
+
+# Revisa y ajusta rutas/patrones/baseUrl en pulse.json
+
+# Añade scripts npm automáticamente
+pulse setup-npm
+
+# Ejecuta todo
+npm run pulse -- run
+
+# Observa cambios y ejecuta impactados
+npm run pulse:watch
+```
+
 ## ⚡ CORE FEATURES
 
 ```
@@ -302,6 +328,162 @@ pulse --dry-run mock-api --spec pulse-mock.yaml   # Dry run
 
 Configura Cypress para apuntar a `http://localhost:7070/api` si quieres usarlo en tests.
 
+## 🔗 Integración con NPM (setup-npm)
+
+```
+╭─ AUTOMATIZA TU FLUJO ───────────────────────────────────────────────────────────────╮
+│                                                                                      │
+│  🛠️  Comando:      pulse setup-npm                                                   │
+│  🔎 Detección:      workspace, binarios locales, $HOME/.cargo, PATH                  │
+│  🧩 Scripts:        "pulse", "pulse:watch"                                          │
+│  🧪 Verificación:   --test para probar ejecución npm                                 │
+│  📘 Ejemplos:       --examples muestra usos útiles                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+### ¿Qué hace?
+
+- Detecta si tienes `utils/pulse` (workspace) o binarios compilados.
+- Genera scripts npm recomendados sin pisar los existentes (a menos que uses `--force`).
+- Imprime instrucciones cuando falta `package.json` o scripts.
+
+### Detección inteligente del binario
+
+El adaptador intenta, en orden:
+
+1) `utils/pulse/Cargo.toml` → usa `cargo run --manifest-path utils/pulse/Cargo.toml --`
+2) `./utils/pulse/target/release|debug/pulse` → usa el binario local
+3) `which pulse` en el `PATH`
+4) `$HOME/.cargo/bin/pulse`
+5) Fallback: `cargo run --manifest-path utils/pulse/Cargo.toml --`
+
+Esto asegura que los scripts npm funcionen tanto en desarrollo como en CI sin fricción.
+
+### Scripts que se añaden
+
+```json
+{
+  "scripts": {
+    "pulse": "<binario-detectado>",
+    "pulse:watch": "<binario-detectado> watch"
+  }
+}
+```
+
+Puedes forzar la escritura con `--force`:
+
+```bash
+pulse setup-npm --force
+```
+
+### Comprobación y ejemplos
+
+```bash
+# Verifica si los scripts están listos y ejecutables
+pulse setup-npm --test
+
+# Muestra ejemplos de uso (útil para copy/paste)
+pulse setup-npm --examples
+```
+
+### Solución de problemas
+
+- No hay `package.json`: crea uno (`npm init -y`) y vuelve a ejecutar `pulse setup-npm`.
+- El binario no aparece: compila Pulse (`cargo build`) o usa la ruta del workspace.
+- NPM falla al ejecutar: verifica la salida de `--test` y revisa permisos de archivos.
+
+## 🛰️ Ejemplo incluido: Mock Services (SWAPI)
+
+Este repo trae ejemplos listos para usar de servicios mock basados en la API de Star Wars (SWAPI):
+
+- `pulse/examples/swapi-mock.yaml`: definición simple para el Mock Server directo (un archivo, rutas planas)
+- `pulse/examples/swapi-service.yaml`: definición de servicio para el API Simulator (plantillas, base_path, etc.)
+
+### Opción A — Mock Server (archivo único)
+
+Para un mock rápido sin directorios, puedes cargar un YAML y arrancar un servidor local con el módulo `mock` reexportado por Pulse:
+
+```rust
+// Cargo.toml: añade pulse como dependencia si lo usas desde otro crate
+// [dependencies]
+// pulse = { path = "utils/pulse" }
+
+use pulse::mock::{load_spec, run_mock_server};
+use std::path::Path;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+  let spec = load_spec(Path::new("pulse/examples/swapi-mock.yaml")).await?;
+  run_mock_server(spec).await?; // Escucha en el puerto del YAML (p.ej. 8080)
+  Ok(())
+}
+```
+
+Rutas de ejemplo (si usas `swapi-mock.yaml`):
+
+- GET http://127.0.0.1:8080/people/1/
+- GET http://127.0.0.1:8080/people/
+- GET http://127.0.0.1:8080/planets/1/
+
+Esta vía usa el lector de YAML y el servidor mock definidos en:
+
+- `pulse/src/adapters/mock_server.rs:106` (lectura de YAML)
+- `pulse/src/adapters/mock_server.rs:120` (arranque del servidor)
+
+### Opción B — API Simulator (directorio de servicios)
+
+El API Simulator permite agrupar múltiples servicios YAML con base paths y plantillas. Para activarlo:
+
+1) En `pulse.json` habilita el simulador y apunta a tu carpeta de servicios. Importante: la ruta se resuelve respecto al directorio desde el que ejecutas Pulse (normalmente el root de tu app). En el caso de Qualitas, apunta a `mock_services` del host app:
+
+```json
+{
+  "simulator": {
+    "enabled": true,
+    "services_dir": "mock_services",
+    "port_range": { "start": 9000, "end": 9099 }
+  }
+}
+```
+
+2) Arranca, para y consulta estado desde la CLI (ejecuta desde el root de `qualitas-cloud-2-frontend` para que `mock_services` se resuelva correctamente):
+
+```bash
+# Validar servicios (sin arrancar)
+pulse simulator validate --path pulse/examples
+
+# Arrancar (usa pulse.json):
+export PULSE_API_SIMULATOR=true   # también puedes habilitar en el JSON
+pulse simulator start
+
+# Estado / Parada
+pulse simulator status
+pulse simulator stop
+```
+
+Rutas de ejemplo (según `swapi-service.yaml` y el base_path configurado):
+
+- GET http://127.0.0.1:9011/api/v1/public/people/1/
+- GET http://127.0.0.1:9011/api/v1/public/people/
+
+Cómo sabemos que “sí los está leyendo” tras el refactor:
+
+- El manager carga todos los servicios desde `services_dir` a través del `ConfigLoader` y los registra:
+  - `pulse/src/simulator/manager.rs:43` (crea `ConfigLoader` con `services_dir`)
+  - `pulse/src/simulator/manager.rs:33` (constructor)
+  - `pulse/src/simulator/manager.rs:27` (start → `load_all_services()` y arranque)
+- El `ConfigLoader` abre archivos YAML y valida cada servicio con `serde_yaml` + validaciones:
+  - `pulse/src/simulator/config.rs:578` (lee YAML del disco)
+  - `pulse/src/simulator/config.rs:586` (parsea con `serde_yaml`)
+  - `pulse/src/simulator/config.rs:598` (valida estructura)
+  - `pulse/src/simulator/config.rs:615` y `660` (escaneo recursivo con estadísticas)
+
+Además, puedes ejecutar una validación aislada contra un directorio sin necesidad de configurar `pulse.json` (útil para CI):
+
+```bash
+pulse simulator validate --path pulse/examples --recursive --verbose
+```
+
 ## Configuration
 
 ### Execution Modes
@@ -398,6 +580,21 @@ Configura Cypress para apuntar a `http://localhost:7070/api` si quieres usarlo e
 #### Metrics System
 
 - **AllureAdapter**: Generates rich test reports
+
+## 🔒 Seguridad y Buenas Prácticas
+
+- Evita credenciales hardcodeadas en comandos o ejemplos. Usa variables de entorno y léelas en tiempo de ejecución.
+- Mantén fuera del control de versiones artefactos de build y archivos temporales (`target/`, `.DS_Store`, `*.zip`).
+- Activa calidad en CI: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
+
+## 🧭 Resumen de Auditoría (alto nivel)
+
+- Arquitectura limpia por capas (dominio/puertos/adaptadores) y builder de contexto sólido.
+- Validación de configuración y mensajería de errores clara con sugerencias.
+- Integración npm robusta: detección multinivel del binario, escritura segura de scripts y verificación (`--test`).
+- Recomendaciones: unificar tipos de error, homogeneizar logs con `tracing`, reemplazar dependencias externas frágiles (p.ej. `curl`) por clientes HTTP embebidos.
+
+> Resultado: Pulse está listo para integrarse en monorepos JavaScript/TypeScript con una DX de primera, tiempos de ejecución bajos y visibilidad operativa de nivel producción.
 - **PrometheusAdapter**: Exposes performance metrics
 - **SentryAdapter**: Tracks errors and performance issues
 
