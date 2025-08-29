@@ -1,0 +1,54 @@
+{
+  "cypress_config_path": "cypress.config.ts",
+  "base_url": "http://localhost:5173",
+  "specs_pattern": "app/routes/**/test/*.cy.ts",
+  "routes_dir": "app/routes",
+  "specs_dir": "app/routes",
+  "reports_dir": "cypress/reports",
+  "index_cache_path": ".pulse/route-index.json",
+  "default_timeout": 30000,
+  "server": {
+    "auto_start": false,
+    "start_command": "npm run dev",
+    "startup_timeout_ms": 30000,
+    "health_check_retries": 5,
+    "skip_health_check": false
+  },
+  "execution": {
+    "mode": "development",
+    "continue_on_failure": true,
+    "dry_run": false,
+    "verbose": false
+  },
+  "npm": {
+    "pulse_script": "cargo run --manifest-path utils/pulse/Cargo.toml --",
+    "pulse_watch_script": "cargo run --manifest-path utils/pulse/Cargo.toml -- watch",
+    "dev_script": "npm run dev"
+  },
+  "testcase": {
+    "pattern": "*.cy.ts",
+    "timeout": 30000,
+    "retries": 3
+  },
+  "metrics": {
+    "sentry": {
+      "enabled": true,
+      "dsn": "https://your-sentry-dsn@sentry.io/123456",
+      "environment": "test-automation"
+    },
+    "prometheus": {
+      "enabled": true,
+      "port": 9092
+    },
+    "allure": {
+      "enabled": true,
+      "report_dir": "cypress/reports/allure-results"
+    }
+  },
+  "api_simulator": {
+    "enabled": true,
+    "port": 3001,
+    "services_dir": "services",
+    "mock_services_dir": "mock_services"
+  }
+}

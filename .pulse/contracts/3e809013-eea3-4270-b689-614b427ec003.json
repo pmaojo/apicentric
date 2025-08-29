@@ -1,0 +1,8 @@
+{
+  "id": "3e809013-eea3-4270-b689-614b427ec003",
+  "service_name": "star-wars-api",
+  "spec_path": "examples/swapi-service.yaml",
+  "description": "Star Wars API contract for testing",
+  "created_at": "2025-08-28T14:20:25.892362Z",
+  "updated_at": "2025-08-28T14:20:25.892362Z"
+}

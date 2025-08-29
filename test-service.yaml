@@ -1,0 +1,15 @@
+name: test-service
+version: 1.0.0
+description: Test service for validation
+
+server:
+  port: 8080
+  base_path: /api/test
+
+endpoints:
+  - method: GET
+    path: /health
+    responses:
+      200:
+        content_type: application/json
+        body: '{"status": "ok"}'

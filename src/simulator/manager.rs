@@ -1,0 +1,312 @@
+//! API Simulator Manager - Central coordinator for the simulator functionality
+
+use crate::errors::{PulseError, PulseResult};
+use crate::simulator::{
+    config::{ConfigLoader, SimulatorConfig},
+    registry::ServiceRegistry,
+    router::RequestRouter,
+    ConfigChange, SimulatorStatus,
+};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+/// Central coordinator for the API simulator functionality
+pub struct ApiSimulatorManager {
+    config: SimulatorConfig,
+    service_registry: Arc<RwLock<ServiceRegistry>>,
+    request_router: Arc<RwLock<RequestRouter>>,
+    config_loader: ConfigLoader,
+    is_active: Arc<RwLock<bool>>,
+}
+
+impl ApiSimulatorManager {
+    /// Create a new API simulator manager
+    pub fn new(config: SimulatorConfig) -> Self {
+        let config_loader = ConfigLoader::new(config.services_dir.clone());
+        let service_registry =
+            Arc::new(RwLock::new(ServiceRegistry::new(config.port_range.clone())));
+        let request_router = Arc::new(RwLock::new(RequestRouter::new()));
+        let is_active = Arc::new(RwLock::new(false));
+
+        Self {
+            config,
+            service_registry,
+            request_router,
+            config_loader,
+            is_active,
+        }
+    }
+
+    /// Start the API simulator
+    pub async fn start(&self) -> PulseResult<()> {
+        if !self.config.enabled {
+            return Err(PulseError::config_error(
+                "API simulator is not enabled",
+                Some("Set PULSE_API_SIMULATOR=true or enable in configuration"),
+            ));
+        }
+
+        let mut is_active = self.is_active.write().await;
+        if *is_active {
+            return Err(PulseError::runtime_error(
+                "API simulator is already running",
+                None::<String>,
+            ));
+        }
+
+        // Load service definitions
+        let services = self.config_loader.load_all_services()?;
+
+        if services.is_empty() {
+            return Err(PulseError::config_error(
+                "No service definitions found",
+                Some("Add YAML service definition files to the services directory"),
+            ));
+        }
+
+        // Register and start services
+        let mut registry = self.service_registry.write().await;
+        let mut router = self.request_router.write().await;
+
+        for service_def in services {
+            let service_name = service_def.name.clone();
+            let base_path = service_def.server.base_path.clone();
+
+            // Register service in registry
+            registry.register_service(service_def).await?;
+
+            // Register routes in router
+            router.register_service_routes(&service_name, &base_path);
+        }
+
+        // Start all registered services
+        registry.start_all_services().await?;
+
+        *is_active = true;
+
+        log::info!(
+            "API Simulator started with {} services",
+            registry.services_count()
+        );
+
+        Ok(())
+    }
+
+    /// Stop the API simulator
+    pub async fn stop(&self) -> PulseResult<()> {
+        let mut is_active = self.is_active.write().await;
+        if !*is_active {
+            return Ok(()); // Already stopped
+        }
+
+        // Stop all services
+        let mut registry = self.service_registry.write().await;
+        registry.stop_all_services().await?;
+
+        // Clear router mappings
+        let mut router = self.request_router.write().await;
+        router.clear_all_routes();
+
+        *is_active = false;
+
+        log::info!("API Simulator stopped");
+
+        Ok(())
+    }
+
+    /// Reload service configurations
+    pub async fn reload_services(&self) -> PulseResult<()> {
+        if !*self.is_active.read().await {
+            return Err(PulseError::runtime_error(
+                "Cannot reload services: simulator is not running",
+                Some("Start the simulator first"),
+            ));
+        }
+
+        log::info!("Reloading service configurations...");
+
+        // Load updated service definitions
+        let services = self.config_loader.load_all_services()?;
+
+        let mut registry = self.service_registry.write().await;
+        let mut router = self.request_router.write().await;
+
+        // Stop all current services
+        registry.stop_all_services().await?;
+        router.clear_all_routes();
+
+        // Re-register and start services with new configurations
+        for service_def in services {
+            let service_name = service_def.name.clone();
+            let base_path = service_def.server.base_path.clone();
+
+            registry.register_service(service_def).await?;
+            router.register_service_routes(&service_name, &base_path);
+        }
+
+        registry.start_all_services().await?;
+
+        log::info!("Service configurations reloaded successfully");
+
+        Ok(())
+    }
+
+    /// Get current simulator status
+    pub async fn get_status(&self) -> SimulatorStatus {
+        let is_active = *self.is_active.read().await;
+        let registry = self.service_registry.read().await;
+
+        let services_count = registry.services_count();
+        let active_services = registry.list_services().await;
+
+        SimulatorStatus {
+            is_active,
+            services_count,
+            active_services,
+        }
+    }
+
+    /// Check if the simulator is currently active
+    pub async fn is_active(&self) -> bool {
+        *self.is_active.read().await
+    }
+
+    /// Get the service registry for external access
+    pub fn service_registry(&self) -> &Arc<RwLock<ServiceRegistry>> {
+        &self.service_registry
+    }
+
+    /// Get the request router for external access
+    pub fn request_router(&self) -> &Arc<RwLock<RequestRouter>> {
+        &self.request_router
+    }
+
+    /// Validate service configurations without starting
+    pub fn validate_configurations(&self) -> PulseResult<Vec<String>> {
+        let services = self.config_loader.load_all_services()?;
+        let service_names: Vec<String> = services.iter().map(|s| s.name.clone()).collect();
+
+        println!(
+            "✅ Validated {} service configurations",
+            service_names.len()
+        );
+        for name in &service_names {
+            println!("  - {}", name);
+        }
+
+        Ok(service_names)
+    }
+
+    /// Handle configuration change events (for future hot-reload implementation)
+    pub async fn handle_config_change(&self, change: ConfigChange) -> PulseResult<()> {
+        match change {
+            ConfigChange::ServiceAdded(service_name) => {
+                println!("📁 Service added: {}", service_name);
+                // Future: Load and register the new service
+            }
+            ConfigChange::ServiceModified(service_name) => {
+                println!("📝 Service modified: {}", service_name);
+                // Future: Reload the specific service
+            }
+            ConfigChange::ServiceRemoved(service_name) => {
+                println!("🗑️ Service removed: {}", service_name);
+                // Future: Unregister and stop the service
+            }
+        }
+
+        // For now, just trigger a full reload
+        if *self.is_active.read().await {
+            self.reload_services().await?;
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::simulator::config::PortRange;
+    use tempfile::TempDir;
+    use tokio;
+
+    fn create_test_config() -> SimulatorConfig {
+        let temp_dir = TempDir::new().unwrap();
+        let services_dir = temp_dir.path().join("services");
+        std::fs::create_dir_all(&services_dir).unwrap();
+
+        SimulatorConfig {
+            enabled: true,
+            services_dir,
+            port_range: PortRange {
+                start: 9000,
+                end: 9999,
+            },
+            global_behavior: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_manager_creation() {
+        let config = create_test_config();
+        let manager = ApiSimulatorManager::new(config);
+
+        assert!(!manager.is_active().await);
+
+        let status = manager.get_status().await;
+        assert!(!status.is_active);
+        assert_eq!(status.services_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_start_without_services() {
+        let config = create_test_config();
+        let manager = ApiSimulatorManager::new(config);
+
+        let result = manager.start().await;
+        assert!(result.is_err());
+
+        // Should contain error about no service definitions
+        let error_msg = result.unwrap_err().to_string();
+
+        assert!(
+            error_msg.contains("No service definitions found")
+                || error_msg.contains("No valid service definitions")
+                || error_msg.contains("Services directory does not exist")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_stop_when_not_running() {
+        let config = create_test_config();
+        let manager = ApiSimulatorManager::new(config);
+
+        // Should not error when stopping a non-running simulator
+        let result = manager.stop().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_reload_when_not_running() {
+        let config = create_test_config();
+        let manager = ApiSimulatorManager::new(config);
+
+        let result = manager.reload_services().await;
+        assert!(result.is_err());
+
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("simulator is not running"));
+    }
+
+    #[tokio::test]
+    async fn test_config_change_handling() {
+        let config = create_test_config();
+        let manager = ApiSimulatorManager::new(config);
+
+        // Should handle config changes gracefully even when not running
+        let result = manager
+            .handle_config_change(ConfigChange::ServiceAdded("test".to_string()))
+            .await;
+        assert!(result.is_ok());
+    }
+}

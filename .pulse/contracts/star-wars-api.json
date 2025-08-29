@@ -1,0 +1,167 @@
+{
+  "contract_id": "star-wars-api",
+  "name": "Star Wars API",
+  "description": "API para obtener información del universo de Star Wars",
+  "base_url": "https://swapi.dev/api",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "path": "/people/1",
+      "method": "GET",
+      "description": "Obtener información de Luke Skywalker",
+      "expected_response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["name", "height", "mass", "birth_year", "gender"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "example": "Luke Skywalker"
+            },
+            "height": {
+              "type": "string",
+              "example": "172"
+            },
+            "mass": {
+              "type": "string",
+              "example": "77"
+            },
+            "hair_color": {
+              "type": "string",
+              "example": "blond"
+            },
+            "skin_color": {
+              "type": "string",
+              "example": "fair"
+            },
+            "eye_color": {
+              "type": "string",
+              "example": "blue"
+            },
+            "birth_year": {
+              "type": "string",
+              "example": "19BBY"
+            },
+            "gender": {
+              "type": "string",
+              "example": "male"
+            },
+            "homeworld": {
+              "type": "string",
+              "example": "https://swapi.dev/api/planets/1/"
+            },
+            "films": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "species": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "vehicles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "starships": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "created": {
+              "type": "string"
+            },
+            "edited": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string",
+              "example": "https://swapi.dev/api/people/1/"
+            }
+          }
+        }
+      }
+    },
+    {
+      "path": "/planets/1",
+      "method": "GET",
+      "description": "Obtener información de Tatooine",
+      "expected_response": {
+        "status": 200,
+        "content_type": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["name", "rotation_period", "orbital_period", "diameter", "climate", "gravity", "terrain", "surface_water", "population"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "example": "Tatooine"
+            },
+            "rotation_period": {
+              "type": "string",
+              "example": "23"
+            },
+            "orbital_period": {
+              "type": "string",
+              "example": "304"
+            },
+            "diameter": {
+              "type": "string",
+              "example": "10465"
+            },
+            "climate": {
+              "type": "string",
+              "example": "arid"
+            },
+            "gravity": {
+              "type": "string",
+              "example": "1 standard"
+            },
+            "terrain": {
+              "type": "string",
+              "example": "desert"
+            },
+            "surface_water": {
+              "type": "string",
+              "example": "1"
+            },
+            "population": {
+              "type": "string",
+              "example": "200000"
+            },
+            "residents": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "films": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "created": {
+              "type": "string"
+            },
+            "edited": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string",
+              "example": "https://swapi.dev/api/planets/1/"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

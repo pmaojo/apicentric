@@ -1,0 +1,117 @@
+use clap::{Parser, Subcommand, ValueEnum};
+use pulse::{ExecutionContext, PulseResult, ContextBuilder};
+pub use pulse::{PulseError, PulseResult as _PulseResult};
+use pulse::context::init;
+#[path = "../commands/simulator.rs"]
+mod simulator_cmd;
+#[path = "../commands/shared.rs"]
+mod shared_impl;
+mod commands { pub mod shared { pub use crate::shared_impl::*; } }
+
+#[derive(Parser)]
+#[command(author, version, about = "Pulse Simulator CLI (lightweight)")]
+struct Cli {
+    /// Path to the pulse.json config file
+    #[arg(short, long, default_value = "pulse.json")]
+    config: String,
+
+    /// Execution mode (overrides config)
+    #[arg(long, value_enum)]
+    mode: Option<CliExecutionMode>,
+
+    /// Enable dry-run mode (show what would be executed)
+    #[arg(long)]
+    dry_run: bool,
+
+    /// Enable verbose output
+    #[arg(short, long)]
+    verbose: bool,
+
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Clone, ValueEnum)]
+enum CliExecutionMode {
+    CI,
+    Development,
+    Debug,
+}
+
+impl From<CliExecutionMode> for pulse::config::ExecutionMode {
+    fn from(cli_mode: CliExecutionMode) -> Self {
+        match cli_mode {
+            CliExecutionMode::CI => pulse::config::ExecutionMode::CI,
+            CliExecutionMode::Development => pulse::config::ExecutionMode::Development,
+            CliExecutionMode::Debug => pulse::config::ExecutionMode::Debug,
+        }
+    }
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// API Simulator operations
+    Simulator {
+        #[command(subcommand)]
+        action: simulator_cmd::SimulatorAction,
+    },
+}
+
+#[tokio::main]
+async fn main() {
+    let cli = Cli::parse();
+
+    if let Err(e) = run(cli).await {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
+}
+
+async fn run(cli: Cli) -> PulseResult<()> {
+    let config_path = std::path::Path::new(&cli.config);
+    let builder = ContextBuilder::new(config_path)?;
+    let cfg = builder.config().clone();
+
+    // Build adapters + metrics + simulator from config
+    let (change_detector, route_indexer, test_runner, junit_adapter, watcher) =
+        init::build_adapters(&cfg);
+    let metrics_manager = init::build_metrics_manager(&cfg, &ExecutionContext::new(&cfg));
+    let api_simulator = init::build_api_simulator(&cfg);
+
+    let mut context = builder
+        .with_change_detector(change_detector)
+        .with_route_indexer(route_indexer)
+        .with_test_runner(test_runner)
+        .with_junit_adapter(junit_adapter)
+        .with_metrics_manager(metrics_manager)
+        .with_api_simulator(api_simulator)
+        .with_watcher(watcher)
+        .build()?;
+
+    let mut exec_ctx = ExecutionContext::new(context.config());
+    if let Some(mode) = cli.mode { exec_ctx = exec_ctx.with_mode(mode.into()); }
+    if cli.dry_run { exec_ctx = exec_ctx.with_dry_run(true); }
+    if cli.verbose { exec_ctx = exec_ctx.with_verbose(true); }
+    context = context.with_execution_context(exec_ctx.clone());
+
+    match cli.command {
+        Commands::Simulator { action } => match &action {
+            simulator_cmd::SimulatorAction::Start { services_dir: _, force: _ } => {
+                // Start and block to keep services alive
+                if let Some(sim) = context.api_simulator() {
+                    if exec_ctx.dry_run { println!("🏃 Dry run: Would start API simulator"); return Ok(()); }
+                    println!("🚀 Starting API Simulator (blocking)…");
+                    sim.start().await?;
+                    println!("🔄 Simulator running... Press Ctrl+C to stop");
+                    tokio::signal::ctrl_c().await.ok();
+                    println!("🛑 Stopping simulator…");
+                    sim.stop().await.ok();
+                    Ok(())
+                } else {
+                    simulator_cmd::simulator_command(&action, &context, &exec_ctx).await
+                }
+            }
+            _ => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
+        },
+    }
+}

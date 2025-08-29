@@ -1,0 +1,62 @@
+[package]
+name = "pulse"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.99"
+clap = { version = "4.4.8", features = ["derive"] }
+glob = "0.3.3"
+hyper = { version = "1.7.0", features = ["full"] }
+hyper-util = { version = "0.1.16", features = ["full"] }
+lazy_static = "1.5.0"
+log = "0.4.20"
+notify = "8.2.0"
+quick-xml = { version = "0.38.3", features = ["serialize"] }
+rayon = "1.11.0"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.143"
+serde_yaml = "0.9.34"
+thiserror = "1.0.69"
+tokio = { version = "1.47.1", features = ["full"] }
+handlebars = "6.2.0"
+url = "2.5.4"
+regex = "1.11.1"
+http-body-util = "0.1.2"
+bytes = "1.7.1"
+chrono = { version = "0.4.31", features = ["serde"] }
+
+# Metrics dependencies
+prometheus = "0.13.4"
+sentry = "0.34.0"
+uuid = { version = "1.11.0", features = ["v4"] }
+
+# UI dependencies (CLI only)
+indicatif = "0.17.7"
+console = "0.15.7"
+colored = "2.1.0"
+ratatui = "0.26.0"
+crossterm = "0.27.0"
+
+# Contract Testing dependencies
+reqwest = { version = "0.11", features = ["json", "stream"] }
+async-trait = "0.1.74"
+tracing = "0.1.40"
+
+[dev-dependencies]
+mockall = "0.13.0"
+tempfile = "3.8.0"
+tokio-test = "0.4.3"
+serial_test = "3.0.0"
+
+[[bin]]
+name = "pulse-sim"
+path = "src/bin/pulse_sim.rs"
+
+[[bin]]
+name = "pulse"
+path = "src/bin/pulse_main.rs"
+
+[[bin]]
+name = "pulse-tui"
+path = "src/bin/pulse_tui.rs"
