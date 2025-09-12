@@ -765,6 +765,16 @@ cargo test --test integration_tests
 # cargo test --coverage
 ```
 
+### Helpers de plantillas
+
+Las plantillas Handlebars del simulador permiten generar datos de ejemplo y
+consultar variables de entorno:
+
+```hbs
+{{faker "internet.email"}}   {{!-- correo electrónico realista --}}
+{{env.MY_VARIABLE}}           {{!-- valor desde el entorno --}}
+```
+
 ### Contribuir
 
 1. Haz fork del repositorio

@@ -25,6 +25,7 @@ regex = "1.11.1"
 http-body-util = "0.1.2"
 bytes = "1.7.1"
 chrono = { version = "0.4.31", features = ["serde"] }
+fake = "4.4.0"
 
 # Metrics dependencies
 prometheus = "0.13.4"
