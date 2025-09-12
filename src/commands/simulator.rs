@@ -25,6 +25,11 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         detailed: bool,
     },
+    /// Set the default scenario used by services
+    SetScenario {
+        /// Scenario name to activate
+        name: String,
+    },
     /// Validate service definition files
     Validate {
         /// Path to service definition file or directory
@@ -44,6 +49,7 @@ pub async fn simulator_command(action: &SimulatorAction, context: &Context, exec
         SimulatorAction::Start { services_dir, force } => handle_start(context, services_dir, *force, exec_ctx).await,
         SimulatorAction::Stop { force } => handle_stop(context, *force, exec_ctx).await,
         SimulatorAction::Status { detailed } => handle_status(context, *detailed, exec_ctx).await,
+        SimulatorAction::SetScenario { name } => handle_set_scenario(context, name, exec_ctx).await,
         SimulatorAction::Validate { path, recursive, verbose } => handle_validate(path, *recursive, *verbose, exec_ctx).await,
     }
 }
@@ -90,6 +96,20 @@ async fn handle_status(context: &Context, detailed: bool, exec_ctx: &ExecutionCo
         }
     } else { println!("   Status: ⚪ Not configured\n   💡 Enable simulator in pulse.json to see status"); }
     Ok(())
+}
+
+async fn handle_set_scenario(context: &Context, name: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {
+    if exec_ctx.dry_run { println!("🏃 Dry run: Would set scenario to {}", name); return Ok(()); }
+    if let Some(simulator) = context.api_simulator() {
+        simulator.set_scenario(name).await?;
+        println!("🎯 Scenario set to '{}'", name);
+        Ok(())
+    } else {
+        Err(PulseError::config_error(
+            "API simulator is not enabled or configured",
+            Some("Enable simulator in pulse.json"),
+        ))
+    }
 }
 
 async fn handle_validate(path: &str, recursive: bool, verbose: bool, exec_ctx: &ExecutionContext) -> PulseResult<()> {

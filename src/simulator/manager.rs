@@ -131,6 +131,19 @@ impl ApiSimulatorManager {
         Ok(())
     }
 
+    /// Set default scenario for all services
+    pub async fn set_scenario(&self, name: &str) -> PulseResult<()> {
+        if !*self.is_active.read().await {
+            return Err(PulseError::runtime_error(
+                "Cannot set scenario: simulator is not running",
+                Some("Start the simulator first"),
+            ));
+        }
+        let registry = self.service_registry.read().await;
+        registry.set_default_scenario(name).await;
+        Ok(())
+    }
+
     /// Stop the API simulator
     pub async fn stop(&self) -> PulseResult<()> {
         let mut is_active = self.is_active.write().await;

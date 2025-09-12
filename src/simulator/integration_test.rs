@@ -47,6 +47,7 @@ mod tests {
                     description: Some("Get all users".to_string()),
                     parameters: None,
                     request_body: None,
+                    scenarios: vec![],
                     responses: {
                         let mut responses = HashMap::new();
                         responses.insert(
@@ -68,6 +69,7 @@ mod tests {
                     description: Some("Get user by ID".to_string()),
                     parameters: None,
                     request_body: None,
+                    scenarios: vec![],
                     responses: {
                         let mut responses = HashMap::new();
                         responses.insert(200, ResponseDefinition {
@@ -86,6 +88,7 @@ mod tests {
                     description: Some("Get user order".to_string()),
                     parameters: None,
                     request_body: None,
+                    scenarios: vec![],
                     responses: {
                         let mut responses = HashMap::new();
                         responses.insert(200, ResponseDefinition {

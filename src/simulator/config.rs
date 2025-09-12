@@ -129,6 +129,8 @@ pub struct EndpointDefinition {
     pub parameters: Option<Vec<ParameterDefinition>>,
     #[serde(default)]
     pub request_body: Option<RequestBodyDefinition>,
+    #[serde(default)]
+    pub scenarios: Vec<ScenarioDefinition>,
     pub responses: HashMap<u16, ResponseDefinition>,
 }
 
@@ -171,6 +173,55 @@ pub struct ResponseDefinition {
     pub headers: Option<HashMap<String, String>>,
     #[serde(default)]
     pub side_effects: Option<Vec<SideEffect>>,
+}
+
+/// Scenario definition for conditional responses
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ScenarioDefinition {
+    /// Optional name of the scenario (used for default switching)
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Conditions that must be met for this scenario
+    #[serde(default)]
+    pub conditions: Option<ScenarioConditions>,
+    /// Response to return when scenario matches
+    pub response: ScenarioResponse,
+}
+
+/// Conditions that determine when a scenario applies
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct ScenarioConditions {
+    #[serde(default)]
+    pub query: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub body: Option<serde_json::Value>,
+}
+
+/// Response configuration for a scenario
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ScenarioResponse {
+    pub status: u16,
+    pub content_type: String,
+    pub body: String,
+    #[serde(default)]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub side_effects: Option<Vec<SideEffect>>,
+}
+
+impl ScenarioResponse {
+    /// Convert scenario response into standard response definition
+    pub fn as_response_definition(&self) -> ResponseDefinition {
+        ResponseDefinition {
+            condition: None,
+            content_type: self.content_type.clone(),
+            body: self.body.clone(),
+            headers: self.headers.clone(),
+            side_effects: self.side_effects.clone(),
+        }
+    }
 }
 
 /// Side effects that can be triggered by responses
@@ -967,12 +1018,12 @@ impl ConfigValidator for EndpointDefinition {
             });
         }
 
-        // Validate responses
-        if self.responses.is_empty() {
+        // Validate responses or scenarios
+        if self.responses.is_empty() && self.scenarios.is_empty() {
             errors.push(ValidationError {
                 field: "responses".to_string(),
-                message: "Endpoint must have at least one response definition".to_string(),
-                suggestion: Some("Add at least one response (e.g., 200 status)".to_string()),
+                message: "Endpoint must have at least one response or scenario".to_string(),
+                suggestion: Some("Add at least one response or scenario".to_string()),
             });
         }
 
@@ -988,6 +1039,25 @@ impl ConfigValidator for EndpointDefinition {
             if let Err(mut response_errors) = response.validate_with_status_code(*status_code) {
                 for error in &mut response_errors {
                     error.field = format!("responses.{}.{}", status_code, error.field);
+                }
+                errors.append(&mut response_errors);
+            }
+        }
+
+        for (idx, scenario) in self.scenarios.iter().enumerate() {
+            let status = scenario.response.status;
+            if status < 100 || status > 599 {
+                errors.push(ValidationError {
+                    field: format!("scenarios[{}].response.status", idx),
+                    message: "HTTP status code must be between 100 and 599".to_string(),
+                    suggestion: Some("Use valid HTTP status codes (100-599)".to_string()),
+                });
+            }
+
+            let resp_def = scenario.response.as_response_definition();
+            if let Err(mut response_errors) = resp_def.validate_with_status_code(status) {
+                for error in &mut response_errors {
+                    error.field = format!("scenarios[{}].response.{}", idx, error.field);
                 }
                 errors.append(&mut response_errors);
             }
@@ -1397,6 +1467,7 @@ mod tests {
                 description: None,
                 parameters: None,
                 request_body: None,
+                scenarios: vec![],
                 responses: {
                     let mut responses = HashMap::new();
                     responses.insert(
@@ -1472,6 +1543,7 @@ endpoints:
                 description: None,
                 parameters: None,
                 request_body: None,
+                scenarios: vec![],
                 responses: {
                     let mut responses = HashMap::new();
                     responses.insert(
@@ -1541,6 +1613,7 @@ endpoints:
                 description: None,
                 parameters: None,
                 request_body: None,
+                scenarios: vec![],
                 responses: {
                     let mut responses = HashMap::new();
                     responses.insert(
@@ -1616,6 +1689,7 @@ endpoints:
                 description: None,
                 parameters: None,
                 request_body: None,
+                scenarios: vec![],
                 responses: {
                     let mut responses = HashMap::new();
                     responses.insert(
@@ -1666,6 +1740,7 @@ endpoints:
                     schema: Some("NonExistentModel".to_string()), // Reference to non-existent model
                     content_type: Some("application/json".to_string()),
                 }),
+                scenarios: vec![],
                 responses: {
                     let mut responses = HashMap::new();
                     responses.insert(

@@ -15,7 +15,10 @@ pub mod watcher;
 mod integration_test;
 
 // Re-export commonly used types
-pub use config::{EndpointDefinition, ResponseDefinition, ServiceDefinition, SimulatorConfig};
+pub use config::{
+    EndpointDefinition, ResponseDefinition, ScenarioDefinition, ServiceDefinition,
+    SimulatorConfig,
+};
 pub use manager::ApiSimulatorManager;
 pub use registry::ServiceRegistry;
 pub use router::RequestRouter;

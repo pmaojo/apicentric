@@ -1,7 +1,7 @@
 //! Service Instance - Individual service implementation with state management
 
 use crate::errors::{PulseError, PulseResult};
-use crate::simulator::config::{EndpointDefinition, ServiceDefinition};
+use crate::simulator::config::{EndpointDefinition, ResponseDefinition, ScenarioDefinition, ServiceDefinition};
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 use bytes::Bytes;
 use http_body_util::Full;
@@ -300,6 +300,7 @@ pub struct ServiceInstance {
     port: u16,
     state: Arc<RwLock<ServiceState>>,
     template_engine: Arc<TemplateEngine>,
+    active_scenario: Arc<RwLock<String>>,
     server_handle: Option<JoinHandle<()>>,
     is_running: bool,
 }
@@ -318,6 +319,7 @@ impl ServiceInstance {
             port,
             state: Arc::new(RwLock::new(state)),
             template_engine: Arc::new(template_engine),
+            active_scenario: Arc::new(RwLock::new("default".to_string())),
             server_handle: None,
             is_running: false,
         })
@@ -349,6 +351,7 @@ impl ServiceInstance {
         let template_engine = Arc::clone(&self.template_engine);
         let cors = self.definition.server.cors.clone();
         let proxy = self.definition.server.proxy_base_url.clone();
+        let scenario = Arc::clone(&self.active_scenario);
 
         // Spawn the HTTP server task
         let server_handle = tokio::spawn(async move {
@@ -370,6 +373,7 @@ impl ServiceInstance {
                         let template_engine = Arc::clone(&template_engine);
                         let cors_cfg = cors.clone();
                         let proxy_cfg = proxy.clone();
+                        let scenario = Arc::clone(&scenario);
 
                         // Handle each connection
                         let connection_service_name = service_name.clone();
@@ -382,6 +386,7 @@ impl ServiceInstance {
                                 let template_engine = Arc::clone(&template_engine);
                                 let cors_cfg = cors_cfg.clone();
                                 let proxy_cfg = proxy_cfg.clone();
+                                let scenario = Arc::clone(&scenario);
 
                                 async move {
                                     Self::handle_request_static(
@@ -393,6 +398,7 @@ impl ServiceInstance {
                                         template_engine,
                                         cors_cfg,
                                         proxy_cfg,
+                                        scenario,
                                     )
                                     .await
                                 }
@@ -467,6 +473,7 @@ impl ServiceInstance {
             Arc::clone(&self.template_engine),
             self.definition.server.cors.clone(),
             self.definition.server.proxy_base_url.clone(),
+            Arc::clone(&self.active_scenario),
         )
         .await;
 
@@ -516,6 +523,15 @@ impl ServiceInstance {
     pub async fn update_state(&self, key: &str, value: Value) {
         let mut state = self.state.write().await;
         state.set_runtime_data(key.to_string(), value);
+    }
+
+    pub async fn set_default_scenario(&self, scenario: String) {
+        let mut sc = self.active_scenario.write().await;
+        *sc = scenario;
+    }
+
+    pub async fn default_scenario(&self) -> String {
+        self.active_scenario.read().await.clone()
     }
 
     /// Get value from service state
@@ -734,6 +750,7 @@ impl ServiceInstance {
         template_engine: Arc<TemplateEngine>,
         cors_cfg: Option<crate::simulator::config::CorsConfig>,
         proxy_base_url: Option<String>,
+        active_scenario: Arc<RwLock<String>>,
     ) -> Result<Response<Full<Bytes>>, Infallible> {
         let (parts, body) = req.into_parts();
         let method = parts.method.as_str();
@@ -909,66 +926,69 @@ impl ServiceInstance {
 
         match route_match {
             Some(route_match) => {
-                // Evaluate conditions to find the right response
-                let mut selected_response = None;
                 let mut selected_status = 200u16;
+                let mut selected_response: Option<ResponseDefinition> = None;
 
-                // Try to find a response with a matching condition
-                for (status_code, response_def) in &route_match.endpoint.responses {
-                    if let Some(ref condition) = response_def.condition {
-                        // Create template context for condition evaluation
-                        let state_guard = state.read().await;
-                        let request_context = RequestContext::from_request_data(
-                            method.to_string(),
-                            relative_path.clone(),
-                            query_params.clone(),
-                            headers.clone(),
-                            request_body.clone(),
-                        );
-
-                        let template_context = TemplateContext::new(
-                            &state_guard,
-                            &route_match.path_params,
-                            request_context,
-                        );
-
-                        // Evaluate condition
-                        match template_engine.render(condition, &template_context) {
-                            Ok(result) => {
-                                // Check if condition evaluates to truthy
-                                let is_truthy = !result.trim().is_empty()
-                                    && result.trim() != "null"
-                                    && result.trim() != "false";
-
-                                if is_truthy {
-                                    selected_response = Some(response_def);
-                                    selected_status = *status_code;
-                                    break;
+                if !route_match.endpoint.scenarios.is_empty() {
+                    let scenario_name = active_scenario.read().await.clone();
+                    if let Some(scen) = Self::match_scenario(
+                        &route_match.endpoint,
+                        &scenario_name,
+                        &query_params,
+                        &headers,
+                        &request_body,
+                    ) {
+                        selected_status = scen.response.status;
+                        selected_response = Some(scen.response.as_response_definition());
+                    }
+                } else {
+                    for (status_code, response_def) in &route_match.endpoint.responses {
+                        if let Some(ref condition) = response_def.condition {
+                            let state_guard = state.read().await;
+                            let request_context = RequestContext::from_request_data(
+                                method.to_string(),
+                                relative_path.clone(),
+                                query_params.clone(),
+                                headers.clone(),
+                                request_body.clone(),
+                            );
+                            let template_context = TemplateContext::new(
+                                &state_guard,
+                                &route_match.path_params,
+                                request_context,
+                            );
+                            match template_engine.render(condition, &template_context) {
+                                Ok(result) => {
+                                    let is_truthy = !result.trim().is_empty()
+                                        && result.trim() != "null"
+                                        && result.trim() != "false";
+                                    if is_truthy {
+                                        selected_response = Some(response_def.clone());
+                                        selected_status = *status_code;
+                                        break;
+                                    }
+                                }
+                                Err(e) => {
+                                    log::warn!("Condition evaluation error: {}", e);
                                 }
                             }
-                            Err(e) => {
-                                log::warn!("Condition evaluation error: {}", e);
-                            }
-                        }
-                    } else {
-                        // No condition, use this response as fallback
-                        if selected_response.is_none() {
-                            selected_response = Some(response_def);
+                        } else if selected_response.is_none() {
+                            selected_response = Some(response_def.clone());
                             selected_status = *status_code;
                         }
                     }
-                }
-
-                // If no conditional response matched, use default (200 if available)
-                if selected_response.is_none() {
-                    if let Some(default_response) = route_match.endpoint.responses.get(&200) {
-                        selected_response = Some(default_response);
-                        selected_status = 200;
-                    } else if let Some((status, response)) =
-                        route_match.endpoint.responses.iter().next()
-                    {
-                        selected_response = Some(response);
-                        selected_status = *status;
+                    if selected_response.is_none() {
+                        if let Some(default_response) =
+                            route_match.endpoint.responses.get(&200)
+                        {
+                            selected_response = Some(default_response.clone());
+                            selected_status = 200;
+                        } else if let Some((status, response)) =
+                            route_match.endpoint.responses.iter().next()
+                        {
+                            selected_response = Some(response.clone());
+                            selected_status = *status;
+                        }
                     }
                 }
 
@@ -1221,6 +1241,78 @@ impl ServiceInstance {
         }
     }
 
+    fn match_scenario<'a>(
+        endpoint: &'a EndpointDefinition,
+        active: &str,
+        query: &HashMap<String, String>,
+        headers: &HashMap<String, String>,
+        body: &Option<Value>,
+    ) -> Option<&'a ScenarioDefinition> {
+        let mut matches: Vec<&ScenarioDefinition> = endpoint
+            .scenarios
+            .iter()
+            .filter(|s| Self::scenario_conditions_match(s, query, headers, body))
+            .collect();
+
+        if let Some(m) = matches
+            .iter()
+            .find(|s| s.name.as_deref() == Some(active))
+            .copied()
+        {
+            return Some(m);
+        }
+        if let Some(first) = matches.first() {
+            return Some(*first);
+        }
+        if let Some(named) = endpoint
+            .scenarios
+            .iter()
+            .find(|s| s.name.as_deref() == Some(active))
+        {
+            return Some(named);
+        }
+        endpoint
+            .scenarios
+            .iter()
+            .find(|s| s.name.as_deref() == Some("default"))
+            .or_else(|| endpoint.scenarios.first())
+    }
+
+    fn scenario_conditions_match(
+        scenario: &ScenarioDefinition,
+        query: &HashMap<String, String>,
+        headers: &HashMap<String, String>,
+        body: &Option<Value>,
+    ) -> bool {
+        if let Some(conds) = &scenario.conditions {
+            if let Some(q) = &conds.query {
+                for (k, v) in q {
+                    if query.get(k) != Some(v) {
+                        return false;
+                    }
+                }
+            }
+            if let Some(h) = &conds.headers {
+                for (k, v) in h {
+                    if headers
+                        .get(&k.to_lowercase())
+                        .map(|hv| hv != v)
+                        .unwrap_or(true)
+                    {
+                        return false;
+                    }
+                }
+            }
+            if let Some(b) = &conds.body {
+                match body {
+                    Some(rb) if rb == b => {}
+                    _ => return false,
+                }
+            }
+        }
+        true
+    }
+
     /// Process a side effect from a response
     fn process_side_effect(
         side_effect: &crate::simulator::config::SideEffect,
@@ -1366,7 +1458,9 @@ impl ServiceInstance {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::simulator::config::{ResponseDefinition, ServerConfig};
+    use crate::simulator::config::{
+        ResponseDefinition, ScenarioConditions, ScenarioDefinition, ScenarioResponse, ServerConfig,
+    };
     use std::collections::HashMap;
     use bytes::Bytes;
     use http_body_util::{BodyExt, Full};
@@ -1409,6 +1503,7 @@ mod tests {
                     description: Some("Get all users".to_string()),
                     parameters: None,
                     request_body: None,
+                    scenarios: vec![],
                     responses: {
                         let mut responses = HashMap::new();
                         responses.insert(
@@ -1430,6 +1525,7 @@ mod tests {
                     description: Some("Get user by ID".to_string()),
                     parameters: None,
                     request_body: None,
+                    scenarios: vec![],
                     responses: {
                         let mut responses = HashMap::new();
                         responses.insert(
@@ -1816,6 +1912,7 @@ mod tests {
                     description: Some("Get user by ID".to_string()),
                     parameters: None,
                     request_body: None,
+                    scenarios: vec![],
                     responses: {
                         let mut responses = HashMap::new();
                         responses.insert(
@@ -1839,6 +1936,7 @@ mod tests {
                     description: Some("Get user order".to_string()),
                     parameters: None,
                     request_body: None,
+                    scenarios: vec![],
                     responses: {
                         let mut responses = HashMap::new();
                         responses.insert(200, ResponseDefinition {
@@ -1876,6 +1974,7 @@ mod tests {
             description: Some("Duplicate endpoint".to_string()),
             parameters: None,
             request_body: None,
+            scenarios: vec![],
             responses: HashMap::new(),
         });
 
@@ -2007,5 +2106,104 @@ mod tests {
         // Test non-existent keys
         assert_eq!(state.get_runtime_data("nonexistent"), None);
         assert_eq!(state.get_fixture("nonexistent"), None);
+    }
+
+    #[test]
+    fn test_match_scenario_query_condition() {
+        let endpoint = EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/items".to_string(),
+            description: None,
+            parameters: None,
+            request_body: None,
+            scenarios: vec![ScenarioDefinition {
+                name: Some("default".to_string()),
+                conditions: Some(ScenarioConditions {
+                    query: Some(HashMap::from([("id".to_string(), "42".to_string())])),
+                    headers: None,
+                    body: None,
+                }),
+                response: ScenarioResponse {
+                    status: 200,
+                    content_type: "text/plain".to_string(),
+                    body: "ok".to_string(),
+                    headers: None,
+                    side_effects: None,
+                },
+            }],
+            responses: HashMap::new(),
+        };
+
+        let query = HashMap::from([("id".to_string(), "42".to_string())]);
+        let headers = HashMap::new();
+        let body = None;
+        let scen = ServiceInstance::match_scenario(&endpoint, "default", &query, &headers, &body);
+        assert!(scen.is_some());
+    }
+
+    #[test]
+    fn test_match_scenario_header_condition() {
+        let endpoint = EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/items".to_string(),
+            description: None,
+            parameters: None,
+            request_body: None,
+            scenarios: vec![ScenarioDefinition {
+                name: Some("default".to_string()),
+                conditions: Some(ScenarioConditions {
+                    query: None,
+                    headers: Some(HashMap::from([("x-test".to_string(), "yes".to_string())])),
+                    body: None,
+                }),
+                response: ScenarioResponse {
+                    status: 200,
+                    content_type: "text/plain".to_string(),
+                    body: "ok".to_string(),
+                    headers: None,
+                    side_effects: None,
+                },
+            }],
+            responses: HashMap::new(),
+        };
+
+        let query = HashMap::new();
+        let headers = HashMap::from([("x-test".to_string(), "yes".to_string())]);
+        let body = None;
+        let scen = ServiceInstance::match_scenario(&endpoint, "default", &query, &headers, &body);
+        assert!(scen.is_some());
+    }
+
+    #[test]
+    fn test_match_scenario_body_condition() {
+        let endpoint = EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/items".to_string(),
+            description: None,
+            parameters: None,
+            request_body: None,
+            scenarios: vec![ScenarioDefinition {
+                name: Some("default".to_string()),
+                conditions: Some(ScenarioConditions {
+                    query: None,
+                    headers: None,
+                    body: Some(serde_json::json!({"name": "Alice"})),
+                }),
+                response: ScenarioResponse {
+                    status: 201,
+                    content_type: "application/json".to_string(),
+                    body: "{}".to_string(),
+                    headers: None,
+                    side_effects: None,
+                },
+            }],
+            responses: HashMap::new(),
+        };
+
+        let query = HashMap::new();
+        let headers = HashMap::new();
+        let body = Some(serde_json::json!({"name": "Alice"}));
+        let scen = ServiceInstance::match_scenario(&endpoint, "default", &query, &headers, &body);
+        assert!(scen.is_some());
     }
 }
