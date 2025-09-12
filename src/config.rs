@@ -552,11 +552,17 @@ mod tests {
         original_config.routes_dir = temp_dir.path().join("routes");
         original_config.specs_dir = temp_dir.path().join("specs");
         original_config.index_cache_path = temp_dir.path().join("cache").join("index.json");
+        if let Some(ref mut sim_cfg) = original_config.simulator {
+            sim_cfg.services_dir = temp_dir.path().join("services");
+        }
 
         // Create required directories
         fs::create_dir_all(&original_config.routes_dir).unwrap();
         fs::create_dir_all(&original_config.specs_dir).unwrap();
         fs::create_dir_all(original_config.index_cache_path.parent().unwrap()).unwrap();
+        if let Some(ref sim_cfg) = original_config.simulator {
+            fs::create_dir_all(&sim_cfg.services_dir).unwrap();
+        }
 
         // Save config
         save_config(&original_config, &config_path).unwrap();

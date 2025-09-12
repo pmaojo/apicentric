@@ -9,6 +9,7 @@ pub mod registry;
 pub mod router;
 pub mod service;
 pub mod template;
+pub mod watcher;
 
 #[cfg(test)]
 mod integration_test;

@@ -211,6 +211,7 @@ pub struct RateLimitingConfig {
 }
 
 /// Configuration loader for service definitions
+#[derive(Clone)]
 pub struct ConfigLoader {
     services_dir: PathBuf,
 }

@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod tests {
     use super::super::config::{EndpointDefinition, ResponseDefinition, ServiceDefinition};
+    use super::super::config::{PortRange, SimulatorConfig};
+    use super::super::manager::ApiSimulatorManager;
     use super::super::service::ServiceInstance;
     use bytes::Bytes;
     use http_body_util::Empty;
@@ -10,6 +12,9 @@ mod tests {
     use hyper_util::client::legacy::Client;
     use hyper_util::rt::TokioExecutor;
     use std::collections::HashMap;
+    use std::fs;
+    use std::path::Path;
+    use tempfile::TempDir;
     use tokio::time::{sleep, Duration};
 
     fn create_test_service_with_params() -> ServiceDefinition {
@@ -152,12 +157,9 @@ mod tests {
         );
 
         // Test endpoint with multiple parameters
-        let uri: Uri = format!(
-            "http://127.0.0.1:{}/api/v1/users/456/orders/789",
-            free_port
-        )
-        .parse()
-        .unwrap();
+        let uri: Uri = format!("http://127.0.0.1:{}/api/v1/users/456/orders/789", free_port)
+            .parse()
+            .unwrap();
         let request = Request::builder()
             .method(Method::GET)
             .uri(uri)
@@ -237,5 +239,54 @@ mod tests {
 
         // Verify parameter extraction worked
         assert_eq!(route_match.path_params.get("id"), Some(&"123".to_string()));
+    }
+
+    fn write_service_file(path: &Path, port: u16) {
+        let content = format!(
+            "name: test\nserver:\n  port: {port}\n  base_path: /api\nendpoints:\n  - method: GET\n    path: /ping\n    responses:\n      200:\n        content_type: application/json\n        body: '{{{{\"msg\":\"ok\"}}}}'\n",
+            port = port
+        );
+        fs::write(path, content).unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_automatic_reload_on_yaml_change() {
+        let temp_dir = TempDir::new().unwrap();
+        let services_dir = temp_dir.path().join("services");
+        fs::create_dir_all(&services_dir).unwrap();
+
+        let service_file = services_dir.join("test.yaml");
+        write_service_file(&service_file, 9100);
+
+        let config = SimulatorConfig {
+            enabled: true,
+            services_dir: services_dir.clone(),
+            port_range: PortRange {
+                start: 9000,
+                end: 9200,
+            },
+            global_behavior: None,
+        };
+
+        let manager = ApiSimulatorManager::new(config);
+        manager.start().await.unwrap();
+
+        // Allow watcher to start
+        sleep(Duration::from_millis(500)).await;
+
+        let status = manager.get_status().await;
+        assert_eq!(status.active_services.len(), 1);
+        let initial_port = status.active_services[0].port;
+
+        // Modify YAML to change port
+        write_service_file(&service_file, initial_port + 1);
+
+        // Give watcher time to detect change and reload
+        sleep(Duration::from_secs(1)).await;
+
+        let status = manager.get_status().await;
+        assert_eq!(status.active_services[0].port, initial_port + 1);
+
+        manager.stop().await.unwrap();
     }
 }
