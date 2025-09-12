@@ -255,6 +255,7 @@ mod tests {
             server: ServerConfig {
                 port,
                 base_path: format!("/api/{}", name),
+                proxy_base_url: None,
                 cors: None,
             },
             models: None,

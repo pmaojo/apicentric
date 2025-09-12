@@ -25,6 +25,7 @@ mod tests {
             server: super::super::config::ServerConfig {
                 port: Some(8100),
                 base_path: "/api/v1".to_string(),
+                proxy_base_url: None,
                 cors: None,
             },
             models: None,

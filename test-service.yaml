@@ -5,6 +5,7 @@ description: Test service for validation
 server:
   port: 8080
   base_path: /api/test
+  proxy_base_url: https://example.com
 
 endpoints:
   - method: GET

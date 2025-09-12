@@ -8,6 +8,7 @@ use http_body_util::Full;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
+use hyper::header::HOST;
 use hyper_util::rt::TokioIo;
 use regex::Regex;
 use serde_json::Value;
@@ -347,6 +348,7 @@ impl ServiceInstance {
         let state = Arc::clone(&self.state);
         let template_engine = Arc::clone(&self.template_engine);
         let cors = self.definition.server.cors.clone();
+        let proxy = self.definition.server.proxy_base_url.clone();
 
         // Spawn the HTTP server task
         let server_handle = tokio::spawn(async move {
@@ -367,6 +369,7 @@ impl ServiceInstance {
                         let state = Arc::clone(&state);
                         let template_engine = Arc::clone(&template_engine);
                         let cors_cfg = cors.clone();
+                        let proxy_cfg = proxy.clone();
 
                         // Handle each connection
                         let connection_service_name = service_name.clone();
@@ -378,6 +381,7 @@ impl ServiceInstance {
                                 let state = Arc::clone(&state);
                                 let template_engine = Arc::clone(&template_engine);
                                 let cors_cfg = cors_cfg.clone();
+                                let proxy_cfg = proxy_cfg.clone();
 
                                 async move {
                                     Self::handle_request_static(
@@ -388,6 +392,7 @@ impl ServiceInstance {
                                         state,
                                         template_engine,
                                         cors_cfg,
+                                        proxy_cfg,
                                     )
                                     .await
                                 }
@@ -461,6 +466,7 @@ impl ServiceInstance {
             Arc::clone(&self.state),
             Arc::clone(&self.template_engine),
             self.definition.server.cors.clone(),
+            self.definition.server.proxy_base_url.clone(),
         )
         .await;
 
@@ -727,6 +733,7 @@ impl ServiceInstance {
         state: Arc<RwLock<ServiceState>>,
         template_engine: Arc<TemplateEngine>,
         cors_cfg: Option<crate::simulator::config::CorsConfig>,
+        proxy_base_url: Option<String>,
     ) -> Result<Response<Full<Bytes>>, Infallible> {
         let (parts, body) = req.into_parts();
         let method = parts.method.as_str();
@@ -1084,14 +1091,75 @@ impl ServiceInstance {
             }
             None => {
                 // No matching endpoint found
-                Ok(Response::builder()
-                    .status(StatusCode::NOT_FOUND)
-                    .header("content-type", "application/json")
-                    .body(Full::new(Bytes::from(format!(
-                        r#"{{"error": "Endpoint not found", "method": "{}", "path": "{}", "service": "{}"}}"#,
-                        method, relative_path, service_name
-                    ))))
-                    .unwrap())
+                if let Some(base_url) = proxy_base_url {
+                    // Forward request to proxy target
+                    let query = parts
+                        .uri
+                        .query()
+                        .map(|q| format!("?{}", q))
+                        .unwrap_or_default();
+                    let target_url = format!(
+                        "{}{}{}",
+                        base_url.trim_end_matches('/'),
+                        relative_path,
+                        query
+                    );
+
+                    let client = reqwest::Client::new();
+                    let method = reqwest::Method::from_bytes(method.as_bytes())
+                        .unwrap_or(reqwest::Method::GET);
+                    let mut builder = client.request(method, target_url);
+
+                    // Copy headers except host
+                    for (name, value) in parts.headers.iter() {
+                        if name != HOST {
+                            if let Ok(v) = value.to_str() {
+                                builder = builder.header(name.as_str(), v);
+                            }
+                        }
+                    }
+
+                    if !body_bytes.is_empty() {
+                        builder = builder.body(body_bytes.clone());
+                    }
+
+                    match builder.send().await {
+                        Ok(resp) => {
+                            let status = StatusCode::from_u16(resp.status().as_u16())
+                                .unwrap_or(StatusCode::OK);
+                            let headers = resp.headers().clone();
+                            let bytes = resp.bytes().await.unwrap_or_else(|_| Bytes::new());
+                            let mut response = Response::builder().status(status);
+                            for (name, value) in headers.iter() {
+                                if let Ok(v) = value.to_str() {
+                                    response = response.header(name.as_str(), v);
+                                }
+                            }
+                            Ok(response.body(Full::new(bytes)).unwrap())
+                        }
+                        Err(e) => Ok(
+                            Response::builder()
+                                .status(StatusCode::BAD_GATEWAY)
+                                .header("content-type", "application/json")
+                                .body(Full::new(Bytes::from(format!(
+                                    r#"{{"error": "Proxy request failed", "details": "{}"}}"#,
+                                    e
+                                ))))
+                                .unwrap(),
+                        ),
+                    }
+                } else {
+                    Ok(
+                        Response::builder()
+                            .status(StatusCode::NOT_FOUND)
+                            .header("content-type", "application/json")
+                            .body(Full::new(Bytes::from(format!(
+                                r#"{{"error": "Endpoint not found", "method": "{}", "path": "{}", "service": "{}"}}"#,
+                                method, relative_path, service_name
+                            ))))
+                            .unwrap(),
+                    )
+                }
             }
         }
     }
@@ -1300,6 +1368,16 @@ mod tests {
     use super::*;
     use crate::simulator::config::{ResponseDefinition, ServerConfig};
     use std::collections::HashMap;
+    use bytes::Bytes;
+    use http_body_util::{BodyExt, Full};
+    use hyper::{Request as HyperRequest, Response as HyperResponse, StatusCode as HyperStatusCode};
+    use hyper::service::service_fn;
+    use hyper::server::conn::http1;
+    use hyper_util::rt::TokioIo;
+    use reqwest::StatusCode as ReqStatusCode;
+    use std::convert::Infallible;
+    use tokio::net::TcpListener;
+    use tokio::time::{sleep, Duration};
 
     fn create_test_service_definition() -> ServiceDefinition {
         ServiceDefinition {
@@ -1309,6 +1387,7 @@ mod tests {
             server: ServerConfig {
                 port: Some(8001),
                 base_path: "/api/v1".to_string(),
+                proxy_base_url: None,
                 cors: None,
             },
             models: None,
@@ -1715,6 +1794,7 @@ mod tests {
             server: ServerConfig {
                 port: Some(8001),
                 base_path: "/api/v1".to_string(),
+                proxy_base_url: None,
                 cors: None,
             },
             models: None,
@@ -1802,6 +1882,108 @@ mod tests {
         let service = ServiceInstance::new(definition, 8007).unwrap(); // Use different port
         let result = service.validate_consistency();
         assert!(result.is_err());
+    }
+
+    fn spawn_upstream_server(port: u16) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            let listener = TcpListener::bind(("127.0.0.1", port)).await.unwrap();
+            if let Ok((stream, _)) = listener.accept().await {
+                let io = TokioIo::new(stream);
+                let service = service_fn(|req: HyperRequest<hyper::body::Incoming>| async move {
+                    let (parts, body) = req.into_parts();
+                    let header_val = parts
+                        .headers
+                        .get("x-test-header")
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or("");
+                    let bytes = BodyExt::collect(body).await.unwrap().to_bytes();
+                    let body_str = String::from_utf8_lossy(&bytes);
+                    let resp_body = format!("header={};body={}", header_val, body_str);
+                    Ok::<_, Infallible>(
+                        HyperResponse::builder()
+                            .status(HyperStatusCode::OK)
+                            .header("x-test-header", header_val)
+                            .body(Full::new(Bytes::from(resp_body)))
+                            .unwrap(),
+                    )
+                });
+                if let Err(e) = http1::Builder::new().serve_connection(io, service).await {
+                    eprintln!("Upstream server error: {}", e);
+                }
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn test_proxy_forwards_unmatched_requests() {
+        let upstream_port = {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            drop(listener);
+            port
+        };
+        let upstream_handle = spawn_upstream_server(upstream_port);
+
+        let mut definition = create_test_service_definition();
+        definition.server.proxy_base_url = Some(format!("http://127.0.0.1:{}", upstream_port));
+
+        let service_port = {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            drop(listener);
+            port
+        };
+
+        let mut service = ServiceInstance::new(definition, service_port).unwrap();
+        service.start().await.unwrap();
+        sleep(Duration::from_millis(50)).await;
+
+        let client = reqwest::Client::new();
+        let url = format!("http://127.0.0.1:{}/api/v1/unknown", service_port);
+        let resp = client
+            .post(&url)
+            .header("x-test-header", "abc")
+            .body("hello")
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), ReqStatusCode::OK);
+        assert_eq!(
+            resp.headers()
+                .get("x-test-header")
+                .and_then(|v| v.to_str().ok()),
+            Some("abc")
+        );
+        let body = resp.text().await.unwrap();
+        assert_eq!(body, "header=abc;body=hello");
+
+        service.stop().await.unwrap();
+        upstream_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_proxy_disabled_returns_not_found() {
+        let mut definition = create_test_service_definition();
+        definition.server.proxy_base_url = None; // ensure proxy disabled
+
+        let service_port = {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            drop(listener);
+            port
+        };
+
+        let mut service = ServiceInstance::new(definition, service_port).unwrap();
+        service.start().await.unwrap();
+        sleep(Duration::from_millis(50)).await;
+
+        let client = reqwest::Client::new();
+        let url = format!("http://127.0.0.1:{}/api/v1/unknown", service_port);
+        let resp = client.get(&url).send().await.unwrap();
+        assert_eq!(resp.status(), ReqStatusCode::NOT_FOUND);
+
+        service.stop().await.unwrap();
     }
 
     #[test]

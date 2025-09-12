@@ -462,6 +462,15 @@ pulse simulator status
 pulse simulator stop
 ```
 
+3) Si una ruta no existe en tus mocks y quieres reenviarla a un backend real, añade `proxy_base_url` en el YAML del servicio:
+
+```yaml
+server:
+  port: 8080
+  base_path: /api/test
+  proxy_base_url: https://api.example.com
+```
+
 Rutas de ejemplo (según `swapi-service.yaml` y el base_path configurado):
 
 - GET http://127.0.0.1:9011/api/v1/public/people/1/
