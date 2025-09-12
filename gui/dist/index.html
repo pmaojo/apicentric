@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Pulse GUI</title>
+</head>
+<body>
+  <h1>Pulse Simulator GUI</h1>
+  <button id="start">Start Simulator</button>
+  <button id="stop">Stop Simulator</button>
+  <div>
+    <input id="path" placeholder="service.yaml" />
+    <button id="load">Load</button>
+    <button id="save">Save</button>
+  </div>
+  <textarea id="yaml" style="width:100%;height:200px"></textarea>
+  <pre id="services"></pre>
+  <script>
+    const { invoke } = window.__TAURI__.tauri;
+    document.getElementById('start').addEventListener('click', () => invoke('start_simulator').then(refresh));
+    document.getElementById('stop').addEventListener('click', () => invoke('stop_simulator').then(refresh));
+    document.getElementById('load').addEventListener('click', async () => {
+      const path = document.getElementById('path').value;
+      const yaml = await invoke('load_service', { path });
+      document.getElementById('yaml').value = yaml;
+    });
+    document.getElementById('save').addEventListener('click', async () => {
+      const path = document.getElementById('path').value;
+      const yaml = document.getElementById('yaml').value;
+      await invoke('save_service', { path, yaml });
+      refresh();
+    });
+    async function refresh() {
+      const services = await invoke('list_services');
+      document.getElementById('services').textContent = JSON.stringify(services, null, 2);
+    }
+    refresh();
+  </script>
+</body>
+</html>
