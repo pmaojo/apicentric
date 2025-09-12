@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": {
+    "beforeBuildCommand": "",
+    "beforeDevCommand": "",
+    "distDir": "dist"
+  },
+  "package": {
+    "productName": "Pulse GUI",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "windows": [
+      { "title": "Pulse GUI", "width": 800, "height": 600 }
+    ]
+  }
+}

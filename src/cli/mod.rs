@@ -319,6 +319,9 @@ pub enum Commands {
         #[command(subcommand)]
         action: ContractAction,
     },
+
+    /// Launch the graphical editor for mock services
+    Gui,
 }
 
 /// Parse command line arguments into a [`Cli`] instance.

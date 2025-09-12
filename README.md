@@ -723,6 +723,18 @@ pulse watch --debounce-ms 500
 pulse watch --debounce-ms 2000
 ```
 
+## GUI de Servicios Mock
+
+La aplicación de escritorio construida con Tauri permite gestionar los servicios
+mock definidos en YAML de forma visual. Para arrancarla ejecuta:
+
+```bash
+pulse gui
+```
+
+Desde la interfaz podrás iniciar y detener el simulador, editar archivos de
+servicio y guardar los cambios directamente en YAML.
+
 ## Desarrollo
 
 ### Compilación
