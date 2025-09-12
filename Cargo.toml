@@ -50,7 +50,3 @@ serial_test = "3.0.0"
 [[bin]]
 name = "pulse-sim"
 path = "src/bin/pulse_sim.rs"
-
-[[bin]]
-name = "pulse"
-path = "src/bin/pulse_main.rs"
