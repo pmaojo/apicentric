@@ -5,10 +5,11 @@ use crate::simulator::{
     config::{ConfigLoader, SimulatorConfig},
     registry::ServiceRegistry,
     router::RequestRouter,
+    watcher::ConfigWatcher,
     ConfigChange, SimulatorStatus,
 };
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, RwLock};
 
 /// Central coordinator for the API simulator functionality
 pub struct ApiSimulatorManager {
@@ -17,6 +18,20 @@ pub struct ApiSimulatorManager {
     request_router: Arc<RwLock<RequestRouter>>,
     config_loader: ConfigLoader,
     is_active: Arc<RwLock<bool>>,
+    config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
+}
+
+impl Clone for ApiSimulatorManager {
+    fn clone(&self) -> Self {
+        Self {
+            config: self.config.clone(),
+            service_registry: self.service_registry.clone(),
+            request_router: self.request_router.clone(),
+            config_loader: self.config_loader.clone(),
+            is_active: self.is_active.clone(),
+            config_watcher: self.config_watcher.clone(),
+        }
+    }
 }
 
 impl ApiSimulatorManager {
@@ -27,6 +42,7 @@ impl ApiSimulatorManager {
             Arc::new(RwLock::new(ServiceRegistry::new(config.port_range.clone())));
         let request_router = Arc::new(RwLock::new(RequestRouter::new()));
         let is_active = Arc::new(RwLock::new(false));
+        let config_watcher = Arc::new(RwLock::new(None));
 
         Self {
             config,
@@ -34,6 +50,7 @@ impl ApiSimulatorManager {
             request_router,
             config_loader,
             is_active,
+            config_watcher,
         }
     }
 
@@ -88,6 +105,28 @@ impl ApiSimulatorManager {
             "API Simulator started with {} services",
             registry.services_count()
         );
+        // Spawn configuration watcher for automatic reloads
+        let (tx, mut rx) = mpsc::channel(16);
+        let watcher = ConfigWatcher::new(self.config.services_dir.clone(), tx).map_err(|e| {
+            PulseError::runtime_error(
+                format!("Failed to watch services directory: {}", e),
+                None::<String>,
+            )
+        })?;
+
+        {
+            let mut guard = self.config_watcher.write().await;
+            *guard = Some(watcher);
+        }
+
+        let manager_clone = self.clone();
+        tokio::spawn(async move {
+            while let Some(change) = rx.recv().await {
+                if let Err(e) = manager_clone.handle_config_change(change).await {
+                    eprintln!("Error handling config change: {}", e);
+                }
+            }
+        });
 
         Ok(())
     }
@@ -131,8 +170,8 @@ impl ApiSimulatorManager {
         let mut registry = self.service_registry.write().await;
         let mut router = self.request_router.write().await;
 
-        // Stop all current services
-        registry.stop_all_services().await?;
+        // Stop and clear all current services and routes
+        registry.clear_all_services().await?;
         router.clear_all_routes();
 
         // Re-register and start services with new configurations
