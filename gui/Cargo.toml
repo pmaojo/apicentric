@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 tauri = { version = "1.6", features = ["dialog", "shell-open"] }
-serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 pulse = { path = ".." }
 
