@@ -13,7 +13,7 @@ mod helpers;
 use self::helpers::{
     default_helper, filter_helper, find_by_field_helper, find_by_multi_field_helper, find_helper,
     json_helper, length_helper, lower_helper, merge_helper, not_helper, now_helper, random_helper,
-    random_string_helper, select_helper, upper_helper,
+    random_string_helper, select_helper, upper_helper, faker_helper,
     and_helper, or_helper, eq_helper, ne_helper, gt_helper, gte_helper, lt_helper, lte_helper,
     contains_helper, starts_with_helper, ends_with_helper, regex_match_helper, exists_helper,
 };
@@ -29,6 +29,7 @@ pub struct TemplateContext {
     pub fixtures: HashMap<String, Value>,
     pub params: HashMap<String, String>,
     pub runtime: HashMap<String, Value>,
+    pub env: HashMap<String, String>,
     pub request: RequestContext,
 }
 
@@ -193,6 +194,7 @@ impl TemplateEngine {
         // Helper for generating random values
         handlebars.register_helper("random", Box::new(random_helper));
         handlebars.register_helper("random_string", Box::new(random_string_helper));
+        handlebars.register_helper("faker", Box::new(faker_helper));
 
         // Helper for array operations
         handlebars.register_helper("length", Box::new(length_helper));
@@ -287,6 +289,18 @@ impl TemplateEngine {
             ),
         );
 
+        // Add environment variables
+        json_context.insert(
+            "env".to_string(),
+            Value::Object(
+                context
+                    .env
+                    .iter()
+                    .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+                    .collect(),
+            ),
+        );
+
         // Add request context
         let mut request_obj = Map::new();
         request_obj.insert(
@@ -370,6 +384,7 @@ impl TemplateContext {
             fixtures: state.all_fixtures().clone(),
             params: path_params.all().clone(),
             runtime: state.all_runtime_data().clone(),
+            env: std::env::vars().collect(),
             request: request_context,
         }
     }
@@ -380,6 +395,7 @@ impl TemplateContext {
             fixtures: HashMap::new(),
             params: HashMap::new(),
             runtime: HashMap::new(),
+            env: std::env::vars().collect(),
             request: RequestContext {
                 method: "GET".to_string(),
                 path: "/".to_string(),
@@ -496,5 +512,27 @@ mod tests {
         assert!(result.is_ok());
         let parsed: Value = serde_json::from_str(&result.unwrap()).unwrap();
         assert_eq!(parsed["name"], "Alice");
+    }
+
+    #[test]
+    fn test_faker_helper() {
+        let engine = TemplateEngine::new().unwrap();
+        let context = TemplateContext::minimal();
+        let result = engine
+            .render("{{faker \"internet.email\"}}", &context)
+            .unwrap();
+        assert!(result.contains("@"));
+    }
+
+    #[test]
+    fn test_env_lookup() {
+        std::env::set_var("PULSE_TEST_ENV", "123");
+        let engine = TemplateEngine::new().unwrap();
+        let context = TemplateContext::minimal();
+        let result = engine
+            .render("{{env.PULSE_TEST_ENV}}", &context)
+            .unwrap();
+        assert_eq!(result, "123");
+        std::env::remove_var("PULSE_TEST_ENV");
     }
 }
