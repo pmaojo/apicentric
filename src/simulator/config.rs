@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use url::Url;
 
 /// Main simulator configuration
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -100,6 +101,9 @@ pub struct ServiceDefinition {
 pub struct ServerConfig {
     pub port: Option<u16>,
     pub base_path: String,
+    /// Optional base URL to proxy requests when no local endpoint matches
+    #[serde(default)]
+    pub proxy_base_url: Option<String>,
     #[serde(default)]
     pub cors: Option<CorsConfig>,
 }
@@ -909,6 +913,19 @@ impl ConfigValidator for ServerConfig {
             }
         }
 
+        // Validate proxy_base_url if specified
+        if let Some(url) = &self.proxy_base_url {
+            if Url::parse(url).is_err() {
+                errors.push(ValidationError {
+                    field: "server.proxy_base_url".to_string(),
+                    message: "Invalid URL for proxy_base_url".to_string(),
+                    suggestion: Some(
+                        "Provide a valid URL such as 'http://example.com'".to_string(),
+                    ),
+                });
+            }
+        }
+
         if errors.is_empty() {
             Ok(())
         } else {
@@ -1369,6 +1386,7 @@ mod tests {
             server: ServerConfig {
                 port: Some(8001),
                 base_path: "/api/v1".to_string(),
+                proxy_base_url: None,
                 cors: None,
             },
             models: None,
@@ -1443,6 +1461,7 @@ endpoints:
             server: ServerConfig {
                 port: None,
                 base_path: "/api".to_string(),
+                proxy_base_url: None,
                 cors: None,
             },
             models: None,
@@ -1511,6 +1530,7 @@ endpoints:
             server: ServerConfig {
                 port: None,
                 base_path: "/api".to_string(),
+                proxy_base_url: None,
                 cors: None,
             },
             models: Some(models),
@@ -1585,6 +1605,7 @@ endpoints:
             server: ServerConfig {
                 port: None,
                 base_path: "/api".to_string(),
+                proxy_base_url: None,
                 cors: None,
             },
             models: Some(models),
@@ -1630,6 +1651,7 @@ endpoints:
             server: ServerConfig {
                 port: None,
                 base_path: "/api".to_string(),
+                proxy_base_url: None,
                 cors: None,
             },
             models: None, // No models defined
@@ -1865,6 +1887,7 @@ name: 'invalid-service'
                 server: ServerConfig {
                     port: None,
                     base_path: "/api/service1".to_string(),
+                    proxy_base_url: None,
                     cors: None,
                 },
                 models: None,
@@ -1879,6 +1902,7 @@ name: 'invalid-service'
                 server: ServerConfig {
                     port: None,
                     base_path: "/api/service2".to_string(),
+                    proxy_base_url: None,
                     cors: None,
                 },
                 models: None,
