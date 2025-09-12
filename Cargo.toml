@@ -43,10 +43,7 @@ async-trait = "0.1.74"
 tracing = "0.1.40"
 
 [dev-dependencies]
-mockall = "0.13.0"
 tempfile = "3.8.0"
-tokio-test = "0.4.3"
-serial_test = "3.0.0"
 
 [[bin]]
 name = "pulse-sim"
