@@ -2,13 +2,14 @@
 
 use crate::errors::{PulseError, PulseResult};
 use crate::simulator::config::{EndpointDefinition, ServiceDefinition};
+use crate::simulator::log::{RequestLog, RequestLogEntry};
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 use bytes::Bytes;
 use http_body_util::Full;
+use hyper::header::HOST;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
-use hyper::header::HOST;
 use hyper_util::rt::TokioIo;
 use regex::Regex;
 use serde_json::Value;
@@ -63,6 +64,7 @@ pub struct ServiceState {
     fixtures: HashMap<String, Value>,
     runtime_data: HashMap<String, Value>,
     initial_fixtures: HashMap<String, Value>, // Backup of original fixtures for reset
+    request_log: RequestLog,
 }
 
 impl ServiceState {
@@ -72,6 +74,7 @@ impl ServiceState {
             initial_fixtures: fixtures.clone(),
             fixtures,
             runtime_data: HashMap::new(),
+            request_log: RequestLog::new(100),
         }
     }
 
@@ -291,6 +294,16 @@ impl ServiceState {
     /// Check if runtime data exists
     pub fn has_runtime_data(&self, key: &str) -> bool {
         self.runtime_data.contains_key(key)
+    }
+
+    /// Append a request log entry
+    pub fn add_log_entry(&mut self, entry: RequestLogEntry) {
+        self.request_log.add(entry);
+    }
+
+    /// Retrieve recent request log entries
+    pub fn get_logs(&self, limit: usize) -> Vec<RequestLogEntry> {
+        self.request_log.recent(limit)
     }
 }
 
@@ -527,6 +540,22 @@ impl ServiceInstance {
             .or_else(|| state.get_fixture(key).cloned())
     }
 
+    /// Get recent request logs
+    pub async fn get_logs(&self, limit: usize) -> Vec<RequestLogEntry> {
+        let state = self.state.read().await;
+        state.get_logs(limit)
+    }
+
+    /// Internal helper to record a request log entry
+    async fn record_log(state: &Arc<RwLock<ServiceState>>, method: &str, path: &str, status: u16) {
+        let mut guard = state.write().await;
+        guard.add_log_entry(RequestLogEntry::new(
+            method.to_string(),
+            path.to_string(),
+            status,
+        ));
+    }
+
     /// Get all fixtures
     pub async fn get_fixtures(&self) -> HashMap<String, Value> {
         let state = self.state.read().await;
@@ -745,7 +774,9 @@ impl ServiceInstance {
             service_name,
             method,
             path,
-            parts.headers.get("origin")
+            parts
+                .headers
+                .get("origin")
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("none")
         );
@@ -754,9 +785,7 @@ impl ServiceInstance {
         if let Some(ref cors) = cors_cfg {
             println!(
                 "🔧 [{}] CORS enabled - Origins: {:?}, Methods: {:?}",
-                service_name,
-                cors.origins,
-                cors.methods
+                service_name, cors.origins, cors.methods
             );
         } else {
             println!("⚠️ [{}] CORS not configured", service_name);
@@ -789,28 +818,35 @@ impl ServiceInstance {
         // Handle CORS preflight
         if method == "OPTIONS" {
             println!("✈️ [{}] Handling CORS preflight for {}", service_name, path);
-            
+
             let origin = headers.get("origin").cloned().unwrap_or_default();
             println!("🔍 [{}] Request origin: '{}'", service_name, origin);
-            
+
             let allow_origin = match &cors_cfg {
                 Some(cfg) => {
                     println!("✅ [{}] CORS config found: {:?}", service_name, cfg);
-                    if cfg.origins.iter().any(|o| o == "*") { 
+                    if cfg.origins.iter().any(|o| o == "*") {
                         println!("🌍 [{}] Wildcard origin allowed", service_name);
-                        "*".to_string() 
-                    }
-                    else if cfg.origins.iter().any(|o| o.eq_ignore_ascii_case(&origin)) { 
-                        println!("✅ [{}] Origin '{}' explicitly allowed", service_name, origin);
-                        origin.clone() 
-                    }
-                    else { 
-                        println!("⚠️ [{}] Origin '{}' not in allowed list, defaulting to wildcard", service_name, origin);
-                        "*".to_string() 
+                        "*".to_string()
+                    } else if cfg.origins.iter().any(|o| o.eq_ignore_ascii_case(&origin)) {
+                        println!(
+                            "✅ [{}] Origin '{}' explicitly allowed",
+                            service_name, origin
+                        );
+                        origin.clone()
+                    } else {
+                        println!(
+                            "⚠️ [{}] Origin '{}' not in allowed list, defaulting to wildcard",
+                            service_name, origin
+                        );
+                        "*".to_string()
                     }
                 }
                 None => {
-                    println!("⚠️ [{}] No CORS config, defaulting to wildcard", service_name);
+                    println!(
+                        "⚠️ [{}] No CORS config, defaulting to wildcard",
+                        service_name
+                    );
                     "*".to_string()
                 }
             };
@@ -843,8 +879,12 @@ impl ServiceInstance {
                 .header("access-control-max-age", "86400")
                 .body(Full::new(Bytes::from_static(b"")))
                 .unwrap();
-            
-            println!("✅ [{}] CORS preflight response sent with status 204", service_name);
+
+            println!(
+                "✅ [{}] CORS preflight response sent with status 204",
+                service_name
+            );
+            Self::record_log(&state, method, path, StatusCode::NO_CONTENT.as_u16()).await;
             return Ok(resp);
         }
 
@@ -852,20 +892,22 @@ impl ServiceInstance {
         let body_bytes = match http_body_util::BodyExt::collect(body).await {
             Ok(collected) => collected.to_bytes(),
             Err(_) => {
-                return Ok(Response::builder()
+                let resp = Response::builder()
                     .status(StatusCode::BAD_REQUEST)
                     .header("content-type", "application/json")
                     .body(Full::new(Bytes::from(
                         r#"{"error": "Failed to read request body"}"#,
                     )))
-                    .unwrap())
+                    .unwrap();
+                Self::record_log(&state, method, path, StatusCode::BAD_REQUEST.as_u16()).await;
+                return Ok(resp);
             }
         };
 
         let request_body = if !body_bytes.is_empty() {
             let body_str = String::from_utf8_lossy(&body_bytes);
             println!("📦 [{}] Request body received: {}", service_name, body_str);
-            
+
             // Determine content type
             let content_type = parts
                 .headers
@@ -902,6 +944,26 @@ impl ServiceInstance {
         } else {
             relative_path.to_string()
         };
+
+        // Internal logs endpoint
+        if method == "GET" && relative_path == "/__pulse/logs" {
+            let limit = query_params
+                .get("limit")
+                .and_then(|v| v.parse::<usize>().ok())
+                .unwrap_or(100);
+            let logs = {
+                let state = state.read().await;
+                state.get_logs(limit)
+            };
+            let body = serde_json::to_string(&logs).unwrap();
+            let resp = Response::builder()
+                .status(StatusCode::OK)
+                .header("content-type", "application/json")
+                .body(Full::new(Bytes::from(body)))
+                .unwrap();
+            Self::record_log(&state, method, path, 200).await;
+            return Ok(resp);
+        }
 
         // Find matching endpoint with parameter extraction
         let route_match =
@@ -1051,42 +1113,59 @@ impl ServiceInstance {
                             .methods
                             .clone()
                             .map(|v| v.join(", "))
-                            .unwrap_or_else(|| "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string());
+                            .unwrap_or_else(|| {
+                                "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string()
+                            });
                         let allow_headers = cfg
                             .headers
                             .clone()
                             .map(|v| v.join(", "))
                             .unwrap_or_else(|| "Content-Type, Authorization".to_string());
-                        
+
                         println!("🔧 [{}] Adding CORS headers to response:", service_name);
                         println!("   🌍 Access-Control-Allow-Origin: {}", allow_origin);
                         println!("   🛠️ Access-Control-Allow-Methods: {}", allow_methods);
                         println!("   📋 Access-Control-Allow-Headers: {}", allow_headers);
-                        
+
                         response = response
                             .header("access-control-allow-origin", &allow_origin)
                             .header("access-control-allow-methods", &allow_methods)
                             .header("access-control-allow-headers", &allow_headers);
                     } else {
-                        println!("⚠️ [{}] No CORS config, adding wildcard origin", service_name);
+                        println!(
+                            "⚠️ [{}] No CORS config, adding wildcard origin",
+                            service_name
+                        );
                         response = response.header("access-control-allow-origin", "*");
                     }
 
                     let final_response = response
                         .body(Full::new(Bytes::from(processed_body)))
                         .unwrap();
-                    
-                    println!("📤 [{}] Sending response with status {}", service_name, selected_status);
+
+                    println!(
+                        "📤 [{}] Sending response with status {}",
+                        service_name, selected_status
+                    );
+                    Self::record_log(&state, method, path, selected_status).await;
                     Ok(final_response)
                 } else {
                     // No response definition found
-                    Ok(Response::builder()
+                    let resp = Response::builder()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
                         .header("content-type", "application/json")
                         .body(Full::new(Bytes::from(
                             r#"{"error": "No response definition found"}"#,
                         )))
-                        .unwrap())
+                        .unwrap();
+                    Self::record_log(
+                        &state,
+                        method,
+                        path,
+                        StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                    )
+                    .await;
+                    Ok(resp)
                 }
             }
             None => {
@@ -1106,9 +1185,9 @@ impl ServiceInstance {
                     );
 
                     let client = reqwest::Client::new();
-                    let method = reqwest::Method::from_bytes(method.as_bytes())
+                    let req_method = reqwest::Method::from_bytes(method.as_bytes())
                         .unwrap_or(reqwest::Method::GET);
-                    let mut builder = client.request(method, target_url);
+                    let mut builder = client.request(req_method, target_url);
 
                     // Copy headers except host
                     for (name, value) in parts.headers.iter() {
@@ -1135,30 +1214,40 @@ impl ServiceInstance {
                                     response = response.header(name.as_str(), v);
                                 }
                             }
-                            Ok(response.body(Full::new(bytes)).unwrap())
+                            let final_resp = response.body(Full::new(bytes)).unwrap();
+                            Self::record_log(&state, method, path, status.as_u16()).await;
+                            Ok(final_resp)
                         }
-                        Err(e) => Ok(
-                            Response::builder()
+                        Err(e) => {
+                            let resp = Response::builder()
                                 .status(StatusCode::BAD_GATEWAY)
                                 .header("content-type", "application/json")
                                 .body(Full::new(Bytes::from(format!(
                                     r#"{{"error": "Proxy request failed", "details": "{}"}}"#,
                                     e
                                 ))))
-                                .unwrap(),
-                        ),
+                                .unwrap();
+                            Self::record_log(
+                                &state,
+                                method,
+                                path,
+                                StatusCode::BAD_GATEWAY.as_u16(),
+                            )
+                            .await;
+                            Ok(resp)
+                        }
                     }
                 } else {
-                    Ok(
-                        Response::builder()
-                            .status(StatusCode::NOT_FOUND)
-                            .header("content-type", "application/json")
-                            .body(Full::new(Bytes::from(format!(
-                                r#"{{"error": "Endpoint not found", "method": "{}", "path": "{}", "service": "{}"}}"#,
-                                method, relative_path, service_name
-                            ))))
-                            .unwrap(),
-                    )
+                    let resp = Response::builder()
+                        .status(StatusCode::NOT_FOUND)
+                        .header("content-type", "application/json")
+                        .body(Full::new(Bytes::from(format!(
+                            r#"{{"error": "Endpoint not found", "method": "{}", "path": "{}", "service": "{}"}}"#,
+                            method, relative_path, service_name
+                        ))))
+                        .unwrap();
+                    Self::record_log(&state, method, path, StatusCode::NOT_FOUND.as_u16()).await;
+                    Ok(resp)
                 }
             }
         }
@@ -1367,14 +1456,16 @@ impl ServiceInstance {
 mod tests {
     use super::*;
     use crate::simulator::config::{ResponseDefinition, ServerConfig};
-    use std::collections::HashMap;
     use bytes::Bytes;
     use http_body_util::{BodyExt, Full};
-    use hyper::{Request as HyperRequest, Response as HyperResponse, StatusCode as HyperStatusCode};
-    use hyper::service::service_fn;
     use hyper::server::conn::http1;
+    use hyper::service::service_fn;
+    use hyper::{
+        Request as HyperRequest, Response as HyperResponse, StatusCode as HyperStatusCode,
+    };
     use hyper_util::rt::TokioIo;
     use reqwest::StatusCode as ReqStatusCode;
+    use std::collections::HashMap;
     use std::convert::Infallible;
     use tokio::net::TcpListener;
     use tokio::time::{sleep, Duration};
