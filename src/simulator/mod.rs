@@ -4,6 +4,7 @@
 //! by serving locally-defined APIs through YAML configuration files.
 
 pub mod config;
+pub mod log;
 pub mod manager;
 pub mod registry;
 pub mod router;

@@ -4,6 +4,7 @@
 mod tests {
     use super::super::config::{EndpointDefinition, ResponseDefinition, ServiceDefinition};
     use super::super::config::{PortRange, SimulatorConfig};
+    use super::super::log::RequestLogEntry;
     use super::super::manager::ApiSimulatorManager;
     use super::super::service::ServiceInstance;
     use bytes::Bytes;
@@ -240,6 +241,43 @@ mod tests {
 
         // Verify parameter extraction worked
         assert_eq!(route_match.path_params.get("id"), Some(&"123".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_request_logging_and_retrieval() {
+        let definition = create_test_service_with_params();
+        let base_path = definition.server.base_path.clone();
+
+        // Use a free port
+        let free_port = {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            drop(listener);
+            port
+        };
+
+        let mut service = ServiceInstance::new(definition, free_port).unwrap();
+        service.start().await.unwrap();
+        sleep(Duration::from_millis(100)).await;
+
+        let base_url = format!("http://127.0.0.1:{}{}", free_port, base_path);
+
+        reqwest::get(format!("{}/users", base_url)).await.unwrap();
+        reqwest::get(format!("{}/users/1", base_url)).await.unwrap();
+
+        let logs: Vec<RequestLogEntry> =
+            reqwest::get(format!("{}/__pulse/logs?limit=10", base_url))
+                .await
+                .unwrap()
+                .json()
+                .await
+                .unwrap();
+
+        assert!(logs.len() >= 2);
+        assert_eq!(logs[0].path, format!("{}/users", base_path));
+        assert_eq!(logs[1].path, format!("{}/users/1", base_path));
+
+        service.stop().await.unwrap();
     }
 
     fn write_service_file(path: &Path, port: u16) {
