@@ -124,6 +124,9 @@ pub struct CorsConfig {
 pub struct EndpointDefinition {
     pub method: String,
     pub path: String,
+    /// Optional headers that must match for this endpoint to trigger
+    #[serde(default)]
+    pub header_match: Option<HashMap<String, String>>,
     pub description: Option<String>,
     #[serde(default)]
     pub parameters: Option<Vec<ParameterDefinition>>,
@@ -1429,6 +1432,7 @@ mod tests {
             endpoints: vec![EndpointDefinition {
                 method: "GET".to_string(),
                 path: "/test".to_string(),
+                header_match: None,
                 description: None,
                 parameters: None,
                 request_body: None,
@@ -1505,6 +1509,7 @@ endpoints:
             endpoints: vec![EndpointDefinition {
                 method: "INVALID".to_string(), // Invalid HTTP method
                 path: "/test".to_string(),
+                header_match: None,
                 description: None,
                 parameters: None,
                 request_body: None,
@@ -1575,6 +1580,7 @@ endpoints:
             endpoints: vec![EndpointDefinition {
                 method: "GET".to_string(),
                 path: "/test".to_string(),
+                header_match: None,
                 description: None,
                 parameters: None,
                 request_body: None,
@@ -1651,6 +1657,7 @@ endpoints:
             endpoints: vec![EndpointDefinition {
                 method: "GET".to_string(),
                 path: "/test".to_string(),
+                header_match: None,
                 description: None,
                 parameters: None,
                 request_body: None,
@@ -1698,6 +1705,7 @@ endpoints:
             endpoints: vec![EndpointDefinition {
                 method: "POST".to_string(),
                 path: "/test".to_string(),
+                header_match: None,
                 description: None,
                 parameters: None,
                 request_body: Some(RequestBodyDefinition {

@@ -185,6 +185,7 @@ pub fn scaffold_endpoint_definition() -> PulseResult<EndpointDefinition> {
     Ok(EndpointDefinition {
         method,
         path,
+        header_match: None,
         description: description.filter(|s| !s.is_empty()),
         parameters: None,
         request_body: None,

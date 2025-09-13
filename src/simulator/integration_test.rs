@@ -45,6 +45,7 @@ mod tests {
                 EndpointDefinition {
                     method: "GET".to_string(),
                     path: "/users".to_string(),
+                    header_match: None,
                     description: Some("Get all users".to_string()),
                     parameters: None,
                     request_body: None,
@@ -67,6 +68,7 @@ mod tests {
                 EndpointDefinition {
                     method: "GET".to_string(),
                     path: "/users/{id}".to_string(),
+                    header_match: None,
                     description: Some("Get user by ID".to_string()),
                     parameters: None,
                     request_body: None,
@@ -86,6 +88,7 @@ mod tests {
                 EndpointDefinition {
                     method: "GET".to_string(),
                     path: "/users/{userId}/orders/{orderId}".to_string(),
+                    header_match: None,
                     description: Some("Get user order".to_string()),
                     parameters: None,
                     request_body: None,
@@ -188,14 +191,16 @@ mod tests {
         let service = ServiceInstance::new(definition, 8101).unwrap();
 
         // Test single parameter extraction
-        let route_match = service.find_endpoint_with_params("GET", "/users/123");
+        let headers = HashMap::new();
+        let route_match = service.find_endpoint_with_params("GET", "/users/123", &headers);
         assert!(route_match.is_some());
 
         let route_match = route_match.unwrap();
         assert_eq!(route_match.path_params.get("id"), Some(&"123".to_string()));
 
         // Test multiple parameter extraction
-        let route_match = service.find_endpoint_with_params("GET", "/users/456/orders/789");
+        let route_match =
+            service.find_endpoint_with_params("GET", "/users/456/orders/789", &headers);
         assert!(route_match.is_some());
 
         let route_match = route_match.unwrap();
@@ -209,11 +214,11 @@ mod tests {
         );
 
         // Test non-matching path
-        let route_match = service.find_endpoint_with_params("GET", "/products/123");
+        let route_match = service.find_endpoint_with_params("GET", "/products/123", &headers);
         assert!(route_match.is_none());
 
         // Test wrong method
-        let route_match = service.find_endpoint_with_params("POST", "/users/123");
+        let route_match = service.find_endpoint_with_params("POST", "/users/123", &headers);
         assert!(route_match.is_none());
     }
 
@@ -223,7 +228,8 @@ mod tests {
         let service = ServiceInstance::new(definition, 8102).unwrap();
 
         // Test fixture template processing
-        let route_match = service.find_endpoint_with_params("GET", "/users");
+        let headers = HashMap::new();
+        let route_match = service.find_endpoint_with_params("GET", "/users", &headers);
         assert!(route_match.is_some());
 
         let _state = service.get_fixtures().await;
@@ -233,7 +239,7 @@ mod tests {
         assert!(template.contains("{{ fixtures.users }}"));
 
         // Test parameter template processing
-        let route_match = service.find_endpoint_with_params("GET", "/users/123");
+        let route_match = service.find_endpoint_with_params("GET", "/users/123", &headers);
         assert!(route_match.is_some());
 
         let route_match = route_match.unwrap();

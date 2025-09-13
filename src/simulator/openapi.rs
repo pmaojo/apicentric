@@ -13,10 +13,7 @@ pub fn from_openapi(spec: &Spec) -> ServiceDefinition {
     // server
     let server = ServerConfig {
         port: None,
-        base_path: spec
-            .base_path
-            .clone()
-            .unwrap_or_else(|| "/".to_string()),
+        base_path: spec.base_path.clone().unwrap_or_else(|| "/".to_string()),
         proxy_base_url: None,
         cors: None,
     };
@@ -60,10 +57,7 @@ pub fn from_openapi(spec: &Spec) -> ServiceDefinition {
                                         .as_ref()
                                         .and_then(|r| r.split('/').last().map(|s| s.to_string()))
                                 }),
-                                content_type: op
-                                    .consumes
-                                    .as_ref()
-                                    .and_then(|c| c.first().cloned()),
+                                content_type: op.consumes.as_ref().and_then(|c| c.first().cloned()),
                             });
                         } else {
                             params.push(ParameterDefinition {
@@ -81,7 +75,11 @@ pub fn from_openapi(spec: &Spec) -> ServiceDefinition {
                     }
                 }
 
-                let parameters = if params.is_empty() { None } else { Some(params) };
+                let parameters = if params.is_empty() {
+                    None
+                } else {
+                    Some(params)
+                };
 
                 // responses
                 let mut responses_map = HashMap::new();
@@ -107,6 +105,7 @@ pub fn from_openapi(spec: &Spec) -> ServiceDefinition {
                 let endpoint = EndpointDefinition {
                     method: method.to_uppercase(),
                     path: path.clone(),
+                    header_match: None,
                     description: op.summary.clone().or(op.description.clone()),
                     parameters,
                     request_body,

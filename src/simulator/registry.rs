@@ -271,6 +271,7 @@ mod tests {
             endpoints: vec![EndpointDefinition {
                 method: "GET".to_string(),
                 path: "/test".to_string(),
+                header_match: None,
                 description: None,
                 parameters: None,
                 request_body: None,
