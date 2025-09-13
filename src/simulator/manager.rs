@@ -190,6 +190,13 @@ impl ApiSimulatorManager {
         Ok(())
     }
 
+    /// Set the active scenario for all services
+    pub async fn set_scenario(&self, scenario: Option<String>) -> PulseResult<()> {
+        let registry = self.service_registry.read().await;
+        registry.set_scenario_all(scenario).await;
+        Ok(())
+    }
+
     /// Get current simulator status
     pub async fn get_status(&self) -> SimulatorStatus {
         let is_active = *self.is_active.read().await;

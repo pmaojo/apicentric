@@ -1,7 +1,7 @@
 //! Service Instance - Individual service implementation with state management
 
 use crate::errors::{PulseError, PulseResult};
-use crate::simulator::config::{EndpointDefinition, ServiceDefinition};
+use crate::simulator::config::{EndpointDefinition, ResponseDefinition, ServiceDefinition};
 use crate::simulator::log::{RequestLog, RequestLogEntry};
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 use bytes::Bytes;
@@ -315,6 +315,7 @@ pub struct ServiceInstance {
     template_engine: Arc<TemplateEngine>,
     server_handle: Option<JoinHandle<()>>,
     is_running: bool,
+    active_scenario: Arc<RwLock<Option<String>>>,
 }
 
 impl ServiceInstance {
@@ -333,6 +334,7 @@ impl ServiceInstance {
             template_engine: Arc::new(template_engine),
             server_handle: None,
             is_running: false,
+            active_scenario: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -362,6 +364,7 @@ impl ServiceInstance {
         let template_engine = Arc::clone(&self.template_engine);
         let cors = self.definition.server.cors.clone();
         let proxy = self.definition.server.proxy_base_url.clone();
+        let active_scenario = Arc::clone(&self.active_scenario);
 
         // Spawn the HTTP server task
         let server_handle = tokio::spawn(async move {
@@ -383,6 +386,7 @@ impl ServiceInstance {
                         let template_engine = Arc::clone(&template_engine);
                         let cors_cfg = cors.clone();
                         let proxy_cfg = proxy.clone();
+                        let scenario_cfg_outer = Arc::clone(&active_scenario);
 
                         // Handle each connection
                         let connection_service_name = service_name.clone();
@@ -395,6 +399,7 @@ impl ServiceInstance {
                                 let template_engine = Arc::clone(&template_engine);
                                 let cors_cfg = cors_cfg.clone();
                                 let proxy_cfg = proxy_cfg.clone();
+                                let scenario_cfg = Arc::clone(&scenario_cfg_outer);
 
                                 async move {
                                     Self::handle_request_static(
@@ -406,6 +411,7 @@ impl ServiceInstance {
                                         template_engine,
                                         cors_cfg,
                                         proxy_cfg,
+                                        scenario_cfg,
                                     )
                                     .await
                                 }
@@ -480,6 +486,7 @@ impl ServiceInstance {
             Arc::clone(&self.template_engine),
             self.definition.server.cors.clone(),
             self.definition.server.proxy_base_url.clone(),
+            Arc::clone(&self.active_scenario),
         )
         .await;
 
@@ -523,6 +530,17 @@ impl ServiceInstance {
     /// Get the service definition
     pub fn definition(&self) -> &ServiceDefinition {
         &self.definition
+    }
+
+    /// Set the active scenario for this service
+    pub async fn set_scenario(&self, scenario: Option<String>) {
+        let mut guard = self.active_scenario.write().await;
+        *guard = scenario;
+    }
+
+    /// Get the currently active scenario
+    pub async fn get_scenario(&self) -> Option<String> {
+        self.active_scenario.read().await.clone()
     }
 
     /// Update service state
@@ -763,6 +781,7 @@ impl ServiceInstance {
         template_engine: Arc<TemplateEngine>,
         cors_cfg: Option<crate::simulator::config::CorsConfig>,
         proxy_base_url: Option<String>,
+        active_scenario: Arc<RwLock<Option<String>>>,
     ) -> Result<Response<Full<Bytes>>, Infallible> {
         let (parts, body) = req.into_parts();
         let method = parts.method.as_str();
@@ -972,65 +991,78 @@ impl ServiceInstance {
         match route_match {
             Some(route_match) => {
                 // Evaluate conditions to find the right response
-                let mut selected_response = None;
+                let mut selected_response: Option<ResponseDefinition> = None;
                 let mut selected_status = 200u16;
 
-                // Try to find a response with a matching condition
-                for (status_code, response_def) in &route_match.endpoint.responses {
-                    if let Some(ref condition) = response_def.condition {
-                        // Create template context for condition evaluation
-                        let state_guard = state.read().await;
-                        let request_context = RequestContext::from_request_data(
-                            method.to_string(),
-                            relative_path.clone(),
-                            query_params.clone(),
-                            headers.clone(),
-                            request_body.clone(),
-                        );
+                // Try to match explicit scenarios first
+                let active = active_scenario.read().await.clone();
+                if let Some((status, resp)) = Self::match_scenario(
+                    &route_match.endpoint,
+                    active,
+                    &query_params,
+                    &headers,
+                    &request_body,
+                ) {
+                    selected_status = status;
+                    selected_response = Some(resp);
+                } else {
+                    // Try to find a response with a matching condition
+                    for (status_code, response_def) in &route_match.endpoint.responses {
+                        if let Some(ref condition) = response_def.condition {
+                            // Create template context for condition evaluation
+                            let state_guard = state.read().await;
+                            let request_context = RequestContext::from_request_data(
+                                method.to_string(),
+                                relative_path.clone(),
+                                query_params.clone(),
+                                headers.clone(),
+                                request_body.clone(),
+                            );
 
-                        let template_context = TemplateContext::new(
-                            &state_guard,
-                            &route_match.path_params,
-                            request_context,
-                        );
+                            let template_context = TemplateContext::new(
+                                &state_guard,
+                                &route_match.path_params,
+                                request_context,
+                            );
 
-                        // Evaluate condition
-                        match template_engine.render(condition, &template_context) {
-                            Ok(result) => {
-                                // Check if condition evaluates to truthy
-                                let is_truthy = !result.trim().is_empty()
-                                    && result.trim() != "null"
-                                    && result.trim() != "false";
+                            // Evaluate condition
+                            match template_engine.render(condition, &template_context) {
+                                Ok(result) => {
+                                    // Check if condition evaluates to truthy
+                                    let is_truthy = !result.trim().is_empty()
+                                        && result.trim() != "null"
+                                        && result.trim() != "false";
 
-                                if is_truthy {
-                                    selected_response = Some(response_def);
-                                    selected_status = *status_code;
-                                    break;
+                                    if is_truthy {
+                                        selected_response = Some(response_def.clone());
+                                        selected_status = *status_code;
+                                        break;
+                                    }
+                                }
+                                Err(e) => {
+                                    log::warn!("Condition evaluation error: {}", e);
                                 }
                             }
-                            Err(e) => {
-                                log::warn!("Condition evaluation error: {}", e);
+                        } else {
+                            // No condition, use this response as fallback
+                            if selected_response.is_none() {
+                                selected_response = Some(response_def.clone());
+                                selected_status = *status_code;
                             }
                         }
-                    } else {
-                        // No condition, use this response as fallback
-                        if selected_response.is_none() {
-                            selected_response = Some(response_def);
-                            selected_status = *status_code;
-                        }
                     }
-                }
 
-                // If no conditional response matched, use default (200 if available)
-                if selected_response.is_none() {
-                    if let Some(default_response) = route_match.endpoint.responses.get(&200) {
-                        selected_response = Some(default_response);
-                        selected_status = 200;
-                    } else if let Some((status, response)) =
-                        route_match.endpoint.responses.iter().next()
-                    {
-                        selected_response = Some(response);
-                        selected_status = *status;
+                    // If no conditional response matched, use default (200 if available)
+                    if selected_response.is_none() {
+                        if let Some(default_response) = route_match.endpoint.responses.get(&200) {
+                            selected_response = Some(default_response.clone());
+                            selected_status = 200;
+                        } else if let Some((status, response)) =
+                            route_match.endpoint.responses.iter().next()
+                        {
+                            selected_response = Some(response.clone());
+                            selected_status = *status;
+                        }
                     }
                 }
 
@@ -1392,6 +1424,76 @@ impl ServiceInstance {
         format!("^{}$", result)
     }
 
+    /// Match a scenario based on query, header, or body conditions
+    fn match_scenario(
+        endpoint: &EndpointDefinition,
+        active_scenario: Option<String>,
+        query: &HashMap<String, String>,
+        headers: &HashMap<String, String>,
+        body: &Option<Value>,
+    ) -> Option<(u16, ResponseDefinition)> {
+        if let Some(scenarios) = &endpoint.scenarios {
+            // First evaluate explicit conditions
+            for scenario in scenarios {
+                if let Some(cond) = &scenario.conditions {
+                    let mut matches = true;
+                    if let Some(q) = &cond.query {
+                        for (k, v) in q {
+                            if query.get(k) != Some(v) {
+                                matches = false;
+                                break;
+                            }
+                        }
+                    }
+                    if matches {
+                        if let Some(h) = &cond.headers {
+                            for (k, v) in h {
+                                match headers.get(k) {
+                                    Some(val) if val.eq_ignore_ascii_case(v) => {},
+                                    _ => { matches = false; break; }
+                                }
+                            }
+                        }
+                    }
+                    if matches {
+                        if let Some(b) = &cond.body {
+                            if let Some(Value::Object(obj)) = body {
+                                for (k, v) in b {
+                                    if obj.get(k) != Some(v) {
+                                        matches = false;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                matches = false;
+                            }
+                        }
+                    }
+                    if matches {
+                        return Some((
+                            scenario.response.status,
+                            scenario.response.definition.clone(),
+                        ));
+                    }
+                }
+            }
+            // Fallback to manually selected scenario
+            if let Some(active) = active_scenario {
+                for scenario in scenarios {
+                    if let Some(name) = &scenario.name {
+                        if *name == active {
+                            return Some((
+                                scenario.response.status,
+                                scenario.response.definition.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
     /// Get service behavior configuration
     pub fn behavior(&self) -> Option<&crate::simulator::config::BehaviorConfig> {
         self.definition.behavior.as_ref()
@@ -1455,7 +1557,9 @@ impl ServiceInstance {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::simulator::config::{ResponseDefinition, ServerConfig};
+    use crate::simulator::config::{
+        ResponseDefinition, ScenarioConditions, ScenarioDefinition, ScenarioResponse, ServerConfig,
+    };
     use bytes::Bytes;
     use http_body_util::{BodyExt, Full};
     use hyper::server::conn::http1;
@@ -1514,6 +1618,7 @@ mod tests {
                         );
                         responses
                     },
+                    scenarios: None,
                 },
                 EndpointDefinition {
                     method: "GET".to_string(),
@@ -1535,6 +1640,7 @@ mod tests {
                         );
                         responses
                     },
+                    scenarios: None,
                 },
             ],
             behavior: None,
@@ -1923,6 +2029,7 @@ mod tests {
                         );
                         responses
                     },
+                    scenarios: None,
                 },
                 EndpointDefinition {
                     method: "GET".to_string(),
@@ -1941,6 +2048,7 @@ mod tests {
                         });
                         responses
                     },
+                    scenarios: None,
                 },
             ],
             behavior: None,
@@ -1968,11 +2076,116 @@ mod tests {
             parameters: None,
             request_body: None,
             responses: HashMap::new(),
+            scenarios: None,
         });
 
         let service = ServiceInstance::new(definition, 8007).unwrap(); // Use different port
         let result = service.validate_consistency();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_scenario_matching() {
+        // Build endpoint with various scenarios
+        let endpoint = EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/test".to_string(),
+            description: None,
+            parameters: None,
+            request_body: None,
+            responses: HashMap::new(),
+            scenarios: Some(vec![
+                ScenarioDefinition {
+                    name: Some("query".to_string()),
+                    conditions: Some(ScenarioConditions {
+                        query: Some(HashMap::from([("mode".to_string(), "1".to_string())])),
+                        headers: None,
+                        body: None,
+                    }),
+                    response: ScenarioResponse {
+                        status: 200,
+                        definition: ResponseDefinition {
+                            condition: None,
+                            content_type: "application/json".to_string(),
+                            body: "{\"result\":\"query\"}".to_string(),
+                            headers: None,
+                            side_effects: None,
+                        },
+                    },
+                },
+                ScenarioDefinition {
+                    name: Some("header".to_string()),
+                    conditions: Some(ScenarioConditions {
+                        query: None,
+                        headers: Some(HashMap::from([("x-scn".to_string(), "hdr".to_string())])),
+                        body: None,
+                    }),
+                    response: ScenarioResponse {
+                        status: 201,
+                        definition: ResponseDefinition {
+                            condition: None,
+                            content_type: "application/json".to_string(),
+                            body: "{\"result\":\"header\"}".to_string(),
+                            headers: None,
+                            side_effects: None,
+                        },
+                    },
+                },
+                ScenarioDefinition {
+                    name: Some("body".to_string()),
+                    conditions: Some(ScenarioConditions {
+                        query: None,
+                        headers: None,
+                        body: Some(HashMap::from([("kind".to_string(), serde_json::json!("b"))])),
+                    }),
+                    response: ScenarioResponse {
+                        status: 202,
+                        definition: ResponseDefinition {
+                            condition: None,
+                            content_type: "application/json".to_string(),
+                            body: "{\"result\":\"body\"}".to_string(),
+                            headers: None,
+                            side_effects: None,
+                        },
+                    },
+                },
+                ScenarioDefinition {
+                    name: Some("error".to_string()),
+                    conditions: None,
+                    response: ScenarioResponse {
+                        status: 500,
+                        definition: ResponseDefinition {
+                            condition: None,
+                            content_type: "application/json".to_string(),
+                            body: "{\"error\":\"forced\"}".to_string(),
+                            headers: None,
+                            side_effects: None,
+                        },
+                    },
+                },
+            ]),
+        };
+
+        // Query condition
+        let mut query = HashMap::new();
+        query.insert("mode".to_string(), "1".to_string());
+        let res = ServiceInstance::match_scenario(&endpoint, None, &query, &HashMap::new(), &None);
+        assert_eq!(res.unwrap().0, 200);
+
+        // Header condition
+        let mut headers = HashMap::new();
+        headers.insert("x-scn".to_string(), "hdr".to_string());
+        let res = ServiceInstance::match_scenario(&endpoint, None, &HashMap::new(), &headers, &None);
+        assert_eq!(res.unwrap().0, 201);
+
+        // Body condition
+        let body = Some(serde_json::json!({"kind": "b"}));
+        let res = ServiceInstance::match_scenario(&endpoint, None, &HashMap::new(), &HashMap::new(), &body);
+        assert_eq!(res.unwrap().0, 202);
+
+        // Active scenario fallback
+        let res = ServiceInstance::match_scenario(&endpoint, Some("error".to_string()), &HashMap::new(), &HashMap::new(), &None);
+        assert_eq!(res.unwrap().0, 500);
     }
 
     fn spawn_upstream_server(port: u16) -> tokio::task::JoinHandle<()> {

@@ -130,6 +130,9 @@ pub struct EndpointDefinition {
     #[serde(default)]
     pub request_body: Option<RequestBodyDefinition>,
     pub responses: HashMap<u16, ResponseDefinition>,
+    /// Optional scenario-based responses with matching conditions
+    #[serde(default)]
+    pub scenarios: Option<Vec<ScenarioDefinition>>,
 }
 
 /// Parameter definition for endpoints
@@ -179,6 +182,38 @@ pub struct SideEffect {
     pub action: String,
     pub target: String,
     pub value: String, // Template string
+}
+
+/// Scenario definition for conditional responses
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ScenarioDefinition {
+    /// Optional scenario name for manual selection
+    pub name: Option<String>,
+    /// Conditions that must be satisfied for this scenario
+    #[serde(default)]
+    pub conditions: Option<ScenarioConditions>,
+    /// Response to return when this scenario matches
+    pub response: ScenarioResponse,
+}
+
+/// Conditions evaluated against incoming requests
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct ScenarioConditions {
+    #[serde(default)]
+    pub query: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub headers: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub body: Option<HashMap<String, serde_json::Value>>,
+}
+
+/// Response associated with a scenario
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ScenarioResponse {
+    /// HTTP status code for the response
+    pub status: u16,
+    #[serde(flatten)]
+    pub definition: ResponseDefinition,
 }
 
 /// Behavior configuration for simulation
@@ -1411,6 +1446,7 @@ mod tests {
                     );
                     responses
                 },
+                scenarios: None,
             }],
             behavior: None,
         };
@@ -1486,6 +1522,7 @@ endpoints:
                     );
                     responses
                 },
+                scenarios: None,
             }],
             behavior: None,
         };
@@ -1555,6 +1592,7 @@ endpoints:
                     );
                     responses
                 },
+                scenarios: None,
             }],
             behavior: None,
         };
@@ -1630,6 +1668,7 @@ endpoints:
                     );
                     responses
                 },
+                scenarios: None,
             }],
             behavior: None,
         };
@@ -1680,6 +1719,7 @@ endpoints:
                     );
                     responses
                 },
+                scenarios: None,
             }],
             behavior: None,
         };

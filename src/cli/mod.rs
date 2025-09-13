@@ -82,6 +82,19 @@ pub enum SimulatorAction {
         #[arg(long)]
         verbose: bool,
     },
+    /// Set default scenario for all services
+    SetScenario {
+        /// Scenario name to activate
+        scenario: String,
+    },
+    /// Show recent request logs for a service
+    Logs {
+        /// Service name
+        service: String,
+        /// Number of log entries to display
+        #[arg(short, long, default_value_t = 20)]
+        limit: usize,
+    },
 }
 
 #[derive(Subcommand)]

@@ -46,6 +46,11 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value_t = 20)]
         limit: usize,
     },
+    /// Set default scenario for all services
+    SetScenario {
+        /// Scenario name to activate
+        scenario: String,
+    },
 }
 
 pub async fn simulator_command(
@@ -67,6 +72,9 @@ pub async fn simulator_command(
         } => handle_validate(path, *recursive, *verbose, exec_ctx).await,
         SimulatorAction::Logs { service, limit } => {
             handle_logs(context, service, *limit, exec_ctx).await
+        }
+        SimulatorAction::SetScenario { scenario } => {
+            handle_set_scenario(context, scenario, exec_ctx).await
         }
     }
 }
@@ -301,6 +309,30 @@ async fn handle_logs(
                 Some("Check simulator status for available services"),
             ))
         }
+    } else {
+        Err(PulseError::config_error(
+            "API simulator is not enabled or configured",
+            Some("Enable simulator in pulse.json"),
+        ))
+    }
+}
+
+async fn handle_set_scenario(
+    context: &Context,
+    scenario: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!("🏃 Dry run: Would set scenario '{}'", scenario);
+        return Ok(());
+    }
+
+    if let Some(simulator) = context.api_simulator() {
+        simulator
+            .set_scenario(Some(scenario.to_string()))
+            .await?;
+        println!("✅ Scenario set to '{}'", scenario);
+        Ok(())
     } else {
         Err(PulseError::config_error(
             "API simulator is not enabled or configured",
