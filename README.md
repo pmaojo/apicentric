@@ -84,6 +84,38 @@ pulse simulator import --input openapi.yaml --output services/petstore.yaml
 pulse simulator export --input services/petstore.yaml --output openapi.yaml
 ```
 
+### Exportar tipos TypeScript
+
+```bash
+# Generar interfaces TypeScript desde un servicio YAML
+pulse simulator export-types --input services/petstore.yaml --output types.ts
+```
+
+Archivo generado (`types.ts`):
+
+```ts
+export interface paths {
+  "/pets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List pets */
+    get: {
+      responses: {
+        /** @description successful operation */
+        200: {
+          headers: { [name: string]: unknown };
+          content?: never;
+        };
+      };
+    };
+  };
+}
+```
+
 ### Convertir desde Mockoon
 
 ```bash

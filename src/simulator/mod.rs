@@ -13,6 +13,7 @@ pub mod template;
 pub mod watcher;
 pub mod openapi;
 pub mod mockoon;
+pub mod typescript;
 
 #[cfg(test)]
 mod integration_test;
