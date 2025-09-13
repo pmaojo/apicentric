@@ -88,6 +88,7 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
                 } else {
                     format!("/{}", r.endpoint)
                 },
+                header_match: None,
                 description: None,
                 parameters: None,
                 request_body: None,

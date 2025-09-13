@@ -80,6 +80,15 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
+    /// Export TypeScript types for a service
+    ExportTypes {
+        /// Path to service YAML definition
+        #[arg(short, long)]
+        input: String,
+        /// Output path for generated TypeScript
+        #[arg(short, long)]
+        output: String,
+    },
     /// Create a new service definition interactively
     New {
         /// Output directory for the service YAML
@@ -122,6 +131,9 @@ pub async fn simulator_command(
             handle_import_mockoon(input, output, exec_ctx).await
         }
         SimulatorAction::Export { input, output } => handle_export(input, output, exec_ctx).await,
+        SimulatorAction::ExportTypes { input, output } => {
+            handle_export_types(input, output, exec_ctx).await
+        }
         SimulatorAction::New { output } => handle_new(output, exec_ctx).await,
         SimulatorAction::Edit { input } => handle_edit(input, exec_ctx).await,
     }
@@ -472,6 +484,35 @@ async fn handle_export(input: &str, output: &str, exec_ctx: &ExecutionContext) -
         PulseError::runtime_error(format!("Failed to write spec file: {}", e), None::<String>)
     })?;
     println!("✅ Exported OpenAPI to {}", output);
+    Ok(())
+}
+
+async fn handle_export_types(
+    input: &str,
+    output: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would export TypeScript types from '{}' to '{}'",
+            input, output
+        );
+        return Ok(());
+    }
+    let yaml = std::fs::read_to_string(input).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
+    })?;
+    let service: pulse::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+        .map_err(|e| {
+            PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
+        })?;
+    let ts = pulse::simulator::typescript::to_typescript(&service).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to generate types: {}", e), None::<String>)
+    })?;
+    std::fs::write(output, ts).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to write types file: {}", e), None::<String>)
+    })?;
+    println!("✅ Exported TypeScript types to {}", output);
     Ok(())
 }
 

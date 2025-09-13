@@ -27,6 +27,7 @@ bytes = "1.7.1"
 chrono = { version = "0.4.31", features = ["serde"] }
 fake = "4.4.0"
 openapi = "0.1.5"
+tempfile = "3.8.0"
 
 # Metrics dependencies
 prometheus = "0.13.4"
@@ -45,7 +46,6 @@ async-trait = "0.1.74"
 tracing = "0.1.40"
 
 [dev-dependencies]
-tempfile = "3.8.0"
 
 [[bin]]
 name = "pulse-sim"
