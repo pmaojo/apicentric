@@ -1,47 +1,194 @@
-use crate::{PulseResult, PulseError};
+use crate::{PulseError, PulseResult};
+use inquire::{Confirm, Select, Text};
+use pulse::simulator::config::{
+    EndpointDefinition, ResponseDefinition, ServerConfig, ServiceDefinition,
+};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub fn find_yaml_files(dir: &Path, recursive: bool) -> PulseResult<Vec<PathBuf>> {
     let mut files = Vec::new();
-    if recursive { find_yaml_files_recursive(dir, &mut files)?; } else { find_yaml_files_in_dir(dir, &mut files)?; }
+    if recursive {
+        find_yaml_files_recursive(dir, &mut files)?;
+    } else {
+        find_yaml_files_in_dir(dir, &mut files)?;
+    }
     Ok(files)
 }
 
 pub fn validate_yaml_file(file_path: &Path) -> PulseResult<()> {
-    let content = std::fs::read_to_string(file_path).map_err(|e| PulseError::fs_error(
-        format!("Failed to read file {}: {}", file_path.display(), e),
-        Some("Ensure the file exists and is readable")
-    ))?;
-    let _value: serde_yaml::Value = serde_yaml::from_str(&content).map_err(|e| PulseError::validation_error(
-        format!("Invalid YAML: {}", e), None::<String>, Some("Check YAML syntax")
-    ))?;
+    let content = std::fs::read_to_string(file_path).map_err(|e| {
+        PulseError::fs_error(
+            format!("Failed to read file {}: {}", file_path.display(), e),
+            Some("Ensure the file exists and is readable"),
+        )
+    })?;
+    let _value: serde_yaml::Value = serde_yaml::from_str(&content).map_err(|e| {
+        PulseError::validation_error(
+            format!("Invalid YAML: {}", e),
+            None::<String>,
+            Some("Check YAML syntax"),
+        )
+    })?;
     Ok(())
 }
 
 fn find_yaml_files_in_dir(dir: &Path, files: &mut Vec<PathBuf>) -> PulseResult<()> {
-    let entries = std::fs::read_dir(dir).map_err(|e| PulseError::fs_error(
-        format!("Failed to read directory {}: {}", dir.display(), e), Some("Ensure the directory exists and is readable")
-    ))?;
+    let entries = std::fs::read_dir(dir).map_err(|e| {
+        PulseError::fs_error(
+            format!("Failed to read directory {}: {}", dir.display(), e),
+            Some("Ensure the directory exists and is readable"),
+        )
+    })?;
     for entry in entries {
-        let entry = entry.map_err(|e| PulseError::fs_error(format!("Failed to read directory entry: {}", e), None::<String>))?;
+        let entry = entry.map_err(|e| {
+            PulseError::fs_error(
+                format!("Failed to read directory entry: {}", e),
+                None::<String>,
+            )
+        })?;
         let path = entry.path();
         if path.is_file() {
-            if let Some(ext) = path.extension() { if ext == "yaml" || ext == "yml" { files.push(path); } }
+            if let Some(ext) = path.extension() {
+                if ext == "yaml" || ext == "yml" {
+                    files.push(path);
+                }
+            }
         }
     }
     Ok(())
 }
 
 fn find_yaml_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> PulseResult<()> {
-    let entries = std::fs::read_dir(dir).map_err(|e| PulseError::fs_error(
-        format!("Failed to read directory {}: {}", dir.display(), e), Some("Ensure the directory exists and is readable")
-    ))?;
+    let entries = std::fs::read_dir(dir).map_err(|e| {
+        PulseError::fs_error(
+            format!("Failed to read directory {}: {}", dir.display(), e),
+            Some("Ensure the directory exists and is readable"),
+        )
+    })?;
     for entry in entries {
-        let entry = entry.map_err(|e| PulseError::fs_error(format!("Failed to read directory entry: {}", e), None::<String>))?;
+        let entry = entry.map_err(|e| {
+            PulseError::fs_error(
+                format!("Failed to read directory entry: {}", e),
+                None::<String>,
+            )
+        })?;
         let path = entry.path();
         if path.is_file() {
-            if let Some(ext) = path.extension() { if ext == "yaml" || ext == "yml" { files.push(path); } }
-        } else if path.is_dir() { find_yaml_files_recursive(&path, files)?; }
+            if let Some(ext) = path.extension() {
+                if ext == "yaml" || ext == "yml" {
+                    files.push(path);
+                }
+            }
+        } else if path.is_dir() {
+            find_yaml_files_recursive(&path, files)?;
+        }
     }
     Ok(())
+}
+
+/// Prompt the user to create a new [`ServiceDefinition`]
+pub fn scaffold_service_definition() -> PulseResult<ServiceDefinition> {
+    let name = Text::new("Service name:")
+        .prompt()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+
+    let description = Text::new("Description (optional):")
+        .prompt_skippable()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+
+    let base_path = Text::new("Base path:")
+        .with_default("/api")
+        .prompt()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+
+    let port_str = Text::new("Port:")
+        .with_default("9000")
+        .prompt()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+    let port: u16 = port_str.parse().unwrap_or(9000);
+
+    let mut endpoints = Vec::new();
+    loop {
+        let endpoint = scaffold_endpoint_definition()?;
+        endpoints.push(endpoint);
+        let add_more = Confirm::new("Add another endpoint?")
+            .with_default(false)
+            .prompt()
+            .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+        if !add_more {
+            break;
+        }
+    }
+
+    Ok(ServiceDefinition {
+        name,
+        version: None,
+        description: description.filter(|s| !s.is_empty()),
+        server: ServerConfig {
+            port: Some(port),
+            base_path,
+            proxy_base_url: None,
+            cors: None,
+        },
+        models: None,
+        fixtures: None,
+        endpoints,
+        behavior: None,
+    })
+}
+
+/// Prompt the user to create a new [`EndpointDefinition`]
+pub fn scaffold_endpoint_definition() -> PulseResult<EndpointDefinition> {
+    let methods = vec!["GET", "POST", "PUT", "DELETE"];
+    let method = Select::new("HTTP method:", methods)
+        .prompt()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?
+        .to_string();
+
+    let path = Text::new("Path:")
+        .prompt()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+
+    let description = Text::new("Description (optional):")
+        .prompt_skippable()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+
+    let status_str = Text::new("Response status code:")
+        .with_default("200")
+        .prompt()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+    let status: u16 = status_str.parse().unwrap_or(200);
+
+    let content_type = Text::new("Content type:")
+        .with_default("application/json")
+        .prompt()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+
+    let body = Text::new("Response body:")
+        .with_default("{\"message\":\"ok\"}")
+        .prompt()
+        .map_err(|e| PulseError::runtime_error(e.to_string(), None::<String>))?;
+
+    let mut responses = HashMap::new();
+    responses.insert(
+        status,
+        ResponseDefinition {
+            condition: None,
+            content_type,
+            body,
+            headers: None,
+            side_effects: None,
+        },
+    );
+
+    Ok(EndpointDefinition {
+        method,
+        path,
+        description: description.filter(|s| !s.is_empty()),
+        parameters: None,
+        request_body: None,
+        responses,
+        scenarios: None,
+    })
 }

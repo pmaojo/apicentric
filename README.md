@@ -84,6 +84,33 @@ pulse simulator import --input openapi.yaml --output services/petstore.yaml
 pulse simulator export --input services/petstore.yaml --output openapi.yaml
 ```
 
+### Crear/Editar servicios del simulador
+
+```bash
+# Asistente interactivo para un nuevo servicio
+pulse simulator new --output services
+
+# Añadir un endpoint a un servicio existente
+pulse simulator edit --input services/my-service.yaml
+```
+
+Ejemplo de YAML generado:
+
+```yaml
+name: my-service
+server:
+  port: 9000
+  base_path: /api
+endpoints:
+  - method: GET
+    path: /hello
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {"message":"hello"}
+```
+
 Endpoints de ejemplo (simulador):
 
 - Login público: `http://localhost:9011/api/v1/public/login`
