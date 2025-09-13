@@ -1,0 +1,25 @@
+# CRUD service template
+name: items-service
+version: "1.0"
+server:
+  port: 9010
+  base_path: /api/v1/items
+endpoints:
+  - method: GET
+    path: /
+    description: List items
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          []
+  - method: POST
+    path: /
+    description: Create item
+    request_body:
+      required: true
+    responses:
+      201:
+        content_type: application/json
+        body: |
+          {"id": 1}

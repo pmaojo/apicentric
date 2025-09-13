@@ -1,4 +1,6 @@
-use crate::commands::shared::{find_yaml_files, validate_yaml_file};
+use crate::commands::shared::{
+    find_yaml_files, scaffold_endpoint_definition, scaffold_service_definition, validate_yaml_file,
+};
 use clap::Subcommand;
 use pulse::simulator::log::RequestLogEntry;
 use pulse::{Context, ExecutionContext, PulseError, PulseResult};
@@ -69,6 +71,18 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
+    /// Create a new service definition interactively
+    New {
+        /// Output directory for the service YAML
+        #[arg(short, long, default_value = "services")]
+        output: String,
+    },
+    /// Edit an existing service definition (add endpoint)
+    Edit {
+        /// Path to service YAML definition
+        #[arg(short, long)]
+        input: String,
+    },
 }
 
 pub async fn simulator_command(
@@ -94,12 +108,10 @@ pub async fn simulator_command(
         SimulatorAction::SetScenario { scenario } => {
             handle_set_scenario(context, scenario, exec_ctx).await
         }
-        SimulatorAction::Import { input, output } => {
-            handle_import(input, output, exec_ctx).await
-        }
-        SimulatorAction::Export { input, output } => {
-            handle_export(input, output, exec_ctx).await
-        }
+        SimulatorAction::Import { input, output } => handle_import(input, output, exec_ctx).await,
+        SimulatorAction::Export { input, output } => handle_export(input, output, exec_ctx).await,
+        SimulatorAction::New { output } => handle_new(output, exec_ctx).await,
+        SimulatorAction::Edit { input } => handle_edit(input, exec_ctx).await,
     }
 }
 
@@ -352,9 +364,7 @@ async fn handle_set_scenario(
     }
 
     if let Some(simulator) = context.api_simulator() {
-        simulator
-            .set_scenario(Some(scenario.to_string()))
-            .await?;
+        simulator.set_scenario(Some(scenario.to_string())).await?;
         println!("✅ Scenario set to '{}'", scenario);
         Ok(())
     } else {
@@ -365,11 +375,7 @@ async fn handle_set_scenario(
     }
 }
 
-async fn handle_import(
-    input: &str,
-    output: &str,
-    exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+async fn handle_import(input: &str, output: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would import OpenAPI '{}' into service '{}'",
@@ -378,10 +384,7 @@ async fn handle_import(
         return Ok(());
     }
     let spec = openapi::from_path(input).map_err(|e| {
-        PulseError::runtime_error(
-            format!("Failed to read OpenAPI: {}", e),
-            None::<String>,
-        )
+        PulseError::runtime_error(format!("Failed to read OpenAPI: {}", e), None::<String>)
     })?;
     let service = pulse::simulator::openapi::from_openapi(&spec);
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
@@ -400,11 +403,7 @@ async fn handle_import(
     Ok(())
 }
 
-async fn handle_export(
-    input: &str,
-    output: &str,
-    exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+async fn handle_export(input: &str, output: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would export service '{}' to OpenAPI '{}'",
@@ -413,17 +412,11 @@ async fn handle_export(
         return Ok(());
     }
     let yaml = std::fs::read_to_string(input).map_err(|e| {
-        PulseError::runtime_error(
-            format!("Failed to read service: {}", e),
-            None::<String>,
-        )
+        PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
     })?;
-    let service: pulse::simulator::config::ServiceDefinition =
-        serde_yaml::from_str(&yaml).map_err(|e| {
-            PulseError::runtime_error(
-                format!("Invalid service YAML: {}", e),
-                None::<String>,
-            )
+    let service: pulse::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+        .map_err(|e| {
+            PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;
     let spec = pulse::simulator::openapi::to_openapi(&service);
     let spec_yaml = openapi::to_yaml(&spec).map_err(|e| {
@@ -433,11 +426,77 @@ async fn handle_export(
         )
     })?;
     std::fs::write(output, spec_yaml).map_err(|e| {
-        PulseError::runtime_error(
-            format!("Failed to write spec file: {}", e),
+        PulseError::runtime_error(format!("Failed to write spec file: {}", e), None::<String>)
+    })?;
+    println!("✅ Exported OpenAPI to {}", output);
+    Ok(())
+}
+
+async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!("🏃 Dry run: Would scaffold new service in {}", output);
+        return Ok(());
+    }
+
+    let service = scaffold_service_definition()?;
+    std::fs::create_dir_all(output).map_err(|e| {
+        PulseError::fs_error(
+            format!("Failed to create directory {}: {}", output, e),
             None::<String>,
         )
     })?;
-    println!("✅ Exported OpenAPI to {}", output);
+    let file_path = std::path::Path::new(output).join(format!("{}.yaml", service.name));
+    if file_path.exists() {
+        return Err(PulseError::fs_error(
+            format!("File {} already exists", file_path.display()),
+            Some("Choose a different service name"),
+        ));
+    }
+    let yaml = serde_yaml::to_string(&service).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to serialize service: {}", e),
+            None::<String>,
+        )
+    })?;
+    std::fs::write(&file_path, yaml).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to write service file: {}", e),
+            None::<String>,
+        )
+    })?;
+    println!("✅ Created service definition at {}", file_path.display());
+    Ok(())
+}
+
+async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!("🏃 Dry run: Would edit service {}", input);
+        return Ok(());
+    }
+
+    let yaml = std::fs::read_to_string(input).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
+    })?;
+    let mut service: pulse::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+        .map_err(|e| {
+            PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
+        })?;
+
+    let endpoint = scaffold_endpoint_definition()?;
+    service.endpoints.push(endpoint);
+
+    let yaml = serde_yaml::to_string(&service).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to serialize service: {}", e),
+            None::<String>,
+        )
+    })?;
+    std::fs::write(input, yaml).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to write service file: {}", e),
+            None::<String>,
+        )
+    })?;
+    println!("✏️  Updated service at {}", input);
     Ok(())
 }

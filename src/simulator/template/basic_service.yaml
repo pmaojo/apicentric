@@ -1,0 +1,16 @@
+# Basic service template
+name: example-service
+version: "1.0"
+description: Example service
+server:
+  port: 9010
+  base_path: /api/v1
+endpoints:
+  - method: GET
+    path: /ping
+    description: Health check endpoint
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {"status":"ok"}
