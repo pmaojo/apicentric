@@ -155,6 +155,14 @@ impl ServiceRegistry {
         services
     }
 
+    /// Set active scenario for all registered services
+    pub async fn set_scenario_all(&self, scenario: Option<String>) {
+        for service_arc in self.services.values() {
+            let service = service_arc.read().await;
+            service.set_scenario(scenario.clone()).await;
+        }
+    }
+
     /// Start all registered services
     pub async fn start_all_services(&mut self) -> PulseResult<()> {
         let mut errors = Vec::new();
@@ -280,6 +288,7 @@ mod tests {
                     );
                     responses
                 },
+                scenarios: None,
             }],
             behavior: None,
         }

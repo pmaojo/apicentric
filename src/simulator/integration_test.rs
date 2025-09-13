@@ -62,6 +62,7 @@ mod tests {
                         );
                         responses
                     },
+                    scenarios: None,
                 },
                 EndpointDefinition {
                     method: "GET".to_string(),
@@ -80,6 +81,7 @@ mod tests {
                         });
                         responses
                     },
+                    scenarios: None,
                 },
                 EndpointDefinition {
                     method: "GET".to_string(),
@@ -98,6 +100,7 @@ mod tests {
                         });
                         responses
                     },
+                    scenarios: None,
                 },
             ],
             behavior: None,
