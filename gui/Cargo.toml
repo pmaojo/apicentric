@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tauri = { version = "1.6", features = ["dialog", "shell-open"] }
+tauri = { version = "1.6", features = ["dialog", "shell-open", "fs-write-file"] }
 serde_yaml = "0.9"
 pulse = { path = ".." }
 

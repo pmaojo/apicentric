@@ -12,6 +12,7 @@
     <input id="path" placeholder="service.yaml" />
     <button id="load">Load</button>
     <button id="save">Save</button>
+    <button id="export">Export OpenAPI</button>
   </div>
   <textarea id="yaml" style="width:100%;height:200px"></textarea>
   <pre id="services"></pre>
@@ -29,6 +30,14 @@
       const yaml = document.getElementById('yaml').value;
       await invoke('save_service', { path, yaml });
       refresh();
+    });
+    document.getElementById('export').addEventListener('click', async () => {
+      const path = document.getElementById('path').value;
+      const json = await invoke('export_openapi', { path });
+      const savePath = await window.__TAURI__.dialog.save({ defaultPath: 'openapi.json' });
+      if (savePath) {
+        await window.__TAURI__.fs.writeTextFile(savePath, json);
+      }
     });
     async function refresh() {
       const services = await invoke('list_services');

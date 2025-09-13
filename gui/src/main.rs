@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use tauri::State;
 use pulse::simulator::{ApiSimulatorManager, SimulatorConfig, ServiceInfo, ServiceDefinition};
+use pulse::simulator::openapi::to_openapi;
 use std::path::PathBuf;
 
 struct SimulatorState(Arc<ApiSimulatorManager>);
@@ -37,12 +38,27 @@ fn save_service(path: String, yaml: String) -> Result<(), String> {
     serde_yaml::to_writer(file, &def).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn export_openapi(path: String) -> Result<String, String> {
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let service: ServiceDefinition = serde_yaml::from_reader(file).map_err(|e| e.to_string())?;
+    let spec = to_openapi(&service);
+    serde_json::to_string_pretty(&spec).map_err(|e| e.to_string())
+}
+
 fn main() {
     let cfg = SimulatorConfig::default_config();
     let manager = ApiSimulatorManager::new(cfg);
     tauri::Builder::default()
         .manage(SimulatorState(Arc::new(manager)))
-        .invoke_handler(tauri::generate_handler![start_simulator, stop_simulator, list_services, load_service, save_service])
+        .invoke_handler(tauri::generate_handler![
+            start_simulator,
+            stop_simulator,
+            list_services,
+            load_service,
+            save_service,
+            export_openapi
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Pulse GUI");
 }

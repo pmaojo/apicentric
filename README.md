@@ -84,6 +84,12 @@ pulse simulator import --input openapi.yaml --output services/petstore.yaml
 pulse simulator export --input services/petstore.yaml --output openapi.yaml
 ```
 
+#### Desde la GUI
+
+1. Abre la app de escritorio (`cd gui && cargo tauri dev`).
+2. Introduce la ruta del servicio YAML en el campo correspondiente.
+3. Pulsa **Export OpenAPI** y elige dónde guardar `openapi.json`.
+
 ### Convertir desde Mockoon
 
 ```bash
