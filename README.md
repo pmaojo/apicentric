@@ -84,6 +84,47 @@ pulse simulator import --input openapi.yaml --output services/petstore.yaml
 pulse simulator export --input services/petstore.yaml --output openapi.yaml
 ```
 
+### Convertir desde Mockoon
+
+```bash
+# Generar un servicio YAML desde un archivo JSON de Mockoon
+pulse simulator import-mockoon --input mockoon.json --output services/mockoon.yaml
+```
+
+Ejemplo de conversión:
+
+```json
+{
+  "name": "Mockoon API",
+  "port": 3000,
+  "endpointPrefix": "/api",
+  "routes": [
+    {
+      "method": "get",
+      "endpoint": "/hello",
+      "responses": [{ "statusCode": 200, "body": "{\"msg\":\"hola\"}" }]
+    }
+  ]
+}
+```
+
+se convierte en:
+
+```yaml
+name: Mockoon API
+server:
+  port: 3000
+  base_path: /api
+endpoints:
+  - method: GET
+    path: /hello
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {"msg":"hola"}
+```
+
 ### Crear/Editar servicios del simulador
 
 ```bash

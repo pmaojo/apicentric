@@ -62,6 +62,15 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
+    /// Import a service from a Mockoon export
+    ImportMockoon {
+        /// Path to Mockoon JSON export
+        #[arg(short, long)]
+        input: String,
+        /// Output path for service YAML definition
+        #[arg(short, long)]
+        output: String,
+    },
     /// Export a service definition to an OpenAPI spec file
     Export {
         /// Path to service YAML definition
@@ -109,6 +118,9 @@ pub async fn simulator_command(
             handle_set_scenario(context, scenario, exec_ctx).await
         }
         SimulatorAction::Import { input, output } => handle_import(input, output, exec_ctx).await,
+        SimulatorAction::ImportMockoon { input, output } => {
+            handle_import_mockoon(input, output, exec_ctx).await
+        }
         SimulatorAction::Export { input, output } => handle_export(input, output, exec_ctx).await,
         SimulatorAction::New { output } => handle_new(output, exec_ctx).await,
         SimulatorAction::Edit { input } => handle_edit(input, exec_ctx).await,
@@ -387,6 +399,37 @@ async fn handle_import(input: &str, output: &str, exec_ctx: &ExecutionContext) -
         PulseError::runtime_error(format!("Failed to read OpenAPI: {}", e), None::<String>)
     })?;
     let service = pulse::simulator::openapi::from_openapi(&spec);
+    let yaml = serde_yaml::to_string(&service).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to serialize service: {}", e),
+            None::<String>,
+        )
+    })?;
+    std::fs::write(output, yaml).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to write service file: {}", e),
+            None::<String>,
+        )
+    })?;
+    println!("✅ Imported service to {}", output);
+    Ok(())
+}
+
+async fn handle_import_mockoon(
+    input: &str,
+    output: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would import Mockoon '{}' into service '{}'",
+            input, output
+        );
+        return Ok(());
+    }
+    let service = pulse::simulator::mockoon::from_path(input).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to read Mockoon: {}", e), None::<String>)
+    })?;
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
         PulseError::runtime_error(
             format!("Failed to serialize service: {}", e),
