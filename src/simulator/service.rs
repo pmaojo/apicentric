@@ -55,6 +55,7 @@ impl PathParameters {
 #[derive(Debug, Clone)]
 pub struct RouteMatch {
     pub endpoint: EndpointDefinition,
+    pub endpoint_index: usize,
     pub path_params: PathParameters,
 }
 
@@ -565,9 +566,18 @@ impl ServiceInstance {
     }
 
     /// Internal helper to record a request log entry
-    async fn record_log(state: &Arc<RwLock<ServiceState>>, method: &str, path: &str, status: u16) {
+    async fn record_log(
+        state: &Arc<RwLock<ServiceState>>,
+        service: &str,
+        endpoint: Option<usize>,
+        method: &str,
+        path: &str,
+        status: u16,
+    ) {
         let mut guard = state.write().await;
         guard.add_log_entry(RequestLogEntry::new(
+            service.to_string(),
+            endpoint,
             method.to_string(),
             path.to_string(),
             status,
@@ -708,13 +718,14 @@ impl ServiceInstance {
         path: &str,
         headers: &HashMap<String, String>,
     ) -> Option<RouteMatch> {
-        for endpoint in &self.definition.endpoints {
+        for (index, endpoint) in self.definition.endpoints.iter().enumerate() {
             if endpoint.method.to_uppercase() == method.to_uppercase()
                 && Self::headers_match(endpoint, headers)
             {
                 if let Some(path_params) = self.extract_path_parameters(&endpoint.path, path) {
                     return Some(RouteMatch {
                         endpoint: endpoint.clone(),
+                        endpoint_index: index,
                         path_params,
                     });
                 }
@@ -930,7 +941,15 @@ impl ServiceInstance {
                 "✅ [{}] CORS preflight response sent with status 204",
                 service_name
             );
-            Self::record_log(&state, method, path, StatusCode::NO_CONTENT.as_u16()).await;
+            Self::record_log(
+                &state,
+                &service_name,
+                None,
+                method,
+                path,
+                StatusCode::NO_CONTENT.as_u16(),
+            )
+            .await;
             return Ok(resp);
         }
 
@@ -945,7 +964,15 @@ impl ServiceInstance {
                         r#"{"error": "Failed to read request body"}"#,
                     )))
                     .unwrap();
-                Self::record_log(&state, method, path, StatusCode::BAD_REQUEST.as_u16()).await;
+                Self::record_log(
+                    &state,
+                    &service_name,
+                    None,
+                    method,
+                    path,
+                    StatusCode::BAD_REQUEST.as_u16(),
+                )
+                .await;
                 return Ok(resp);
             }
         };
@@ -1007,7 +1034,7 @@ impl ServiceInstance {
                 .header("content-type", "application/json")
                 .body(Full::new(Bytes::from(body)))
                 .unwrap();
-            Self::record_log(&state, method, path, 200).await;
+            Self::record_log(&state, &service_name, None, method, path, 200).await;
             return Ok(resp);
         }
 
@@ -1206,7 +1233,15 @@ impl ServiceInstance {
                         "📤 [{}] Sending response with status {}",
                         service_name, selected_status
                     );
-                    Self::record_log(&state, method, path, selected_status).await;
+                    Self::record_log(
+                        &state,
+                        &service_name,
+                        Some(route_match.endpoint_index),
+                        method,
+                        path,
+                        selected_status,
+                    )
+                    .await;
                     Ok(final_response)
                 } else {
                     // No response definition found
@@ -1219,6 +1254,8 @@ impl ServiceInstance {
                         .unwrap();
                     Self::record_log(
                         &state,
+                        &service_name,
+                        Some(route_match.endpoint_index),
                         method,
                         path,
                         StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
@@ -1274,7 +1311,15 @@ impl ServiceInstance {
                                 }
                             }
                             let final_resp = response.body(Full::new(bytes)).unwrap();
-                            Self::record_log(&state, method, path, status.as_u16()).await;
+                            Self::record_log(
+                                &state,
+                                &service_name,
+                                None,
+                                method,
+                                path,
+                                status.as_u16(),
+                            )
+                            .await;
                             Ok(final_resp)
                         }
                         Err(e) => {
@@ -1288,6 +1333,8 @@ impl ServiceInstance {
                                 .unwrap();
                             Self::record_log(
                                 &state,
+                                &service_name,
+                                None,
                                 method,
                                 path,
                                 StatusCode::BAD_GATEWAY.as_u16(),
@@ -1305,7 +1352,15 @@ impl ServiceInstance {
                             method, relative_path, service_name
                         ))))
                         .unwrap();
-                    Self::record_log(&state, method, path, StatusCode::NOT_FOUND.as_u16()).await;
+                    Self::record_log(
+                        &state,
+                        &service_name,
+                        None,
+                        method,
+                        path,
+                        StatusCode::NOT_FOUND.as_u16(),
+                    )
+                    .await;
                     Ok(resp)
                 }
             }
@@ -1319,7 +1374,7 @@ impl ServiceInstance {
         path: &str,
         headers: &HashMap<String, String>,
     ) -> Option<RouteMatch> {
-        for endpoint in endpoints {
+        for (index, endpoint) in endpoints.iter().enumerate() {
             if endpoint.method.to_uppercase() == method.to_uppercase()
                 && Self::headers_match(endpoint, headers)
             {
@@ -1328,6 +1383,7 @@ impl ServiceInstance {
                 {
                     return Some(RouteMatch {
                         endpoint: endpoint.clone(),
+                        endpoint_index: index,
                         path_params,
                     });
                 }
