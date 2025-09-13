@@ -26,6 +26,7 @@ http-body-util = "0.1.2"
 bytes = "1.7.1"
 chrono = { version = "0.4.31", features = ["serde"] }
 fake = "4.4.0"
+openapi = "0.1.5"
 
 # Metrics dependencies
 prometheus = "0.13.4"

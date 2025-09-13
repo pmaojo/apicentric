@@ -74,6 +74,16 @@ npm run start:airplane:watch
 npm run start:watch
 ```
 
+### Importar/Exportar OpenAPI
+
+```bash
+# Generar un servicio YAML desde un spec OpenAPI
+pulse simulator import --input openapi.yaml --output services/petstore.yaml
+
+# Exportar un servicio mock existente a OpenAPI
+pulse simulator export --input services/petstore.yaml --output openapi.yaml
+```
+
 Endpoints de ejemplo (simulador):
 
 - Login público: `http://localhost:9011/api/v1/public/login`

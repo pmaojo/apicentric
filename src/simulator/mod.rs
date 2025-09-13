@@ -11,6 +11,7 @@ pub mod router;
 pub mod service;
 pub mod template;
 pub mod watcher;
+pub mod openapi;
 
 #[cfg(test)]
 mod integration_test;

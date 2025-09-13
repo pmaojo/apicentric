@@ -51,6 +51,24 @@ pub enum SimulatorAction {
         /// Scenario name to activate
         scenario: String,
     },
+    /// Import a service from an OpenAPI spec file
+    Import {
+        /// Path to OpenAPI (Swagger) spec
+        #[arg(short, long)]
+        input: String,
+        /// Output path for service YAML definition
+        #[arg(short, long)]
+        output: String,
+    },
+    /// Export a service definition to an OpenAPI spec file
+    Export {
+        /// Path to service YAML definition
+        #[arg(short, long)]
+        input: String,
+        /// Output path for OpenAPI spec
+        #[arg(short, long)]
+        output: String,
+    },
 }
 
 pub async fn simulator_command(
@@ -75,6 +93,12 @@ pub async fn simulator_command(
         }
         SimulatorAction::SetScenario { scenario } => {
             handle_set_scenario(context, scenario, exec_ctx).await
+        }
+        SimulatorAction::Import { input, output } => {
+            handle_import(input, output, exec_ctx).await
+        }
+        SimulatorAction::Export { input, output } => {
+            handle_export(input, output, exec_ctx).await
         }
     }
 }
@@ -339,4 +363,81 @@ async fn handle_set_scenario(
             Some("Enable simulator in pulse.json"),
         ))
     }
+}
+
+async fn handle_import(
+    input: &str,
+    output: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would import OpenAPI '{}' into service '{}'",
+            input, output
+        );
+        return Ok(());
+    }
+    let spec = openapi::from_path(input).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to read OpenAPI: {}", e),
+            None::<String>,
+        )
+    })?;
+    let service = pulse::simulator::openapi::from_openapi(&spec);
+    let yaml = serde_yaml::to_string(&service).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to serialize service: {}", e),
+            None::<String>,
+        )
+    })?;
+    std::fs::write(output, yaml).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to write service file: {}", e),
+            None::<String>,
+        )
+    })?;
+    println!("✅ Imported service to {}", output);
+    Ok(())
+}
+
+async fn handle_export(
+    input: &str,
+    output: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would export service '{}' to OpenAPI '{}'",
+            input, output
+        );
+        return Ok(());
+    }
+    let yaml = std::fs::read_to_string(input).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to read service: {}", e),
+            None::<String>,
+        )
+    })?;
+    let service: pulse::simulator::config::ServiceDefinition =
+        serde_yaml::from_str(&yaml).map_err(|e| {
+            PulseError::runtime_error(
+                format!("Invalid service YAML: {}", e),
+                None::<String>,
+            )
+        })?;
+    let spec = pulse::simulator::openapi::to_openapi(&service);
+    let spec_yaml = openapi::to_yaml(&spec).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to serialize OpenAPI: {}", e),
+            None::<String>,
+        )
+    })?;
+    std::fs::write(output, spec_yaml).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to write spec file: {}", e),
+            None::<String>,
+        )
+    })?;
+    println!("✅ Exported OpenAPI to {}", output);
+    Ok(())
 }
