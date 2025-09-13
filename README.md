@@ -353,6 +353,24 @@ pulse --dry-run mock-api --spec pulse-mock.yaml   # Dry run
 - Exacto `/permisos`
 - Parámetros `{id}` → regex `[^/]+`
 - Regex manual: path iniciando con `^`
+- Headers requeridos usando `header_match`
+
+Ejemplo de coincidencia por encabezados:
+
+```yaml
+endpoints:
+  - method: GET
+    path: /usuarios
+    header_match:
+      x-api-key: secret
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {"status":"ok"}
+```
+
+La petición debe incluir `x-api-key: secret` para activar este endpoint.
 
 ### Roadmap
 

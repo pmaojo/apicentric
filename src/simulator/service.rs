@@ -701,10 +701,17 @@ impl ServiceInstance {
         }
     }
 
-    /// Find an endpoint by method and path with parameter extraction
-    pub fn find_endpoint_with_params(&self, method: &str, path: &str) -> Option<RouteMatch> {
+    /// Find an endpoint by method, path and headers with parameter extraction
+    pub fn find_endpoint_with_params(
+        &self,
+        method: &str,
+        path: &str,
+        headers: &HashMap<String, String>,
+    ) -> Option<RouteMatch> {
         for endpoint in &self.definition.endpoints {
-            if endpoint.method.to_uppercase() == method.to_uppercase() {
+            if endpoint.method.to_uppercase() == method.to_uppercase()
+                && Self::headers_match(endpoint, headers)
+            {
                 if let Some(path_params) = self.extract_path_parameters(&endpoint.path, path) {
                     return Some(RouteMatch {
                         endpoint: endpoint.clone(),
@@ -716,17 +723,37 @@ impl ServiceInstance {
         None
     }
 
-    /// Find an endpoint by method and path (legacy method for backward compatibility)
-    pub fn find_endpoint(&self, method: &str, path: &str) -> Option<&EndpointDefinition> {
+    /// Find an endpoint by method, path and headers (legacy reference)
+    pub fn find_endpoint(
+        &self,
+        method: &str,
+        path: &str,
+        headers: &HashMap<String, String>,
+    ) -> Option<&EndpointDefinition> {
         // Use the original logic for backward compatibility
         for endpoint in &self.definition.endpoints {
-            if endpoint.method.to_uppercase() == method.to_uppercase() {
+            if endpoint.method.to_uppercase() == method.to_uppercase()
+                && Self::headers_match(endpoint, headers)
+            {
                 if self.extract_path_parameters(&endpoint.path, path).is_some() {
                     return Some(endpoint);
                 }
             }
         }
         None
+    }
+
+    /// Check if request headers satisfy an endpoint's header_match criteria
+    fn headers_match(endpoint: &EndpointDefinition, headers: &HashMap<String, String>) -> bool {
+        if let Some(required) = &endpoint.header_match {
+            for (k, v) in required {
+                match headers.get(&k.to_lowercase()) {
+                    Some(val) if val.eq_ignore_ascii_case(v) => {}
+                    _ => return false,
+                }
+            }
+        }
+        true
     }
 
     /// Extract path parameters from a request path against an endpoint path pattern
@@ -986,7 +1013,7 @@ impl ServiceInstance {
 
         // Find matching endpoint with parameter extraction
         let route_match =
-            Self::find_endpoint_with_params_static(&endpoints, method, &relative_path);
+            Self::find_endpoint_with_params_static(&endpoints, method, &relative_path, &headers);
 
         match route_match {
             Some(route_match) => {
@@ -1290,9 +1317,12 @@ impl ServiceInstance {
         endpoints: &[EndpointDefinition],
         method: &str,
         path: &str,
+        headers: &HashMap<String, String>,
     ) -> Option<RouteMatch> {
         for endpoint in endpoints {
-            if endpoint.method.to_uppercase() == method.to_uppercase() {
+            if endpoint.method.to_uppercase() == method.to_uppercase()
+                && Self::headers_match(endpoint, headers)
+            {
                 if let Some(path_params) =
                     Self::extract_path_parameters_static(&endpoint.path, path)
                 {
@@ -1449,8 +1479,11 @@ impl ServiceInstance {
                         if let Some(h) = &cond.headers {
                             for (k, v) in h {
                                 match headers.get(k) {
-                                    Some(val) if val.eq_ignore_ascii_case(v) => {},
-                                    _ => { matches = false; break; }
+                                    Some(val) if val.eq_ignore_ascii_case(v) => {}
+                                    _ => {
+                                        matches = false;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -1601,6 +1634,7 @@ mod tests {
                 EndpointDefinition {
                     method: "GET".to_string(),
                     path: "/users".to_string(),
+                    header_match: None,
                     description: Some("Get all users".to_string()),
                     parameters: None,
                     request_body: None,
@@ -1623,6 +1657,7 @@ mod tests {
                 EndpointDefinition {
                     method: "GET".to_string(),
                     path: "/users/1".to_string(),
+                    header_match: None,
                     description: Some("Get user by ID".to_string()),
                     parameters: None,
                     request_body: None,
@@ -1885,14 +1920,15 @@ mod tests {
         let definition = create_test_service_definition();
         let service = ServiceInstance::new(definition, 8005).unwrap(); // Use different port
 
-        let endpoint = service.find_endpoint("GET", "/users");
+        let headers = HashMap::new();
+        let endpoint = service.find_endpoint("GET", "/users", &headers);
         assert!(endpoint.is_some());
         assert_eq!(endpoint.unwrap().path, "/users");
 
-        let endpoint = service.find_endpoint("POST", "/users");
+        let endpoint = service.find_endpoint("POST", "/users", &headers);
         assert!(endpoint.is_none());
 
-        let endpoint = service.find_endpoint("get", "/users"); // Case insensitive
+        let endpoint = service.find_endpoint("get", "/users", &headers); // Case insensitive
         assert!(endpoint.is_some());
     }
 
@@ -1902,7 +1938,8 @@ mod tests {
         let service = ServiceInstance::new(definition, 8008).unwrap();
 
         // Test parameter extraction
-        let route_match = service.find_endpoint_with_params("GET", "/users/123");
+        let headers = HashMap::new();
+        let route_match = service.find_endpoint_with_params("GET", "/users/123", &headers);
         assert!(route_match.is_some());
 
         let route_match = route_match.unwrap();
@@ -1910,7 +1947,8 @@ mod tests {
         assert_eq!(route_match.path_params.get("id"), Some(&"123".to_string()));
 
         // Test multiple parameters
-        let route_match = service.find_endpoint_with_params("GET", "/users/123/orders/456");
+        let route_match =
+            service.find_endpoint_with_params("GET", "/users/123/orders/456", &headers);
         assert!(route_match.is_some());
 
         let route_match = route_match.unwrap();
@@ -1924,8 +1962,24 @@ mod tests {
         );
 
         // Test no match
-        let route_match = service.find_endpoint_with_params("GET", "/products/123");
+        let route_match = service.find_endpoint_with_params("GET", "/products/123", &headers);
         assert!(route_match.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_endpoint_header_matching() {
+        let definition = create_test_service_definition_with_header_match();
+        let service = ServiceInstance::new(definition, 8010).unwrap();
+
+        let mut headers = HashMap::new();
+        // Missing header should not match
+        let endpoint = service.find_endpoint("GET", "/protected", &headers);
+        assert!(endpoint.is_none());
+
+        // Correct header should match
+        headers.insert("x-api-key".to_string(), "secret".to_string());
+        let endpoint = service.find_endpoint("GET", "/protected", &headers);
+        assert!(endpoint.is_some());
     }
 
     #[test]
@@ -2010,6 +2064,7 @@ mod tests {
                 EndpointDefinition {
                     method: "GET".to_string(),
                     path: "/users/{id}".to_string(),
+                    header_match: None,
                     description: Some("Get user by ID".to_string()),
                     parameters: None,
                     request_body: None,
@@ -2034,6 +2089,7 @@ mod tests {
                 EndpointDefinition {
                     method: "GET".to_string(),
                     path: "/users/{userId}/orders/{orderId}".to_string(),
+                    header_match: None,
                     description: Some("Get user order".to_string()),
                     parameters: None,
                     request_body: None,
@@ -2055,6 +2111,38 @@ mod tests {
         }
     }
 
+    fn create_test_service_definition_with_header_match() -> ServiceDefinition {
+        let mut definition = create_test_service_definition();
+        // Add an endpoint that requires a specific header
+        definition.endpoints.push(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/protected".to_string(),
+            description: Some("Requires header".to_string()),
+            header_match: Some(HashMap::from([(
+                "x-api-key".to_string(),
+                "secret".to_string(),
+            )])),
+            parameters: None,
+            request_body: None,
+            responses: {
+                let mut responses = HashMap::new();
+                responses.insert(
+                    200,
+                    ResponseDefinition {
+                        condition: None,
+                        content_type: "application/json".to_string(),
+                        body: "{\"status\":\"ok\"}".to_string(),
+                        headers: None,
+                        side_effects: None,
+                    },
+                );
+                responses
+            },
+            scenarios: None,
+        });
+        definition
+    }
+
     #[tokio::test]
     async fn test_service_validation() {
         let definition = create_test_service_definition();
@@ -2073,6 +2161,7 @@ mod tests {
             method: "GET".to_string(),
             path: "/users".to_string(), // Duplicate path with same method
             description: Some("Duplicate endpoint".to_string()),
+            header_match: None,
             parameters: None,
             request_body: None,
             responses: HashMap::new(),
@@ -2090,6 +2179,7 @@ mod tests {
         let endpoint = EndpointDefinition {
             method: "GET".to_string(),
             path: "/test".to_string(),
+            header_match: None,
             description: None,
             parameters: None,
             request_body: None,
@@ -2136,7 +2226,10 @@ mod tests {
                     conditions: Some(ScenarioConditions {
                         query: None,
                         headers: None,
-                        body: Some(HashMap::from([("kind".to_string(), serde_json::json!("b"))])),
+                        body: Some(HashMap::from([(
+                            "kind".to_string(),
+                            serde_json::json!("b"),
+                        )])),
                     }),
                     response: ScenarioResponse {
                         status: 202,
@@ -2175,16 +2268,29 @@ mod tests {
         // Header condition
         let mut headers = HashMap::new();
         headers.insert("x-scn".to_string(), "hdr".to_string());
-        let res = ServiceInstance::match_scenario(&endpoint, None, &HashMap::new(), &headers, &None);
+        let res =
+            ServiceInstance::match_scenario(&endpoint, None, &HashMap::new(), &headers, &None);
         assert_eq!(res.unwrap().0, 201);
 
         // Body condition
         let body = Some(serde_json::json!({"kind": "b"}));
-        let res = ServiceInstance::match_scenario(&endpoint, None, &HashMap::new(), &HashMap::new(), &body);
+        let res = ServiceInstance::match_scenario(
+            &endpoint,
+            None,
+            &HashMap::new(),
+            &HashMap::new(),
+            &body,
+        );
         assert_eq!(res.unwrap().0, 202);
 
         // Active scenario fallback
-        let res = ServiceInstance::match_scenario(&endpoint, Some("error".to_string()), &HashMap::new(), &HashMap::new(), &None);
+        let res = ServiceInstance::match_scenario(
+            &endpoint,
+            Some("error".to_string()),
+            &HashMap::new(),
+            &HashMap::new(),
+            &None,
+        );
         assert_eq!(res.unwrap().0, 500);
     }
 
