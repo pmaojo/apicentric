@@ -12,6 +12,7 @@ pub mod service;
 pub mod template;
 pub mod watcher;
 pub mod openapi;
+pub mod mockoon;
 
 #[cfg(test)]
 mod integration_test;
