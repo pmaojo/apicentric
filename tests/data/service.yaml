@@ -1,0 +1,25 @@
+name: Test Service
+version: "1.0"
+description: null
+server:
+  port: null
+  base_path: /api
+  proxy_base_url: null
+  cors: null
+models: null
+fixtures: null
+endpoints:
+  - method: GET
+    path: /pets
+    description: List pets
+    parameters: null
+    request_body: null
+    responses:
+      200:
+        condition: null
+        content_type: application/json
+        body: successful operation
+        headers: null
+        side_effects: null
+    scenarios: null
+behavior: null
