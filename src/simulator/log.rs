@@ -9,6 +9,10 @@ use std::collections::VecDeque;
 pub struct RequestLogEntry {
     /// Timestamp when the request was processed
     pub timestamp: DateTime<Utc>,
+    /// Service handling the request
+    pub service: String,
+    /// Index of the matched endpoint within the service
+    pub endpoint: Option<usize>,
     /// HTTP method of the request
     pub method: String,
     /// Request path
@@ -19,9 +23,17 @@ pub struct RequestLogEntry {
 
 impl RequestLogEntry {
     /// Create a new log entry with the current timestamp
-    pub fn new(method: String, path: String, status: u16) -> Self {
+    pub fn new(
+        service: String,
+        endpoint: Option<usize>,
+        method: String,
+        path: String,
+        status: u16,
+    ) -> Self {
         Self {
             timestamp: Utc::now(),
+            service,
+            endpoint,
             method,
             path,
             status,

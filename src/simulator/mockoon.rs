@@ -76,7 +76,11 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
                         .clone()
                         .unwrap_or_else(|| "application/json".into()),
                     body: resp.body.clone(),
-                    headers: if headers.is_empty() { None } else { Some(headers) },
+                    headers: if headers.is_empty() {
+                        None
+                    } else {
+                        Some(headers)
+                    },
                     side_effects: None,
                 };
                 responses.insert(resp.status_code, response);
@@ -88,6 +92,7 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
                 } else {
                     format!("/{}", r.endpoint)
                 },
+                header_match: None,
                 description: None,
                 parameters: None,
                 request_body: None,
@@ -114,8 +119,7 @@ fn parse_env(json: &str) -> Result<MockoonEnvironment, Box<dyn std::error::Error
         return Ok(env);
     }
     let envs: Vec<MockoonEnvironment> = serde_json::from_str(json)?;
-    envs
-        .into_iter()
+    envs.into_iter()
         .next()
         .ok_or_else(|| "No environments found".into())
 }
@@ -131,4 +135,3 @@ pub fn from_path<P: AsRef<Path>>(path: P) -> Result<ServiceDefinition, Box<dyn s
     let content = fs::read_to_string(path)?;
     from_str(&content)
 }
-
