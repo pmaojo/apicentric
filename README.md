@@ -432,6 +432,16 @@ Cada operación se resuelve con la plantilla indicada y puede usar fixtures o va
 - npm reciente
 - Cypress 15+
 
+## 📦 Installation
+
+After installing `mockforge`, verify the CLI is available:
+
+```bash
+mockforge --help | head -n 5
+```
+
+You should see the `mockforge` banner with the version and a short usage summary, confirming the installation succeeded.
+
 ## Configuración básica
 
 Ejemplo de `mockforge.json` mínimo:
