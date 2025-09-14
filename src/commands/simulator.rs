@@ -5,6 +5,8 @@ use clap::Subcommand;
 use mockforge::simulator::log::RequestLogEntry;
 use mockforge::{Context, ExecutionContext, PulseError, PulseResult};
 use crate::collab::share;
+use std::collections::HashMap;
+use chrono::{DateTime, Utc};
 
 #[derive(Subcommand, Debug)]
 pub enum SimulatorAction {
@@ -63,6 +65,18 @@ pub enum SimulatorAction {
         /// Output file to write logs as JSON
         #[arg(long)]
         output: Option<String>,
+    },
+    /// Monitor simulator status and logs
+    Monitor {
+        /// Service name to monitor
+        #[arg(long)]
+        service: Option<String>,
+        /// Output in JSON format
+        #[arg(long)]
+        json: bool,
+        /// Refresh interval in seconds for continuous monitoring
+        #[arg(long)]
+        interval: Option<u64>,
     },
     /// Set default scenario for all services
     SetScenario {
@@ -201,6 +215,20 @@ pub async fn simulator_command(
                 route.as_deref(),
                 *status,
                 output.as_deref(),
+                exec_ctx,
+            )
+            .await
+        }
+        SimulatorAction::Monitor {
+            service,
+            json,
+            interval,
+        } => {
+            handle_monitor(
+                context,
+                service.as_deref(),
+                *json,
+                *interval,
                 exec_ctx,
             )
             .await
@@ -512,6 +540,126 @@ async fn handle_logs(
             Some("Enable simulator in mockforge.json"),
         ))
     }
+}
+
+async fn handle_monitor(
+    context: &Context,
+    service: Option<&str>,
+    json: bool,
+    interval: Option<u64>,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would monitor simulator (service={:?}, json={}, interval={:?})",
+            service, json, interval
+        );
+        return Ok(());
+    }
+
+    let simulator = if let Some(sim) = context.api_simulator() {
+        sim
+    } else {
+        return Err(PulseError::config_error(
+            "API simulator is not enabled or configured",
+            Some("Enable simulator in mockforge.json"),
+        ));
+    };
+
+    let mut last_seen: HashMap<String, DateTime<Utc>> = HashMap::new();
+
+    loop {
+        let status = simulator.get_status().await;
+
+        // Determine which services to check for logs
+        let services: Vec<_> = if let Some(name) = service {
+            status
+                .active_services
+                .iter()
+                .filter(|s| s.name == name)
+                .collect()
+        } else {
+            status.active_services.iter().collect()
+        };
+
+        let mut logs_map: HashMap<String, Vec<RequestLogEntry>> = HashMap::new();
+        for svc in services {
+            let mut url = format!("http://localhost:{}{}", svc.port, svc.base_path);
+            if !url.ends_with('/') {
+                url.push('/');
+            }
+            url.push_str("__mockforge/logs?limit=100");
+            let resp = reqwest::get(&url).await.map_err(|e| {
+                PulseError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>)
+            })?;
+            if !resp.status().is_success() {
+                return Err(PulseError::runtime_error(
+                    format!("Failed to fetch logs: status {}", resp.status()),
+                    None::<String>,
+                ));
+            }
+            let entries: Vec<RequestLogEntry> = resp.json().await.map_err(|e| {
+                PulseError::runtime_error(format!("Failed to parse logs: {}", e), None::<String>)
+            })?;
+            let last = last_seen.get(&svc.name).copied();
+            let new_entries: Vec<RequestLogEntry> = match last {
+                Some(ts) => entries.into_iter().filter(|e| e.timestamp > ts).collect(),
+                None => entries,
+            };
+            if let Some(max_ts) = new_entries.iter().map(|e| e.timestamp).max() {
+                last_seen.insert(svc.name.clone(), max_ts);
+            }
+            if !new_entries.is_empty() {
+                logs_map.insert(svc.name.clone(), new_entries);
+            }
+        }
+
+        if json {
+            let output = serde_json::json!({
+                "status": status,
+                "logs": logs_map,
+            });
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        } else {
+            println!("📊 API Simulator Status");
+            println!(
+                "   Status: {}",
+                if status.is_active { "🟢 Running" } else { "🔴 Stopped" }
+            );
+            println!("   Services: {} total", status.services_count);
+            println!("   Active Services: {}", status.active_services.len());
+            for svc in &status.active_services {
+                println!(
+                    " - {} (port {} base {})",
+                    svc.name, svc.port, svc.base_path
+                );
+                if let Some(logs) = logs_map.get(&svc.name) {
+                    for entry in logs {
+                        println!(
+                            "   [{}] {} {} -> {}",
+                            entry.timestamp.to_rfc3339(),
+                            entry.method,
+                            entry.path,
+                            entry.status
+                        );
+                    }
+                }
+            }
+        }
+
+        match interval {
+            Some(secs) if secs > 0 => {
+                use tokio::{signal, time::{sleep, Duration}};
+                tokio::select! {
+                    _ = signal::ctrl_c() => break,
+                    _ = sleep(Duration::from_secs(secs)) => {}
+                }
+            }
+            _ => break,
+        }
+    }
+
+    Ok(())
 }
 
 async fn handle_set_scenario(
