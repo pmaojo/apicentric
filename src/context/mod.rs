@@ -1,43 +1,21 @@
-pub mod init;
-
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::config;
-use crate::domain::ports::testing::{ChangeDetectorPort, RouteIndexerPort, WatcherPort};
-use crate::execution::ExecutionContext;
-use crate::{PulseError, PulseResult, TestRunnerPort};
+use crate::{config, PulseError, PulseResult};
 
-/// Contenedor IoC sencillo para dependencias basadas en puertos.
+pub mod init;
+
+/// Minimal application context containing configuration and optional API simulator.
 pub struct Context {
     config: config::PulseConfig,
-    execution_context: ExecutionContext,
-    pub change_detector: Arc<dyn ChangeDetectorPort + Send + Sync>,
-    pub route_indexer: Arc<dyn RouteIndexerPort + Send + Sync>,
-    pub test_runner: Arc<dyn TestRunnerPort + Send + Sync>,
-    pub watcher: Arc<dyn WatcherPort + Send + Sync>,
-    pub junit_adapter: Arc<crate::adapters::junit::JUnitAdapter>,
-    pub metrics_manager: Arc<std::sync::Mutex<crate::adapters::metrics::MetricsManager>>,
-    pub api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
+    api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
 }
 
 impl Context {
-    pub fn with_execution_context(mut self, execution_context: ExecutionContext) -> Self {
-        self.execution_context = execution_context;
-        self
-    }
-
-    pub fn execution_context(&self) -> &ExecutionContext {
-        &self.execution_context
-    }
     pub fn config(&self) -> &config::PulseConfig {
         &self.config
     }
-    pub fn metrics_manager(
-        &self,
-    ) -> &Arc<std::sync::Mutex<crate::adapters::metrics::MetricsManager>> {
-        &self.metrics_manager
-    }
+
     pub fn api_simulator(&self) -> Option<&Arc<crate::simulator::ApiSimulatorManager>> {
         self.api_simulator.as_ref()
     }
@@ -85,15 +63,9 @@ impl Context {
     }
 }
 
-/// Builder para [`Context`].
+/// Builder for [`Context`].
 pub struct ContextBuilder {
     config: config::PulseConfig,
-    change_detector: Option<Arc<dyn ChangeDetectorPort + Send + Sync>>,
-    route_indexer: Option<Arc<dyn RouteIndexerPort + Send + Sync>>,
-    test_runner: Option<Arc<dyn TestRunnerPort + Send + Sync>>,
-    watcher: Option<Arc<dyn WatcherPort + Send + Sync>>,
-    junit_adapter: Option<Arc<crate::adapters::junit::JUnitAdapter>>,
-    metrics_manager: Option<Arc<std::sync::Mutex<crate::adapters::metrics::MetricsManager>>>,
     api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
 }
 
@@ -102,56 +74,8 @@ impl ContextBuilder {
         let config = config::load_config(config_path)?;
         Ok(Self {
             config,
-            change_detector: None,
-            route_indexer: None,
-            test_runner: None,
-            junit_adapter: None,
-            metrics_manager: None,
             api_simulator: None,
-            watcher: None,
         })
-    }
-
-    pub fn with_change_detector(
-        mut self,
-        change_detector: Arc<dyn ChangeDetectorPort + Send + Sync>,
-    ) -> Self {
-        self.change_detector = Some(change_detector);
-        self
-    }
-
-    pub fn with_route_indexer(
-        mut self,
-        route_indexer: Arc<dyn RouteIndexerPort + Send + Sync>,
-    ) -> Self {
-        self.route_indexer = Some(route_indexer);
-        self
-    }
-
-    pub fn with_test_runner(mut self, test_runner: Arc<dyn TestRunnerPort + Send + Sync>) -> Self {
-        self.test_runner = Some(test_runner);
-        self
-    }
-
-    pub fn with_watcher(mut self, watcher: Arc<dyn WatcherPort + Send + Sync>) -> Self {
-        self.watcher = Some(watcher);
-        self
-    }
-
-    pub fn with_junit_adapter(
-        mut self,
-        junit_adapter: Arc<crate::adapters::junit::JUnitAdapter>,
-    ) -> Self {
-        self.junit_adapter = Some(junit_adapter);
-        self
-    }
-
-    pub fn with_metrics_manager(
-        mut self,
-        metrics_manager: Arc<std::sync::Mutex<crate::adapters::metrics::MetricsManager>>,
-    ) -> Self {
-        self.metrics_manager = Some(metrics_manager);
-        self
     }
 
     pub fn with_api_simulator(
@@ -169,29 +93,59 @@ impl ContextBuilder {
     pub fn build(self) -> PulseResult<Context> {
         Ok(Context {
             config: self.config.clone(),
-            execution_context: ExecutionContext::new(&self.config),
-            change_detector: self.change_detector.ok_or_else(|| {
-                PulseError::runtime_error("Missing change detector", None::<String>)
-            })?,
-            route_indexer: self.route_indexer.ok_or_else(|| {
-                PulseError::runtime_error("Missing route indexer", None::<String>)
-            })?,
-            test_runner: self
-                .test_runner
-                .ok_or_else(|| PulseError::runtime_error("Missing test runner", None::<String>))?,
-            junit_adapter: self.junit_adapter.ok_or_else(|| {
-                PulseError::runtime_error("Missing JUnit adapter", None::<String>)
-            })?,
-            metrics_manager: self.metrics_manager.unwrap_or_else(|| {
-                Arc::new(std::sync::Mutex::new(
-                    crate::adapters::metrics::MetricsManager::new(),
-                ))
-            }),
             api_simulator: self.api_simulator,
-            watcher: self.watcher.ok_or_else(|| {
-                PulseError::runtime_error("Missing watcher", None::<String>)
-            })?,
         })
+    }
+}
+
+/// Execution context derived from configuration and CLI flags.
+#[derive(Debug, Clone)]
+pub struct ExecutionContext {
+    pub mode: config::ExecutionMode,
+    pub dry_run: bool,
+    pub verbose: bool,
+    pub continue_on_failure: bool,
+}
+
+impl ExecutionContext {
+    pub fn new(cfg: &config::PulseConfig) -> Self {
+        Self {
+            mode: cfg.execution.mode.clone(),
+            dry_run: cfg.execution.dry_run,
+            verbose: cfg.execution.verbose,
+            continue_on_failure: cfg.execution.continue_on_failure,
+        }
+    }
+
+    pub fn with_mode(mut self, mode: config::ExecutionMode) -> Self {
+        self.mode = mode;
+        self
+    }
+    pub fn with_dry_run(mut self, dry_run: bool) -> Self {
+        self.dry_run = dry_run;
+        self
+    }
+    pub fn with_verbose(mut self, verbose: bool) -> Self {
+        self.verbose = verbose;
+        self
+    }
+    pub fn is_ci_mode(&self) -> bool {
+        matches!(self.mode, config::ExecutionMode::CI)
+    }
+    pub fn is_development_mode(&self) -> bool {
+        matches!(self.mode, config::ExecutionMode::Development)
+    }
+    pub fn is_debug_mode(&self) -> bool {
+        matches!(self.mode, config::ExecutionMode::Debug)
+    }
+    pub fn should_skip_server_check(&self) -> bool {
+        self.is_ci_mode()
+    }
+    pub fn should_show_progress(&self) -> bool {
+        self.is_development_mode() || self.is_debug_mode()
+    }
+    pub fn should_log_debug(&self) -> bool {
+        self.is_debug_mode() || self.verbose
     }
 }
 

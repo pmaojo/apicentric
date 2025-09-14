@@ -72,27 +72,17 @@ async fn run(cli: Cli) -> PulseResult<()> {
     let builder = ContextBuilder::new(config_path)?;
     let cfg = builder.config().clone();
 
-    // Build adapters + metrics + simulator from config
-    let (change_detector, route_indexer, test_runner, junit_adapter, watcher) =
-        init::build_adapters(&cfg);
-    let metrics_manager = init::build_metrics_manager(&cfg, &ExecutionContext::new(&cfg));
+    // Build simulator from config
     let api_simulator = init::build_api_simulator(&cfg);
 
-    let mut context = builder
-        .with_change_detector(change_detector)
-        .with_route_indexer(route_indexer)
-        .with_test_runner(test_runner)
-        .with_junit_adapter(junit_adapter)
-        .with_metrics_manager(metrics_manager)
+    let context = builder
         .with_api_simulator(api_simulator)
-        .with_watcher(watcher)
         .build()?;
 
     let mut exec_ctx = ExecutionContext::new(context.config());
     if let Some(mode) = cli.mode { exec_ctx = exec_ctx.with_mode(mode.into()); }
     if cli.dry_run { exec_ctx = exec_ctx.with_dry_run(true); }
     if cli.verbose { exec_ctx = exec_ctx.with_verbose(true); }
-    context = context.with_execution_context(exec_ctx.clone());
 
     match cli.command {
         Commands::Simulator { action } => match &action {

@@ -1,5 +1,3 @@
-pub mod run;
-pub mod watch;
 pub mod setup_npm;
 pub mod contract;
 pub mod docs; // (pendiente de implementación real)
@@ -8,8 +6,6 @@ pub mod shared;
 pub mod contract_demo;
 pub mod gui;
 
-pub use run::RunCommandHandler;
-pub use watch::WatchCommandHandler;
 pub use setup_npm::SetupNpmHandler;
 pub use contract::{contract_command, ContractAction};
 pub use simulator::{simulator_command, SimulatorAction};
