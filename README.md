@@ -5,8 +5,15 @@
 │  📊 MÉTRICAS: Monitorización en tiempo real (Prometheus, Sentry y Allure)            │
 │  🚀 VELOCIDAD: Conversión y grabación automáticas                                    │
 │                                                                                      │
-└──────────────────────────────────────────────────────────────────────────────────────┘
-```
+└──────────────────────────────────────────────────────────────────────────────────────
+## 🛠️ Instalación
+
+Para instalar la versión más reciente de `mockforge`, ejecuta uno de los scripts de instalación incluidos:
+
+- **Linux/macOS**: `./scripts/install.sh`
+- **Windows (PowerShell)**: `./scripts/install.ps1`
+
+Cada script detecta automáticamente tu sistema operativo y arquitectura, descarga el binario adecuado desde las últimas releases y lo coloca en una ubicación habitual (`/usr/local/bin` o `%UserProfile%\bin`).
 
 ## 📦 Instalación
 
