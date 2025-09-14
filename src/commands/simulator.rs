@@ -121,6 +121,15 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         input: String,
     },
+    /// Record live API interactions into service definitions
+    Record {
+        /// Output directory for generated YAML services
+        #[arg(short, long, default_value = "services")]
+        output: String,
+        /// Target URL to proxy requests to (defaults to config base_url)
+        #[arg(long)]
+        url: Option<String>,
+    },
 }
 
 pub async fn simulator_command(
@@ -162,6 +171,9 @@ pub async fn simulator_command(
         }
         SimulatorAction::New { output } => handle_new(output, exec_ctx).await,
         SimulatorAction::Edit { input } => handle_edit(input, exec_ctx).await,
+        SimulatorAction::Record { output, url } => {
+            handle_record(context, output, url, exec_ctx).await
+        }
     }
 }
 
@@ -416,6 +428,35 @@ async fn handle_set_scenario(
     if let Some(simulator) = context.api_simulator() {
         simulator.set_scenario(Some(scenario.to_string())).await?;
         println!("✅ Scenario set to '{}'", scenario);
+        Ok(())
+    } else {
+        Err(PulseError::config_error(
+            "API simulator is not enabled or configured",
+            Some("Enable simulator in pulse.json"),
+        ))
+    }
+}
+
+async fn handle_record(
+    context: &Context,
+    output: &str,
+    url: &Option<String>,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    let target = url
+        .clone()
+        .unwrap_or_else(|| context.config().base_url.clone());
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would record traffic to '{}' (target={})",
+            output, target
+        );
+        return Ok(());
+    }
+    if let Some(simulator) = context.api_simulator() {
+        simulator
+            .record(&target, std::path::PathBuf::from(output))
+            .await?;
         Ok(())
     } else {
         Err(PulseError::config_error(
