@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use openapi::{Info, Operation, Operations, Parameter, Response, Schema, Spec};
 
 use crate::simulator::config::{
-    EndpointDefinition, ParameterDefinition, ParameterLocation, RequestBodyDefinition,
-    ResponseDefinition, ServerConfig, ServiceDefinition,
+    EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation,
+    RequestBodyDefinition, ResponseDefinition, ServerConfig, ServiceDefinition,
 };
 
 /// Convert an OpenAPI spec into a `ServiceDefinition` used by the simulator
@@ -103,6 +103,7 @@ pub fn from_openapi(spec: &Spec) -> ServiceDefinition {
                 }
 
                 let endpoint = EndpointDefinition {
+                    kind: EndpointKind::Http,
                     method: method.to_uppercase(),
                     path: path.clone(),
                     header_match: None,
@@ -111,6 +112,7 @@ pub fn from_openapi(spec: &Spec) -> ServiceDefinition {
                     request_body,
                     responses: responses_map,
                     scenarios: None,
+                    stream: None,
                 };
                 endpoints.push(endpoint);
             }

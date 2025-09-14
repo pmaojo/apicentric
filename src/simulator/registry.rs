@@ -252,7 +252,9 @@ impl ServiceRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::simulator::config::{EndpointDefinition, ResponseDefinition, ServerConfig};
+    use crate::simulator::config::{
+        EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig,
+    };
     use std::collections::HashMap;
 
     fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefinition {
@@ -269,6 +271,7 @@ mod tests {
             models: None,
             fixtures: None,
             endpoints: vec![EndpointDefinition {
+                kind: EndpointKind::Http,
                 method: "GET".to_string(),
                 path: "/test".to_string(),
                 header_match: None,
@@ -290,6 +293,7 @@ mod tests {
                     responses
                 },
                 scenarios: None,
+                stream: None,
             }],
             graphql: None,
             behavior: None,

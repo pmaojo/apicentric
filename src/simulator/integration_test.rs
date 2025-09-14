@@ -2,7 +2,9 @@
 
 #[cfg(test)]
 mod tests {
-    use super::super::config::{EndpointDefinition, ResponseDefinition, ServiceDefinition};
+    use super::super::config::{
+        EndpointDefinition, EndpointKind, ResponseDefinition, ServiceDefinition,
+    };
     use super::super::config::{PortRange, SimulatorConfig};
     use super::super::log::RequestLogEntry;
     use super::super::manager::ApiSimulatorManager;
@@ -43,6 +45,7 @@ mod tests {
             },
             endpoints: vec![
                 EndpointDefinition {
+                    kind: EndpointKind::Http,
                     method: "GET".to_string(),
                     path: "/users".to_string(),
                     header_match: None,
@@ -64,8 +67,10 @@ mod tests {
                         responses
                     },
                     scenarios: None,
+                    stream: None,
                 },
                 EndpointDefinition {
+                    kind: EndpointKind::Http,
                     method: "GET".to_string(),
                     path: "/users/{id}".to_string(),
                     header_match: None,
@@ -84,8 +89,10 @@ mod tests {
                         responses
                     },
                     scenarios: None,
+                    stream: None,
                 },
                 EndpointDefinition {
+                    kind: EndpointKind::Http,
                     method: "GET".to_string(),
                     path: "/users/{userId}/orders/{orderId}".to_string(),
                     header_match: None,
@@ -104,6 +111,7 @@ mod tests {
                         responses
                     },
                     scenarios: None,
+                    stream: None,
                 },
             ],
             graphql: None,

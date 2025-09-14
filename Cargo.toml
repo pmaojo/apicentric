@@ -30,6 +30,9 @@ openapi = "0.1.5"
 tempfile = "3.8.0"
 async-graphql = "7.0"
 async-graphql-parser = "7.0"
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+tokio-stream = "0.1"
 
 # Metrics dependencies
 prometheus = "0.13.4"
