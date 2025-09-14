@@ -1,6 +1,7 @@
 use crate::commands::shared::{
     find_yaml_files, scaffold_endpoint_definition, scaffold_service_definition, validate_yaml_file,
 };
+use crate::collab::share;
 use clap::Subcommand;
 use mockforge::simulator::log::RequestLogEntry;
 use mockforge::{Context, ExecutionContext, PulseError, PulseResult};
@@ -145,6 +146,25 @@ pub enum SimulatorAction {
         #[arg(long)]
         url: Option<String>,
     },
+    /// Share a running service over libp2p
+    Share {
+        /// Service name to expose
+        service: String,
+    },
+    /// Connect to a shared service and proxy locally
+    Connect {
+        /// Remote peer ID
+        peer: String,
+        /// Service name to access
+        #[arg(long)]
+        service: String,
+        /// Local port to listen on
+        #[arg(long)]
+        port: u16,
+        /// Authentication token issued by the peer
+        #[arg(long)]
+        token: Option<String>,
+    },
 }
 
 pub async fn simulator_command(
@@ -206,6 +226,12 @@ pub async fn simulator_command(
         SimulatorAction::Edit { input } => handle_edit(input, exec_ctx).await,
         SimulatorAction::Record { output, url } => {
             handle_record(context, output, url, exec_ctx).await
+        }
+        SimulatorAction::Share { service } => {
+            handle_share(context, service, exec_ctx).await
+        }
+        SimulatorAction::Connect { peer, service, port, token } => {
+            handle_connect(peer, service, *port, token.as_deref(), exec_ctx).await
         }
     }
 }
@@ -537,6 +563,69 @@ async fn handle_record(
             Some("Enable simulator in mockforge.json"),
         ))
     }
+}
+
+async fn handle_share(
+    context: &Context,
+    service: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!("🏃 Dry run: Would share service '{}'", service);
+        return Ok(());
+    }
+    if let Some(simulator) = context.api_simulator() {
+        let registry = simulator.service_registry().read().await;
+        if let Some(instance) = registry.get_service(service) {
+            let port = instance.read().await.port();
+            drop(registry);
+            match share::share_service(port).await {
+                Ok((peer, token)) => {
+                    println!("📡 Sharing service '{}'", service);
+                    println!("   Peer ID: {}", peer);
+                    println!("   Token: {}", token);
+                    Ok(())
+                }
+                Err(e) => Err(PulseError::runtime_error(
+                    format!("Failed to share service: {}", e),
+                    None::<String>,
+                )),
+            }
+        } else {
+            println!("⚠️ Service '{}' not found", service);
+            Ok(())
+        }
+    } else {
+        Err(PulseError::config_error(
+            "API simulator is not enabled or configured",
+            Some("Enable simulator in mockforge.json"),
+        ))
+    }
+}
+
+async fn handle_connect(
+    peer: &str,
+    service: &str,
+    port: u16,
+    token: Option<&str>,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would connect to peer '{}' service '{}' on port {}",
+            peer, service, port
+        );
+        return Ok(());
+    }
+    let peer_id = peer
+        .parse::<libp2p::PeerId>()
+        .map_err(|e| PulseError::runtime_error(format!("Invalid peer id: {}", e), None::<String>))?;
+    let token = token.unwrap_or("").to_string();
+    share::connect_service(peer_id, token, service.to_string(), port)
+        .await
+        .map_err(|e| {
+            PulseError::runtime_error(format!("Failed to connect: {}", e), None::<String>)
+        })
 }
 
 async fn handle_import(input: &str, output: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {

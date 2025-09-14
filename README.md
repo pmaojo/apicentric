@@ -66,6 +66,25 @@ peers en la red local (mDNS) y compartir cambios de los servicios mediante CRDTs
 Las modificaciones en los archivos YAML se fusionan y propagan sin necesidad de
 un servidor central.
 
+### Compartir servicios via libp2p
+
+Pulsa permite exponer un servicio en ejecución para que otros peers consuman el
+mock de forma remota.
+
+```bash
+# En el host que tiene el simulador corriendo
+mockforge simulator share my-service
+# Muestra Peer ID y token de acceso
+
+# En otro equipo
+mockforge simulator connect <peer-id> --service my-service --port 8080 --token <token>
+# Abre un proxy local en http://localhost:8080
+```
+
+> **Seguridad:** El token se debe compartir solo con colaboradores de
+confianza. Actualmente cualquier peer con el token puede conectarse; para un
+control más fino pueden implementarse listas de peers permitidos.
+
 ## 🚀 Qualitas Setup (host app)
 
 - Directorio de trabajo: ejecuta los comandos desde `qualitas-cloud-2-frontend/`.
