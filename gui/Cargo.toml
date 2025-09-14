@@ -1,12 +1,12 @@
 [package]
-name = "pulse-gui"
+name = "mockforge-gui"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 tauri = { version = "1.6", features = ["dialog", "shell-open"] }
 serde_yaml = "0.9"
-pulse = { path = ".." }
+mockforge = { path = ".." }
 
 [build-dependencies]
 tauri-build = { version = "1.6" }

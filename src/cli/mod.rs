@@ -4,8 +4,8 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Path to the pulse.json config file
-    #[arg(short, long, default_value = "pulse.json")]
+    /// Path to the mockforge.json config file
+    #[arg(short, long, default_value = "mockforge.json")]
     pub config: String,
 
     /// Execution mode (overrides config)

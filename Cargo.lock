@@ -1595,6 +1595,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "mockforge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-graphql",
+ "async-graphql-parser",
+ "async-trait",
+ "bytes",
+ "chrono",
+ "clap",
+ "colored",
+ "console",
+ "deno_core",
+ "fake",
+ "futures-util",
+ "glob",
+ "handlebars 6.3.2",
+ "http-body-util",
+ "hyper 1.7.0",
+ "hyper-util",
+ "indicatif",
+ "inquire",
+ "lazy_static",
+ "log",
+ "notify",
+ "openapi",
+ "rand 0.8.5",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml 0.9.34+deprecated",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "multer"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1969,49 +2012,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89ae43fd86e4158d6db51ad8e2b80f313af9cc74f5c0e03ccb87de09998732de"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "pulse"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-graphql",
- "async-graphql-parser",
- "async-trait",
- "bytes",
- "chrono",
- "clap",
- "colored",
- "console",
- "deno_core",
- "fake",
- "futures-util",
- "glob",
- "handlebars 6.3.2",
- "http-body-util",
- "hyper 1.7.0",
- "hyper-util",
- "indicatif",
- "inquire",
- "lazy_static",
- "log",
- "notify",
- "openapi",
- "rand 0.8.5",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml 0.9.34+deprecated",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "tracing",
- "url",
- "uuid",
 ]
 
 [[package]]

@@ -45,30 +45,30 @@ impl SetupNpmHandler {
             .and_then(|s| s.as_object_mut())
             .ok_or_else(|| anyhow!("Invalid scripts section in package.json"))?;
 
-        // Define pulse scripts
-        let pulse_scripts = [
-            ("pulse:build", "cd utils/pulse && cargo build --release"),
-            ("pulse", "npm run pulse:build && ./utils/pulse/target/release/pulse"),
-            ("pulse:run", "npm run pulse -- run"),
-            ("pulse:watch", "npm run pulse -- watch"),
-            ("pulse:debug", "npm run pulse -- --mode debug --verbose run"),
-            ("pulse:ci", "npm run pulse -- --mode ci run"),
-            ("pulse:dry", "npm run pulse -- --dry-run run"),
-            ("pulse:impacted", "npm run pulse -- watch --dry-run"),
-            ("pulse:report:allure", "allure serve cypress/reports/allure-results"),
-            ("pulse:docs:generate", "npm run pulse -- docs generate"),
-            ("pulse:docs:serve", "npm run pulse -- docs serve"),
-            ("pulse:simulator:start", "npm run pulse -- simulator start"),
-            ("pulse:simulator:stop", "npm run pulse -- simulator stop"),
-            ("pulse:simulator:status", "npm run pulse -- simulator status"),
-            ("pulse:contract:demo", "npm run pulse -- contract demo"),
-            ("pulse:contract:validate", "npm run pulse -- contract validate"),
+        // Define mockforge scripts
+        let mockforge_scripts = [
+            ("mockforge:build", "cd utils/mockforge && cargo build --release"),
+            ("mockforge", "npm run mockforge:build && ./utils/mockforge/target/release/mockforge"),
+            ("mockforge:run", "npm run mockforge -- run"),
+            ("mockforge:watch", "npm run mockforge -- watch"),
+            ("mockforge:debug", "npm run mockforge -- --mode debug --verbose run"),
+            ("mockforge:ci", "npm run mockforge -- --mode ci run"),
+            ("mockforge:dry", "npm run mockforge -- --dry-run run"),
+            ("mockforge:impacted", "npm run mockforge -- watch --dry-run"),
+            ("mockforge:report:allure", "allure serve cypress/reports/allure-results"),
+            ("mockforge:docs:generate", "npm run mockforge -- docs generate"),
+            ("mockforge:docs:serve", "npm run mockforge -- docs serve"),
+            ("mockforge:simulator:start", "npm run mockforge -- simulator start"),
+            ("mockforge:simulator:stop", "npm run mockforge -- simulator stop"),
+            ("mockforge:simulator:status", "npm run mockforge -- simulator status"),
+            ("mockforge:contract:demo", "npm run mockforge -- contract demo"),
+            ("mockforge:contract:validate", "npm run mockforge -- contract validate"),
         ];
 
         let mut added = 0;
         let mut skipped = 0;
 
-        for (script_name, script_command) in pulse_scripts.iter() {
+        for (script_name, script_command) in mockforge_scripts.iter() {
             if scripts.contains_key(*script_name) && !force {
                 println!("⏭️  Skipping '{}' (already exists)", script_name);
                 skipped += 1;
@@ -89,7 +89,7 @@ impl SetupNpmHandler {
 
         if added > 0 {
             println!("\n🎉 NPM integration setup complete!");
-            println!("💡 Try: npm run pulse:watch");
+            println!("💡 Try: npm run mockforge:watch");
         }
 
         Ok(())
@@ -99,55 +99,55 @@ impl SetupNpmHandler {
         println!("📋 NPM Integration Setup Instructions");
         println!("=====================================");
         println!();
-        println!("To manually add Pulse scripts to your package.json:");
+        println!("To manually add MockForge scripts to your package.json:");
         println!();
         println!("1. Open your package.json file");
         println!("2. Add these scripts to the 'scripts' section:");
         println!();
         println!(r#"  "scripts": {{
-    "pulse:build": "cd utils/pulse && cargo build --release",
-    "pulse": "npm run pulse:build && ./utils/pulse/target/release/pulse",
-    "pulse:run": "npm run pulse -- run",
-    "pulse:watch": "npm run pulse -- watch",
-    "pulse:debug": "npm run pulse -- --mode debug --verbose run",
-    "pulse:ci": "npm run pulse -- --mode ci run",
-    "pulse:dry": "npm run pulse -- --dry-run run"
+    "mockforge:build": "cd utils/mockforge && cargo build --release",
+    "mockforge": "npm run mockforge:build && ./utils/mockforge/target/release/mockforge",
+    "mockforge:run": "npm run mockforge -- run",
+    "mockforge:watch": "npm run mockforge -- watch",
+    "mockforge:debug": "npm run mockforge -- --mode debug --verbose run",
+    "mockforge:ci": "npm run mockforge -- --mode ci run",
+    "mockforge:dry": "npm run mockforge -- --dry-run run"
   }}"#);
         println!();
-        println!("3. Run: npm run pulse:watch");
+        println!("3. Run: npm run mockforge:watch");
         println!();
         println!("💡 Use --force to overwrite existing scripts");
     }
 
     fn show_examples(&self) {
-        println!("📚 Pulse NPM Script Examples");
+        println!("📚 MockForge NPM Script Examples");
         println!("============================");
         println!();
         println!("Basic Usage:");
-        println!("  npm run pulse:watch        # Watch mode for development");
-        println!("  npm run pulse:run          # Run all tests once");
-        println!("  npm run pulse:build        # Build Rust binary");
+        println!("  npm run mockforge:watch        # Watch mode for development");
+        println!("  npm run mockforge:run          # Run all tests once");
+        println!("  npm run mockforge:build        # Build Rust binary");
         println!();
         println!("Advanced Usage:");
-        println!("  npm run pulse:debug        # Debug mode with verbose output");
-        println!("  npm run pulse:ci           # CI mode (for pipelines)");
-        println!("  npm run pulse:dry          # Dry run (show what would execute)");
+        println!("  npm run mockforge:debug        # Debug mode with verbose output");
+        println!("  npm run mockforge:ci           # CI mode (for pipelines)");
+        println!("  npm run mockforge:dry          # Dry run (show what would execute)");
         println!();
         println!("Documentation:");
-        println!("  npm run pulse:docs:generate  # Generate docs");
-        println!("  npm run pulse:docs:serve     # Serve docs locally");
+        println!("  npm run mockforge:docs:generate  # Generate docs");
+        println!("  npm run mockforge:docs:serve     # Serve docs locally");
         println!();
         println!("API Simulator:");
-        println!("  npm run pulse:simulator:start   # Start mock API");
-        println!("  npm run pulse:simulator:stop    # Stop mock API");
-        println!("  npm run pulse:simulator:status  # Check status");
+        println!("  npm run mockforge:simulator:start   # Start mock API");
+        println!("  npm run mockforge:simulator:stop    # Stop mock API");
+        println!("  npm run mockforge:simulator:status  # Check status");
         println!();
         println!("Contract Testing:");
-        println!("  npm run pulse:contract:demo      # Run contract demo");
-        println!("  npm run pulse:contract:validate  # Validate contracts");
+        println!("  npm run mockforge:contract:demo      # Run contract demo");
+        println!("  npm run mockforge:contract:validate  # Validate contracts");
         println!();
         println!("Reporting:");
-        println!("  npm run pulse:report:allure     # Open Allure reports");
+        println!("  npm run mockforge:report:allure     # Open Allure reports");
     }
 
     fn test_npm_integration(&self) -> Result<()> {
@@ -167,7 +167,7 @@ impl SetupNpmHandler {
             .and_then(|s| s.as_object())
             .ok_or_else(|| anyhow!("No scripts section found"))?;
 
-        let required_scripts = ["pulse:build", "pulse", "pulse:run", "pulse:watch"];
+        let required_scripts = ["mockforge:build", "mockforge", "mockforge:run", "mockforge:watch"];
         let mut found = 0;
 
         for script in required_scripts.iter() {
@@ -181,9 +181,9 @@ impl SetupNpmHandler {
 
         if found == required_scripts.len() {
             println!("🎉 All required scripts found!");
-            println!("💡 Try running: npm run pulse:watch");
+            println!("💡 Try running: npm run mockforge:watch");
         } else {
-            println!("⚠️  Some scripts are missing. Run: pulse setup-npm");
+            println!("⚠️  Some scripts are missing. Run: mockforge setup-npm");
         }
 
         Ok(())

@@ -1300,7 +1300,7 @@ impl ServiceInstance {
         }
 
         // Internal logs endpoint
-        if method == "GET" && relative_path == "/__pulse/logs" {
+        if method == "GET" && relative_path == "/__mockforge/logs" {
             let limit = query_params
                 .get("limit")
                 .and_then(|v| v.parse::<usize>().ok())

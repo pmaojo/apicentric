@@ -1,5 +1,5 @@
 [package]
-name = "pulse"
+name = "mockforge"
 version = "0.1.0"
 edition = "2021"
 
@@ -49,5 +49,5 @@ tracing = "0.1.40"
 [dev-dependencies]
 
 [[bin]]
-name = "pulse-sim"
-path = "src/bin/pulse_sim.rs"
+name = "mockforge"
+path = "src/bin/mockforge.rs"

@@ -1,4 +1,4 @@
-//! Integration tests for pulse functionality
+//! Integration tests for mockforge functionality
 //! 
 //! These tests verify that different components work together correctly
 //! and test complete workflows from configuration to execution.
@@ -17,13 +17,13 @@ mod tests {
     #[test]
     fn test_complete_config_workflow() {
         let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join("pulse.json");
+        let config_path = temp_dir.path().join("mockforge.json");
         
         // Step 1: Generate and save default config
         let mut config = generate_default_config();
         config.routes_dir = temp_dir.path().join("app/routes");
         config.specs_dir = temp_dir.path().join("app/routes");
-        config.index_cache_path = temp_dir.path().join(".pulse/route-index.json");
+        config.index_cache_path = temp_dir.path().join(".mockforge/route-index.json");
         
         // Create required directories
         fs::create_dir_all(&config.routes_dir).unwrap();
@@ -106,8 +106,8 @@ mod tests {
         // Step 2: Detect initial status
         let initial_status = npm_integration.detect_setup_status().unwrap();
         assert!(initial_status.package_json_exists);
-        assert!(!initial_status.pulse_script_exists);
-        assert!(!initial_status.pulse_watch_script_exists);
+        assert!(!initial_status.mockforge_script_exists);
+        assert!(!initial_status.mockforge_watch_script_exists);
         assert!(!initial_status.setup_instructions.is_empty());
         
         // Step 3: Setup scripts
@@ -115,8 +115,8 @@ mod tests {
         
         // Step 4: Verify setup
         let final_status = npm_integration.detect_setup_status().unwrap();
-        assert!(final_status.pulse_script_exists);
-        assert!(final_status.pulse_watch_script_exists);
+        assert!(final_status.mockforge_script_exists);
+        assert!(final_status.mockforge_watch_script_exists);
         
         // Step 5: Validate setup
         assert!(npm_integration.validate_npm_setup().unwrap());
@@ -124,8 +124,8 @@ mod tests {
         // Step 6: Verify package.json content
         let package_json = npm_integration.read_package_json().unwrap();
         let scripts = package_json["scripts"].as_object().unwrap();
-        assert!(scripts.contains_key("pulse"));
-        assert!(scripts.contains_key("pulse:watch"));
+        assert!(scripts.contains_key("mockforge"));
+        assert!(scripts.contains_key("mockforge:watch"));
         assert!(scripts.contains_key("build")); // Original scripts preserved
         assert!(scripts.contains_key("test"));
     }
@@ -232,7 +232,7 @@ mod tests {
         assert!(field_names.contains(&"server.start_command"));
         assert!(field_names.contains(&"server.startup_timeout_ms"));
         assert!(field_names.contains(&"server.health_check_retries"));
-        assert!(field_names.contains(&"npm.pulse_script"));
+        assert!(field_names.contains(&"npm.mockforge_script"));
         assert!(field_names.contains(&"npm.dev_script"));
         
         // Test error formatting
@@ -292,7 +292,7 @@ mod tests {
             "routes_dir": "app/routes",
             "specs_dir": "app/routes",
             "reports_dir": "cypress/reports",
-            "index_cache_path": ".pulse/route-index.json",
+            "index_cache_path": ".mockforge/route-index.json",
             "default_timeout": 30000,
             // Legacy sections that should be removed
             "testcase": {
@@ -310,7 +310,7 @@ mod tests {
         
         // Create required directories
         let routes_dir = temp_dir.path().join("app/routes");
-        let cache_dir = temp_dir.path().join(".pulse");
+        let cache_dir = temp_dir.path().join(".mockforge");
         fs::create_dir_all(&routes_dir).unwrap();
         fs::create_dir_all(&cache_dir).unwrap();
         
@@ -321,7 +321,7 @@ mod tests {
         assert_eq!(migrated.base_url, "http://localhost:5173");
         assert_eq!(migrated.server.start_command, "npm run dev");
         assert_eq!(migrated.execution.mode, ExecutionMode::Development);
-        assert!(migrated.npm.pulse_script.contains("cargo run"));
+        assert!(migrated.npm.mockforge_script.contains("cargo run"));
         
         // Note: backup creation depends on whether migration was actually performed
         // Since we're just loading the config, no backup may be created
@@ -395,12 +395,12 @@ mod tests {
         // Test error creation and formatting
         let config_error = PulseError::config_error(
             "Invalid configuration detected",
-            Some("Check your pulse.json file for syntax errors")
+            Some("Check your mockforge.json file for syntax errors")
         );
         
         let formatted = ErrorFormatter::format_for_user(&config_error);
         assert!(formatted.contains("❌ Configuration error"));
-        assert!(formatted.contains("💡 Suggestion: Check your pulse.json"));
+        assert!(formatted.contains("💡 Suggestion: Check your mockforge.json"));
         
         // Test validation errors
         let validation_errors = vec![
@@ -436,14 +436,14 @@ mod tests {
     fn test_npm_workspace_detection() {
         let temp_dir = TempDir::new().unwrap();
         
-        // Test 1: Workspace with utils/pulse structure
-        let utils_pulse = temp_dir.path().join("utils/pulse");
-        fs::create_dir_all(&utils_pulse).unwrap();
-        fs::write(utils_pulse.join("Cargo.toml"), "[package]\nname = \"pulse\"").unwrap();
-        
+        // Test 1: Workspace with utils/mockforge structure
+        let utils_mockforge = temp_dir.path().join("utils/mockforge");
+        fs::create_dir_all(&utils_mockforge).unwrap();
+        fs::write(utils_mockforge.join("Cargo.toml"), "[package]\nname = \"mockforge\"").unwrap();
+
         let npm_integration = NpmIntegration::new(temp_dir.path());
-        let binary_path = npm_integration.resolve_pulse_binary_path().unwrap();
-        assert_eq!(binary_path, "cargo run --manifest-path utils/pulse/Cargo.toml --");
+        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
+        assert_eq!(binary_path, "cargo run --manifest-path utils/mockforge/Cargo.toml --");
     }
     
     #[test]
@@ -451,22 +451,22 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         
         // Test with built binary in release (no Cargo.toml)
-        let utils_pulse = temp_dir.path().join("utils/pulse");
-        let release_dir = utils_pulse.join("target/release");
+        let utils_mockforge = temp_dir.path().join("utils/mockforge");
+        let release_dir = utils_mockforge.join("target/release");
         fs::create_dir_all(&release_dir).unwrap();
-        fs::write(release_dir.join("pulse"), "fake binary").unwrap();
-        
+        fs::write(release_dir.join("mockforge"), "fake binary").unwrap();
+
         let npm_integration = NpmIntegration::new(temp_dir.path());
-        let binary_path = npm_integration.resolve_pulse_binary_path().unwrap();
-        assert_eq!(binary_path, "./utils/pulse/target/release/pulse");
-        
+        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
+        assert_eq!(binary_path, "./utils/mockforge/target/release/mockforge");
+
         // Test with only debug binary available
-        fs::remove_file(release_dir.join("pulse")).unwrap();
-        let debug_dir = utils_pulse.join("target/debug");
+        fs::remove_file(release_dir.join("mockforge")).unwrap();
+        let debug_dir = utils_mockforge.join("target/debug");
         fs::create_dir_all(&debug_dir).unwrap();
-        fs::write(debug_dir.join("pulse"), "fake binary").unwrap();
-        
-        let binary_path = npm_integration.resolve_pulse_binary_path().unwrap();
-        assert_eq!(binary_path, "./utils/pulse/target/debug/pulse");
+        fs::write(debug_dir.join("mockforge"), "fake binary").unwrap();
+
+        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
+        assert_eq!(binary_path, "./utils/mockforge/target/debug/mockforge");
     }
 }

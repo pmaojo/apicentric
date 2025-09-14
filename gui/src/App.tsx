@@ -7,7 +7,7 @@ import LogsView from "./components/logs_view";
 
 const Home: React.FC = () => (
   <div>
-    <h1>Pulse Simulator GUI</h1>
+    <h1>MockForge GUI</h1>
     <SimulatorControls />
     <ServiceManager />
     <LogsView />

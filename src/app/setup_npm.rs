@@ -21,7 +21,7 @@ pub fn setup_npm_scripts(
     } else if instructions_only {
         npm_integration.print_setup_instructions()
     } else {
-        println!("⚙️ Setting up npm scripts for pulse...");
+        println!("⚙️ Setting up npm scripts for mockforge...");
         npm_integration.setup_scripts(force)
     }
 }

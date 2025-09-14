@@ -417,9 +417,9 @@ mod tests {
         assert!(context.strict_mode);
 
         // Test path resolution
-        let relative_path = Path::new("config/pulse.json");
+        let relative_path = Path::new("config/mockforge.json");
         let resolved = context.resolve_path(relative_path);
-        assert_eq!(resolved, temp_dir.path().join("config/pulse.json"));
+        assert_eq!(resolved, temp_dir.path().join("config/mockforge.json"));
 
         // Test absolute path (should remain unchanged)
         let absolute_path = Path::new("/absolute/path");

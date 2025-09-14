@@ -209,9 +209,9 @@ mod tests {
 
     #[test]
     fn test_error_creation() {
-        let error = PulseError::config_error("Invalid config", Some("Check your pulse.json file"));
+        let error = PulseError::config_error("Invalid config", Some("Check your mockforge.json file"));
         assert!(error.suggestion().is_some());
-        assert_eq!(error.suggestion().unwrap(), "Check your pulse.json file");
+        assert_eq!(error.suggestion().unwrap(), "Check your mockforge.json file");
     }
 
     #[test]

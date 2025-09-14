@@ -5,7 +5,7 @@
   "routes_dir": "app/routes",
   "specs_dir": "app/routes",
   "reports_dir": "cypress/reports",
-  "index_cache_path": ".pulse/route-index.json",
+  "index_cache_path": ".mockforge/route-index.json",
   "default_timeout": 30000,
   "server": {
     "auto_start": false,

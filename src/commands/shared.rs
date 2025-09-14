@@ -1,6 +1,6 @@
 use crate::{PulseError, PulseResult};
 use inquire::{Confirm, Select, Text};
-use pulse::simulator::config::{
+use mockforge::simulator::config::{
     EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
 };
 use std::collections::HashMap;

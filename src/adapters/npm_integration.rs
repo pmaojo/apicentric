@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// NPM script integration adapter for pulse
+/// NPM script integration adapter for MockForge
 pub struct NpmIntegration {
     project_root: PathBuf,
     package_json_path: PathBuf,
@@ -22,9 +22,9 @@ pub struct NpmScriptTemplate {
 #[derive(Debug, Clone)]
 pub struct NpmSetupStatus {
     pub package_json_exists: bool,
-    pub pulse_script_exists: bool,
-    pub pulse_watch_script_exists: bool,
-    pub pulse_binary_path: Option<String>,
+    pub mockforge_script_exists: bool,
+    pub mockforge_watch_script_exists: bool,
+    pub mockforge_binary_path: Option<String>,
     pub recommended_scripts: Vec<NpmScriptTemplate>,
     pub setup_instructions: Vec<String>,
 }
@@ -43,48 +43,48 @@ impl NpmIntegration {
     /// Detect current npm script setup status
     pub fn detect_setup_status(&self) -> PulseResult<NpmSetupStatus> {
         let package_json_exists = self.package_json_path.exists();
-        let mut pulse_script_exists = false;
-        let mut pulse_watch_script_exists = false;
+        let mut mockforge_script_exists = false;
+        let mut mockforge_watch_script_exists = false;
         let mut setup_instructions = Vec::new();
 
         // Check existing scripts if package.json exists
         if package_json_exists {
             if let Ok(package_json) = self.read_package_json() {
                 if let Some(scripts) = package_json.get("scripts").and_then(|s| s.as_object()) {
-                    pulse_script_exists = scripts.contains_key("pulse");
-                    pulse_watch_script_exists = scripts.contains_key("pulse:watch");
+                    mockforge_script_exists = scripts.contains_key("mockforge");
+                    mockforge_watch_script_exists = scripts.contains_key("mockforge:watch");
                 }
             }
         } else {
             setup_instructions.push("Create a package.json file in your project root".to_string());
         }
 
-        // Resolve pulse binary path
-        let pulse_binary_path = self.resolve_pulse_binary_path()?;
+        // Resolve mockforge binary path
+        let mockforge_binary_path = self.resolve_mockforge_binary_path()?;
 
         // Generate recommended scripts
-        let recommended_scripts = self.generate_script_templates(&pulse_binary_path);
+        let recommended_scripts = self.generate_script_templates(&mockforge_binary_path);
 
         // Generate setup instructions
-        if !pulse_script_exists || !pulse_watch_script_exists {
+        if !mockforge_script_exists || !mockforge_watch_script_exists {
             setup_instructions.extend(self.generate_setup_instructions(
-                pulse_script_exists,
-                pulse_watch_script_exists,
+                mockforge_script_exists,
+                mockforge_watch_script_exists,
                 &recommended_scripts,
             ));
         }
 
         Ok(NpmSetupStatus {
             package_json_exists,
-            pulse_script_exists,
-            pulse_watch_script_exists,
-            pulse_binary_path: Some(pulse_binary_path),
+            mockforge_script_exists,
+            mockforge_watch_script_exists,
+            mockforge_binary_path: Some(mockforge_binary_path),
             recommended_scripts,
             setup_instructions,
         })
     }
 
-    /// Automatically add pulse scripts to package.json
+    /// Automatically add mockforge scripts to package.json
     pub fn setup_scripts(&self, force: bool) -> PulseResult<()> {
         if !self.package_json_path.exists() {
             return Err(PulseError::fs_error(
@@ -94,8 +94,8 @@ impl NpmIntegration {
         }
 
         let mut package_json = self.read_package_json()?;
-        let pulse_binary_path = self.resolve_pulse_binary_path()?;
-        let script_templates = self.generate_script_templates(&pulse_binary_path);
+        let mockforge_binary_path = self.resolve_mockforge_binary_path()?;
+        let script_templates = self.generate_script_templates(&mockforge_binary_path);
 
         // Get or create scripts section
         if !package_json.is_object() {
@@ -153,7 +153,7 @@ impl NpmIntegration {
         }
 
         if added_scripts.is_empty() && skipped_scripts.is_empty() {
-            println!("ℹ️ All pulse scripts are already configured");
+            println!("ℹ️ All mockforge scripts are already configured");
         }
 
         Ok(())
@@ -163,7 +163,7 @@ impl NpmIntegration {
     pub fn print_setup_instructions(&self) -> PulseResult<()> {
         let status = self.detect_setup_status()?;
 
-        println!("📋 Pulse NPM Script Setup Instructions");
+        println!("📋 MockForge NPM Script Setup Instructions");
         println!("=====================================");
         println!("📁 Project Root: {}", self.project_root.display());
 
@@ -173,11 +173,11 @@ impl NpmIntegration {
             return Ok(());
         }
 
-        if status.pulse_script_exists && status.pulse_watch_script_exists {
-            println!("\n✅ All pulse scripts are already configured!");
+        if status.mockforge_script_exists && status.mockforge_watch_script_exists {
+            println!("\n✅ All mockforge scripts are already configured!");
             println!("   You can run:");
-            println!("   - npm run pulse -- run");
-            println!("   - npm run pulse:watch");
+            println!("   - npm run mockforge -- run");
+            println!("   - npm run mockforge:watch");
             return Ok(());
         }
 
@@ -203,77 +203,77 @@ impl NpmIntegration {
         println!("```");
 
         println!("\n🚀 After adding the scripts, you can run:");
-        println!("   - npm run pulse -- run        # Run all tests");
-        println!("   - npm run pulse -- watch      # Watch for changes");
-        println!("   - npm run pulse:watch         # Watch for changes (shortcut)");
+        println!("   - npm run mockforge -- run        # Run all tests");
+        println!("   - npm run mockforge -- watch      # Watch for changes");
+        println!("   - npm run mockforge:watch         # Watch for changes (shortcut)");
 
-        if let Some(binary_path) = &status.pulse_binary_path {
+        if let Some(binary_path) = &status.mockforge_binary_path {
             println!("\n🔧 Binary path detected: {}", binary_path);
         } else {
-            println!("\n⚠️ Could not detect pulse binary path");
+            println!("\n⚠️ Could not detect mockforge binary path");
             println!(
-                "   Make sure pulse is built: cargo build --manifest-path utils/pulse/Cargo.toml"
+                "   Make sure mockforge is built: cargo build --manifest-path utils/mockforge/Cargo.toml"
             );
         }
 
         Ok(())
     }
 
-    /// Resolve the path to the pulse binary for npm scripts
-    pub fn resolve_pulse_binary_path(&self) -> PulseResult<String> {
-        // Try different strategies to find the pulse binary
+    /// Resolve the path to the mockforge binary for npm scripts
+    pub fn resolve_mockforge_binary_path(&self) -> PulseResult<String> {
+        // Try different strategies to find the mockforge binary
 
-        // Strategy 1: Check if we're in a workspace with utils/pulse
-        let cargo_manifest = self.project_root.join("utils/pulse/Cargo.toml");
+        // Strategy 1: Check if we're in a workspace with utils/mockforge
+        let cargo_manifest = self.project_root.join("utils/mockforge/Cargo.toml");
         if cargo_manifest.exists() {
-            return Ok("cargo run --manifest-path utils/pulse/Cargo.toml --".to_string());
+            return Ok("cargo run --manifest-path utils/mockforge/Cargo.toml --".to_string());
         }
 
-        // Strategy 2: Check if pulse is built in target directory
-        let target_debug = self.project_root.join("utils/pulse/target/debug/pulse");
-        let target_release = self.project_root.join("utils/pulse/target/release/pulse");
+        // Strategy 2: Check if mockforge is built in target directory
+        let target_debug = self.project_root.join("utils/mockforge/target/debug/mockforge");
+        let target_release = self.project_root.join("utils/mockforge/target/release/mockforge");
 
         if target_release.exists() {
-            return Ok("./utils/pulse/target/release/pulse".to_string());
+            return Ok("./utils/mockforge/target/release/mockforge".to_string());
         }
 
         if target_debug.exists() {
-            return Ok("./utils/pulse/target/debug/pulse".to_string());
+            return Ok("./utils/mockforge/target/debug/mockforge".to_string());
         }
 
-        // Strategy 3: Check if pulse is installed globally
-        if let Ok(output) = Command::new("which").arg("pulse").output() {
+        // Strategy 3: Check if mockforge is installed globally
+        if let Ok(output) = Command::new("which").arg("mockforge").output() {
             if output.status.success() {
                 let path_str = String::from_utf8_lossy(&output.stdout);
                 let path = path_str.trim();
                 if !path.is_empty() {
-                    return Ok("pulse".to_string());
+                    return Ok("mockforge".to_string());
                 }
             }
         }
 
         // Strategy 4: Check common cargo install locations
         if let Ok(home) = std::env::var("HOME") {
-            let cargo_bin = PathBuf::from(home).join(".cargo/bin/pulse");
+            let cargo_bin = PathBuf::from(home).join(".cargo/bin/mockforge");
             if cargo_bin.exists() {
-                return Ok("pulse".to_string());
+                return Ok("mockforge".to_string());
             }
         }
 
         // Fallback: Use cargo run command (most reliable)
-        Ok("cargo run --manifest-path utils/pulse/Cargo.toml --".to_string())
+        Ok("cargo run --manifest-path utils/mockforge/Cargo.toml --".to_string())
     }
 
     /// Generate npm script templates based on the binary path
     fn generate_script_templates(&self, binary_path: &str) -> Vec<NpmScriptTemplate> {
         vec![
             NpmScriptTemplate {
-                name: "pulse".to_string(),
+                name: "mockforge".to_string(),
                 command: binary_path.to_string(),
-                description: "Run pulse test runner".to_string(),
+                description: "Run mockforge test runner".to_string(),
             },
             NpmScriptTemplate {
-                name: "pulse:watch".to_string(),
+                name: "mockforge:watch".to_string(),
                 command: format!("{} watch", binary_path),
                 description: "Watch for changes and run tests".to_string(),
             },
@@ -283,32 +283,32 @@ impl NpmIntegration {
     /// Generate setup instructions based on current state
     fn generate_setup_instructions(
         &self,
-        pulse_script_exists: bool,
-        pulse_watch_script_exists: bool,
+        mockforge_script_exists: bool,
+        mockforge_watch_script_exists: bool,
         templates: &[NpmScriptTemplate],
     ) -> Vec<String> {
         let mut instructions = Vec::new();
 
-        if !pulse_script_exists {
-            if let Some(template) = templates.iter().find(|t| t.name == "pulse") {
+        if !mockforge_script_exists {
+            if let Some(template) = templates.iter().find(|t| t.name == "mockforge") {
                 instructions.push(format!(
-                    "Add pulse script: \"pulse\": \"{}\"",
+                    "Add mockforge script: \"mockforge\": \"{}\"",
                     template.command
                 ));
             }
         }
 
-        if !pulse_watch_script_exists {
-            if let Some(template) = templates.iter().find(|t| t.name == "pulse:watch") {
+        if !mockforge_watch_script_exists {
+            if let Some(template) = templates.iter().find(|t| t.name == "mockforge:watch") {
                 instructions.push(format!(
-                    "Add pulse:watch script: \"pulse:watch\": \"{}\"",
+                    "Add mockforge:watch script: \"mockforge:watch\": \"{}\"",
                     template.command
                 ));
             }
         }
 
-        instructions.push("Run 'npm run pulse -- run' to execute all tests".to_string());
-        instructions.push("Run 'npm run pulse:watch' to watch for changes".to_string());
+        instructions.push("Run 'npm run mockforge -- run' to execute all tests".to_string());
+        instructions.push("Run 'npm run mockforge:watch' to watch for changes".to_string());
 
         instructions
     }
@@ -358,13 +358,13 @@ impl NpmIntegration {
             return Ok(false);
         }
 
-        if !status.pulse_script_exists {
-            println!("❌ 'pulse' script not found in package.json");
+        if !status.mockforge_script_exists {
+            println!("❌ 'mockforge' script not found in package.json");
             return Ok(false);
         }
 
-        if !status.pulse_watch_script_exists {
-            println!("❌ 'pulse:watch' script not found in package.json");
+        if !status.mockforge_watch_script_exists {
+            println!("❌ 'mockforge:watch' script not found in package.json");
             return Ok(false);
         }
 
@@ -374,7 +374,7 @@ impl NpmIntegration {
 
     /// Show usage examples for npm scripts
     pub fn show_usage_examples(&self) -> PulseResult<()> {
-        println!("📚 Pulse NPM Integration Usage Examples");
+        println!("📚 MockForge NPM Integration Usage Examples");
         println!("======================================");
         println!();
         println!("📁 Working Directory: {}", self.project_root.display());
@@ -383,28 +383,28 @@ impl NpmIntegration {
         );
         println!();
         println!("🚀 Basic Usage:");
-        println!("   npm run pulse -- run              # Run all tests");
-        println!("   npm run pulse -- watch            # Watch for changes");
-        println!("   npm run pulse:watch               # Watch for changes (shortcut)");
+        println!("   npm run mockforge -- run              # Run all tests");
+        println!("   npm run mockforge -- watch            # Watch for changes");
+        println!("   npm run mockforge:watch               # Watch for changes (shortcut)");
         println!();
         println!("⚙️ Advanced Usage:");
-        println!("   npm run pulse -- run --workers 8  # Run with 8 parallel workers");
-        println!("   npm run pulse -- watch --retries 5 # Watch with 5 retries");
-        println!("   npm run pulse -- --mode ci run    # Run in CI mode");
-        println!("   npm run pulse -- --dry-run run    # Show what would be executed");
-        println!("   npm run pulse -- --verbose watch  # Verbose output");
+        println!("   npm run mockforge -- run --workers 8  # Run with 8 parallel workers");
+        println!("   npm run mockforge -- watch --retries 5 # Watch with 5 retries");
+        println!("   npm run mockforge -- --mode ci run    # Run in CI mode");
+        println!("   npm run mockforge -- --dry-run run    # Show what would be executed");
+        println!("   npm run mockforge -- --verbose watch  # Verbose output");
         println!();
         println!("🔧 Configuration:");
-        println!("   npm run pulse -- --config custom.json run  # Use custom config");
-        println!("   npm run pulse -- --help                    # Show all options");
+        println!("   npm run mockforge -- --config custom.json run  # Use custom config");
+        println!("   npm run mockforge -- --help                    # Show all options");
         println!();
         println!("📋 Setup Commands:");
-        println!("   cargo run --manifest-path utils/pulse/Cargo.toml -- setup-npm");
+        println!("   cargo run --manifest-path utils/mockforge/Cargo.toml -- setup-npm");
         println!(
-            "   cargo run --manifest-path utils/pulse/Cargo.toml -- setup-npm --instructions-only"
+            "   cargo run --manifest-path utils/mockforge/Cargo.toml -- setup-npm --instructions-only"
         );
-        println!("   cargo run --manifest-path utils/pulse/Cargo.toml -- setup-npm --force");
-        println!("   cargo run --manifest-path utils/pulse/Cargo.toml -- setup-npm --test");
+        println!("   cargo run --manifest-path utils/mockforge/Cargo.toml -- setup-npm --force");
+        println!("   cargo run --manifest-path utils/mockforge/Cargo.toml -- setup-npm --test");
         println!();
         println!("💡 Note: All commands run from the project root directory automatically");
 
@@ -415,64 +415,64 @@ impl NpmIntegration {
     pub fn test_npm_scripts(&self) -> PulseResult<()> {
         let status = self.detect_setup_status()?;
 
-        if !status.pulse_script_exists {
+        if !status.mockforge_script_exists {
             return Err(PulseError::config_error(
-                "pulse script not configured",
-                Some("Run pulse setup-npm to configure npm scripts"),
+                "mockforge script not configured",
+                Some("Run mockforge setup-npm to configure npm scripts"),
             ));
         }
 
         println!("🧪 Testing npm script execution...");
         println!("   Working directory: {}", self.project_root.display());
 
-        // Test pulse script with --help
-        println!("   Testing 'npm run pulse -- --help'");
+        // Test mockforge script with --help
+        println!("   Testing 'npm run mockforge -- --help'");
         let output = Command::new("npm")
-            .args(&["run", "pulse", "--", "--help"])
+            .args(&["run", "mockforge", "--", "--help"])
             .current_dir(&self.project_root)
             .output()
             .map_err(|e| {
                 PulseError::fs_error(
                     format!(
-                        "Failed to execute npm run pulse from {}: {}",
+                        "Failed to execute npm run mockforge from {}: {}",
                         self.project_root.display(),
                         e
                     ),
-                    Some("Check that npm is installed and pulse script is configured correctly"),
+                    Some("Check that npm is installed and mockforge script is configured correctly"),
                 )
             })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(PulseError::test_error(
-                format!("npm run pulse failed: {}", stderr),
-                Some("Check pulse binary path and configuration"),
+                format!("npm run mockforge failed: {}", stderr),
+                Some("Check mockforge binary path and configuration"),
             ));
         }
 
-        println!("   ✅ 'npm run pulse' works correctly");
+        println!("   ✅ 'npm run mockforge' works correctly");
 
-        // Test pulse:watch script with --help if it exists
-        if status.pulse_watch_script_exists {
-            println!("   Testing 'npm run pulse:watch -- --help'");
+        // Test mockforge:watch script with --help if it exists
+        if status.mockforge_watch_script_exists {
+            println!("   Testing 'npm run mockforge:watch -- --help'");
             let output = Command::new("npm")
-                .args(&["run", "pulse:watch", "--", "--help"])
+                .args(&["run", "mockforge:watch", "--", "--help"])
                 .current_dir(&self.project_root)
                 .output()
                 .map_err(|e| PulseError::fs_error(
-                    format!("Failed to execute npm run pulse:watch from {}: {}", self.project_root.display(), e),
-                    Some("Check that npm is installed and pulse:watch script is configured correctly")
+                    format!("Failed to execute npm run mockforge:watch from {}: {}", self.project_root.display(), e),
+                    Some("Check that npm is installed and mockforge:watch script is configured correctly")
                 ))?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 return Err(PulseError::test_error(
-                    format!("npm run pulse:watch failed: {}", stderr),
-                    Some("Check pulse binary path and configuration"),
+                    format!("npm run mockforge:watch failed: {}", stderr),
+                    Some("Check mockforge binary path and configuration"),
                 ));
             }
 
-            println!("   ✅ 'npm run pulse:watch' works correctly");
+            println!("   ✅ 'npm run mockforge:watch' works correctly");
         }
 
         println!("✅ All npm scripts are working correctly");
@@ -527,8 +527,8 @@ mod tests {
         let status = npm_integration.detect_setup_status().unwrap();
 
         assert!(!status.package_json_exists);
-        assert!(!status.pulse_script_exists);
-        assert!(!status.pulse_watch_script_exists);
+        assert!(!status.mockforge_script_exists);
+        assert!(!status.mockforge_watch_script_exists);
         assert!(!status.setup_instructions.is_empty());
         assert!(status
             .setup_instructions
@@ -545,9 +545,9 @@ mod tests {
         let status = npm_integration.detect_setup_status().unwrap();
 
         assert!(status.package_json_exists);
-        assert!(!status.pulse_script_exists);
-        assert!(!status.pulse_watch_script_exists);
-        assert!(status.pulse_binary_path.is_some());
+        assert!(!status.mockforge_script_exists);
+        assert!(!status.mockforge_watch_script_exists);
+        assert!(status.mockforge_binary_path.is_some());
         assert_eq!(status.recommended_scripts.len(), 2);
         assert!(!status.setup_instructions.is_empty());
     }
@@ -557,7 +557,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         create_test_package_json(
             temp_dir.path(),
-            Some(r#""pulse": "cargo run --", "pulse:watch": "cargo run -- watch""#),
+            Some(r#""mockforge": "cargo run --", "mockforge:watch": "cargo run -- watch""#),
         )
         .unwrap();
 
@@ -565,8 +565,8 @@ mod tests {
         let status = npm_integration.detect_setup_status().unwrap();
 
         assert!(status.package_json_exists);
-        assert!(status.pulse_script_exists);
-        assert!(status.pulse_watch_script_exists);
+        assert!(status.mockforge_script_exists);
+        assert!(status.mockforge_watch_script_exists);
         // When everything is configured, setup instructions might be empty or contain usage info
         // This is acceptable behavior
     }
@@ -576,7 +576,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         create_test_package_json(
             temp_dir.path(),
-            Some(r#""pulse": "cargo run --""#), // Only pulse, not pulse:watch
+            Some(r#""mockforge": "cargo run --""#), // Only mockforge, not mockforge:watch
         )
         .unwrap();
 
@@ -584,8 +584,8 @@ mod tests {
         let status = npm_integration.detect_setup_status().unwrap();
 
         assert!(status.package_json_exists);
-        assert!(status.pulse_script_exists);
-        assert!(!status.pulse_watch_script_exists);
+        assert!(status.mockforge_script_exists);
+        assert!(!status.mockforge_watch_script_exists);
         assert!(!status.setup_instructions.is_empty());
     }
 
@@ -599,8 +599,8 @@ mod tests {
 
         // Should still detect that package.json exists, but scripts won't be detected
         assert!(status.package_json_exists);
-        assert!(!status.pulse_script_exists);
-        assert!(!status.pulse_watch_script_exists);
+        assert!(!status.mockforge_script_exists);
+        assert!(!status.mockforge_watch_script_exists);
     }
 
     #[test]
@@ -613,15 +613,15 @@ mod tests {
 
         // Verify scripts were added
         let status = npm_integration.detect_setup_status().unwrap();
-        assert!(status.pulse_script_exists);
-        assert!(status.pulse_watch_script_exists);
+        assert!(status.mockforge_script_exists);
+        assert!(status.mockforge_watch_script_exists);
 
         // Verify the actual content
         let package_json = npm_integration.read_package_json().unwrap();
         let scripts = package_json["scripts"].as_object().unwrap();
-        assert!(scripts.contains_key("pulse"));
-        assert!(scripts.contains_key("pulse:watch"));
-        assert!(scripts["pulse:watch"].as_str().unwrap().contains("watch"));
+        assert!(scripts.contains_key("mockforge"));
+        assert!(scripts.contains_key("mockforge:watch"));
+        assert!(scripts["mockforge:watch"].as_str().unwrap().contains("watch"));
     }
 
     #[test]
@@ -647,7 +647,7 @@ mod tests {
     #[test]
     fn test_setup_scripts_skip_existing() {
         let temp_dir = TempDir::new().unwrap();
-        create_test_package_json(temp_dir.path(), Some(r#""pulse": "existing-command""#)).unwrap();
+        create_test_package_json(temp_dir.path(), Some(r#""mockforge": "existing-command""#)).unwrap();
 
         let npm_integration = NpmIntegration::new(temp_dir.path());
         npm_integration.setup_scripts(false).unwrap();
@@ -655,10 +655,10 @@ mod tests {
         // Verify existing script was not overwritten
         let package_json = npm_integration.read_package_json().unwrap();
         let scripts = package_json["scripts"].as_object().unwrap();
-        assert_eq!(scripts["pulse"].as_str().unwrap(), "existing-command");
+        assert_eq!(scripts["mockforge"].as_str().unwrap(), "existing-command");
 
-        // But pulse:watch should be added
-        assert!(scripts.contains_key("pulse:watch"));
+        // But mockforge:watch should be added
+        assert!(scripts.contains_key("mockforge:watch"));
     }
 
     #[test]
@@ -666,7 +666,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         create_test_package_json(
             temp_dir.path(),
-            Some(r#""pulse": "existing-command", "pulse:watch": "existing-watch""#),
+            Some(r#""mockforge": "existing-command", "mockforge:watch": "existing-watch""#),
         )
         .unwrap();
 
@@ -676,8 +676,8 @@ mod tests {
         // Verify existing scripts were overwritten
         let package_json = npm_integration.read_package_json().unwrap();
         let scripts = package_json["scripts"].as_object().unwrap();
-        assert_ne!(scripts["pulse"].as_str().unwrap(), "existing-command");
-        assert_ne!(scripts["pulse:watch"].as_str().unwrap(), "existing-watch");
+        assert_ne!(scripts["mockforge"].as_str().unwrap(), "existing-command");
+        assert_ne!(scripts["mockforge:watch"].as_str().unwrap(), "existing-watch");
     }
 
     #[test]
@@ -692,8 +692,8 @@ mod tests {
         // Verify scripts section was created and populated
         let package_json = npm_integration.read_package_json().unwrap();
         let scripts = package_json["scripts"].as_object().unwrap();
-        assert!(scripts.contains_key("pulse"));
-        assert!(scripts.contains_key("pulse:watch"));
+        assert!(scripts.contains_key("mockforge"));
+        assert!(scripts.contains_key("mockforge:watch"));
     }
 
     #[test]
@@ -715,64 +715,64 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_pulse_binary_path_workspace() {
+    fn test_resolve_mockforge_binary_path_workspace() {
         let temp_dir = TempDir::new().unwrap();
 
-        // Create utils/pulse/Cargo.toml to simulate workspace structure
-        let utils_dir = temp_dir.path().join("utils/pulse");
+        // Create utils/mockforge/Cargo.toml to simulate workspace structure
+        let utils_dir = temp_dir.path().join("utils/mockforge");
         fs::create_dir_all(&utils_dir).unwrap();
-        fs::write(utils_dir.join("Cargo.toml"), "[package]\nname = \"pulse\"").unwrap();
+        fs::write(utils_dir.join("Cargo.toml"), "[package]\nname = \"mockforge\"").unwrap();
 
         let npm_integration = NpmIntegration::new(temp_dir.path());
-        let binary_path = npm_integration.resolve_pulse_binary_path().unwrap();
+        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
 
         assert_eq!(
             binary_path,
-            "cargo run --manifest-path utils/pulse/Cargo.toml --"
+            "cargo run --manifest-path utils/mockforge/Cargo.toml --"
         );
     }
 
     #[test]
-    fn test_resolve_pulse_binary_path_built_release() {
+    fn test_resolve_mockforge_binary_path_built_release() {
         let temp_dir = TempDir::new().unwrap();
 
-        // Create target/release/pulse binary
-        let target_dir = temp_dir.path().join("utils/pulse/target/release");
+        // Create target/release/mockforge binary
+        let target_dir = temp_dir.path().join("utils/mockforge/target/release");
         fs::create_dir_all(&target_dir).unwrap();
-        fs::write(target_dir.join("pulse"), "fake binary").unwrap();
+        fs::write(target_dir.join("mockforge"), "fake binary").unwrap();
 
         let npm_integration = NpmIntegration::new(temp_dir.path());
-        let binary_path = npm_integration.resolve_pulse_binary_path().unwrap();
+        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
 
-        assert_eq!(binary_path, "./utils/pulse/target/release/pulse");
+        assert_eq!(binary_path, "./utils/mockforge/target/release/mockforge");
     }
 
     #[test]
-    fn test_resolve_pulse_binary_path_built_debug() {
+    fn test_resolve_mockforge_binary_path_built_debug() {
         let temp_dir = TempDir::new().unwrap();
 
-        // Create target/debug/pulse binary (but not release)
-        let target_dir = temp_dir.path().join("utils/pulse/target/debug");
+        // Create target/debug/mockforge binary (but not release)
+        let target_dir = temp_dir.path().join("utils/mockforge/target/debug");
         fs::create_dir_all(&target_dir).unwrap();
-        fs::write(target_dir.join("pulse"), "fake binary").unwrap();
+        fs::write(target_dir.join("mockforge"), "fake binary").unwrap();
 
         let npm_integration = NpmIntegration::new(temp_dir.path());
-        let binary_path = npm_integration.resolve_pulse_binary_path().unwrap();
+        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
 
-        assert_eq!(binary_path, "./utils/pulse/target/debug/pulse");
+        assert_eq!(binary_path, "./utils/mockforge/target/debug/mockforge");
     }
 
     #[test]
-    fn test_resolve_pulse_binary_path_fallback() {
+    fn test_resolve_mockforge_binary_path_fallback() {
         let temp_dir = TempDir::new().unwrap();
         // No special setup - should fall back to cargo run
 
         let npm_integration = NpmIntegration::new(temp_dir.path());
-        let binary_path = npm_integration.resolve_pulse_binary_path().unwrap();
+        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
 
         assert_eq!(
             binary_path,
-            "cargo run --manifest-path utils/pulse/Cargo.toml --"
+            "cargo run --manifest-path utils/mockforge/Cargo.toml --"
         );
     }
 
@@ -785,13 +785,13 @@ mod tests {
 
         assert_eq!(templates.len(), 2);
 
-        let pulse_template = &templates[0];
-        assert_eq!(pulse_template.name, "pulse");
-        assert_eq!(pulse_template.command, "test-binary");
-        assert!(pulse_template.description.contains("Run pulse"));
+        let mockforge_template = &templates[0];
+        assert_eq!(mockforge_template.name, "mockforge");
+        assert_eq!(mockforge_template.command, "test-binary");
+        assert!(mockforge_template.description.contains("Run mockforge"));
 
         let watch_template = &templates[1];
-        assert_eq!(watch_template.name, "pulse:watch");
+        assert_eq!(watch_template.name, "mockforge:watch");
         assert_eq!(watch_template.command, "test-binary watch");
         assert!(watch_template.description.contains("Watch"));
     }
@@ -805,26 +805,26 @@ mod tests {
         // Test when no scripts exist
         let instructions = npm_integration.generate_setup_instructions(false, false, &templates);
         assert!(instructions.len() >= 4); // Should have instructions for both scripts plus usage
-        assert!(instructions.iter().any(|s| s.contains("pulse script")));
+        assert!(instructions.iter().any(|s| s.contains("mockforge script")));
         assert!(instructions
             .iter()
-            .any(|s| s.contains("pulse:watch script")));
-        assert!(instructions.iter().any(|s| s.contains("npm run pulse")));
+            .any(|s| s.contains("mockforge:watch script")));
+        assert!(instructions.iter().any(|s| s.contains("npm run mockforge")));
 
-        // Test when pulse script exists but not watch
+        // Test when mockforge script exists but not watch
         let instructions = npm_integration.generate_setup_instructions(true, false, &templates);
         assert!(instructions
             .iter()
-            .any(|s| s.contains("pulse:watch script")));
-        assert!(!instructions.iter().any(|s| s.contains("Add pulse script")));
+            .any(|s| s.contains("mockforge:watch script")));
+        assert!(!instructions.iter().any(|s| s.contains("Add mockforge script")));
 
         // Test when both exist
         let instructions = npm_integration.generate_setup_instructions(true, true, &templates);
-        assert!(!instructions.iter().any(|s| s.contains("Add pulse script")));
+        assert!(!instructions.iter().any(|s| s.contains("Add mockforge script")));
         assert!(!instructions
             .iter()
-            .any(|s| s.contains("Add pulse:watch script")));
-        assert!(instructions.iter().any(|s| s.contains("npm run pulse"))); // Usage instructions
+            .any(|s| s.contains("Add mockforge:watch script")));
+        assert!(instructions.iter().any(|s| s.contains("npm run mockforge"))); // Usage instructions
     }
 
     #[test]
@@ -842,14 +842,14 @@ mod tests {
         assert!(!is_valid);
 
         // Test with partial scripts
-        create_test_package_json(temp_dir.path(), Some(r#""pulse": "cargo run --""#)).unwrap();
+        create_test_package_json(temp_dir.path(), Some(r#""mockforge": "cargo run --""#)).unwrap();
         let is_valid = npm_integration.validate_npm_setup().unwrap();
         assert!(!is_valid);
 
         // Test with complete scripts
         create_test_package_json(
             temp_dir.path(),
-            Some(r#""pulse": "cargo run --", "pulse:watch": "cargo run -- watch""#),
+            Some(r#""mockforge": "cargo run --", "mockforge:watch": "cargo run -- watch""#),
         )
         .unwrap();
         let is_valid = npm_integration.validate_npm_setup().unwrap();
@@ -936,17 +936,17 @@ mod tests {
     fn test_npm_setup_status() {
         let status = NpmSetupStatus {
             package_json_exists: true,
-            pulse_script_exists: false,
-            pulse_watch_script_exists: true,
-            pulse_binary_path: Some("test-binary".to_string()),
+            mockforge_script_exists: false,
+            mockforge_watch_script_exists: true,
+            mockforge_binary_path: Some("test-binary".to_string()),
             recommended_scripts: vec![],
             setup_instructions: vec!["instruction 1".to_string(), "instruction 2".to_string()],
         };
 
         assert!(status.package_json_exists);
-        assert!(!status.pulse_script_exists);
-        assert!(status.pulse_watch_script_exists);
-        assert_eq!(status.pulse_binary_path.as_ref().unwrap(), "test-binary");
+        assert!(!status.mockforge_script_exists);
+        assert!(status.mockforge_watch_script_exists);
+        assert_eq!(status.mockforge_binary_path.as_ref().unwrap(), "test-binary");
         assert_eq!(status.setup_instructions.len(), 2);
     }
 }

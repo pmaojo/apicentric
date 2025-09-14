@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 use tauri::State;
-use pulse::simulator::{ApiSimulatorManager, SimulatorConfig, ServiceInfo, ServiceDefinition};
+use mockforge::simulator::{ApiSimulatorManager, SimulatorConfig, ServiceInfo, ServiceDefinition};
 use std::path::PathBuf;
 
 struct SimulatorState(Arc<ApiSimulatorManager>);
@@ -41,7 +41,7 @@ fn save_service(path: String, yaml: String) -> Result<(), String> {
 fn export_types(path: String) -> Result<String, String> {
     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let def: ServiceDefinition = serde_yaml::from_reader(file).map_err(|e| e.to_string())?;
-    pulse::simulator::typescript::to_typescript(&def).map_err(|e| e.to_string())
+    mockforge::simulator::typescript::to_typescript(&def).map_err(|e| e.to_string())
 }
 
 fn main() {
@@ -51,5 +51,5 @@ fn main() {
         .manage(SimulatorState(Arc::new(manager)))
         .invoke_handler(tauri::generate_handler![start_simulator, stop_simulator, list_services, load_service, save_service, export_types])
         .run(tauri::generate_context!())
-        .expect("error while running Pulse GUI");
+        .expect("error while running MockForge GUI");
 }

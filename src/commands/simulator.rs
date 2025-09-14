@@ -2,8 +2,8 @@ use crate::commands::shared::{
     find_yaml_files, scaffold_endpoint_definition, scaffold_service_definition, validate_yaml_file,
 };
 use clap::Subcommand;
-use pulse::simulator::log::RequestLogEntry;
-use pulse::{Context, ExecutionContext, PulseError, PulseResult};
+use mockforge::simulator::log::RequestLogEntry;
+use mockforge::{Context, ExecutionContext, PulseError, PulseResult};
 
 #[derive(Subcommand, Debug)]
 pub enum SimulatorAction {
@@ -253,7 +253,7 @@ async fn handle_start(
     } else {
         return Err(PulseError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in pulse.json"),
+            Some("Enable simulator in mockforge.json"),
         ));
     }
     Ok(())
@@ -279,7 +279,7 @@ async fn handle_stop(
     } else {
         return Err(PulseError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in pulse.json"),
+            Some("Enable simulator in mockforge.json"),
         ));
     }
     Ok(())
@@ -325,7 +325,7 @@ async fn handle_status(
         }
     } else {
         println!(
-            "   Status: ⚪ Not configured\n   💡 Enable simulator in pulse.json to see status"
+            "   Status: ⚪ Not configured\n   💡 Enable simulator in mockforge.json to see status"
         );
     }
     Ok(())
@@ -410,7 +410,7 @@ async fn handle_logs(
             if !url.ends_with('/') {
                 url.push('/');
             }
-            url.push_str("__pulse/logs?limit=");
+            url.push_str("__mockforge/logs?limit=");
             url.push_str(&limit.to_string());
             if let Some(m) = method {
                 url.push_str("&method=");
@@ -475,7 +475,7 @@ async fn handle_logs(
     } else {
         Err(PulseError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in pulse.json"),
+            Some("Enable simulator in mockforge.json"),
         ))
     }
 }
@@ -497,7 +497,7 @@ async fn handle_set_scenario(
     } else {
         Err(PulseError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in pulse.json"),
+            Some("Enable simulator in mockforge.json"),
         ))
     }
 }
@@ -526,7 +526,7 @@ async fn handle_record(
     } else {
         Err(PulseError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in pulse.json"),
+            Some("Enable simulator in mockforge.json"),
         ))
     }
 }
@@ -542,7 +542,7 @@ async fn handle_import(input: &str, output: &str, exec_ctx: &ExecutionContext) -
     let spec = openapi::from_path(input).map_err(|e| {
         PulseError::runtime_error(format!("Failed to read OpenAPI: {}", e), None::<String>)
     })?;
-    let service = pulse::simulator::openapi::from_openapi(&spec);
+    let service = mockforge::simulator::openapi::from_openapi(&spec);
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
         PulseError::runtime_error(
             format!("Failed to serialize service: {}", e),
@@ -571,7 +571,7 @@ async fn handle_import_mockoon(
         );
         return Ok(());
     }
-    let service = pulse::simulator::mockoon::from_path(input).map_err(|e| {
+    let service = mockforge::simulator::mockoon::from_path(input).map_err(|e| {
         PulseError::runtime_error(format!("Failed to read Mockoon: {}", e), None::<String>)
     })?;
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
@@ -602,7 +602,7 @@ async fn handle_import_postman(
         );
         return Ok(());
     }
-    let service = pulse::simulator::postman::from_path(input).map_err(|e| {
+    let service = mockforge::simulator::postman::from_path(input).map_err(|e| {
         PulseError::runtime_error(format!("Failed to read Postman: {}", e), None::<String>)
     })?;
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
@@ -632,11 +632,11 @@ async fn handle_export(input: &str, output: &str, exec_ctx: &ExecutionContext) -
     let yaml = std::fs::read_to_string(input).map_err(|e| {
         PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
     })?;
-    let service: pulse::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+    let service: mockforge::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
         .map_err(|e| {
             PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;
-    let spec = pulse::simulator::openapi::to_openapi(&service);
+    let spec = mockforge::simulator::openapi::to_openapi(&service);
     let spec_yaml = openapi::to_yaml(&spec).map_err(|e| {
         PulseError::runtime_error(
             format!("Failed to serialize OpenAPI: {}", e),
@@ -665,11 +665,11 @@ async fn handle_export_postman(
     let yaml = std::fs::read_to_string(input).map_err(|e| {
         PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
     })?;
-    let service: pulse::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+    let service: mockforge::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
         .map_err(|e| {
             PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;
-    let json = pulse::simulator::postman::to_string(&service).map_err(|e| {
+    let json = mockforge::simulator::postman::to_string(&service).map_err(|e| {
         PulseError::runtime_error(
             format!("Failed to serialize Postman: {}", e),
             None::<String>,
@@ -697,11 +697,11 @@ async fn handle_export_types(
     let yaml = std::fs::read_to_string(input).map_err(|e| {
         PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
     })?;
-    let service: pulse::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+    let service: mockforge::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
         .map_err(|e| {
             PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;
-    let ts = pulse::simulator::typescript::to_typescript(&service).map_err(|e| {
+    let ts = mockforge::simulator::typescript::to_typescript(&service).map_err(|e| {
         PulseError::runtime_error(format!("Failed to generate types: {}", e), None::<String>)
     })?;
     std::fs::write(output, ts).map_err(|e| {
@@ -756,7 +756,7 @@ async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> PulseResult<()
     let yaml = std::fs::read_to_string(input).map_err(|e| {
         PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
     })?;
-    let mut service: pulse::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+    let mut service: mockforge::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
         .map_err(|e| {
             PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;

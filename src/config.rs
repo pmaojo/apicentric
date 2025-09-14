@@ -186,11 +186,11 @@ fn default_continue_on_failure() -> bool {
 }
 
 fn default_pulse_script() -> String {
-    "cargo run --manifest-path utils/pulse/Cargo.toml --".to_string()
+    "cargo run --manifest-path utils/mockforge/Cargo.toml --".to_string()
 }
 
 fn default_pulse_watch_script() -> String {
-    "cargo run --manifest-path utils/pulse/Cargo.toml -- watch".to_string()
+    "cargo run --manifest-path utils/mockforge/Cargo.toml -- watch".to_string()
 }
 
 fn default_dev_script() -> String {
@@ -372,7 +372,7 @@ pub fn load_config(path: &Path) -> PulseResult<PulseConfig> {
         return Err(PulseError::config_error(
             format!("Configuration file not found: {}", path.display()),
             Some(
-                "Create a pulse.json file or run 'pulse init' to generate a default configuration",
+                "Create a mockforge.json file or run 'mockforge init' to generate a default configuration",
             ),
         ));
     }
@@ -447,7 +447,7 @@ pub fn generate_default_config() -> PulseConfig {
         routes_dir: PathBuf::from("app/routes"),
         specs_dir: PathBuf::from("app/routes"),
         reports_dir: "cypress/reports".to_string(),
-        index_cache_path: PathBuf::from(".pulse/route-index.json"),
+        index_cache_path: PathBuf::from(".mockforge/route-index.json"),
         default_timeout: 30000,
         server: ServerConfig::default(),
         execution: ExecutionConfig::default(),
