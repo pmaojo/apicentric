@@ -4,6 +4,7 @@ use crate::commands::shared::{
 use clap::Subcommand;
 use mockforge::simulator::log::RequestLogEntry;
 use mockforge::{Context, ExecutionContext, PulseError, PulseResult};
+use crate::collab::share;
 
 #[derive(Subcommand, Debug)]
 pub enum SimulatorAction {

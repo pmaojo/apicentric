@@ -33,9 +33,7 @@ export const LogsView: React.FC = () => {
         const running = services.filter((s) => s.is_running);
         const results = await Promise.all(
           running.map((s) =>
-            fetch(`http://localhost:${s.port}/__mockforge/logs?limit=100`).then((r) =>
-              r.json()
-            )
+            invoke<LogEntry[]>("get_logs", { service: s.name, limit: 100 })
           )
         );
         if (mounted) {

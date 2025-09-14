@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tauri = { version = "1.6", features = ["dialog", "shell-open"] }
+# Use a compatible Tauri 1.x release since 1.6 is not yet available
+tauri = { version = "1", features = ["dialog", "shell-open"] }
 serde_yaml = "0.9"
 mockforge = { path = ".." }
 
 [build-dependencies]
-tauri-build = { version = "1.6" }
+# Align tauri-build with the 1.x series
+tauri-build = { version = "1" }
