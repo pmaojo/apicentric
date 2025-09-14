@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use pulse::{ExecutionContext, PulseResult, ContextBuilder};
-pub use pulse::{PulseError, PulseResult as _PulseResult};
-use pulse::context::init;
+use mockforge::{ExecutionContext, PulseResult, ContextBuilder};
+pub use mockforge::{PulseError, PulseResult as _PulseResult};
+use mockforge::context::init;
 #[path = "../commands/simulator.rs"]
 mod simulator_cmd;
 #[path = "../commands/shared.rs"]
@@ -9,10 +9,10 @@ mod shared_impl;
 mod commands { pub mod shared { pub use crate::shared_impl::*; } }
 
 #[derive(Parser)]
-#[command(author, version, about = "Pulse Simulator CLI (lightweight)")]
+#[command(author, version, about = "MockForge CLI (lightweight)")]
 struct Cli {
-    /// Path to the pulse.json config file
-    #[arg(short, long, default_value = "pulse.json")]
+    /// Path to the mockforge.json config file
+    #[arg(short, long, default_value = "mockforge.json")]
     config: String,
 
     /// Execution mode (overrides config)
@@ -38,12 +38,12 @@ enum CliExecutionMode {
     Debug,
 }
 
-impl From<CliExecutionMode> for pulse::config::ExecutionMode {
+impl From<CliExecutionMode> for mockforge::config::ExecutionMode {
     fn from(cli_mode: CliExecutionMode) -> Self {
         match cli_mode {
-            CliExecutionMode::CI => pulse::config::ExecutionMode::CI,
-            CliExecutionMode::Development => pulse::config::ExecutionMode::Development,
-            CliExecutionMode::Debug => pulse::config::ExecutionMode::Debug,
+            CliExecutionMode::CI => mockforge::config::ExecutionMode::CI,
+            CliExecutionMode::Development => mockforge::config::ExecutionMode::Development,
+            CliExecutionMode::Debug => mockforge::config::ExecutionMode::Debug,
         }
     }
 }

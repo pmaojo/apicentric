@@ -274,7 +274,7 @@ impl CliUiAdapter {
         println!();
         println!(
             "{}",
-            "💡 Consejo: Usa 'pulse watch' para ejecutar pruebas al vuelo y 'pulse simulator status' para ver el simulador"
+            "💡 Consejo: Usa 'mockforge watch' para ejecutar pruebas al vuelo y 'mockforge status' para ver el simulador"
                 .bright_blue()
                 .italic()
         );
@@ -293,7 +293,7 @@ impl CliUiAdapter {
         );
         println!(
             "{}",
-            "   Usa 'pulse watch' para ejecutar al vuelo".bright_white()
+            "   Usa 'mockforge watch' para ejecutar al vuelo".bright_white()
         );
         println!("{}", "   Pulsa Ctrl+C para salir".bright_black());
         println!();

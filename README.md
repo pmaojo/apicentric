@@ -28,32 +28,32 @@
 
 ```
 ╭──────────────────────────────────────────────────────────────────────────────╮
-│ 1) Configura pulse.json                                                       │
-│ 2) Integra scripts npm (pulse setup-npm)                                      │
+│ 1) Configura mockforge.json                                                       │
+│ 2) Integra scripts npm (mockforge setup-npm)                                      │
 │ 3) Arranca el simulador y gestiona servicios mock                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ```bash
-# Inicializa config por defecto (si aún no tienes pulse.json)
-pulse init
+# Inicializa config por defecto (si aún no tienes mockforge.json)
+mockforge init
 
-# Ajusta rutas y directorios de servicios en pulse.json
+# Ajusta rutas y directorios de servicios en mockforge.json
 
 # Añade scripts npm automáticamente
-pulse setup-npm
+mockforge setup-npm
 
 # Inicia el simulador con tus servicios mock
-npm run pulse:sim -- simulator start --services-dir mock_services
+npm run mockforge:sim -- simulator start --services-dir mock_services
 
 # Convierte un archivo Mockoon a YAML
-pulse simulator import-mockoon --input mockoon.json --output services/mockoon.yaml
+mockforge import-mockoon --input mockoon.json --output services/mockoon.yaml
 
 # Graba tráfico de una API real
-pulse simulator record --output services/ --url http://localhost:3000
+mockforge record --output services/ --url http://localhost:3000
 
 # Exporta interfaces TypeScript
-pulse simulator export-types --input services/petstore.yaml --output types.ts
+mockforge export-types --input services/petstore.yaml --output types.ts
 ```
 
 ## 🚀 Qualitas Setup (host app)
@@ -65,53 +65,53 @@ Comandos útiles:
 
 ```bash
 # 1) Validar YAMLs del simulador
-npm run pulse:sim -- simulator validate --path mock_services --verbose
+npm run mockforge:sim -- simulator validate --path mock_services --verbose
 
 # 2) Arrancar simulador (Ctrl+C para parar)
-npm run pulse:sim -- simulator start --services-dir mock_services
+npm run mockforge:sim -- simulator start --services-dir mock_services
 
 # 3) Convertir un proyecto Mockoon existente
-npm run pulse:sim -- simulator import-mockoon --input mockoon.json --output mock_services/mockoon.yaml
+npm run mockforge:sim -- simulator import-mockoon --input mockoon.json --output mock_services/mockoon.yaml
 
 # 4) Grabar tráfico de una API en vivo
-npm run pulse:sim -- simulator record --output mock_services/ --url http://localhost:3000
+npm run mockforge:sim -- simulator record --output mock_services/ --url http://localhost:3000
 
 # 5) Exportar tipos TypeScript
-npm run pulse:sim -- simulator export-types --input mock_services/petstore.yaml --output types.ts
+npm run mockforge:sim -- simulator export-types --input mock_services/petstore.yaml --output types.ts
 ```
 
 ### Grabar tráfico de API
 
 ```bash
 # Proxy que captura peticiones y genera servicios YAML automáticamente
-pulse simulator record --output services/ --url http://localhost:3000
+mockforge record --output services/ --url http://localhost:3000
 ```
 
 ### Filtrar y exportar logs del simulador
 
 ```bash
 # Mostrar los últimos 50 logs GET con estado 200
-pulse simulator logs my-service --limit 50 --method GET --status 200
+mockforge logs my-service --limit 50 --method GET --status 200
 
 # Filtrar por ruta y exportar a un archivo JSON
-pulse simulator logs my-service --route /users --output logs.json
+mockforge logs my-service --route /users --output logs.json
 ```
 
 ### Importar/Exportar OpenAPI
 
 ```bash
 # Generar un servicio YAML desde un spec OpenAPI
-pulse simulator import --input openapi.yaml --output services/petstore.yaml
+mockforge import --input openapi.yaml --output services/petstore.yaml
 
 # Exportar un servicio mock existente a OpenAPI
-pulse simulator export --input services/petstore.yaml --output openapi.yaml
+mockforge export --input services/petstore.yaml --output openapi.yaml
 ```
 
 ### Exportar tipos TypeScript
 
 ```bash
 # Generar interfaces TypeScript desde un servicio YAML
-pulse simulator export-types --input services/petstore.yaml --output types.ts
+mockforge export-types --input services/petstore.yaml --output types.ts
 ```
 
 Archivo generado (`types.ts`):
@@ -143,7 +143,7 @@ export interface paths {
 
 ```bash
 # Generar un servicio YAML desde un archivo JSON de Mockoon
-pulse simulator import-mockoon --input mockoon.json --output services/mockoon.yaml
+mockforge import-mockoon --input mockoon.json --output services/mockoon.yaml
 ```
 
 Ejemplo de conversión:
@@ -184,13 +184,13 @@ endpoints:
 
 ```bash
 # Importar una colección de Postman
-pulse simulator import-postman --input examples/postman-collection.json --output services/postman.yaml
+mockforge import-postman --input examples/postman-collection.json --output services/postman.yaml
 
 # Importar una exportación de Insomnia
-pulse simulator import-postman --input examples/insomnia-collection.json --output services/insomnia.yaml
+mockforge import-postman --input examples/insomnia-collection.json --output services/insomnia.yaml
 
 # Exportar un servicio a colección Postman
-pulse simulator export-postman --input services/postman.yaml --output postman-collection.json
+mockforge export-postman --input services/postman.yaml --output postman-collection.json
 ```
 
 Ejemplo (`examples/postman-collection.json`):
@@ -228,10 +228,10 @@ endpoints:
 
 ```bash
 # Asistente interactivo para un nuevo servicio
-pulse simulator new --output services
+mockforge new --output services
 
 # Añadir un endpoint a un servicio existente
-pulse simulator edit --input services/my-service.yaml
+mockforge edit --input services/my-service.yaml
 ```
 
 Ejemplo de YAML generado:
@@ -257,7 +257,7 @@ Endpoints de ejemplo (simulador):
 - Core público (logout): `http://localhost:9012/api/v1/logout`
 
 Notas:
-- `services_dir` en `pulse.json` del host debe ser `"mock_services"`.
+- `services_dir` en `mockforge.json` del host debe ser `"mock_services"`.
 - Los scripts `start:*` ya exportan `VITE_*` para apuntar a los mocks o al backend real según el caso.
 
 ### Data Bucket compartido
@@ -371,7 +371,7 @@ Cada operación se resuelve con la plantilla indicada y puede usar fixtures o va
 
 ## Configuración básica
 
-Ejemplo de `pulse.json` mínimo:
+Ejemplo de `mockforge.json` mínimo:
 
 ```json
 {
@@ -381,7 +381,7 @@ Ejemplo de `pulse.json` mínimo:
   "routes_dir": "app/routes",
   "specs_dir": "app/routes",
   "reports_dir": "cypress/reports",
-  "index_cache_path": ".pulse/route-index.json",
+  "index_cache_path": ".mockforge/route-index.json",
   "default_timeout": 30000,
   "server": {
     "auto_start": true,
@@ -401,24 +401,24 @@ Ejemplo de `pulse.json` mínimo:
 ### Scripts NPM
 
 ```bash
-# Añade scripts Pulse al package.json
-pulse setup-npm
+# Añade scripts MockForge al package.json
+mockforge setup-npm
 
 # Solo mostrar instrucciones
-pulse setup-npm --instructions-only
+mockforge setup-npm --instructions-only
 ```
 
 ### Ejecutar simulador
 
 ```bash
 # Iniciar el simulador con servicios YAML
-pulse simulator start --services-dir services
+mockforge start --services-dir services
 
 # Validar servicios antes de iniciar
-pulse simulator validate --path services
+mockforge validate --path services
 
 # Grabar tráfico de una API
-pulse simulator record --output services/ --url http://localhost:3000
+mockforge record --output services/ --url http://localhost:3000
 ```
 
 ## Usage
@@ -426,30 +426,30 @@ pulse simulator record --output services/ --url http://localhost:3000
 ### Command Line Interface
 
 ```bash
-pulse [OPTIONS] <COMMAND>
+mockforge [OPTIONS] <COMMAND>
 
 Commands:
   simulator   Manage API mocks (start, validate, record, import, export)
-  setup-npm   Setup npm scripts for pulse integration
+  setup-npm   Setup npm scripts for mockforge integration
   docs        Generate TypeScript documentation
 
 Options:
-  -c, --config <CONFIG>    Path to pulse.json config file [default: pulse.json]
+  -c, --config <CONFIG>    Path to mockforge.json config file [default: mockforge.json]
       --dry-run           Enable dry-run mode (show what would be executed)
   -v, --verbose           Enable verbose output
   -h, --help              Print help
 
 Simulador:
-  pulse simulator start --services-dir services
-  pulse simulator validate --path services
-  pulse simulator record --output services/ --url http://localhost:3000
+  mockforge start --services-dir services
+  mockforge validate --path services
+  mockforge record --output services/ --url http://localhost:3000
 ```
 
 ## 🦐 Mock API Simulator (Experimental)
 
 YAML data-driven local API para simular servicios y trabajar offline.
 
-### Ejemplo `pulse-mock.yaml`
+### Ejemplo `mockforge-mock.yaml`
 
 ```yaml
 name: remora-sim
@@ -487,9 +487,9 @@ endpoints:
 ### Comandos
 
 ```bash
-pulse simulator validate --path pulse-mock.yaml    # Validar YAML
-pulse simulator start --services pulse-mock.yaml   # Iniciar servidor
-pulse --dry-run simulator start --services pulse-mock.yaml   # Dry run
+mockforge validate --path mockforge-mock.yaml    # Validar YAML
+mockforge start --services mockforge-mock.yaml   # Iniciar servidor
+mockforge --dry-run simulator start --services mockforge-mock.yaml   # Dry run
 ```
 
 ### Matching
@@ -532,9 +532,9 @@ La petición debe incluir `x-api-key: secret` para activar este endpoint.
 ```
 ╭─ AUTOMATIZA TU FLUJO ───────────────────────────────────────────────────────────────╮
 │                                                                                      │
-│  🛠️  Comando:      pulse setup-npm                                                   │
+│  🛠️  Comando:      mockforge setup-npm                                                   │
 │  🔎 Detección:      workspace, binarios locales, $HOME/.cargo, PATH                  │
-│  🧩 Scripts:        "pulse", "pulse:sim"                                            │
+│  🧩 Scripts:        "mockforge", "mockforge:sim"                                            │
 │  🧪 Verificación:   --test para probar ejecución npm                                 │
 │  📘 Ejemplos:       --examples muestra usos útiles                                   │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
@@ -542,7 +542,7 @@ La petición debe incluir `x-api-key: secret` para activar este endpoint.
 
 ### ¿Qué hace?
 
-- Detecta si tienes `utils/pulse` (workspace) o binarios compilados.
+- Detecta si tienes `utils/mockforge` (workspace) o binarios compilados.
 - Genera scripts npm recomendados sin pisar los existentes (a menos que uses `--force`).
 - Imprime instrucciones cuando falta `package.json` o scripts.
 
@@ -550,11 +550,11 @@ La petición debe incluir `x-api-key: secret` para activar este endpoint.
 
 El adaptador intenta, en orden:
 
-1) `utils/pulse/Cargo.toml` → usa `cargo run --manifest-path utils/pulse/Cargo.toml --`
-2) `./utils/pulse/target/release|debug/pulse` → usa el binario local
-3) `which pulse` en el `PATH`
-4) `$HOME/.cargo/bin/pulse`
-5) Fallback: `cargo run --manifest-path utils/pulse/Cargo.toml --`
+1) `utils/mockforge/Cargo.toml` → usa `cargo run --manifest-path utils/mockforge/Cargo.toml --`
+2) `./utils/mockforge/target/release|debug/mockforge` → usa el binario local
+3) `which mockforge` en el `PATH`
+4) `$HOME/.cargo/bin/mockforge`
+5) Fallback: `cargo run --manifest-path utils/mockforge/Cargo.toml --`
 
 Esto asegura que los scripts npm funcionen tanto en desarrollo como en CI sin fricción.
 
@@ -563,8 +563,8 @@ Esto asegura que los scripts npm funcionen tanto en desarrollo como en CI sin fr
 ```json
 {
 "scripts": {
-    "pulse": "<binario-detectado>",
-    "pulse:sim": "<binario-detectado> simulator"
+    "mockforge": "<binario-detectado>",
+    "mockforge:sim": "<binario-detectado> simulator"
   }
 }
 ```
@@ -572,47 +572,47 @@ Esto asegura que los scripts npm funcionen tanto en desarrollo como en CI sin fr
 Puedes forzar la escritura con `--force`:
 
 ```bash
-pulse setup-npm --force
+mockforge setup-npm --force
 ```
 
 ### Comprobación y ejemplos
 
 ```bash
 # Verifica si los scripts están listos y ejecutables
-pulse setup-npm --test
+mockforge setup-npm --test
 
 # Muestra ejemplos de uso (útil para copy/paste)
-pulse setup-npm --examples
+mockforge setup-npm --examples
 ```
 
 ### Solución de problemas
 
-- No hay `package.json`: crea uno (`npm init -y`) y vuelve a ejecutar `pulse setup-npm`.
-- El binario no aparece: compila Pulse (`cargo build`) o usa la ruta del workspace.
+- No hay `package.json`: crea uno (`npm init -y`) y vuelve a ejecutar `mockforge setup-npm`.
+- El binario no aparece: compila MockForge (`cargo build`) o usa la ruta del workspace.
 - NPM falla al ejecutar: verifica la salida de `--test` y revisa permisos de archivos.
 
 ## 🛰️ Ejemplo incluido: Mock Services (SWAPI)
 
 Este repo trae ejemplos listos para usar de servicios mock basados en la API de Star Wars (SWAPI):
 
-- `pulse/examples/swapi-mock.yaml`: definición simple para el Mock Server directo (un archivo, rutas planas)
-- `pulse/examples/swapi-service.yaml`: definición de servicio para el API Simulator (plantillas, base_path, etc.)
+- `mockforge/examples/swapi-mock.yaml`: definición simple para el Mock Server directo (un archivo, rutas planas)
+- `mockforge/examples/swapi-service.yaml`: definición de servicio para el API Simulator (plantillas, base_path, etc.)
 
 ### Opción A — Mock Server (archivo único)
 
-Para un mock rápido sin directorios, puedes cargar un YAML y arrancar un servidor local con el módulo `mock` reexportado por Pulse:
+Para un mock rápido sin directorios, puedes cargar un YAML y arrancar un servidor local con el módulo `mock` reexportado por MockForge:
 
 ```rust
-// Cargo.toml: añade pulse como dependencia si lo usas desde otro crate
+// Cargo.toml: añade mockforge como dependencia si lo usas desde otro crate
 // [dependencies]
-// pulse = { path = "utils/pulse" }
+// mockforge = { path = "utils/mockforge" }
 
-use pulse::mock::{load_spec, run_mock_server};
+use mockforge::mock::{load_spec, run_mock_server};
 use std::path::Path;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  let spec = load_spec(Path::new("pulse/examples/swapi-mock.yaml")).await?;
+  let spec = load_spec(Path::new("mockforge/examples/swapi-mock.yaml")).await?;
   run_mock_server(spec).await?; // Escucha en el puerto del YAML (p.ej. 8080)
   Ok(())
 }
@@ -626,14 +626,14 @@ Rutas de ejemplo (si usas `swapi-mock.yaml`):
 
 Esta vía usa el lector de YAML y el servidor mock definidos en:
 
-- `pulse/src/adapters/mock_server.rs:106` (lectura de YAML)
-- `pulse/src/adapters/mock_server.rs:120` (arranque del servidor)
+- `mockforge/src/adapters/mock_server.rs:106` (lectura de YAML)
+- `mockforge/src/adapters/mock_server.rs:120` (arranque del servidor)
 
 ### Opción B — API Simulator (directorio de servicios)
 
 El API Simulator permite agrupar múltiples servicios YAML con base paths y plantillas. Para activarlo:
 
-1) En `pulse.json` habilita el simulador y apunta a tu carpeta de servicios. Importante: la ruta se resuelve respecto al directorio desde el que ejecutas Pulse (normalmente el root de tu app). En el caso de Qualitas, apunta a `mock_services` del host app:
+1) En `mockforge.json` habilita el simulador y apunta a tu carpeta de servicios. Importante: la ruta se resuelve respecto al directorio desde el que ejecutas MockForge (normalmente el root de tu app). En el caso de Qualitas, apunta a `mock_services` del host app:
 
 ```json
 {
@@ -649,15 +649,15 @@ El API Simulator permite agrupar múltiples servicios YAML con base paths y plan
 
 ```bash
 # Validar servicios (sin arrancar)
-pulse simulator validate --path mock_services --recursive --verbose
+mockforge validate --path mock_services --recursive --verbose
 
-# Arrancar (usa pulse.json):
+# Arrancar (usa mockforge.json):
 export PULSE_API_SIMULATOR=true   # también puedes habilitar en el JSON
-pulse simulator start
+mockforge start
 
 # Estado / Parada
-pulse simulator status
-pulse simulator stop
+mockforge status
+mockforge stop
 ```
 
 3) Si una ruta no existe en tus mocks y quieres reenviarla a un backend real, añade `proxy_base_url` en el YAML del servicio:
@@ -677,19 +677,19 @@ Rutas de ejemplo (según `swapi-service.yaml` y el base_path configurado):
 Cómo sabemos que “sí los está leyendo” tras el refactor:
 
 - El manager carga todos los servicios desde `services_dir` a través del `ConfigLoader` y los registra:
-  - `pulse/src/simulator/manager.rs:43` (crea `ConfigLoader` con `services_dir`)
-  - `pulse/src/simulator/manager.rs:33` (constructor)
-  - `pulse/src/simulator/manager.rs:27` (start → `load_all_services()` y arranque)
+  - `mockforge/src/simulator/manager.rs:43` (crea `ConfigLoader` con `services_dir`)
+  - `mockforge/src/simulator/manager.rs:33` (constructor)
+  - `mockforge/src/simulator/manager.rs:27` (start → `load_all_services()` y arranque)
 - El `ConfigLoader` abre archivos YAML y valida cada servicio con `serde_yaml` + validaciones:
-  - `pulse/src/simulator/config.rs:578` (lee YAML del disco)
-  - `pulse/src/simulator/config.rs:586` (parsea con `serde_yaml`)
-  - `pulse/src/simulator/config.rs:598` (valida estructura)
-  - `pulse/src/simulator/config.rs:615` y `660` (escaneo recursivo con estadísticas)
+  - `mockforge/src/simulator/config.rs:578` (lee YAML del disco)
+  - `mockforge/src/simulator/config.rs:586` (parsea con `serde_yaml`)
+  - `mockforge/src/simulator/config.rs:598` (valida estructura)
+  - `mockforge/src/simulator/config.rs:615` y `660` (escaneo recursivo con estadísticas)
 
-Además, puedes ejecutar una validación aislada contra un directorio sin necesidad de configurar `pulse.json` (útil para CI):
+Además, puedes ejecutar una validación aislada contra un directorio sin necesidad de configurar `mockforge.json` (útil para CI):
 
 ```bash
-pulse simulator validate --path pulse/examples --recursive --verbose
+mockforge validate --path mockforge/examples --recursive --verbose
 ```
 
 ## Configuration
@@ -804,7 +804,7 @@ pulse simulator validate --path pulse/examples --recursive --verbose
 - Integración npm robusta: detección multinivel del binario, escritura segura de scripts y verificación (`--test`).
 - Recomendaciones: unificar tipos de error, homogeneizar logs con `tracing`, reemplazar dependencias externas frágiles (p.ej. `curl`) por clientes HTTP embebidos.
 
-> Resultado: Pulse está listo para integrarse en monorepos JavaScript/TypeScript con una DX de primera, tiempos de ejecución bajos y visibilidad operativa de nivel producción.
+> Resultado: MockForge está listo para integrarse en monorepos JavaScript/TypeScript con una DX de primera, tiempos de ejecución bajos y visibilidad operativa de nivel producción.
 
 #### Utilities
 
@@ -814,7 +814,7 @@ pulse simulator validate --path pulse/examples --recursive --verbose
 
 ### Execution Flow
 
-1. **Configuration Loading**: Parse and validate pulse.json
+1. **Configuration Loading**: Parse and validate mockforge.json
 2. **Change Detection**: Use git to identify modified files
 3. **Impact Analysis**: Map changes to relevant test files using route index
 4. **Server Management**: Start/check development server if needed
@@ -830,24 +830,24 @@ pulse simulator validate --path pulse/examples --recursive --verbose
 
 ```bash
 # Diferentes configs para distintos entornos
-pulse --config pulse.ci.json simulator start --services-dir services
-pulse --config pulse.dev.json simulator start --services-dir services
+mockforge --config mockforge.ci.json simulator start --services-dir services
+mockforge --config mockforge.dev.json simulator start --services-dir services
 ```
 
 ### Integración con CI/CD
 
 ```yaml
 # GitHub Actions example
-- name: Start Pulse Simulator
+- name: Start MockForge
   run: |
-    pulse --config pulse.ci.json simulator start --services-dir services
+    mockforge --config mockforge.ci.json simulator start --services-dir services
 ```
 
 ### Depuración
 
 ```bash
 # Activar modo debug con salida detallada
-pulse --dry-run simulator start --services-dir services
+mockforge --dry-run simulator start --services-dir services
 ```
 
 ## Resolución de Problemas
@@ -858,7 +858,7 @@ pulse --dry-run simulator start --services-dir services
 
 ```bash
 # Verifica configuración del servidor
-pulse --verbose run
+mockforge --verbose run
 
 # Prueba el comando manualmente
 npm run dev
@@ -868,7 +868,7 @@ npm run dev
 
 ```bash
 # Verifica el patrón de especificaciones
-pulse --dry-run run
+mockforge --dry-run run
 
 # Comprueba rutas de archivos en la configuración
 ls -la app/routes/**/test/*.cy.ts
@@ -887,7 +887,7 @@ git diff --name-only
 #### Conflictos de puerto Prometheus
 
 ```bash
-# Si el puerto 9091 está en uso, cámbialo en pulse.json
+# Si el puerto 9091 está en uso, cámbialo en mockforge.json
 {
   "metrics": {
     "prometheus": {
@@ -907,7 +907,7 @@ La aplicación de escritorio construida con Tauri permite gestionar los servicio
 mock definidos en YAML de forma visual. Para arrancarla ejecuta:
 
 ```bash
-pulse gui
+mockforge gui
 ```
 
 Desde la interfaz podrás iniciar y detener el simulador, editar archivos de
