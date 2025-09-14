@@ -95,6 +95,15 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value_t = 20)]
         limit: usize,
     },
+    /// Record live API traffic into service definitions
+    Record {
+        /// Output directory for generated services
+        #[arg(short, long, default_value = "services")]
+        output: String,
+        /// Target URL to proxy requests to (defaults to base_url in config)
+        #[arg(long)]
+        url: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -250,7 +259,6 @@ pub enum ContractAction {
 
 #[derive(Subcommand)]
 pub enum Commands {
-
     /// Watch for changes and run impacted tests
     Watch {
         /// Number of parallel test runners

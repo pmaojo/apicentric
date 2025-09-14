@@ -74,6 +74,13 @@ npm run start:airplane:watch
 npm run start:watch
 ```
 
+### Grabar tráfico de API
+
+```bash
+# Proxy que captura peticiones y genera servicios YAML automáticamente
+pulse simulator record --output services/ --url http://localhost:3000
+```
+
 ### Importar/Exportar OpenAPI
 
 ```bash
