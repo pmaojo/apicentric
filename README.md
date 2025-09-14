@@ -46,6 +46,9 @@ mockforge setup-npm
 # Inicia el simulador con tus servicios mock
 npm run mockforge:sim -- simulator start --services-dir mock_services
 
+# Habilita la edición colaborativa distribuida entre pares
+npm run mockforge:sim -- simulator start --services-dir mock_services --p2p
+
 # Convierte un archivo Mockoon a YAML
 mockforge import-mockoon --input mockoon.json --output services/mockoon.yaml
 
@@ -55,6 +58,13 @@ mockforge record --output services/ --url http://localhost:3000
 # Exporta interfaces TypeScript
 mockforge export-types --input services/petstore.yaml --output types.ts
 ```
+
+### Edición colaborativa P2P
+
+Arranca el simulador con la bandera `--p2p` para descubrir automáticamente a otros
+peers en la red local (mDNS) y compartir cambios de los servicios mediante CRDTs.
+Las modificaciones en los archivos YAML se fusionan y propagan sin necesidad de
+un servidor central.
 
 ## 🚀 Qualitas Setup (host app)
 
@@ -69,6 +79,9 @@ npm run mockforge:sim -- simulator validate --path mock_services --verbose
 
 # 2) Arrancar simulador (Ctrl+C para parar)
 npm run mockforge:sim -- simulator start --services-dir mock_services
+
+# 2b) Arrancar simulador con colaboración P2P
+npm run mockforge:sim -- simulator start --services-dir mock_services --p2p
 
 # 3) Convertir un proyecto Mockoon existente
 npm run mockforge:sim -- simulator import-mockoon --input mockoon.json --output mock_services/mockoon.yaml

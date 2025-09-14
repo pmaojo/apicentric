@@ -86,10 +86,11 @@ async fn run(cli: Cli) -> PulseResult<()> {
 
     match cli.command {
         Commands::Simulator { action } => match &action {
-            simulator_cmd::SimulatorAction::Start { services_dir: _, force: _ } => {
+            simulator_cmd::SimulatorAction::Start { services_dir: _, force: _, p2p } => {
                 // Start and block to keep services alive
                 if let Some(sim) = context.api_simulator() {
                     if exec_ctx.dry_run { println!("🏃 Dry run: Would start API simulator"); return Ok(()); }
+                    if *p2p { sim.enable_p2p(true).await; }
                     println!("🚀 Starting API Simulator (blocking)…");
                     sim.start().await?;
                     println!("🔄 Simulator running... Press Ctrl+C to stop");

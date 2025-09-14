@@ -5,6 +5,7 @@ pub mod context;
 pub mod errors;
 pub mod utils;
 pub mod validation;
+pub mod collab;
 
 // Domain layer (core business logic)
 pub mod domain;
