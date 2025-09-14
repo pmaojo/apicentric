@@ -193,6 +193,30 @@ Notas:
 - `services_dir` en `pulse.json` del host debe ser `"mock_services"`.
 - Los scripts `start:*` ya exportan `VITE_*` para apuntar a los mocks o al backend real según el caso.
 
+### Mocking GraphQL
+
+```yaml
+name: graph-service
+server:
+  port: 9000
+  base_path: /
+graphql:
+  schema_path: schemas/sample.graphql
+  mocks:
+    getUser: templates/get_user.json
+```
+
+Archivo de esquema (`schemas/sample.graphql`):
+
+```graphql
+type User { id: ID!, name: String! }
+type Query {
+  getUser(id: ID!): User
+}
+```
+
+Cada operación se resuelve con la plantilla indicada y puede usar fixtures o variables de la petición (`request.body.variables`). Las peticiones POST a `/graphql` usan `operationName` para seleccionar el mock y una petición GET al mismo path devuelve el SDL del esquema.
+
 ## ⚡ Características Clave
 
 ```
