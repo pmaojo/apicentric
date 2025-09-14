@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { invoke } from "@tauri-apps/api/tauri";
 
 export interface LogEntry {
   timestamp: string;
@@ -9,33 +11,94 @@ export interface LogEntry {
   endpoint?: number;
 }
 
-interface LogsViewProps {
-  logs: LogEntry[];
+interface ServiceInfo {
+  name: string;
+  port: number;
+  is_running: boolean;
 }
 
-export const LogsView: React.FC<LogsViewProps> = ({ logs }) => {
-  const navigate = (service?: string, endpoint?: number) => {
-    if (service !== undefined && endpoint !== undefined) {
-      window.location.href = `route_editor.tsx?service=${service}&endpoint=${endpoint}`;
-    }
-  };
+export const LogsView: React.FC = () => {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [methodFilter, setMethodFilter] = useState("");
+  const [pathFilter, setPathFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchLogs = async () => {
+      try {
+        const services: ServiceInfo[] = await invoke("list_services");
+        const running = services.filter((s) => s.is_running);
+        const results = await Promise.all(
+          running.map((s) =>
+            fetch(`http://localhost:${s.port}/__pulse/logs?limit=100`).then((r) =>
+              r.json()
+            )
+          )
+        );
+        if (mounted) {
+          setLogs(results.flat());
+        }
+      } catch (e) {
+        console.error("Failed to fetch logs", e);
+      }
+    };
+
+    fetchLogs();
+    const id = setInterval(fetchLogs, 2000);
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  const filtered = logs.filter((log) => {
+    const methodMatch =
+      !methodFilter || log.method.toLowerCase().includes(methodFilter.toLowerCase());
+    const pathMatch =
+      !pathFilter || log.path.toLowerCase().includes(pathFilter.toLowerCase());
+    const statusMatch =
+      !statusFilter || log.status.toString().includes(statusFilter);
+    return methodMatch && pathMatch && statusMatch;
+  });
 
   return (
-    <ul>
-      {logs.map((log, idx) => (
-        <li key={idx}>
-          <a
-            href={`route_editor.tsx?service=${log.service}&endpoint=${log.endpoint}`}
-            onClick={(e) => {
-              e.preventDefault();
-              navigate(log.service, log.endpoint);
-            }}
-          >
-            [{log.method}] {log.path} - {log.status}
-          </a>
-        </li>
-      ))}
-    </ul>
+    <div>
+      <div>
+        <input
+          placeholder="method"
+          value={methodFilter}
+          onChange={(e) => setMethodFilter(e.target.value)}
+        />
+        <input
+          placeholder="path"
+          value={pathFilter}
+          onChange={(e) => setPathFilter(e.target.value)}
+        />
+        <input
+          placeholder="status"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        />
+      </div>
+      <ul>
+        {filtered.map((log, idx) => (
+          <li key={idx}>
+            <a
+              href={`/route_editor?service=${log.service}&endpoint=${log.endpoint}`}
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(`/route_editor?service=${log.service}&endpoint=${log.endpoint}`);
+              }}
+            >
+              [{log.method}] {log.path} - {log.status}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 };
 

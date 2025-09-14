@@ -3,12 +3,14 @@ import { Routes, Route } from "react-router-dom";
 import SimulatorControls from "./components/SimulatorControls";
 import ServiceManager from "./components/ServiceManager";
 import RouteEditor from "./components/route_editor";
+import LogsView from "./components/logs_view";
 
 const Home: React.FC = () => (
   <div>
     <h1>Pulse Simulator GUI</h1>
     <SimulatorControls />
     <ServiceManager />
+    <LogsView />
   </div>
 );
 
