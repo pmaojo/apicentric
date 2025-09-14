@@ -75,7 +75,7 @@ control más fino pueden implementarse listas de peers permitidos.
 
 ### Generación asistida por IA
 
-Configura un proveedor en `pulse.json` para generar servicios desde prompts en
+Configura un proveedor en `mockforge.json` para generar servicios desde prompts en
 lenguaje natural. Ejemplo con un modelo local:
 
 ```json
