@@ -27,6 +27,10 @@ struct Cli {
     #[arg(short, long)]
     verbose: bool,
 
+    /// Path to SQLite database for simulator storage
+    #[arg(long, default_value = "pulse.db")]
+    db_path: String,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -78,6 +82,10 @@ async fn run(cli: Cli) -> PulseResult<()> {
     let context = builder
         .with_api_simulator(api_simulator)
         .build()?;
+
+    if let Some(sim) = context.api_simulator() {
+        sim.set_db_path(&cli.db_path).await.ok();
+    }
 
     let mut exec_ctx = ExecutionContext::new(context.config());
     if let Some(mode) = cli.mode { exec_ctx = exec_ctx.with_mode(mode.into()); }
