@@ -4,7 +4,7 @@
 //! that supports dynamic responses based on request data, fixtures, and service state.
 
 use crate::errors::{PulseError, PulseResult};
-use crate::simulator::service::{PathParameters, ServiceState};
+use crate::simulator::service::{DataBucket, PathParameters, ServiceState};
 use handlebars::Handlebars;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -16,6 +16,7 @@ use self::helpers::{
     random_string_helper, select_helper, upper_helper, faker_helper,
     and_helper, or_helper, eq_helper, ne_helper, gt_helper, gte_helper, lt_helper, lte_helper,
     contains_helper, starts_with_helper, ends_with_helper, regex_match_helper, exists_helper,
+    register_bucket_helpers,
 };
 
 /// Template engine for rendering dynamic responses
@@ -54,14 +55,26 @@ impl TemplateEngine {
         Ok(Self { handlebars })
     }
 
+    /// Register helpers that require access to the service data bucket
+    pub fn register_bucket_helpers(&mut self, bucket: DataBucket) -> PulseResult<()> {
+        register_bucket_helpers(&mut self.handlebars, bucket);
+        Ok(())
+    }
+
     /// Pre-process template to convert pipe syntax to Handlebars helpers
     fn preprocess_template(&self, template: &str) -> String {
         use regex::Regex;
 
+        // Normalize bucket helper names
+        let bucket_regex = Regex::new(r"\{\{\s*bucket\.(set|get)").unwrap();
+        let mut result = bucket_regex
+            .replace_all(template, "{{bucket_$1")
+            .to_string();
+
         // Handle simple cases first - just return fixtures as JSON
         let simple_fixture_regex = Regex::new(r"\{\{\s*fixtures\.(\w+)\s*\}\}").unwrap();
-        let mut result = simple_fixture_regex
-            .replace_all(template, "{{json fixtures.$1}}")
+        result = simple_fixture_regex
+            .replace_all(&result, "{{json fixtures.$1}}")
             .to_string();
 
         // Handle complex pipe operations with multiple pipes
@@ -431,6 +444,7 @@ impl RequestContext {
 mod tests {
     use super::*;
     use serde_json::json;
+    use crate::simulator::service::DataBucket;
 
     #[test]
     fn test_template_engine_creation() {
@@ -522,6 +536,19 @@ mod tests {
             .render("{{faker \"internet.email\"}}", &context)
             .unwrap();
         assert!(result.contains("@"));
+    }
+
+    #[test]
+    fn test_bucket_helpers() {
+        let mut engine = TemplateEngine::new().unwrap();
+        let bucket = DataBucket::new(None);
+        engine.register_bucket_helpers(bucket.clone()).unwrap();
+        let context = TemplateContext::minimal();
+        let result = engine
+            .render("{{bucket.set \"foo\" 42}}{{bucket.get \"foo\"}}", &context)
+            .unwrap();
+        assert_eq!(result, "42");
+        assert_eq!(bucket.get("foo"), Some(json!(42)));
     }
 
     #[test]

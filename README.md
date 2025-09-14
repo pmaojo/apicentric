@@ -193,6 +193,20 @@ Notas:
 - `services_dir` en `pulse.json` del host debe ser `"mock_services"`.
 - Los scripts `start:*` ya exportan `VITE_*` para apuntar a los mocks o al backend real según el caso.
 
+### Data Bucket compartido
+
+Define datos iniciales en memoria mediante `bucket` y accede a ellos con helpers:
+
+```yaml
+bucket:
+  items: []
+```
+
+```handlebars
+{{bucket.set "items" request.body}}
+{{json (bucket.get "items")}}
+```
+
 ### Mocking GraphQL
 
 ```yaml

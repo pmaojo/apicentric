@@ -111,6 +111,7 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
         server,
         models: None,
         fixtures: None,
+        bucket: None,
         endpoints,
         graphql: None,
         behavior: None,

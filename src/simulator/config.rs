@@ -91,6 +91,8 @@ pub struct ServiceDefinition {
     pub server: ServerConfig,
     pub models: Option<HashMap<String, serde_json::Value>>, // JSON Schema definitions
     pub fixtures: Option<HashMap<String, serde_json::Value>>,
+    #[serde(default)]
+    pub bucket: Option<HashMap<String, serde_json::Value>>,
     pub endpoints: Vec<EndpointDefinition>,
     #[serde(default)]
     pub graphql: Option<GraphQLConfig>,
@@ -1486,6 +1488,7 @@ mod tests {
             },
             models: None,
             fixtures: None,
+            bucket: None,
             endpoints: vec![EndpointDefinition {
                 kind: EndpointKind::Http,
                 method: "GET".to_string(),
@@ -1566,6 +1569,7 @@ endpoints:
             },
             models: None,
             fixtures: None,
+            bucket: None,
             endpoints: vec![EndpointDefinition {
                 kind: EndpointKind::Http,
                 method: "INVALID".to_string(), // Invalid HTTP method
@@ -1640,6 +1644,7 @@ endpoints:
             },
             models: Some(models),
             fixtures: None,
+            bucket: None,
             endpoints: vec![EndpointDefinition {
                 kind: EndpointKind::Http,
                 method: "GET".to_string(),
@@ -1720,6 +1725,7 @@ endpoints:
             },
             models: Some(models),
             fixtures: Some(fixtures),
+            bucket: None,
             endpoints: vec![EndpointDefinition {
                 kind: EndpointKind::Http,
                 method: "GET".to_string(),
@@ -1771,6 +1777,7 @@ endpoints:
             },
             models: None, // No models defined
             fixtures: None,
+            bucket: None,
             endpoints: vec![EndpointDefinition {
                 kind: EndpointKind::Http,
                 method: "POST".to_string(),
@@ -2012,6 +2019,7 @@ name: 'invalid-service'
                 },
                 models: None,
                 fixtures: None,
+                bucket: None,
                 endpoints: vec![],
                 graphql: None,
                 behavior: None,
@@ -2028,6 +2036,7 @@ name: 'invalid-service'
                 },
                 models: None,
                 fixtures: None,
+                bucket: None,
                 endpoints: vec![],
                 graphql: None,
                 behavior: None,

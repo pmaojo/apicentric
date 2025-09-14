@@ -270,6 +270,7 @@ mod tests {
             },
             models: None,
             fixtures: None,
+            bucket: None,
             endpoints: vec![EndpointDefinition {
                 kind: EndpointKind::Http,
                 method: "GET".to_string(),
