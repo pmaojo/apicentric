@@ -61,6 +61,7 @@ mod tests {
                                 condition: None,
                                 content_type: "application/json".to_string(),
                                 body: "{{ fixtures.users }}".to_string(),
+                                script: None,
                                 headers: None,
                                 side_effects: None,
                             },
@@ -84,6 +85,7 @@ mod tests {
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: r#"{"id": "{{ params.id }}", "message": "User {{ params.id }} found"}"#.to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         });
@@ -106,6 +108,7 @@ mod tests {
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: r#"{"userId": "{{ params.userId }}", "orderId": "{{ params.orderId }}", "status": "found"}"#.to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         });

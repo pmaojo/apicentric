@@ -33,6 +33,7 @@ async-graphql-parser = "7.0"
 tokio-tungstenite = "0.21"
 futures-util = "0.3"
 tokio-stream = "0.1"
+deno_core = "0.272.0"
 
 # Metrics dependencies
 prometheus = "0.13.4"

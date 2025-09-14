@@ -287,6 +287,7 @@ mod tests {
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: r#"{"message": "test"}"#.to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },
