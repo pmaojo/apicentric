@@ -99,11 +99,6 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value_t = 20)]
         limit: usize,
     },
-    /// AI-assisted generation
-    Ai {
-        #[command(subcommand)]
-        action: AiAction,
-    },
     /// Record live API traffic into service definitions
     Record {
         /// Output directory for generated services
@@ -131,6 +126,12 @@ pub enum Commands {
     Simulator {
         #[command(subcommand)]
         action: SimulatorAction,
+    },
+
+    /// AI-assisted generation
+    Ai {
+        #[command(subcommand)]
+        action: AiAction,
     },
 
     /// Launch the graphical editor for mock services

@@ -4,6 +4,8 @@ pub use mockforge::{PulseError, PulseResult as _PulseResult};
 use mockforge::context::init;
 #[path = "../commands/simulator.rs"]
 mod simulator_cmd;
+#[path = "../commands/ai.rs"]
+mod ai_cmd;
 #[path = "../commands/shared.rs"]
 mod shared_impl;
 mod commands { pub mod shared { pub use crate::shared_impl::*; } }
@@ -55,6 +57,11 @@ enum Commands {
         #[command(subcommand)]
         action: simulator_cmd::SimulatorAction,
     },
+    /// AI-assisted generation
+    Ai {
+        #[command(subcommand)]
+        action: ai_cmd::AiAction,
+    },
 }
 
 #[tokio::main]
@@ -104,5 +111,6 @@ async fn run(cli: Cli) -> PulseResult<()> {
             }
             _ => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
         },
+        Commands::Ai { action } => ai_cmd::ai_command(&action, &context, &exec_ctx).await,
     }
 }

@@ -88,7 +88,7 @@ O utilizando la API de OpenAI:
 Para generar un servicio YAML y aplicarlo al proyecto activo:
 
 ```bash
-mockforge simulator ai generate "Servicio de usuarios con GET /users"
+mockforge ai generate "Servicio de usuarios con GET /users"
 ```
 
 Usar el proveedor local mantiene todos los datos en tu máquina. Con OpenAI, el
