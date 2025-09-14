@@ -103,6 +103,18 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value_t = 20)]
         limit: usize,
     },
+    /// Monitor simulator status and logs
+    Monitor {
+        /// Service name to monitor
+        #[arg(long)]
+        service: Option<String>,
+        /// Output in JSON format for scripting
+        #[arg(long)]
+        json: bool,
+        /// Refresh interval in seconds for continuous monitoring
+        #[arg(long)]
+        interval: Option<u64>,
+    },
     /// Record live API traffic into service definitions
     Record {
         /// Output directory for generated services
