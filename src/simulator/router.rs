@@ -1,6 +1,21 @@
 //! Request Router - Routes incoming requests to appropriate service instances
 
 use std::collections::HashMap;
+use std::convert::Infallible;
+use std::sync::Arc;
+
+use bytes::Bytes;
+use futures_util::SinkExt;
+use http_body_util::{Full, StreamBody};
+use hyper::{Request, Response, StatusCode};
+use hyper_util::rt::TokioIo;
+use tokio::sync::mpsc;
+use tokio::time::{interval, Duration};
+use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_tungstenite::{accept_async, tungstenite::Message};
+
+use crate::simulator::config::EndpointDefinition;
+use crate::simulator::template::{TemplateContext, TemplateEngine};
 
 /// Request router that maps requests to service instances
 pub struct RequestRouter {
@@ -151,6 +166,105 @@ impl RequestRouter {
             service_route_counts: service_counts,
         }
     }
+}
+
+/// Handle a WebSocket upgrade and send templated messages
+pub async fn handle_websocket_connection(
+    req: Request<hyper::body::Incoming>,
+    endpoint: &EndpointDefinition,
+    engine: Arc<TemplateEngine>,
+    context: TemplateContext,
+) -> Response<Full<Bytes>> {
+    let (parts, body) = req.into_parts();
+    let req_head = Request::from_parts(parts.clone(), ());
+    // Create handshake response
+    let response = tokio_tungstenite::tungstenite::handshake::server::create_response(&req_head)
+        .map(|resp| {
+            let (parts_resp, _) = resp.into_parts();
+            Response::from_parts(parts_resp, Full::new(Bytes::new()))
+        })
+        .unwrap_or_else(|_| {
+            Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body(Full::new(Bytes::new()))
+                .unwrap()
+        });
+
+    let upgrade = hyper::upgrade::on(Request::from_parts(parts, body));
+    let endpoint_clone = endpoint.clone();
+    tokio::spawn(async move {
+        if let Ok(upgraded) = upgrade.await {
+            if let Ok(mut ws) = accept_async(TokioIo::new(upgraded)).await {
+                if let Some(cfg) = endpoint_clone.stream.as_ref() {
+                    for tpl in &cfg.initial {
+                        if let Ok(msg) = engine.render(tpl, &context) {
+                            let _ = ws.send(Message::Text(msg)).await;
+                        }
+                    }
+                    if let Some(periodic) = &cfg.periodic {
+                        let mut ticker = interval(Duration::from_millis(periodic.interval_ms));
+                        loop {
+                            ticker.tick().await;
+                            if let Ok(msg) = engine.render(&periodic.message, &context) {
+                                if ws.send(Message::Text(msg)).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                let _ = ws.close(None).await;
+            }
+        }
+    });
+
+    response
+}
+
+/// Create a Server-Sent Events response with optional periodic messages
+pub fn handle_sse_connection(
+    endpoint: &EndpointDefinition,
+    engine: Arc<TemplateEngine>,
+    context: TemplateContext,
+) -> Response<StreamBody<UnboundedReceiverStream<Result<Bytes, Infallible>>>> {
+    let (tx, rx) = mpsc::unbounded_channel();
+
+    if let Some(cfg) = endpoint.stream.as_ref() {
+        for tpl in &cfg.initial {
+            if let Ok(msg) = engine.render(tpl, &context) {
+                let _ = tx.send(Ok(Bytes::from(format!("data: {}\n\n", msg))));
+            }
+        }
+
+        if let Some(periodic) = &cfg.periodic {
+            let mut ticker = interval(Duration::from_millis(periodic.interval_ms));
+            let tx_clone = tx.clone();
+            let msg_tpl = periodic.message.clone();
+            let engine_clone = engine.clone();
+            let ctx_clone = context.clone();
+            tokio::spawn(async move {
+                loop {
+                    ticker.tick().await;
+                    if let Ok(msg) = engine_clone.render(&msg_tpl, &ctx_clone) {
+                        if tx_clone
+                            .send(Ok(Bytes::from(format!("data: {}\n\n", msg))))
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    let stream = UnboundedReceiverStream::new(rx);
+    let body = StreamBody::new(stream);
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "text/event-stream")
+        .body(body)
+        .unwrap()
 }
 
 /// Statistics about the current routing configuration

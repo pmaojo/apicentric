@@ -1,7 +1,7 @@
 use crate::{PulseError, PulseResult};
 use inquire::{Confirm, Select, Text};
 use pulse::simulator::config::{
-    EndpointDefinition, ResponseDefinition, ServerConfig, ServiceDefinition,
+    EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
 };
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -184,6 +184,7 @@ pub fn scaffold_endpoint_definition() -> PulseResult<EndpointDefinition> {
     );
 
     Ok(EndpointDefinition {
+        kind: EndpointKind::Http,
         method,
         path,
         header_match: None,
@@ -192,5 +193,6 @@ pub fn scaffold_endpoint_definition() -> PulseResult<EndpointDefinition> {
         request_body: None,
         responses,
         scenarios: None,
+        stream: None,
     })
 }

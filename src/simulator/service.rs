@@ -1830,7 +1830,8 @@ impl ServiceInstance {
 mod tests {
     use super::*;
     use crate::simulator::config::{
-        ResponseDefinition, ScenarioConditions, ScenarioDefinition, ScenarioResponse, ServerConfig,
+        EndpointKind, ResponseDefinition, ScenarioConditions, ScenarioDefinition, ScenarioResponse,
+        ServerConfig,
     };
     use bytes::Bytes;
     use http_body_util::{BodyExt, Full};
@@ -1871,6 +1872,7 @@ mod tests {
             },
             endpoints: vec![
                 EndpointDefinition {
+                    kind: EndpointKind::Http,
                     method: "GET".to_string(),
                     path: "/users".to_string(),
                     header_match: None,
@@ -1892,8 +1894,10 @@ mod tests {
                         responses
                     },
                     scenarios: None,
+                    stream: None,
                 },
                 EndpointDefinition {
+                    kind: EndpointKind::Http,
                     method: "GET".to_string(),
                     path: "/users/1".to_string(),
                     header_match: None,
@@ -1914,7 +1918,8 @@ mod tests {
                         );
                         responses
                     },
-                scenarios: None,
+                    scenarios: None,
+                    stream: None,
                 },
             ],
             graphql: None,
@@ -2302,6 +2307,7 @@ mod tests {
             },
             endpoints: vec![
                 EndpointDefinition {
+                    kind: EndpointKind::Http,
                     method: "GET".to_string(),
                     path: "/users/{id}".to_string(),
                     header_match: None,
@@ -2325,8 +2331,10 @@ mod tests {
                         responses
                     },
                     scenarios: None,
+                    stream: None,
                 },
                 EndpointDefinition {
+                    kind: EndpointKind::Http,
                     method: "GET".to_string(),
                     path: "/users/{userId}/orders/{orderId}".to_string(),
                     header_match: None,
@@ -2345,6 +2353,7 @@ mod tests {
                         responses
                     },
                     scenarios: None,
+                    stream: None,
                 },
             ],
             graphql: None,
@@ -2356,6 +2365,7 @@ mod tests {
         let mut definition = create_test_service_definition();
         // Add an endpoint that requires a specific header
         definition.endpoints.push(EndpointDefinition {
+            kind: EndpointKind::Http,
             method: "GET".to_string(),
             path: "/protected".to_string(),
             description: Some("Requires header".to_string()),
@@ -2380,6 +2390,7 @@ mod tests {
                 responses
             },
             scenarios: None,
+            stream: None,
         });
         definition
     }
@@ -2399,6 +2410,7 @@ mod tests {
 
         // Add duplicate endpoint
         definition.endpoints.push(EndpointDefinition {
+            kind: EndpointKind::Http,
             method: "GET".to_string(),
             path: "/users".to_string(), // Duplicate path with same method
             description: Some("Duplicate endpoint".to_string()),
@@ -2407,6 +2419,7 @@ mod tests {
             request_body: None,
             responses: HashMap::new(),
             scenarios: None,
+            stream: None,
         });
 
         let service = ServiceInstance::new(definition, 8007).unwrap(); // Use different port
@@ -2418,6 +2431,7 @@ mod tests {
     fn test_scenario_matching() {
         // Build endpoint with various scenarios
         let endpoint = EndpointDefinition {
+            kind: EndpointKind::Http,
             method: "GET".to_string(),
             path: "/test".to_string(),
             header_match: None,
@@ -2498,6 +2512,7 @@ mod tests {
                     },
                 },
             ]),
+            stream: None,
         };
 
         // Query condition

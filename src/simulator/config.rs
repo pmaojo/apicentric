@@ -121,9 +121,52 @@ pub struct CorsConfig {
     pub headers: Option<Vec<String>>,
 }
 
+/// Type of endpoint supported by the simulator
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum EndpointKind {
+    /// Standard HTTP request/response endpoint
+    Http,
+    /// WebSocket endpoint
+    #[serde(alias = "ws")]
+    WebSocket,
+    /// Server Sent Events endpoint
+    #[serde(alias = "sse")]
+    Sse,
+}
+
+impl Default for EndpointKind {
+    fn default() -> Self {
+        EndpointKind::Http
+    }
+}
+
+/// Configuration for streaming style endpoints (WebSocket/SSE)
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct StreamConfig {
+    /// Messages sent immediately after connection establishment
+    #[serde(default)]
+    pub initial: Vec<String>,
+    /// Periodic message configuration
+    #[serde(default)]
+    pub periodic: Option<PeriodicMessage>,
+}
+
+/// Configuration for a periodic message
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PeriodicMessage {
+    /// Interval in milliseconds between messages
+    pub interval_ms: u64,
+    /// Message template rendered each interval
+    pub message: String,
+}
+
 /// Endpoint definition
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EndpointDefinition {
+    /// Type of endpoint (HTTP/WebSocket/SSE)
+    #[serde(default)]
+    pub kind: EndpointKind,
     pub method: String,
     pub path: String,
     /// Optional headers that must match for this endpoint to trigger
@@ -138,6 +181,9 @@ pub struct EndpointDefinition {
     /// Optional scenario-based responses with matching conditions
     #[serde(default)]
     pub scenarios: Option<Vec<ScenarioDefinition>>,
+    /// Streaming configuration for WebSocket/SSE endpoints
+    #[serde(default)]
+    pub stream: Option<StreamConfig>,
 }
 
 /// GraphQL configuration for a service
@@ -1441,6 +1487,7 @@ mod tests {
             models: None,
             fixtures: None,
             endpoints: vec![EndpointDefinition {
+                kind: EndpointKind::Http,
                 method: "GET".to_string(),
                 path: "/test".to_string(),
                 header_match: None,
@@ -1462,6 +1509,7 @@ mod tests {
                     responses
                 },
                 scenarios: None,
+                stream: None,
             }],
             graphql: None,
             behavior: None,
@@ -1519,6 +1567,7 @@ endpoints:
             models: None,
             fixtures: None,
             endpoints: vec![EndpointDefinition {
+                kind: EndpointKind::Http,
                 method: "INVALID".to_string(), // Invalid HTTP method
                 path: "/test".to_string(),
                 header_match: None,
@@ -1540,6 +1589,7 @@ endpoints:
                     responses
                 },
                 scenarios: None,
+                stream: None,
             }],
             graphql: None,
             behavior: None,
@@ -1591,6 +1641,7 @@ endpoints:
             models: Some(models),
             fixtures: None,
             endpoints: vec![EndpointDefinition {
+                kind: EndpointKind::Http,
                 method: "GET".to_string(),
                 path: "/test".to_string(),
                 header_match: None,
@@ -1612,6 +1663,7 @@ endpoints:
                     responses
                 },
                 scenarios: None,
+                stream: None,
             }],
             graphql: None,
             behavior: None,
@@ -1669,6 +1721,7 @@ endpoints:
             models: Some(models),
             fixtures: Some(fixtures),
             endpoints: vec![EndpointDefinition {
+                kind: EndpointKind::Http,
                 method: "GET".to_string(),
                 path: "/test".to_string(),
                 header_match: None,
@@ -1690,6 +1743,7 @@ endpoints:
                     responses
                 },
                 scenarios: None,
+                stream: None,
             }],
             graphql: None,
             behavior: None,
@@ -1718,6 +1772,7 @@ endpoints:
             models: None, // No models defined
             fixtures: None,
             endpoints: vec![EndpointDefinition {
+                kind: EndpointKind::Http,
                 method: "POST".to_string(),
                 path: "/test".to_string(),
                 header_match: None,
@@ -1743,6 +1798,7 @@ endpoints:
                     responses
                 },
                 scenarios: None,
+                stream: None,
             }],
             graphql: None,
             behavior: None,

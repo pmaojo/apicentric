@@ -5,7 +5,7 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::simulator::config::{
-    EndpointDefinition, ResponseDefinition, ServerConfig, ServiceDefinition,
+    EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
 };
 
 #[derive(Debug, Deserialize)]
@@ -86,6 +86,7 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
                 responses.insert(resp.status_code, response);
             }
             EndpointDefinition {
+                kind: EndpointKind::Http,
                 method: r.method.to_uppercase(),
                 path: if r.endpoint.starts_with('/') {
                     r.endpoint.clone()
@@ -98,6 +99,7 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
                 request_body: None,
                 responses,
                 scenarios: None,
+                stream: None,
             }
         })
         .collect();
