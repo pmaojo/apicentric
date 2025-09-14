@@ -1,0 +1,13 @@
+PackageIdentifier: your-org.mockforge
+PackageVersion: 0.1.0
+PackageName: mockforge
+Publisher: your-org
+License: MIT
+ShortDescription: API mocking and simulation toolkit
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/your-org/mockforge/releases/download/v0.1.0/mockforge-0.1.0-x86_64-pc-windows-msvc.zip
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    Commands:
+      - mockforge
