@@ -6,6 +6,9 @@ description = "Toolkit for building, recording, and sharing mock APIs"
 repository = "https://github.com/example/mockforge"
 license = "MIT"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 anyhow = "1.0.99"
 clap = { version = "4.4.8", features = ["derive"] }
@@ -38,6 +41,7 @@ tokio-stream = "0.1"
 deno_core = "0.272.0"
 uuid = { version = "1.11.0", features = ["v4"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
+wasm-bindgen = "0.2"
 
 # UI dependencies (CLI only)
 indicatif = "0.17.7"

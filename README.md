@@ -90,6 +90,17 @@ mockforge record --output services/ --url http://localhost:3000
 mockforge export-types --input services/petstore.yaml --output types.ts
 ```
 
+## Instalación y uso en Node.js
+
+```bash
+npm install mockforge
+```
+
+```javascript
+const { greet } = require('mockforge');
+console.log(greet('World'));
+```
+
 ### Edición colaborativa P2P
 
 Arranca el simulador con la bandera `--p2p` para descubrir automáticamente a otros

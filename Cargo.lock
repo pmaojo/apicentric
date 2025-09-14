@@ -2659,6 +2659,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+ "wasm-bindgen",
 ]
 
 [[package]]
