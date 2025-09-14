@@ -8,6 +8,28 @@
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## Installation
+
+- **Linux**
+
+  ```bash
+  curl -L <release_url>/mockforge-linux-x64.tar.gz | tar -xz && sudo mv mockforge /usr/local/bin
+  ```
+
+- **macOS**
+
+  ```bash
+  brew install <tap>/mockforge
+  ```
+
+- **Windows**
+  1. Download `mockforge-windows-x64.zip` from `<release_url>`.
+  2. Extract `mockforge.exe` and add its folder to your `PATH`.
+
+```bash
+mockforge --version
+```
+
 ## ✨ Guía Rápida
 
 ```
