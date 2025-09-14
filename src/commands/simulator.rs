@@ -47,6 +47,18 @@ pub enum SimulatorAction {
         /// Number of log entries to display
         #[arg(short, long, default_value_t = 20)]
         limit: usize,
+        /// Filter by HTTP method
+        #[arg(long)]
+        method: Option<String>,
+        /// Filter by route substring
+        #[arg(long)]
+        route: Option<String>,
+        /// Filter by response status code
+        #[arg(long)]
+        status: Option<u16>,
+        /// Output file to write logs as JSON
+        #[arg(long)]
+        output: Option<String>,
     },
     /// Set default scenario for all services
     SetScenario {
@@ -149,8 +161,25 @@ pub async fn simulator_command(
             recursive,
             verbose,
         } => handle_validate(path, *recursive, *verbose, exec_ctx).await,
-        SimulatorAction::Logs { service, limit } => {
-            handle_logs(context, service, *limit, exec_ctx).await
+        SimulatorAction::Logs {
+            service,
+            limit,
+            method,
+            route,
+            status,
+            output,
+        } => {
+            handle_logs(
+                context,
+                service,
+                *limit,
+                method.as_deref(),
+                route.as_deref(),
+                *status,
+                output.as_deref(),
+                exec_ctx,
+            )
+            .await
         }
         SimulatorAction::SetScenario { scenario } => {
             handle_set_scenario(context, scenario, exec_ctx).await
@@ -357,24 +386,44 @@ async fn handle_logs(
     context: &Context,
     service: &str,
     limit: usize,
+    method: Option<&str>,
+    route: Option<&str>,
+    status: Option<u16>,
+    output: Option<&str>,
     exec_ctx: &ExecutionContext,
 ) -> PulseResult<()> {
     if exec_ctx.dry_run {
         println!(
-            "🏃 Dry run: Would fetch logs for service '{}' (limit={})",
-            service, limit
+            "🏃 Dry run: Would fetch logs for service '{}' (limit={}, method={:?}, route={:?}, status={:?}, output={:?})",
+            service, limit, method, route, status, output
         );
         return Ok(());
     }
     if let Some(simulator) = context.api_simulator() {
-        let status = simulator.get_status().await;
-        if let Some(info) = status.active_services.iter().find(|s| s.name == service) {
+        let sim_status = simulator.get_status().await;
+        if let Some(info) = sim_status
+            .active_services
+            .iter()
+            .find(|s| s.name == service)
+        {
             let mut url = format!("http://localhost:{}{}", info.port, info.base_path);
             if !url.ends_with('/') {
                 url.push('/');
             }
             url.push_str("__pulse/logs?limit=");
             url.push_str(&limit.to_string());
+            if let Some(m) = method {
+                url.push_str("&method=");
+                url.push_str(m);
+            }
+            if let Some(r) = route {
+                url.push_str("&route=");
+                url.push_str(r);
+            }
+            if let Some(s) = status {
+                url.push_str("&status=");
+                url.push_str(&s.to_string());
+            }
             let resp = reqwest::get(&url).await.map_err(|e| {
                 PulseError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>)
             })?;
@@ -390,14 +439,30 @@ async fn handle_logs(
             if logs.is_empty() {
                 println!("No logs available for service '{}'.", service);
             } else {
-                for entry in logs {
-                    println!(
-                        "[{}] {} {} -> {}",
-                        entry.timestamp.to_rfc3339(),
-                        entry.method,
-                        entry.path,
-                        entry.status
-                    );
+                if let Some(path) = output {
+                    let file = std::fs::File::create(path).map_err(|e| {
+                        PulseError::runtime_error(
+                            format!("Failed to write logs to {}: {}", path, e),
+                            None::<String>,
+                        )
+                    })?;
+                    serde_json::to_writer_pretty(file, &logs).map_err(|e| {
+                        PulseError::runtime_error(
+                            format!("Failed to serialize logs: {}", e),
+                            None::<String>,
+                        )
+                    })?;
+                    println!("Saved {} log entries to {}", logs.len(), path);
+                } else {
+                    for entry in logs {
+                        println!(
+                            "[{}] {} {} -> {}",
+                            entry.timestamp.to_rfc3339(),
+                            entry.method,
+                            entry.path,
+                            entry.status
+                        );
+                    }
                 }
             }
             Ok(())

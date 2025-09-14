@@ -74,4 +74,43 @@ impl RequestLog {
             .cloned()
             .collect()
     }
+
+    /// Query log entries using optional filters and return most recent `limit` entries
+    /// in chronological order.
+    pub fn query(
+        &self,
+        service: Option<&str>,
+        route: Option<&str>,
+        method: Option<&str>,
+        status: Option<u16>,
+        limit: usize,
+    ) -> Vec<RequestLogEntry> {
+        let filtered: Vec<_> = self
+            .entries
+            .iter()
+            .filter(|e| match service {
+                Some(s) => e.service == s,
+                None => true,
+            })
+            .filter(|e| match route {
+                Some(r) => e.path.contains(r),
+                None => true,
+            })
+            .filter(|e| match method {
+                Some(m) => e.method.eq_ignore_ascii_case(m),
+                None => true,
+            })
+            .filter(|e| match status {
+                Some(s) => e.status == s,
+                None => true,
+            })
+            .cloned()
+            .collect();
+
+        let len = filtered.len();
+        filtered
+            .into_iter()
+            .skip(len.saturating_sub(limit))
+            .collect()
+    }
 }

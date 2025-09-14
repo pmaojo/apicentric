@@ -385,6 +385,19 @@ impl ServiceState {
     pub fn get_logs(&self, limit: usize) -> Vec<RequestLogEntry> {
         self.request_log.recent(limit)
     }
+
+    /// Query log entries with optional filters
+    pub fn query_logs(
+        &self,
+        service: Option<&str>,
+        route: Option<&str>,
+        method: Option<&str>,
+        status: Option<u16>,
+        limit: usize,
+    ) -> Vec<RequestLogEntry> {
+        self.request_log
+            .query(service, route, method, status, limit)
+    }
 }
 
 /// Individual service instance with HTTP server capabilities
@@ -684,6 +697,19 @@ impl ServiceInstance {
     pub async fn get_logs(&self, limit: usize) -> Vec<RequestLogEntry> {
         let state = self.state.read().await;
         state.get_logs(limit)
+    }
+
+    /// Query request logs with optional filters
+    pub async fn query_logs(
+        &self,
+        service: Option<&str>,
+        route: Option<&str>,
+        method: Option<&str>,
+        status: Option<u16>,
+        limit: usize,
+    ) -> Vec<RequestLogEntry> {
+        let state = self.state.read().await;
+        state.query_logs(service, route, method, status, limit)
     }
 
     /// Internal helper to record a request log entry
@@ -1279,9 +1305,20 @@ impl ServiceInstance {
                 .get("limit")
                 .and_then(|v| v.parse::<usize>().ok())
                 .unwrap_or(100);
+            let method_filter = query_params.get("method").map(|s| s.as_str());
+            let route_filter = query_params.get("route").map(|s| s.as_str());
+            let status_filter = query_params
+                .get("status")
+                .and_then(|v| v.parse::<u16>().ok());
             let logs = {
                 let state = state.read().await;
-                state.get_logs(limit)
+                state.query_logs(
+                    Some(&service_name),
+                    route_filter,
+                    method_filter,
+                    status_filter,
+                    limit,
+                )
             };
             let body = serde_json::to_string(&logs).unwrap();
             let resp = Response::builder()
