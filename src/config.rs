@@ -27,6 +27,10 @@ pub struct PulseConfig {
     #[serde(default)]
     pub npm: NpmConfig,
 
+    /// AI generation configuration
+    #[serde(default)]
+    pub ai: Option<AiConfig>,
+
     // API Simulator configuration
     #[serde(default)]
     pub simulator: Option<crate::simulator::config::SimulatorConfig>,
@@ -125,6 +129,59 @@ impl Default for NpmConfig {
             pulse_script: default_pulse_script(),
             pulse_watch_script: default_pulse_watch_script(),
             dev_script: default_dev_script(),
+        }
+    }
+}
+
+/// Configuration for AI assisted code generation.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AiConfig {
+    /// Provider to use for text generation.
+    pub provider: AiProviderKind,
+    /// Path to the local model when using the `local` provider.
+    #[serde(default)]
+    pub model_path: Option<String>,
+    /// API key when using the `openai` provider.
+    #[serde(default)]
+    pub api_key: Option<String>,
+    /// Optional model identifier for remote providers.
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+/// Supported AI providers.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AiProviderKind {
+    /// Use a local language model such as `llama-rs`.
+    Local,
+    /// Use the OpenAI API.
+    Openai,
+}
+
+impl ConfigValidator for AiConfig {
+    fn validate(&self) -> Result<(), Vec<ValidationError>> {
+        let mut errors = Vec::new();
+        match self.provider {
+            AiProviderKind::Local => {
+                if self.model_path.as_deref().unwrap_or("").is_empty() {
+                    errors.push(
+                        ValidationError::new("ai.model_path", "model_path is required for local provider"),
+                    );
+                }
+            }
+            AiProviderKind::Openai => {
+                if self.api_key.as_deref().unwrap_or("").is_empty() {
+                    errors.push(
+                        ValidationError::new("ai.api_key", "api_key is required for openai provider"),
+                    );
+                }
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
         }
     }
 }
@@ -270,6 +327,13 @@ impl ConfigValidator for PulseConfig {
         // Validate npm config
         if let Err(mut npm_errors) = self.npm.validate() {
             errors.append(&mut npm_errors);
+        }
+
+        // Validate AI config if present
+        if let Some(ref ai) = self.ai {
+            if let Err(mut ai_errors) = ai.validate() {
+                errors.append(&mut ai_errors);
+            }
         }
 
         // Validate simulator config if present
@@ -452,6 +516,7 @@ pub fn generate_default_config() -> PulseConfig {
         server: ServerConfig::default(),
         execution: ExecutionConfig::default(),
         npm: NpmConfig::default(),
+        ai: None,
         simulator: Some(crate::simulator::config::SimulatorConfig::default_config()),
         testcase: None,
         metrics: None,

@@ -322,6 +322,52 @@ impl ApiSimulatorManager {
         Ok(())
     }
 
+    /// Apply a service definition generated locally and update the CRDT state.
+    pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> PulseResult<()> {
+        let service_name = service_def.name.clone();
+
+        // Update running simulator
+        self.apply_remote_service(service_def.clone()).await?;
+
+        // Update CRDT document
+        {
+            let mut crdts = self.crdts.write().await;
+            if let Some(doc) = crdts.get_mut(&service_name) {
+                doc.apply_local_change(service_def.clone());
+            } else {
+                crdts.insert(service_name.clone(), ServiceCrdt::new(service_def.clone()));
+            }
+
+            // Broadcast to peers if collaboration enabled
+            if *self.p2p_enabled.read().await {
+                if let Some(tx) = self.collab_sender.read().await.clone() {
+                    if let Some(doc) = crdts.get_mut(&service_name) {
+                        if let Ok(data) = serde_json::to_vec(&CrdtMessage {
+                            name: service_name.clone(),
+                            data: doc.encode(),
+                        }) {
+                            let _ = tx.send(data);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Apply a YAML service definition string to the running simulator and CRDT.
+    pub async fn apply_service_yaml(&self, yaml: &str) -> PulseResult<()> {
+        let def: ServiceDefinition = serde_yaml::from_str(yaml).map_err(|e| {
+            PulseError::validation_error(
+                format!("Invalid service YAML: {}", e),
+                None::<String>,
+                None::<String>,
+            )
+        })?;
+        self.apply_service_definition(def).await
+    }
+
     /// Set the active scenario for all services
     pub async fn set_scenario(&self, scenario: Option<String>) -> PulseResult<()> {
         let registry = self.service_registry.read().await;
