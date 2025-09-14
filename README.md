@@ -46,6 +46,9 @@ mockforge setup-npm
 # Inicia el simulador con tus servicios mock
 npm run mockforge:sim -- simulator start --services-dir mock_services
 
+# Especifica una ruta de base de datos SQLite para almacenar servicios y logs
+npm run mockforge:sim -- simulator start --services-dir mock_services --db-path pulse.db
+
 # Habilita la edición colaborativa distribuida entre pares
 npm run mockforge:sim -- simulator start --services-dir mock_services --p2p
 

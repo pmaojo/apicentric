@@ -20,6 +20,10 @@ pub struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
+    /// Path to SQLite database for simulator storage
+    #[arg(long, default_value = "pulse.db")]
+    pub db_path: String,
+
     #[command(subcommand)]
     pub command: Commands,
 }

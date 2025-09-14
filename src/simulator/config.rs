@@ -9,6 +9,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use url::Url;
 
+fn default_db_path() -> PathBuf {
+    PathBuf::from("pulse.db")
+}
+
 /// Main simulator configuration
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SimulatorConfig {
@@ -18,6 +22,9 @@ pub struct SimulatorConfig {
     pub services_dir: PathBuf,
     /// Port range for automatic port assignment
     pub port_range: PortRange,
+    /// Path to SQLite database for persistent storage
+    #[serde(default = "default_db_path")]
+    pub db_path: PathBuf,
     /// Global behavior settings
     #[serde(default)]
     pub global_behavior: Option<BehaviorConfig>,
@@ -30,6 +37,7 @@ impl SimulatorConfig {
             enabled: Self::check_environment_override(enabled),
             services_dir,
             port_range,
+            db_path: default_db_path(),
             global_behavior: None,
         }
     }
@@ -43,6 +51,7 @@ impl SimulatorConfig {
                 start: 8000,
                 end: 8999,
             },
+            db_path: default_db_path(),
             global_behavior: None,
         }
     }
@@ -1435,6 +1444,7 @@ impl Default for SimulatorConfig {
                 start: 8000,
                 end: 8999,
             },
+            db_path: default_db_path(),
             global_behavior: None,
         }
     }
@@ -1459,6 +1469,7 @@ mod tests {
                 start: 8000,
                 end: 8999,
             },
+            db_path: temp_dir.path().join("test.db"),
             global_behavior: None,
         };
 
@@ -1478,6 +1489,7 @@ mod tests {
                 start: 9000,
                 end: 8000, // Invalid: start > end
             },
+            db_path: temp_dir.path().join("test.db"),
             global_behavior: None,
         };
 
@@ -2151,6 +2163,7 @@ name: 'invalid-service'
                 start: 8000,
                 end: 8999,
             },
+            db_path: PathBuf::from("test.db"),
             global_behavior: None,
         };
 
@@ -2193,6 +2206,7 @@ name: 'invalid-service'
                 start: 8000,
                 end: 8999,
             },
+            db_path: PathBuf::from("test.db"),
             global_behavior: None,
         };
 

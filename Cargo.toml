@@ -34,6 +34,7 @@ futures-util = "0.3"
 tokio-stream = "0.1"
 deno_core = "0.272.0"
 uuid = { version = "1.11.0", features = ["v4"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
 
 # UI dependencies (CLI only)
 indicatif = "0.17.7"
