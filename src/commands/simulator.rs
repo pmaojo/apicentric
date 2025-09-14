@@ -247,7 +247,7 @@ async fn handle_ai_generate(
         None => {
             return Err(PulseError::config_error(
                 "AI provider not configured",
-                Some("Add an 'ai' section to pulse.json"),
+                Some("Add an 'ai' section to mockforge.json"),
             ))
         }
     };
@@ -268,7 +268,7 @@ async fn handle_ai_generate(
                 .ok_or_else(|| {
                     PulseError::config_error(
                         "OpenAI API key missing",
-                        Some("Set ai.api_key in pulse.json"),
+                        Some("Set ai.api_key in mockforge.json"),
                     )
                 })?;
             let model = ai_cfg
