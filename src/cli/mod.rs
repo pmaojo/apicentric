@@ -20,6 +20,10 @@ pub struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
+    /// Path to SQLite database for simulator storage
+    #[arg(long, default_value = "pulse.db")]
+    pub db_path: String,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -99,6 +103,11 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value_t = 20)]
         limit: usize,
     },
+    /// AI-assisted generation
+    Ai {
+        #[command(subcommand)]
+        action: AiAction,
+    },
     /// Record live API traffic into service definitions
     Record {
         /// Output directory for generated services
@@ -126,6 +135,15 @@ pub enum SimulatorAction {
         /// Authentication token issued by the peer
         #[arg(long)]
         token: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AiAction {
+    /// Generate YAML from a natural language prompt
+    Generate {
+        /// The prompt to send to the AI provider
+        prompt: String,
     },
 }
 

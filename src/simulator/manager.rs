@@ -12,6 +12,7 @@ use crate::simulator::{
     watcher::ConfigWatcher,
     ConfigChange, SimulatorStatus,
 };
+use crate::storage::sqlite::SqliteStorage;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
@@ -62,8 +63,14 @@ impl ApiSimulatorManager {
     /// Create a new API simulator manager
     pub fn new(config: SimulatorConfig) -> Self {
         let config_loader = ConfigLoader::new(config.services_dir.clone());
-        let service_registry =
-            Arc::new(RwLock::new(ServiceRegistry::new(config.port_range.clone())));
+        let storage = Arc::new(
+            SqliteStorage::init_db(config.db_path.clone())
+                .expect("failed to initialize sqlite storage"),
+        );
+        let service_registry = Arc::new(RwLock::new(ServiceRegistry::new(
+            config.port_range.clone(),
+            storage,
+        )));
         let request_router = Arc::new(RwLock::new(RequestRouter::new()));
         let is_active = Arc::new(RwLock::new(false));
         let config_watcher = Arc::new(RwLock::new(None));
@@ -82,6 +89,17 @@ impl ApiSimulatorManager {
             collab_sender,
             crdts,
         }
+    }
+
+    /// Update database path for persistent storage
+    pub async fn set_db_path<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> PulseResult<()> {
+        let storage = Arc::new(SqliteStorage::init_db(path)?);
+        let mut reg = self.service_registry.write().await;
+        reg.set_storage(storage);
+        Ok(())
     }
 
     /// Enable or disable peer-to-peer collaboration.
@@ -320,6 +338,52 @@ impl ApiSimulatorManager {
         }
 
         Ok(())
+    }
+
+    /// Apply a service definition generated locally and update the CRDT state.
+    pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> PulseResult<()> {
+        let service_name = service_def.name.clone();
+
+        // Update running simulator
+        self.apply_remote_service(service_def.clone()).await?;
+
+        // Update CRDT document
+        {
+            let mut crdts = self.crdts.write().await;
+            if let Some(doc) = crdts.get_mut(&service_name) {
+                doc.apply_local_change(service_def.clone());
+            } else {
+                crdts.insert(service_name.clone(), ServiceCrdt::new(service_def.clone()));
+            }
+
+            // Broadcast to peers if collaboration enabled
+            if *self.p2p_enabled.read().await {
+                if let Some(tx) = self.collab_sender.read().await.clone() {
+                    if let Some(doc) = crdts.get_mut(&service_name) {
+                        if let Ok(data) = serde_json::to_vec(&CrdtMessage {
+                            name: service_name.clone(),
+                            data: doc.encode(),
+                        }) {
+                            let _ = tx.send(data);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Apply a YAML service definition string to the running simulator and CRDT.
+    pub async fn apply_service_yaml(&self, yaml: &str) -> PulseResult<()> {
+        let def: ServiceDefinition = serde_yaml::from_str(yaml).map_err(|e| {
+            PulseError::validation_error(
+                format!("Invalid service YAML: {}", e),
+                None::<String>,
+                None::<String>,
+            )
+        })?;
+        self.apply_service_definition(def).await
     }
 
     /// Set the active scenario for all services
@@ -599,6 +663,7 @@ mod tests {
                 start: 9000,
                 end: 9999,
             },
+            db_path: temp_dir.path().join("test.db"),
             global_behavior: None,
         }
     }

@@ -1,19 +1,3 @@
-```
-╔══════════════════════════════════════════════════════════════════════════════════════╗
-║                                                                                      ║
-║  ██████╗ ██╗   ██╗██╗     ███████╗███████╗    ████████╗███████╗███████╗████████╗    ║
-║  ██╔══██╗██║   ██║██║     ██╔════╝██╔════╝    ╚══██╔══╝██╔════╝██╔════╝╚══██╔══╝    ║
-║  ██████╔╝██║   ██║██║     ███████╗█████╗         ██║   █████╗  ███████╗   ██║       ║
-║  ██╔═══╝ ██║   ██║██║     ╚════██║██╔══╝         ██║   ██╔══╝  ╚════██║   ██║       ║
-║  ██║     ╚██████╔╝███████╗███████║███████╗       ██║   ███████╗███████║   ██║       ║
-║  ╚═╝      ╚═════╝ ╚══════╝╚══════╝╚══════╝       ╚═╝   ╚══════╝╚══════╝   ╚═╝       ║
-║                                                                                      ║
-║                   ⚡ SIMULADOR DE APIS IMPULSADO POR RUST ⚡                        ║
-║                                                                                      ║
-╚══════════════════════════════════════════════════════════════════════════════════════╝
-```
-
-```
 ┌─ ESTADO DEL SISTEMA ─────────────────────────────────────────────────────────────────┐
 │                                                                                      │
 │  🎯 MISIÓN: Simulación y mock de APIs para desarrollo rápido                         │
@@ -45,6 +29,9 @@ mockforge setup-npm
 
 # Inicia el simulador con tus servicios mock
 npm run mockforge:sim -- simulator start --services-dir mock_services
+
+# Especifica una ruta de base de datos SQLite para almacenar servicios y logs
+npm run mockforge:sim -- simulator start --services-dir mock_services --db-path pulse.db
 
 # Habilita la edición colaborativa distribuida entre pares
 npm run mockforge:sim -- simulator start --services-dir mock_services --p2p
@@ -84,6 +71,35 @@ mockforge simulator connect <peer-id> --service my-service --port 8080 --token <
 > **Seguridad:** El token se debe compartir solo con colaboradores de
 confianza. Actualmente cualquier peer con el token puede conectarse; para un
 control más fino pueden implementarse listas de peers permitidos.
+
+
+### Generación asistida por IA
+
+Configura un proveedor en `pulse.json` para generar servicios desde prompts en
+lenguaje natural. Ejemplo con un modelo local:
+
+```json
+{
+  "ai": { "provider": "local", "model_path": "models/llama.bin" }
+}
+```
+
+O utilizando la API de OpenAI:
+
+```json
+{
+  "ai": { "provider": "openai", "api_key": "sk-…", "model": "gpt-3.5-turbo" }
+}
+```
+
+Para generar un servicio YAML y aplicarlo al proyecto activo:
+
+```bash
+mockforge simulator ai generate "Servicio de usuarios con GET /users"
+```
+
+Usar el proveedor local mantiene todos los datos en tu máquina. Con OpenAI, el
+prompt y el resultado se envían al servicio externo.
 
 ## 🚀 Qualitas Setup (host app)
 
