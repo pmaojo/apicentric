@@ -1,4 +1,6 @@
 // Enhanced error handling and validation
+use wasm_bindgen::prelude::*;
+
 pub mod app;
 pub mod config;
 pub mod context;
@@ -57,4 +59,10 @@ pub use infrastructure::*;
 // Re-export mock api facade (migrated from previous monolithic lib)
 pub mod mock {
     pub use crate::adapters::mock_server::{load_spec, run_mock_server, MockApiSpec};
+}
+
+// Simple example function exposed to WebAssembly consumers
+#[wasm_bindgen]
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
 }

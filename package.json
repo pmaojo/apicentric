@@ -1,0 +1,19 @@
+{
+  "name": "mockforge",
+  "version": "0.1.0",
+  "description": "Node bindings for the mockforge Rust library.",
+  "main": "index.js",
+  "scripts": {
+    "build": "wasm-pack build --target nodejs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "files": [
+    "pkg",
+    "index.js"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
+
