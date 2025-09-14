@@ -30,7 +30,7 @@ pub use template::{RequestContext, TemplateContext, TemplateEngine};
 // Re-export for convenience, but not used in this module directly
 
 /// Status information for the simulator
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SimulatorStatus {
     pub is_active: bool,
     pub services_count: usize,
@@ -38,7 +38,7 @@ pub struct SimulatorStatus {
 }
 
 /// Information about a service instance
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ServiceInfo {
     pub name: String,
     pub port: u16,

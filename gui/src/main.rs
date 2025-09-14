@@ -12,18 +12,18 @@ use std::str::FromStr;
 struct SimulatorState(Arc<ApiSimulatorManager>);
 
 #[tauri::command]
-async fn start_simulator(state: State<'_, SimulatorState>) -> Result<(), String> {
-    state.0.start().await.map_err(|e| e.to_string())
+fn start_simulator(state: State<'_, SimulatorState>) -> Result<(), String> {
+    tauri::async_runtime::block_on(state.0.start()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn stop_simulator(state: State<'_, SimulatorState>) -> Result<(), String> {
-    state.0.stop().await.map_err(|e| e.to_string())
+fn stop_simulator(state: State<'_, SimulatorState>) -> Result<(), String> {
+    tauri::async_runtime::block_on(state.0.stop()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn list_services(state: State<'_, SimulatorState>) -> Result<Vec<ServiceInfo>, String> {
-    Ok(state.0.get_status().await.active_services)
+fn list_services(state: State<'_, SimulatorState>) -> Result<Vec<ServiceInfo>, String> {
+    Ok(tauri::async_runtime::block_on(state.0.get_status()).active_services)
 }
 
 #[tauri::command]
@@ -49,48 +49,54 @@ fn export_types(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn get_logs(
+fn get_logs(
     service: String,
     limit: Option<usize>,
     state: State<'_, SimulatorState>,
 ) -> Result<Vec<RequestLogEntry>, String> {
-    let registry = state.0.service_registry().read().await;
-    if let Some(instance) = registry.get_service(&service) {
-        Ok(instance.read().await.get_logs(limit.unwrap_or(100)))
-    } else {
-        Err(format!("Service '{}' not found", service))
-    }
+    tauri::async_runtime::block_on(async {
+        let registry = state.0.service_registry().read().await;
+        if let Some(instance) = registry.get_service(&service) {
+            Ok(instance.read().await.get_logs(limit.unwrap_or(100)).await)
+        } else {
+            Err(format!("Service '{}' not found", service))
+        }
+    })
 }
 
 #[tauri::command]
-async fn share_service(
+fn share_service(
     service: String,
     state: State<'_, SimulatorState>,
 ) -> Result<(String, String), String> {
-    let registry = state.0.service_registry().read().await;
-    if let Some(instance) = registry.get_service(&service) {
-        let port = instance.read().await.port();
-        drop(registry);
-        share::share_service(port)
-            .await
-            .map(|(peer, token)| (peer.to_string(), token))
-            .map_err(|e| e.to_string())
-    } else {
-        Err(format!("Service '{}' not found", service))
-    }
+    tauri::async_runtime::block_on(async {
+        let registry = state.0.service_registry().read().await;
+        if let Some(instance) = registry.get_service(&service) {
+            let port = instance.read().await.port();
+            drop(registry);
+            share::share_service(port)
+                .await
+                .map(|(peer, token)| (peer.to_string(), token))
+                .map_err(|e| e.to_string())
+        } else {
+            Err(format!("Service '{}' not found", service))
+        }
+    })
 }
 
 #[tauri::command]
-async fn connect_service(
+fn connect_service(
     peer: String,
     token: String,
     service: String,
     port: u16,
 ) -> Result<(), String> {
-    let peer_id = PeerId::from_str(&peer).map_err(|e| e.to_string())?;
-    share::connect_service(peer_id, token, service, port)
-        .await
-        .map_err(|e| e.to_string())
+    tauri::async_runtime::block_on(async {
+        let peer_id = PeerId::from_str(&peer).map_err(|e| e.to_string())?;
+        share::connect_service(peer_id, token, service, port)
+            .await
+            .map_err(|e| e.to_string())
+    })
 }
 
 fn main() {

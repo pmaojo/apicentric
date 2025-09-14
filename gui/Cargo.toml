@@ -5,9 +5,10 @@ edition = "2021"
 
 [dependencies]
 # Use a compatible Tauri 1.x release since 1.6 is not yet available
-tauri = { version = "1", features = ["dialog", "shell-open"] }
+tauri = { version = "1", features = ["shell-open"] }
 serde_yaml = "0.9"
 mockforge = { path = ".." }
+libp2p = { version = "0.56", features = ["gossipsub", "mdns", "tokio", "quic", "macros", "request-response"] }
 
 [build-dependencies]
 # Align tauri-build with the 1.x series
