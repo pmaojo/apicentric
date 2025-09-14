@@ -81,6 +81,16 @@ npm run start:watch
 pulse simulator record --output services/ --url http://localhost:3000
 ```
 
+### Filtrar y exportar logs del simulador
+
+```bash
+# Mostrar los últimos 50 logs GET con estado 200
+pulse simulator logs my-service --limit 50 --method GET --status 200
+
+# Filtrar por ruta y exportar a un archivo JSON
+pulse simulator logs my-service --route /users --output logs.json
+```
+
 ### Importar/Exportar OpenAPI
 
 ```bash
