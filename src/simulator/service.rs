@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::fs;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock as StdRwLock};
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -70,6 +70,41 @@ pub struct GraphQLMocks {
     pub mocks: HashMap<String, String>,
 }
 
+/// Shared in-memory data bucket for stateful routes
+#[derive(Debug, Clone)]
+pub struct DataBucket {
+    data: Arc<StdRwLock<HashMap<String, Value>>>,
+}
+
+impl DataBucket {
+    pub fn new(initial: Option<HashMap<String, Value>>) -> Self {
+        Self {
+            data: Arc::new(StdRwLock::new(initial.unwrap_or_default())),
+        }
+    }
+
+    pub fn get(&self, key: &str) -> Option<Value> {
+        self.data
+            .read()
+            .ok()
+            .and_then(|map| map.get(key).cloned())
+    }
+
+    pub fn set(&self, key: String, value: Value) {
+        if let Ok(mut map) = self.data.write() {
+            map.insert(key, value);
+        }
+    }
+
+    pub fn remove(&self, key: &str) -> Option<Value> {
+        self.data.write().ok().and_then(|mut map| map.remove(key))
+    }
+
+    pub fn all(&self) -> HashMap<String, Value> {
+        self.data.read().map(|m| m.clone()).unwrap_or_default()
+    }
+}
+
 /// Service state for managing fixtures and runtime data
 #[derive(Debug, Clone)]
 pub struct ServiceState {
@@ -77,17 +112,26 @@ pub struct ServiceState {
     runtime_data: HashMap<String, Value>,
     initial_fixtures: HashMap<String, Value>, // Backup of original fixtures for reset
     request_log: RequestLog,
+    bucket: DataBucket,
 }
 
 impl ServiceState {
-    pub fn new(fixtures: Option<HashMap<String, Value>>) -> Self {
+    pub fn new(
+        fixtures: Option<HashMap<String, Value>>,
+        bucket: Option<HashMap<String, Value>>,
+    ) -> Self {
         let fixtures = fixtures.unwrap_or_default();
         Self {
             initial_fixtures: fixtures.clone(),
             fixtures,
             runtime_data: HashMap::new(),
             request_log: RequestLog::new(100),
+            bucket: DataBucket::new(bucket),
         }
+    }
+
+    pub fn bucket(&self) -> DataBucket {
+        self.bucket.clone()
     }
 
     /// Get a fixture by key
@@ -334,11 +378,12 @@ pub struct ServiceInstance {
 impl ServiceInstance {
     /// Create a new service instance
     pub fn new(definition: ServiceDefinition, port: u16) -> PulseResult<Self> {
-        // Initialize state with fixtures from definition
-        let state = ServiceState::new(definition.fixtures.clone());
+        // Initialize state with fixtures and bucket from definition
+        let state = ServiceState::new(definition.fixtures.clone(), definition.bucket.clone());
 
-        // Initialize template engine
-        let template_engine = TemplateEngine::new()?;
+        // Initialize template engine and register bucket helpers
+        let mut template_engine = TemplateEngine::new()?;
+        template_engine.register_bucket_helpers(state.bucket())?;
 
         let graphql = if let Some(ref gql_cfg) = definition.graphql {
             let schema = fs::read_to_string(&gql_cfg.schema_path).map_err(|e| {
@@ -1870,6 +1915,7 @@ mod tests {
                 );
                 Some(fixtures)
             },
+            bucket: None,
             endpoints: vec![
                 EndpointDefinition {
                     kind: EndpointKind::Http,
@@ -2105,11 +2151,14 @@ mod tests {
         use crate::simulator::config::SideEffect;
         use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 
-        let mut state = ServiceState::new(Some({
-            let mut fixtures = HashMap::new();
-            fixtures.insert("users".to_string(), serde_json::json!([]));
-            fixtures
-        }));
+        let mut state = ServiceState::new(
+            Some({
+                let mut fixtures = HashMap::new();
+                fixtures.insert("users".to_string(), serde_json::json!([]));
+                fixtures
+            }),
+            None,
+        );
 
         let template_engine = TemplateEngine::new().unwrap();
         let params = PathParameters::new();
@@ -2252,7 +2301,7 @@ mod tests {
     async fn test_template_processing_with_params() {
         use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 
-        let mut state = ServiceState::new(None);
+        let mut state = ServiceState::new(None, None);
         state.set_fixture(
             "users".to_string(),
             serde_json::json!([{"id": 1, "name": "Alice"}]),
@@ -2305,6 +2354,7 @@ mod tests {
                 );
                 Some(fixtures)
             },
+            bucket: None,
             endpoints: vec![
                 EndpointDefinition {
                     kind: EndpointKind::Http,
@@ -2654,7 +2704,7 @@ mod tests {
 
     #[test]
     fn test_service_state_operations() {
-        let mut state = ServiceState::new(None);
+        let mut state = ServiceState::new(None, None);
 
         // Test runtime data
         state.set_runtime_data("key1".to_string(), serde_json::json!("value1"));
@@ -2673,5 +2723,10 @@ mod tests {
         // Test non-existent keys
         assert_eq!(state.get_runtime_data("nonexistent"), None);
         assert_eq!(state.get_fixture("nonexistent"), None);
+
+        // Test data bucket
+        let bucket = state.bucket();
+        bucket.set("foo".to_string(), serde_json::json!(123));
+        assert_eq!(bucket.get("foo"), Some(serde_json::json!(123)));
     }
 }

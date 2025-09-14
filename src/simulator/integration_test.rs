@@ -43,6 +43,7 @@ mod tests {
                 );
                 Some(fixtures)
             },
+            bucket: None,
             endpoints: vec![
                 EndpointDefinition {
                     kind: EndpointKind::Http,

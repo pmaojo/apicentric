@@ -4,6 +4,8 @@ version: "1.0"
 server:
   port: 9010
   base_path: /api/v1/items
+bucket:
+  items: []
 endpoints:
   - method: GET
     path: /
@@ -12,7 +14,7 @@ endpoints:
       200:
         content_type: application/json
         body: |
-          []
+          {{json (bucket.get "items")}}
   - method: POST
     path: /
     description: Create item
@@ -22,4 +24,5 @@ endpoints:
       201:
         content_type: application/json
         body: |
-          {"id": 1}
+          {{bucket.set "items" request.body}}
+          {{json request.body}}
