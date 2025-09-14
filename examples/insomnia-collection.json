@@ -1,0 +1,19 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "resources": [
+    {
+      "_id": "wrk_1",
+      "_type": "workspace",
+      "name": "Sample Insomnia"
+    },
+    {
+      "_id": "req_1",
+      "_type": "request",
+      "parentId": "wrk_1",
+      "name": "Hello",
+      "method": "GET",
+      "url": "http://localhost:3000/hello"
+    }
+  ]
+}

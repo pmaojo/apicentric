@@ -157,6 +157,50 @@ endpoints:
           {"msg":"hola"}
 ```
 
+### Convertir Postman/Insomnia
+
+```bash
+# Importar una colección de Postman
+pulse simulator import-postman --input examples/postman-collection.json --output services/postman.yaml
+
+# Importar una exportación de Insomnia
+pulse simulator import-postman --input examples/insomnia-collection.json --output services/insomnia.yaml
+
+# Exportar un servicio a colección Postman
+pulse simulator export-postman --input services/postman.yaml --output postman-collection.json
+```
+
+Ejemplo (`examples/postman-collection.json`):
+
+```json
+{
+  "info": { "name": "Sample Postman" },
+  "item": [
+    {
+      "name": "Hello",
+      "request": { "method": "GET", "url": { "raw": "http://localhost:3000/hello" } },
+      "response": [{ "code": 200, "body": "{\"msg\":\"hi\"}" }]
+    }
+  ]
+}
+```
+
+se convierte en:
+
+```yaml
+name: Sample Postman
+server:
+  base_path: /
+endpoints:
+  - method: GET
+    path: /hello
+    responses:
+      200:
+        content_type: application/json
+        body: |-
+          {"msg":"hi"}
+```
+
 ### Crear/Editar servicios del simulador
 
 ```bash

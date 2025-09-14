@@ -1,0 +1,36 @@
+{
+  "info": {
+    "name": "Sample Postman",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Hello",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/hello",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["hello"]
+        }
+      },
+      "response": [
+        {
+          "name": "success",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:3000/hello", "path": ["hello"] }
+          },
+          "status": "OK",
+          "code": 200,
+          "body": "{\"msg\":\"hi\"}",
+          "header": [{ "key": "Content-Type", "value": "application/json" }]
+        }
+      ]
+    }
+  ]
+}
