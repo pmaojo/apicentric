@@ -2,6 +2,9 @@
 name = "mockforge"
 version = "0.1.0"
 edition = "2021"
+description = "Toolkit for building, recording, and sharing mock APIs"
+repository = "https://github.com/example/mockforge"
+license = "MIT"
 
 [dependencies]
 anyhow = "1.0.99"
