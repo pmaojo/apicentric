@@ -106,6 +106,7 @@ mod tests {
                     scenarios: None,
                 },
             ],
+            graphql: None,
             behavior: None,
         }
     }

@@ -134,6 +134,7 @@ pub fn scaffold_service_definition() -> PulseResult<ServiceDefinition> {
         models: None,
         fixtures: None,
         endpoints,
+        graphql: None,
         behavior: None,
     })
 }

@@ -93,6 +93,8 @@ pub struct ServiceDefinition {
     pub fixtures: Option<HashMap<String, serde_json::Value>>,
     pub endpoints: Vec<EndpointDefinition>,
     #[serde(default)]
+    pub graphql: Option<GraphQLConfig>,
+    #[serde(default)]
     pub behavior: Option<BehaviorConfig>,
 }
 
@@ -136,6 +138,15 @@ pub struct EndpointDefinition {
     /// Optional scenario-based responses with matching conditions
     #[serde(default)]
     pub scenarios: Option<Vec<ScenarioDefinition>>,
+}
+
+/// GraphQL configuration for a service
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GraphQLConfig {
+    /// Path to the GraphQL schema file (.graphql)
+    pub schema_path: String,
+    /// Map of operation names to Handlebars template files
+    pub mocks: HashMap<String, String>,
 }
 
 /// Parameter definition for endpoints
@@ -1452,6 +1463,7 @@ mod tests {
                 },
                 scenarios: None,
             }],
+            graphql: None,
             behavior: None,
         };
 
@@ -1529,6 +1541,7 @@ endpoints:
                 },
                 scenarios: None,
             }],
+            graphql: None,
             behavior: None,
         };
 
@@ -1600,6 +1613,7 @@ endpoints:
                 },
                 scenarios: None,
             }],
+            graphql: None,
             behavior: None,
         };
 
@@ -1677,6 +1691,7 @@ endpoints:
                 },
                 scenarios: None,
             }],
+            graphql: None,
             behavior: None,
         };
 
@@ -1729,6 +1744,7 @@ endpoints:
                 },
                 scenarios: None,
             }],
+            graphql: None,
             behavior: None,
         };
 
@@ -1941,6 +1957,7 @@ name: 'invalid-service'
                 models: None,
                 fixtures: None,
                 endpoints: vec![],
+                graphql: None,
                 behavior: None,
             },
             ServiceDefinition {
@@ -1956,6 +1973,7 @@ name: 'invalid-service'
                 models: None,
                 fixtures: None,
                 endpoints: vec![],
+                graphql: None,
                 behavior: None,
             },
         ];

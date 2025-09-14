@@ -15,11 +15,15 @@ use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::Infallible;
+use std::fs;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+
+use async_graphql::Request as GraphQLRequest;
+use async_graphql_parser::parse_schema;
 
 /// Extracted path parameters from a request
 #[derive(Debug, Clone)]
@@ -57,6 +61,13 @@ pub struct RouteMatch {
     pub endpoint: EndpointDefinition,
     pub endpoint_index: usize,
     pub path_params: PathParameters,
+}
+
+/// Holds loaded GraphQL schema and mock templates
+#[derive(Debug, Clone)]
+pub struct GraphQLMocks {
+    pub schema: String,
+    pub mocks: HashMap<String, String>,
 }
 
 /// Service state for managing fixtures and runtime data
@@ -317,6 +328,7 @@ pub struct ServiceInstance {
     server_handle: Option<JoinHandle<()>>,
     is_running: bool,
     active_scenario: Arc<RwLock<Option<String>>>,
+    graphql: Option<Arc<GraphQLMocks>>,
 }
 
 impl ServiceInstance {
@@ -328,6 +340,40 @@ impl ServiceInstance {
         // Initialize template engine
         let template_engine = TemplateEngine::new()?;
 
+        let graphql = if let Some(ref gql_cfg) = definition.graphql {
+            let schema = fs::read_to_string(&gql_cfg.schema_path).map_err(|e| {
+                PulseError::config_error(
+                    format!(
+                        "Failed to read GraphQL schema {}: {}",
+                        gql_cfg.schema_path, e
+                    ),
+                    Some("Check that the schema file exists and is readable"),
+                )
+            })?;
+
+            if let Err(e) = parse_schema(&schema) {
+                return Err(PulseError::config_error(
+                    format!("Invalid GraphQL schema: {}", e),
+                    Some("Ensure the schema is valid SDL"),
+                ));
+            }
+
+            let mut mocks = HashMap::new();
+            for (op, path) in &gql_cfg.mocks {
+                let tmpl = fs::read_to_string(path).map_err(|e| {
+                    PulseError::config_error(
+                        format!("Failed to read GraphQL mock template {}: {}", path, e),
+                        Some("Check template file path"),
+                    )
+                })?;
+                mocks.insert(op.clone(), tmpl);
+            }
+
+            Some(Arc::new(GraphQLMocks { schema, mocks }))
+        } else {
+            None
+        };
+
         Ok(Self {
             definition,
             port,
@@ -336,6 +382,7 @@ impl ServiceInstance {
             server_handle: None,
             is_running: false,
             active_scenario: Arc::new(RwLock::new(None)),
+            graphql,
         })
     }
 
@@ -366,6 +413,7 @@ impl ServiceInstance {
         let cors = self.definition.server.cors.clone();
         let proxy = self.definition.server.proxy_base_url.clone();
         let active_scenario = Arc::clone(&self.active_scenario);
+        let graphql = self.graphql.clone();
 
         // Spawn the HTTP server task
         let server_handle = tokio::spawn(async move {
@@ -388,6 +436,7 @@ impl ServiceInstance {
                         let cors_cfg = cors.clone();
                         let proxy_cfg = proxy.clone();
                         let scenario_cfg_outer = Arc::clone(&active_scenario);
+                        let graphql_cfg_outer = graphql.clone();
 
                         // Handle each connection
                         let connection_service_name = service_name.clone();
@@ -401,6 +450,7 @@ impl ServiceInstance {
                                 let cors_cfg = cors_cfg.clone();
                                 let proxy_cfg = proxy_cfg.clone();
                                 let scenario_cfg = Arc::clone(&scenario_cfg_outer);
+                                let graphql_cfg = graphql_cfg_outer.clone();
 
                                 async move {
                                     Self::handle_request_static(
@@ -413,6 +463,7 @@ impl ServiceInstance {
                                         cors_cfg,
                                         proxy_cfg,
                                         scenario_cfg,
+                                        graphql_cfg,
                                     )
                                     .await
                                 }
@@ -488,6 +539,7 @@ impl ServiceInstance {
             self.definition.server.cors.clone(),
             self.definition.server.proxy_base_url.clone(),
             Arc::clone(&self.active_scenario),
+            self.graphql.clone(),
         )
         .await;
 
@@ -820,6 +872,7 @@ impl ServiceInstance {
         cors_cfg: Option<crate::simulator::config::CorsConfig>,
         proxy_base_url: Option<String>,
         active_scenario: Arc<RwLock<Option<String>>>,
+        graphql: Option<Arc<GraphQLMocks>>,
     ) -> Result<Response<Full<Bytes>>, Infallible> {
         let (parts, body) = req.into_parts();
         let method = parts.method.as_str();
@@ -1017,6 +1070,136 @@ impl ServiceInstance {
         } else {
             relative_path.to_string()
         };
+
+        // Handle GraphQL endpoint if configured
+        if let Some(gql) = &graphql {
+            if relative_path == "/graphql" {
+                if method == "GET" {
+                    let resp = Response::builder()
+                        .status(StatusCode::OK)
+                        .header("content-type", "text/plain")
+                        .body(Full::new(Bytes::from(gql.schema.clone())))
+                        .unwrap();
+                    Self::record_log(&state, &service_name, None, method, path, 200).await;
+                    return Ok(resp);
+                } else if method == "POST" {
+                    match serde_json::from_slice::<GraphQLRequest>(&body_bytes) {
+                        Ok(req_data) => {
+                            if let Some(op) = req_data.operation_name.clone() {
+                                if let Some(tmpl) = gql.mocks.get(&op) {
+                                    let state_guard = state.read().await;
+                                    let params = PathParameters::new();
+                                    let request_context = RequestContext::from_request_data(
+                                        method.to_string(),
+                                        relative_path.clone(),
+                                        query_params.clone(),
+                                        headers.clone(),
+                                        request_body.clone(),
+                                    );
+                                    let template_context =
+                                        TemplateContext::new(&state_guard, &params, request_context);
+                                    match template_engine.render(tmpl, &template_context) {
+                                        Ok(body) => {
+                                            let resp = Response::builder()
+                                                .status(StatusCode::OK)
+                                                .header("content-type", "application/json")
+                                                .body(Full::new(Bytes::from(body)))
+                                                .unwrap();
+                                            Self::record_log(
+                                                &state,
+                                                &service_name,
+                                                None,
+                                                method,
+                                                path,
+                                                200,
+                                            )
+                                            .await;
+                                            return Ok(resp);
+                                        }
+                                        Err(e) => {
+                                            let resp = Response::builder()
+                                                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                                                .header("content-type", "application/json")
+                                                .body(Full::new(Bytes::from(format!(
+                                                    "{{\"error\":\"{}\"}}",
+                                                    e
+                                                ))))
+                                                .unwrap();
+                                            Self::record_log(
+                                                &state,
+                                                &service_name,
+                                                None,
+                                                method,
+                                                path,
+                                                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                                            )
+                                            .await;
+                                            return Ok(resp);
+                                        }
+                                    }
+                                } else {
+                                    let resp = Response::builder()
+                                        .status(StatusCode::BAD_REQUEST)
+                                        .header("content-type", "application/json")
+                                        .body(Full::new(Bytes::from(format!(
+                                            "{{\"error\":\"Unknown operation {}\"}}",
+                                            op
+                                        ))))
+                                        .unwrap();
+                                    Self::record_log(
+                                        &state,
+                                        &service_name,
+                                        None,
+                                        method,
+                                        path,
+                                        StatusCode::BAD_REQUEST.as_u16(),
+                                    )
+                                    .await;
+                                    return Ok(resp);
+                                }
+                            } else {
+                                let resp = Response::builder()
+                                    .status(StatusCode::BAD_REQUEST)
+                                    .header("content-type", "application/json")
+                                    .body(Full::new(Bytes::from(
+                                        r#"{"error":"Missing operationName"}"#,
+                                    )))
+                                    .unwrap();
+                                Self::record_log(
+                                    &state,
+                                    &service_name,
+                                    None,
+                                    method,
+                                    path,
+                                    StatusCode::BAD_REQUEST.as_u16(),
+                                )
+                                .await;
+                                return Ok(resp);
+                            }
+                        }
+                        Err(_) => {
+                            let resp = Response::builder()
+                                .status(StatusCode::BAD_REQUEST)
+                                .header("content-type", "application/json")
+                                .body(Full::new(Bytes::from(
+                                    r#"{"error":"Invalid GraphQL request"}"#,
+                                )))
+                                .unwrap();
+                            Self::record_log(
+                                &state,
+                                &service_name,
+                                None,
+                                method,
+                                path,
+                                StatusCode::BAD_REQUEST.as_u16(),
+                            )
+                            .await;
+                            return Ok(resp);
+                        }
+                    }
+                }
+            }
+        }
 
         // Internal logs endpoint
         if method == "GET" && relative_path == "/__pulse/logs" {
@@ -1731,9 +1914,10 @@ mod tests {
                         );
                         responses
                     },
-                    scenarios: None,
+                scenarios: None,
                 },
             ],
+            graphql: None,
             behavior: None,
         }
     }
@@ -2163,6 +2347,7 @@ mod tests {
                     scenarios: None,
                 },
             ],
+            graphql: None,
             behavior: None,
         }
     }

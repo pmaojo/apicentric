@@ -125,6 +125,7 @@ pub fn from_openapi(spec: &Spec) -> ServiceDefinition {
         models,
         fixtures: None,
         endpoints,
+        graphql: None,
         behavior: None,
     }
 }
