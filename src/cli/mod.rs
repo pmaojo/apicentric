@@ -117,6 +117,25 @@ pub enum SimulatorAction {
         #[arg(long)]
         url: Option<String>,
     },
+    /// Share a running service over libp2p
+    Share {
+        /// Service name to expose
+        service: String,
+    },
+    /// Connect to a shared service and proxy locally
+    Connect {
+        /// Remote peer ID
+        peer: String,
+        /// Service name to access
+        #[arg(long)]
+        service: String,
+        /// Local port to listen on
+        #[arg(long)]
+        port: u16,
+        /// Authentication token issued by the peer
+        #[arg(long)]
+        token: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]

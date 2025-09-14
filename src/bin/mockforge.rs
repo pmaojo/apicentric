@@ -7,6 +7,7 @@ mod simulator_cmd;
 #[path = "../commands/shared.rs"]
 mod shared_impl;
 mod commands { pub mod shared { pub use crate::shared_impl::*; } }
+mod collab { pub use mockforge::collab::*; }
 
 #[derive(Parser)]
 #[command(author, version, about = "MockForge CLI (lightweight)")]
