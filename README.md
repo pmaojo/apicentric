@@ -8,7 +8,7 @@
 ║  ██║     ╚██████╔╝███████╗███████║███████╗       ██║   ███████╗███████║   ██║       ║
 ║  ╚═╝      ╚═════╝ ╚══════╝╚══════╝╚══════╝       ╚═╝   ╚══════╝╚══════╝   ╚═╝       ║
 ║                                                                                      ║
-║              ⚡ EJECUTOR INTELIGENTE DE PRUEBAS IMPULSADO POR RUST ⚡               ║
+║                   ⚡ SIMULADOR DE APIS IMPULSADO POR RUST ⚡                        ║
 ║                                                                                      ║
 ╚══════════════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -16,10 +16,10 @@
 ```
 ┌─ ESTADO DEL SISTEMA ─────────────────────────────────────────────────────────────────┐
 │                                                                                      │
-│  🎯 MISIÓN: Ejecución inteligente y de alto rendimiento para apps web modernas       │
-│  🔧 MOTOR:  Rust + integración con Cypress                                           │
+│  🎯 MISIÓN: Simulación y mock de APIs para desarrollo rápido                         │
+│  🔧 MOTOR:  Rust + servicios YAML                                                    │
 │  📊 MÉTRICAS: Monitorización en tiempo real (Prometheus, Sentry y Allure)            │
-│  🚀 VELOCIDAD: Paralelismo + análisis de impacto                                      │
+│  🚀 VELOCIDAD: Conversión y grabación automáticas                                    │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -30,7 +30,7 @@
 ╭──────────────────────────────────────────────────────────────────────────────╮
 │ 1) Configura pulse.json                                                       │
 │ 2) Integra scripts npm (pulse setup-npm)                                      │
-│ 3) Ejecuta: npm run pulse -- run | watch                                      │
+│ 3) Arranca el simulador y gestiona servicios mock                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -38,16 +38,22 @@
 # Inicializa config por defecto (si aún no tienes pulse.json)
 pulse init
 
-# Revisa y ajusta rutas/patrones/baseUrl en pulse.json
+# Ajusta rutas y directorios de servicios en pulse.json
 
 # Añade scripts npm automáticamente
 pulse setup-npm
 
-# Ejecuta todo
-npm run pulse -- run
+# Inicia el simulador con tus servicios mock
+npm run pulse:sim -- simulator start --services-dir mock_services
 
-# Observa cambios y ejecuta impactados
-npm run pulse:watch
+# Convierte un archivo Mockoon a YAML
+pulse simulator import-mockoon --input mockoon.json --output services/mockoon.yaml
+
+# Graba tráfico de una API real
+pulse simulator record --output services/ --url http://localhost:3000
+
+# Exporta interfaces TypeScript
+pulse simulator export-types --input services/petstore.yaml --output types.ts
 ```
 
 ## 🚀 Qualitas Setup (host app)
@@ -64,14 +70,14 @@ npm run pulse:sim -- simulator validate --path mock_services --verbose
 # 2) Arrancar simulador (Ctrl+C para parar)
 npm run pulse:sim -- simulator start --services-dir mock_services
 
-# 3) Ejecutar tests en vivo (watch)
-npm run pulse -- watch
+# 3) Convertir un proyecto Mockoon existente
+npm run pulse:sim -- simulator import-mockoon --input mockoon.json --output mock_services/mockoon.yaml
 
-# 4) Modo avión (simulador + dev + watch + docs)
-npm run start:airplane:watch
+# 4) Grabar tráfico de una API en vivo
+npm run pulse:sim -- simulator record --output mock_services/ --url http://localhost:3000
 
-# 5) Integración real + contrato de login público + watch
-npm run start:watch
+# 5) Exportar tipos TypeScript
+npm run pulse:sim -- simulator export-types --input mock_services/petstore.yaml --output types.ts
 ```
 
 ### Grabar tráfico de API
@@ -392,17 +398,17 @@ pulse setup-npm
 pulse setup-npm --instructions-only
 ```
 
-### Ejecutar pruebas
+### Ejecutar simulador
 
 ```bash
-# Modo watch - ejecuta tests impactados al cambiar archivos
-pulse watch
+# Iniciar el simulador con servicios YAML
+pulse simulator start --services-dir services
 
-# Ejecutar toda la suite una vez
-pulse run
+# Validar servicios antes de iniciar
+pulse simulator validate --path services
 
-# Ejecutar con configuración personalizada
-pulse --config custom-pulse.json run --workers 8 --retries 2
+# Grabar tráfico de una API
+pulse simulator record --output services/ --url http://localhost:3000
 ```
 
 ## Usage
@@ -413,78 +419,20 @@ pulse --config custom-pulse.json run --workers 8 --retries 2
 pulse [OPTIONS] <COMMAND>
 
 Commands:
-  watch       Watch for changes and run impacted tests
-  run         Run all tests once
+  simulator   Manage API mocks (start, validate, record, import, export)
   setup-npm   Setup npm scripts for pulse integration
   docs        Generate TypeScript documentation
-  mock-api    Serve a YAML-defined mock API server
 
 Options:
   -c, --config <CONFIG>    Path to pulse.json config file [default: pulse.json]
-      --mode <MODE>        Execution mode [possible values: ci, development, debug]
       --dry-run           Enable dry-run mode (show what would be executed)
   -v, --verbose           Enable verbose output
   -h, --help              Print help
 
-Mock API usage:
-  pulse mock-api --spec pulse-mock.yaml
-  pulse mock-api --spec pulse-mock.yaml --validate
-```
-
-### Watch Mode
-
-Monitor file changes and automatically run impacted tests:
-
-```bash
-# Basic watch mode
-pulse watch
-
-# Custom configuration
-pulse watch --workers 6 --retries 1 --debounce-ms 2000
-
-# Debug mode with verbose output
-pulse --mode debug --verbose watch
-```
-
-### Run All Tests
-
-Execute the complete test suite:
-
-```bash
-# Run all tests
-pulse run
-
-# Run with 8 parallel workers
-pulse run --workers 8
-
-# CI mode (headless, no server management)
-pulse --mode ci run
-```
-
-### NPM Integration
-
-Set up convenient npm scripts that automatically run from the project root:
-
-```bash
-# Setup scripts in package.json
-pulse setup-npm
-
-# Force overwrite existing scripts
-pulse setup-npm --force
-
-# Test the npm integration
-pulse setup-npm --test
-
-# Show usage examples
-pulse setup-npm --examples
-```
-
-After setup, you can use these npm scripts from anywhere in your project:
-
-```bash
-# These automatically run from the project root directory
-npm run pulse -- run
-npm run pulse:watch
+Simulador:
+  pulse simulator start --services-dir services
+  pulse simulator validate --path services
+  pulse simulator record --output services/ --url http://localhost:3000
 ```
 
 ## 🦐 Mock API Simulator (Experimental)
@@ -529,9 +477,9 @@ endpoints:
 ### Comandos
 
 ```bash
-pulse mock-api --spec pulse-mock.yaml --validate  # Validar YAML
-pulse mock-api --spec pulse-mock.yaml             # Iniciar servidor
-pulse --dry-run mock-api --spec pulse-mock.yaml   # Dry run
+pulse simulator validate --path pulse-mock.yaml    # Validar YAML
+pulse simulator start --services pulse-mock.yaml   # Iniciar servidor
+pulse --dry-run simulator start --services pulse-mock.yaml   # Dry run
 ```
 
 ### Matching
@@ -568,7 +516,6 @@ La petición debe incluir `x-api-key: secret` para activar este endpoint.
 | Rate limiting / errores configurables       | Planned |
 | Validación schemas                          | Planned |
 
-Configura Cypress para apuntar a `http://localhost:7070/api` si quieres usarlo en tests.
 
 ## 🔗 Integración con NPM (setup-npm)
 
@@ -577,7 +524,7 @@ Configura Cypress para apuntar a `http://localhost:7070/api` si quieres usarlo e
 │                                                                                      │
 │  🛠️  Comando:      pulse setup-npm                                                   │
 │  🔎 Detección:      workspace, binarios locales, $HOME/.cargo, PATH                  │
-│  🧩 Scripts:        "pulse", "pulse:watch"                                          │
+│  🧩 Scripts:        "pulse", "pulse:sim"                                            │
 │  🧪 Verificación:   --test para probar ejecución npm                                 │
 │  📘 Ejemplos:       --examples muestra usos útiles                                   │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
@@ -605,9 +552,9 @@ Esto asegura que los scripts npm funcionen tanto en desarrollo como en CI sin fr
 
 ```json
 {
-  "scripts": {
+"scripts": {
     "pulse": "<binario-detectado>",
-    "pulse:watch": "<binario-detectado> watch"
+    "pulse:sim": "<binario-detectado> simulator"
   }
 }
 ```
@@ -869,38 +816,28 @@ pulse simulator validate --path pulse/examples --recursive --verbose
 
 ### Custom Test Patterns
 
-```bash
-# Override specs pattern
-pulse --config pulse.json run
-# With custom pattern in config:
-# "specs_pattern": "**/*.{cy,spec}.{js,ts}"
-```
-
-### Environment-Specific Configurations
+### Configuraciones por entorno
 
 ```bash
-# Different configs for different environments
-pulse --config pulse.ci.json --mode ci run
-pulse --config pulse.dev.json --mode development watch
+# Diferentes configs para distintos entornos
+pulse --config pulse.ci.json simulator start --services-dir services
+pulse --config pulse.dev.json simulator start --services-dir services
 ```
 
-### Integration with CI/CD
+### Integración con CI/CD
 
 ```yaml
 # GitHub Actions example
-- name: Run Pulse Tests
+- name: Start Pulse Simulator
   run: |
-    pulse --mode ci --config pulse.ci.json run --workers 4
+    pulse --config pulse.ci.json simulator start --services-dir services
 ```
 
 ### Depuración
 
 ```bash
 # Activar modo debug con salida detallada
-pulse --mode debug --verbose watch
-
-# Simulación (dry-run) para ver qué se ejecutaría
-pulse --dry-run run
+pulse --dry-run simulator start --services-dir services
 ```
 
 ## Resolución de Problemas
@@ -952,25 +889,6 @@ git diff --name-only
 
 # Comprueba qué proceso usa el puerto
 lsof -i :9091
-```
-
-### Rendimiento
-
-#### Optimiza el número de workers
-
-```bash
-# Estima un valor razonable (p.ej. núm. de CPUs - 1)
-pulse run --workers 4
-```
-
-#### Ajusta el tiempo de debounce
-
-```bash
-# Reduce para feedback más rápido
-pulse watch --debounce-ms 500
-
-# Aumenta en equipos más lentos
-pulse watch --debounce-ms 2000
 ```
 
 ## GUI de Servicios Mock
@@ -1054,10 +972,8 @@ Proyecto con licencia MIT. Consulta el archivo LICENSE para más detalles.
 ### v0.1.0
 
 - Versión inicial
-- Ejecución inteligente con análisis de impacto
-- Paralelización de pruebas
-- Gestión de servidor de desarrollo
-- Múltiples formatos de reporte
-- Modo watch con monitorización de archivos
-- Integración con NPM
-- Soporte CI/CD
+- Simulador de APIs definido en YAML
+- Grabación de tráfico y generación automática de servicios
+- Conversión desde Mockoon y Postman/Insomnia
+- Exportación de especificaciones OpenAPI y tipos TypeScript
+- GUI para gestionar servicios mock
