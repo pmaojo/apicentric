@@ -17,6 +17,7 @@ mod tests {
     use std::collections::HashMap;
     use std::fs;
     use std::path::Path;
+    use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::time::{sleep, Duration};
 
@@ -135,7 +136,8 @@ mod tests {
             port
         };
 
-        let mut service = ServiceInstance::new(definition, free_port).unwrap();
+        let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let mut service = ServiceInstance::new(definition, free_port, storage).unwrap();
 
         // Start the service
         service.start().await.unwrap();
@@ -201,7 +203,8 @@ mod tests {
     #[tokio::test]
     async fn test_parameter_extraction_accuracy() {
         let definition = create_test_service_with_params();
-        let service = ServiceInstance::new(definition, 8101).unwrap();
+        let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let service = ServiceInstance::new(definition, 8101, storage).unwrap();
 
         // Test single parameter extraction
         let headers = HashMap::new();
@@ -238,7 +241,8 @@ mod tests {
     #[tokio::test]
     async fn test_template_processing_integration() {
         let definition = create_test_service_with_params();
-        let service = ServiceInstance::new(definition, 8102).unwrap();
+        let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let service = ServiceInstance::new(definition, 8102, storage).unwrap();
 
         // Test fixture template processing
         let headers = HashMap::new();
@@ -278,7 +282,8 @@ mod tests {
             port
         };
 
-        let mut service = ServiceInstance::new(definition, free_port).unwrap();
+        let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let mut service = ServiceInstance::new(definition, free_port, storage).unwrap();
         service.start().await.unwrap();
         sleep(Duration::from_millis(100)).await;
 
@@ -326,6 +331,7 @@ mod tests {
                 start: 9000,
                 end: 9200,
             },
+            db_path: temp_dir.path().join("test.db"),
             global_behavior: None,
         };
 

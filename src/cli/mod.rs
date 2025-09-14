@@ -20,6 +20,10 @@ pub struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
+    /// Path to SQLite database for simulator storage
+    #[arg(long, default_value = "pulse.db")]
+    pub db_path: String,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -107,6 +111,25 @@ pub enum SimulatorAction {
         /// Target URL to proxy requests to (defaults to base_url in config)
         #[arg(long)]
         url: Option<String>,
+    },
+    /// Share a running service over libp2p
+    Share {
+        /// Service name to expose
+        service: String,
+    },
+    /// Connect to a shared service and proxy locally
+    Connect {
+        /// Remote peer ID
+        peer: String,
+        /// Service name to access
+        #[arg(long)]
+        service: String,
+        /// Local port to listen on
+        #[arg(long)]
+        port: u16,
+        /// Authentication token issued by the peer
+        #[arg(long)]
+        token: Option<String>,
     },
 }
 
