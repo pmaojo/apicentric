@@ -6,14 +6,15 @@
 pub mod config;
 pub mod log;
 pub mod manager;
+pub mod mockoon;
+pub mod openapi;
+pub mod postman;
 pub mod registry;
 pub mod router;
 pub mod service;
 pub mod template;
-pub mod watcher;
-pub mod openapi;
-pub mod mockoon;
 pub mod typescript;
+pub mod watcher;
 
 #[cfg(test)]
 mod integration_test;

@@ -71,6 +71,16 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
+    /// Import a service from a Postman or Insomnia collection
+    #[command(name = "import-postman")]
+    ImportPostman {
+        /// Path to Postman/Insomnia JSON export
+        #[arg(short, long)]
+        input: String,
+        /// Output path for service YAML definition
+        #[arg(short, long)]
+        output: String,
+    },
     /// Export a service definition to an OpenAPI spec file
     Export {
         /// Path to service YAML definition
@@ -86,6 +96,16 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         input: String,
         /// Output path for generated TypeScript
+        #[arg(short, long)]
+        output: String,
+    },
+    /// Export a service definition to a Postman collection
+    #[command(name = "export-postman")]
+    ExportPostman {
+        /// Path to service YAML definition
+        #[arg(short, long)]
+        input: String,
+        /// Output path for Postman collection JSON
         #[arg(short, long)]
         output: String,
     },
@@ -130,9 +150,15 @@ pub async fn simulator_command(
         SimulatorAction::ImportMockoon { input, output } => {
             handle_import_mockoon(input, output, exec_ctx).await
         }
+        SimulatorAction::ImportPostman { input, output } => {
+            handle_import_postman(input, output, exec_ctx).await
+        }
         SimulatorAction::Export { input, output } => handle_export(input, output, exec_ctx).await,
         SimulatorAction::ExportTypes { input, output } => {
             handle_export_types(input, output, exec_ctx).await
+        }
+        SimulatorAction::ExportPostman { input, output } => {
+            handle_export_postman(input, output, exec_ctx).await
         }
         SimulatorAction::New { output } => handle_new(output, exec_ctx).await,
         SimulatorAction::Edit { input } => handle_edit(input, exec_ctx).await,
@@ -458,6 +484,37 @@ async fn handle_import_mockoon(
     Ok(())
 }
 
+async fn handle_import_postman(
+    input: &str,
+    output: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would import Postman '{}' into service '{}'",
+            input, output
+        );
+        return Ok(());
+    }
+    let service = pulse::simulator::postman::from_path(input).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to read Postman: {}", e), None::<String>)
+    })?;
+    let yaml = serde_yaml::to_string(&service).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to serialize service: {}", e),
+            None::<String>,
+        )
+    })?;
+    std::fs::write(output, yaml).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to write service file: {}", e),
+            None::<String>,
+        )
+    })?;
+    println!("✅ Imported service to {}", output);
+    Ok(())
+}
+
 async fn handle_export(input: &str, output: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {
     if exec_ctx.dry_run {
         println!(
@@ -484,6 +541,38 @@ async fn handle_export(input: &str, output: &str, exec_ctx: &ExecutionContext) -
         PulseError::runtime_error(format!("Failed to write spec file: {}", e), None::<String>)
     })?;
     println!("✅ Exported OpenAPI to {}", output);
+    Ok(())
+}
+
+async fn handle_export_postman(
+    input: &str,
+    output: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would export service '{}' to Postman '{}'",
+            input, output
+        );
+        return Ok(());
+    }
+    let yaml = std::fs::read_to_string(input).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
+    })?;
+    let service: pulse::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+        .map_err(|e| {
+            PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
+        })?;
+    let json = pulse::simulator::postman::to_string(&service).map_err(|e| {
+        PulseError::runtime_error(
+            format!("Failed to serialize Postman: {}", e),
+            None::<String>,
+        )
+    })?;
+    std::fs::write(output, json).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to write collection: {}", e), None::<String>)
+    })?;
+    println!("✅ Exported Postman collection to {}", output);
     Ok(())
 }
 
