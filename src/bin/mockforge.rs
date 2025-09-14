@@ -4,9 +4,12 @@ pub use mockforge::{PulseError, PulseResult as _PulseResult};
 use mockforge::context::init;
 #[path = "../commands/simulator.rs"]
 mod simulator_cmd;
+#[path = "../commands/ai.rs"]
+mod ai_cmd;
 #[path = "../commands/shared.rs"]
 mod shared_impl;
 mod commands { pub mod shared { pub use crate::shared_impl::*; } }
+mod collab { pub use mockforge::collab::*; }
 
 #[derive(Parser)]
 #[command(author, version, about = "MockForge CLI (lightweight)")]
@@ -26,6 +29,10 @@ struct Cli {
     /// Enable verbose output
     #[arg(short, long)]
     verbose: bool,
+
+    /// Path to SQLite database for simulator storage
+    #[arg(long, default_value = "pulse.db")]
+    db_path: String,
 
     #[command(subcommand)]
     command: Commands,
@@ -55,6 +62,11 @@ enum Commands {
         #[command(subcommand)]
         action: simulator_cmd::SimulatorAction,
     },
+    /// AI-assisted generation
+    Ai {
+        #[command(subcommand)]
+        action: ai_cmd::AiAction,
+    },
 }
 
 #[tokio::main]
@@ -78,6 +90,10 @@ async fn run(cli: Cli) -> PulseResult<()> {
     let context = builder
         .with_api_simulator(api_simulator)
         .build()?;
+
+    if let Some(sim) = context.api_simulator() {
+        sim.set_db_path(&cli.db_path).await.ok();
+    }
 
     let mut exec_ctx = ExecutionContext::new(context.config());
     if let Some(mode) = cli.mode { exec_ctx = exec_ctx.with_mode(mode.into()); }
@@ -104,5 +120,6 @@ async fn run(cli: Cli) -> PulseResult<()> {
             }
             _ => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
         },
+        Commands::Ai { action } => ai_cmd::ai_command(&action, &context, &exec_ctx).await,
     }
 }

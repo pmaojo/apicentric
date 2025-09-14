@@ -1,8 +1,6 @@
 use crate::commands::shared::{
     find_yaml_files, scaffold_endpoint_definition, scaffold_service_definition, validate_yaml_file,
 };
-use mockforge::ai::{AiProvider, LocalAiProvider, OpenAiProvider};
-use mockforge::config::AiProviderKind;
 use clap::Subcommand;
 use mockforge::simulator::log::RequestLogEntry;
 use mockforge::{Context, ExecutionContext, PulseError, PulseResult};
@@ -126,11 +124,6 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
-    /// AI-assisted operations
-    Ai {
-        #[command(subcommand)]
-        action: AiAction,
-    },
     /// Create a new service definition interactively
     New {
         /// Output directory for the service YAML
@@ -152,14 +145,24 @@ pub enum SimulatorAction {
         #[arg(long)]
         url: Option<String>,
     },
-}
-
-#[derive(Subcommand, Debug)]
-pub enum AiAction {
-    /// Generate a service definition or endpoints from a prompt
-    Generate {
-        /// Natural language description of the service or endpoints
-        prompt: String,
+    /// Share a running service over libp2p
+    Share {
+        /// Service name to expose
+        service: String,
+    },
+    /// Connect to a shared service and proxy locally
+    Connect {
+        /// Remote peer ID
+        peer: String,
+        /// Service name to access
+        #[arg(long)]
+        service: String,
+        /// Local port to listen on
+        #[arg(long)]
+        port: u16,
+        /// Authentication token issued by the peer
+        #[arg(long)]
+        token: Option<String>,
     },
 }
 
@@ -218,77 +221,18 @@ pub async fn simulator_command(
         SimulatorAction::ExportPostman { input, output } => {
             handle_export_postman(input, output, exec_ctx).await
         }
-        SimulatorAction::Ai { action } => match action {
-            AiAction::Generate { prompt } => {
-                handle_ai_generate(context, prompt, exec_ctx).await
-            }
-        },
         SimulatorAction::New { output } => handle_new(output, exec_ctx).await,
         SimulatorAction::Edit { input } => handle_edit(input, exec_ctx).await,
         SimulatorAction::Record { output, url } => {
             handle_record(context, output, url, exec_ctx).await
         }
-    }
-}
-
-async fn handle_ai_generate(
-    context: &Context,
-    prompt: &str,
-    exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
-    if exec_ctx.dry_run {
-        println!("🏃 Dry run: Would generate service from prompt: {}", prompt);
-        return Ok(());
-    }
-
-    let cfg = context.config();
-    let ai_cfg = match &cfg.ai {
-        Some(cfg) => cfg,
-        None => {
-            return Err(PulseError::config_error(
-                "AI provider not configured",
-                Some("Add an 'ai' section to mockforge.json"),
-            ))
+        SimulatorAction::Share { service } => {
+            handle_share(context, service, exec_ctx).await
         }
-    };
-
-    // Build provider based on configuration
-    let provider: Box<dyn AiProvider> = match ai_cfg.provider {
-        AiProviderKind::Local => {
-            let path = ai_cfg
-                .model_path
-                .clone()
-                .unwrap_or_else(|| "model.bin".to_string());
-            Box::new(LocalAiProvider::new(path))
+        SimulatorAction::Connect { peer, service, port, token } => {
+            handle_connect(peer, service, *port, token.as_deref(), exec_ctx).await
         }
-        AiProviderKind::Openai => {
-            let key = ai_cfg
-                .api_key
-                .clone()
-                .ok_or_else(|| {
-                    PulseError::config_error(
-                        "OpenAI API key missing",
-                        Some("Set ai.api_key in mockforge.json"),
-                    )
-                })?;
-            let model = ai_cfg
-                .model
-                .clone()
-                .unwrap_or_else(|| "gpt-3.5-turbo".to_string());
-            Box::new(OpenAiProvider::new(key, model))
-        }
-    };
-
-    let yaml = provider.generate_yaml(prompt).await?;
-
-    if let Some(sim) = context.api_simulator() {
-        sim.apply_service_yaml(&yaml).await?;
-        println!("✅ Generated service applied to simulator");
-    } else {
-        println!("{}", yaml);
     }
-
-    Ok(())
 }
 
 async fn handle_start(
@@ -618,6 +562,69 @@ async fn handle_record(
             Some("Enable simulator in mockforge.json"),
         ))
     }
+}
+
+async fn handle_share(
+    context: &Context,
+    service: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!("🏃 Dry run: Would share service '{}'", service);
+        return Ok(());
+    }
+    if let Some(simulator) = context.api_simulator() {
+        let registry = simulator.service_registry().read().await;
+        if let Some(instance) = registry.get_service(service) {
+            let port = instance.read().await.port();
+            drop(registry);
+            match share::share_service(port).await {
+                Ok((peer, token)) => {
+                    println!("📡 Sharing service '{}'", service);
+                    println!("   Peer ID: {}", peer);
+                    println!("   Token: {}", token);
+                    Ok(())
+                }
+                Err(e) => Err(PulseError::runtime_error(
+                    format!("Failed to share service: {}", e),
+                    None::<String>,
+                )),
+            }
+        } else {
+            println!("⚠️ Service '{}' not found", service);
+            Ok(())
+        }
+    } else {
+        Err(PulseError::config_error(
+            "API simulator is not enabled or configured",
+            Some("Enable simulator in mockforge.json"),
+        ))
+    }
+}
+
+async fn handle_connect(
+    peer: &str,
+    service: &str,
+    port: u16,
+    token: Option<&str>,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would connect to peer '{}' service '{}' on port {}",
+            peer, service, port
+        );
+        return Ok(());
+    }
+    let peer_id = peer
+        .parse::<libp2p::PeerId>()
+        .map_err(|e| PulseError::runtime_error(format!("Invalid peer id: {}", e), None::<String>))?;
+    let token = token.unwrap_or("").to_string();
+    share::connect_service(peer_id, token, service.to_string(), port)
+        .await
+        .map_err(|e| {
+            PulseError::runtime_error(format!("Failed to connect: {}", e), None::<String>)
+        })
 }
 
 async fn handle_import(input: &str, output: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {

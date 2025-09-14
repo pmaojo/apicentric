@@ -12,6 +12,7 @@ use crate::simulator::{
     watcher::ConfigWatcher,
     ConfigChange, SimulatorStatus,
 };
+use crate::storage::sqlite::SqliteStorage;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
@@ -62,8 +63,14 @@ impl ApiSimulatorManager {
     /// Create a new API simulator manager
     pub fn new(config: SimulatorConfig) -> Self {
         let config_loader = ConfigLoader::new(config.services_dir.clone());
-        let service_registry =
-            Arc::new(RwLock::new(ServiceRegistry::new(config.port_range.clone())));
+        let storage = Arc::new(
+            SqliteStorage::init_db(config.db_path.clone())
+                .expect("failed to initialize sqlite storage"),
+        );
+        let service_registry = Arc::new(RwLock::new(ServiceRegistry::new(
+            config.port_range.clone(),
+            storage,
+        )));
         let request_router = Arc::new(RwLock::new(RequestRouter::new()));
         let is_active = Arc::new(RwLock::new(false));
         let config_watcher = Arc::new(RwLock::new(None));
@@ -82,6 +89,17 @@ impl ApiSimulatorManager {
             collab_sender,
             crdts,
         }
+    }
+
+    /// Update database path for persistent storage
+    pub async fn set_db_path<P: AsRef<std::path::Path>>(
+        &self,
+        path: P,
+    ) -> PulseResult<()> {
+        let storage = Arc::new(SqliteStorage::init_db(path)?);
+        let mut reg = self.service_registry.write().await;
+        reg.set_storage(storage);
+        Ok(())
     }
 
     /// Enable or disable peer-to-peer collaboration.
@@ -645,6 +663,7 @@ mod tests {
                 start: 9000,
                 end: 9999,
             },
+            db_path: temp_dir.path().join("test.db"),
             global_behavior: None,
         }
     }

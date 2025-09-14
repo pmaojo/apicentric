@@ -20,6 +20,10 @@ pub struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
+    /// Path to SQLite database for simulator storage
+    #[arg(long, default_value = "pulse.db")]
+    pub db_path: String,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -99,11 +103,6 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value_t = 20)]
         limit: usize,
     },
-    /// AI-assisted generation
-    Ai {
-        #[command(subcommand)]
-        action: AiAction,
-    },
     /// Record live API traffic into service definitions
     Record {
         /// Output directory for generated services
@@ -112,6 +111,25 @@ pub enum SimulatorAction {
         /// Target URL to proxy requests to (defaults to base_url in config)
         #[arg(long)]
         url: Option<String>,
+    },
+    /// Share a running service over libp2p
+    Share {
+        /// Service name to expose
+        service: String,
+    },
+    /// Connect to a shared service and proxy locally
+    Connect {
+        /// Remote peer ID
+        peer: String,
+        /// Service name to access
+        #[arg(long)]
+        service: String,
+        /// Local port to listen on
+        #[arg(long)]
+        port: u16,
+        /// Authentication token issued by the peer
+        #[arg(long)]
+        token: Option<String>,
     },
 }
 
@@ -131,6 +149,12 @@ pub enum Commands {
     Simulator {
         #[command(subcommand)]
         action: SimulatorAction,
+    },
+
+    /// AI-assisted generation
+    Ai {
+        #[command(subcommand)]
+        action: AiAction,
     },
 
     /// Launch the graphical editor for mock services

@@ -69,15 +69,21 @@ impl PortManager {
 pub struct ServiceRegistry {
     services: HashMap<String, Arc<RwLock<ServiceInstance>>>,
     port_manager: PortManager,
+    storage: Arc<dyn crate::storage::Storage>,
 }
 
 impl ServiceRegistry {
     /// Create a new service registry
-    pub fn new(port_range: PortRange) -> Self {
+    pub fn new(port_range: PortRange, storage: Arc<dyn crate::storage::Storage>) -> Self {
         Self {
             services: HashMap::new(),
             port_manager: PortManager::new(port_range),
+            storage,
         }
+    }
+
+    pub fn set_storage(&mut self, storage: Arc<dyn crate::storage::Storage>) {
+        self.storage = storage;
     }
 
     /// Register a new service
@@ -95,7 +101,7 @@ impl ServiceRegistry {
         let port = self.port_manager.assign_port(definition.server.port)?;
 
         // Create service instance
-        let service_instance = ServiceInstance::new(definition, port)?;
+        let service_instance = ServiceInstance::new(definition, port, self.storage.clone())?;
 
         // Store in registry
         self.services.insert(
@@ -360,10 +366,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_registry_registration() {
-        let mut registry = ServiceRegistry::new(PortRange {
-            start: 9000,
-            end: 9999,
-        });
+        let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let mut registry = ServiceRegistry::new(
+            PortRange { start: 9000, end: 9999 },
+            storage,
+        );
 
         let service_def = create_test_service_definition("test-service", None);
         let result = registry.register_service(service_def).await;
@@ -375,10 +382,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_registry_duplicate_registration() {
-        let mut registry = ServiceRegistry::new(PortRange {
-            start: 9000,
-            end: 9999,
-        });
+        let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let mut registry = ServiceRegistry::new(
+            PortRange { start: 9000, end: 9999 },
+            storage,
+        );
 
         let service_def1 = create_test_service_definition("test-service", None);
         let service_def2 = create_test_service_definition("test-service", None);
@@ -391,10 +399,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_registry_unregistration() {
-        let mut registry = ServiceRegistry::new(PortRange {
-            start: 9000,
-            end: 9999,
-        });
+        let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let mut registry = ServiceRegistry::new(
+            PortRange { start: 9000, end: 9999 },
+            storage,
+        );
 
         let service_def = create_test_service_definition("test-service", None);
         registry.register_service(service_def).await.unwrap();
@@ -410,10 +419,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_registry_list_services() {
-        let mut registry = ServiceRegistry::new(PortRange {
-            start: 9000,
-            end: 9999,
-        });
+        let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let mut registry = ServiceRegistry::new(
+            PortRange { start: 9000, end: 9999 },
+            storage,
+        );
 
         let service_def1 = create_test_service_definition("service-a", Some(9001));
         let service_def2 = create_test_service_definition("service-b", Some(9002));
