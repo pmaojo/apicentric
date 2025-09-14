@@ -2147,6 +2147,7 @@ dependencies = [
  "openapi",
  "prometheus",
  "quick-xml",
+ "rand 0.8.5",
  "rayon",
  "regex",
  "reqwest 0.11.27",

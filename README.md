@@ -1016,6 +1016,27 @@ consultar variables de entorno:
 {{env.MY_VARIABLE}}           {{!-- valor desde el entorno --}}
 ```
 
+### Escenarios y rotación de respuestas
+
+Cada endpoint puede definir múltiples escenarios dentro de la clave `scenarios`.
+Cuando un escenario no posee `name` ni `conditions`, puede emplearse para
+rotar respuestas automáticamente.
+
+```yaml
+scenarios:
+  - strategy: sequential # también "random"
+    response:
+      status: 200
+      body: "ok"
+  - response:
+      status: 500
+      body: "error"
+```
+
+Con la estrategia `sequential` las respuestas se devuelven en orden y vuelven al
+inicio al llegar al final. Con `random` se elige una respuesta aleatoriamente en
+cada petición.
+
 ### Contribuir
 
 1. Haz fork del repositorio

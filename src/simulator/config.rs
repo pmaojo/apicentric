@@ -258,6 +258,17 @@ pub struct ScenarioDefinition {
     pub conditions: Option<ScenarioConditions>,
     /// Response to return when this scenario matches
     pub response: ScenarioResponse,
+    /// Strategy for selecting this scenario when multiple are available
+    #[serde(default)]
+    pub strategy: Option<ScenarioStrategy>,
+}
+
+/// Strategy for auto-selecting scenarios
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ScenarioStrategy {
+    Sequential,
+    Random,
 }
 
 /// Conditions evaluated against incoming requests

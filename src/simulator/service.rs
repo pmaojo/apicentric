@@ -1,7 +1,9 @@
 //! Service Instance - Individual service implementation with state management
 
 use crate::errors::{PulseError, PulseResult};
-use crate::simulator::config::{EndpointDefinition, ResponseDefinition, ServiceDefinition};
+use crate::simulator::config::{
+    EndpointDefinition, ResponseDefinition, ScenarioDefinition, ScenarioStrategy, ServiceDefinition,
+};
 use crate::simulator::log::{RequestLog, RequestLogEntry};
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 use bytes::Bytes;
@@ -113,6 +115,7 @@ pub struct ServiceState {
     initial_fixtures: HashMap<String, Value>, // Backup of original fixtures for reset
     request_log: RequestLog,
     bucket: DataBucket,
+    response_counters: HashMap<usize, usize>,
 }
 
 impl ServiceState {
@@ -127,6 +130,27 @@ impl ServiceState {
             runtime_data: HashMap::new(),
             request_log: RequestLog::new(100),
             bucket: DataBucket::new(bucket),
+            response_counters: HashMap::new(),
+        }
+    }
+
+    pub fn next_response_index(
+        &mut self,
+        endpoint_index: usize,
+        total: usize,
+        strategy: ScenarioStrategy,
+    ) -> usize {
+        match strategy {
+            ScenarioStrategy::Sequential => {
+                let counter = self.response_counters.entry(endpoint_index).or_insert(0);
+                let idx = *counter;
+                *counter = (*counter + 1) % total;
+                idx
+            }
+            ScenarioStrategy::Random => {
+                use rand::Rng;
+                rand::thread_rng().gen_range(0..total)
+            }
         }
     }
 
@@ -1279,15 +1303,19 @@ impl ServiceInstance {
                 let mut selected_response: Option<ResponseDefinition> = None;
                 let mut selected_status = 200u16;
 
-                // Try to match explicit scenarios first
+                // Try to match explicit or rotating scenarios
                 let active = active_scenario.read().await.clone();
                 if let Some((status, resp)) = Self::match_scenario(
                     &route_match.endpoint,
+                    &state,
+                    route_match.endpoint_index,
                     active,
                     &query_params,
                     &headers,
                     &request_body,
-                ) {
+                )
+                .await
+                {
                     selected_status = status;
                     selected_response = Some(resp);
                 } else {
@@ -1844,8 +1872,10 @@ impl ServiceInstance {
     }
 
     /// Match a scenario based on query, header, or body conditions
-    fn match_scenario(
+    async fn match_scenario(
         endpoint: &EndpointDefinition,
+        state: &Arc<RwLock<ServiceState>>,
+        endpoint_index: usize,
         active_scenario: Option<String>,
         query: &HashMap<String, String>,
         headers: &HashMap<String, String>,
@@ -1911,6 +1941,27 @@ impl ServiceInstance {
                         }
                     }
                 }
+            }
+
+            // Automatic rotation/random selection for scenarios without conditions or name
+            let candidates: Vec<&ScenarioDefinition> = scenarios
+                .iter()
+                .filter(|s| s.conditions.is_none() && s.name.is_none())
+                .collect();
+            if !candidates.is_empty() {
+                let strategy = candidates[0]
+                    .strategy
+                    .clone()
+                    .unwrap_or(ScenarioStrategy::Sequential);
+                let index = {
+                    let mut guard = state.write().await;
+                    guard.next_response_index(endpoint_index, candidates.len(), strategy)
+                };
+                let scenario = candidates[index];
+                return Some((
+                    scenario.response.status,
+                    scenario.response.definition.clone(),
+                ));
             }
         }
         None
@@ -1994,7 +2045,9 @@ mod tests {
     use reqwest::StatusCode as ReqStatusCode;
     use std::collections::HashMap;
     use std::convert::Infallible;
+    use std::sync::Arc;
     use tokio::net::TcpListener;
+    use tokio::sync::RwLock;
     use tokio::time::{sleep, Duration};
 
     fn create_test_service_definition() -> ServiceDefinition {
@@ -2587,8 +2640,8 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_scenario_matching() {
+    #[tokio::test]
+    async fn test_scenario_matching() {
         // Build endpoint with various scenarios
         let endpoint = EndpointDefinition {
             kind: EndpointKind::Http,
@@ -2618,6 +2671,7 @@ mod tests {
                             side_effects: None,
                         },
                     },
+                    strategy: None,
                 },
                 ScenarioDefinition {
                     name: Some("header".to_string()),
@@ -2637,6 +2691,7 @@ mod tests {
                             side_effects: None,
                         },
                     },
+                    strategy: None,
                 },
                 ScenarioDefinition {
                     name: Some("body".to_string()),
@@ -2659,6 +2714,7 @@ mod tests {
                             side_effects: None,
                         },
                     },
+                    strategy: None,
                 },
                 ScenarioDefinition {
                     name: Some("error".to_string()),
@@ -2674,44 +2730,223 @@ mod tests {
                             side_effects: None,
                         },
                     },
+                    strategy: None,
                 },
             ]),
             stream: None,
         };
 
+        let state = Arc::new(RwLock::new(ServiceState::new(None, None)));
+
         // Query condition
         let mut query = HashMap::new();
         query.insert("mode".to_string(), "1".to_string());
-        let res = ServiceInstance::match_scenario(&endpoint, None, &query, &HashMap::new(), &None);
+        let res = ServiceInstance::match_scenario(
+            &endpoint,
+            &state,
+            0,
+            None,
+            &query,
+            &HashMap::new(),
+            &None,
+        )
+        .await;
         assert_eq!(res.unwrap().0, 200);
 
         // Header condition
         let mut headers = HashMap::new();
         headers.insert("x-scn".to_string(), "hdr".to_string());
-        let res =
-            ServiceInstance::match_scenario(&endpoint, None, &HashMap::new(), &headers, &None);
+        let res = ServiceInstance::match_scenario(
+            &endpoint,
+            &state,
+            0,
+            None,
+            &HashMap::new(),
+            &headers,
+            &None,
+        )
+        .await;
         assert_eq!(res.unwrap().0, 201);
 
         // Body condition
         let body = Some(serde_json::json!({"kind": "b"}));
         let res = ServiceInstance::match_scenario(
             &endpoint,
+            &state,
+            0,
             None,
             &HashMap::new(),
             &HashMap::new(),
             &body,
-        );
+        )
+        .await;
         assert_eq!(res.unwrap().0, 202);
 
         // Active scenario fallback
         let res = ServiceInstance::match_scenario(
             &endpoint,
+            &state,
+            0,
             Some("error".to_string()),
             &HashMap::new(),
             &HashMap::new(),
             &None,
-        );
+        )
+        .await;
         assert_eq!(res.unwrap().0, 500);
+    }
+
+    #[tokio::test]
+    async fn test_scenario_rotation_sequential() {
+        let endpoint = EndpointDefinition {
+            kind: EndpointKind::Http,
+            method: "GET".to_string(),
+            path: "/rotate".to_string(),
+            header_match: None,
+            description: None,
+            parameters: None,
+            request_body: None,
+            responses: HashMap::new(),
+            scenarios: Some(vec![
+                ScenarioDefinition {
+                    name: None,
+                    conditions: None,
+                    strategy: Some(ScenarioStrategy::Sequential),
+                    response: ScenarioResponse {
+                        status: 200,
+                        definition: ResponseDefinition {
+                            condition: None,
+                            content_type: "text/plain".to_string(),
+                            body: "a".to_string(),
+                            script: None,
+                            headers: None,
+                            side_effects: None,
+                        },
+                    },
+                },
+                ScenarioDefinition {
+                    name: None,
+                    conditions: None,
+                    strategy: Some(ScenarioStrategy::Sequential),
+                    response: ScenarioResponse {
+                        status: 201,
+                        definition: ResponseDefinition {
+                            condition: None,
+                            content_type: "text/plain".to_string(),
+                            body: "b".to_string(),
+                            script: None,
+                            headers: None,
+                            side_effects: None,
+                        },
+                    },
+                },
+                ScenarioDefinition {
+                    name: None,
+                    conditions: None,
+                    strategy: Some(ScenarioStrategy::Sequential),
+                    response: ScenarioResponse {
+                        status: 202,
+                        definition: ResponseDefinition {
+                            condition: None,
+                            content_type: "text/plain".to_string(),
+                            body: "c".to_string(),
+                            script: None,
+                            headers: None,
+                            side_effects: None,
+                        },
+                    },
+                },
+            ]),
+            stream: None,
+        };
+        let state = Arc::new(RwLock::new(ServiceState::new(None, None)));
+        let mut results = Vec::new();
+        for _ in 0..4 {
+            let res = ServiceInstance::match_scenario(
+                &endpoint,
+                &state,
+                0,
+                None,
+                &HashMap::new(),
+                &HashMap::new(),
+                &None,
+            )
+            .await
+            .unwrap()
+            .0;
+            results.push(res);
+        }
+        assert_eq!(results, vec![200, 201, 202, 200]);
+    }
+
+    #[tokio::test]
+    async fn test_scenario_rotation_random() {
+        use std::collections::HashSet;
+
+        let endpoint = EndpointDefinition {
+            kind: EndpointKind::Http,
+            method: "GET".to_string(),
+            path: "/random".to_string(),
+            header_match: None,
+            description: None,
+            parameters: None,
+            request_body: None,
+            responses: HashMap::new(),
+            scenarios: Some(vec![
+                ScenarioDefinition {
+                    name: None,
+                    conditions: None,
+                    strategy: Some(ScenarioStrategy::Random),
+                    response: ScenarioResponse {
+                        status: 200,
+                        definition: ResponseDefinition {
+                            condition: None,
+                            content_type: "text/plain".to_string(),
+                            body: "ok".to_string(),
+                            script: None,
+                            headers: None,
+                            side_effects: None,
+                        },
+                    },
+                },
+                ScenarioDefinition {
+                    name: None,
+                    conditions: None,
+                    strategy: Some(ScenarioStrategy::Random),
+                    response: ScenarioResponse {
+                        status: 500,
+                        definition: ResponseDefinition {
+                            condition: None,
+                            content_type: "text/plain".to_string(),
+                            body: "err".to_string(),
+                            script: None,
+                            headers: None,
+                            side_effects: None,
+                        },
+                    },
+                },
+            ]),
+            stream: None,
+        };
+
+        let state = Arc::new(RwLock::new(ServiceState::new(None, None)));
+        let mut statuses = HashSet::new();
+        for _ in 0..20 {
+            let res = ServiceInstance::match_scenario(
+                &endpoint,
+                &state,
+                0,
+                None,
+                &HashMap::new(),
+                &HashMap::new(),
+                &None,
+            )
+            .await
+            .unwrap()
+            .0;
+            statuses.insert(res);
+        }
+        assert_eq!(statuses.len(), 2);
     }
 
     fn spawn_upstream_server(port: u16) -> tokio::task::JoinHandle<()> {
