@@ -25,6 +25,10 @@
     "pulse_watch_script": "cargo run --manifest-path ./Cargo.toml -- watch",
     "dev_script": "npm run dev"
   },
+  "ai": {
+    "provider": "local",
+    "model_path": "models/llama.bin"
+  },
   "testcase": {
     "pattern": "*.cy.ts",
     "timeout": 30000,
