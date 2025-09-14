@@ -5,9 +5,7 @@
 │  📊 MÉTRICAS: Monitorización en tiempo real (Prometheus, Sentry y Allure)            │
 │  🚀 VELOCIDAD: Conversión y grabación automáticas                                    │
 │                                                                                      │
-└──────────────────────────────────────────────────────────────────────────────────────┘
-```
-
+└──────────────────────────────────────────────────────────────────────────────────────
 ## 🛠️ Instalación
 
 Para instalar la versión más reciente de `mockforge`, ejecuta uno de los scripts de instalación incluidos:
@@ -16,6 +14,21 @@ Para instalar la versión más reciente de `mockforge`, ejecuta uno de los scrip
 - **Windows (PowerShell)**: `./scripts/install.ps1`
 
 Cada script detecta automáticamente tu sistema operativo y arquitectura, descarga el binario adecuado desde las últimas releases y lo coloca en una ubicación habitual (`/usr/local/bin` o `%UserProfile%\bin`).
+
+## 📦 Instalación
+
+### Homebrew (macOS)
+
+```bash
+brew tap your-org/pulse
+brew install mockforge
+```
+
+### Windows (winget)
+
+```powershell
+winget install --id your-org.mockforge
+```
 
 ## ✨ Guía Rápida
 
@@ -425,6 +438,16 @@ Cada operación se resuelve con la plantilla indicada y puede usar fixtures o va
 - Node.js 18+ (Cypress/TypeDoc)
 - npm reciente
 - Cypress 15+
+
+## 📦 Installation
+
+After installing `mockforge`, verify the CLI is available:
+
+```bash
+mockforge --help | head -n 5
+```
+
+You should see the `mockforge` banner with the version and a short usage summary, confirming the installation succeeded.
 
 ## Configuración básica
 
