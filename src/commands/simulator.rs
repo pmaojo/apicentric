@@ -15,6 +15,9 @@ pub enum SimulatorAction {
         /// Force start even if services are already running
         #[arg(long)]
         force: bool,
+        /// Enable peer-to-peer collaboration for service editing
+        #[arg(long)]
+        p2p: bool,
     },
     /// Stop the API simulator
     Stop {
@@ -153,7 +156,8 @@ pub async fn simulator_command(
         SimulatorAction::Start {
             services_dir,
             force,
-        } => handle_start(context, services_dir, *force, exec_ctx).await,
+            p2p,
+        } => handle_start(context, services_dir, *force, *p2p, exec_ctx).await,
         SimulatorAction::Stop { force } => handle_stop(context, *force, exec_ctx).await,
         SimulatorAction::Status { detailed } => handle_status(context, *detailed, exec_ctx).await,
         SimulatorAction::Validate {
@@ -210,6 +214,7 @@ async fn handle_start(
     context: &Context,
     services_dir: &str,
     force: bool,
+    p2p: bool,
     exec_ctx: &ExecutionContext,
 ) -> PulseResult<()> {
     if exec_ctx.dry_run {
@@ -227,6 +232,9 @@ async fn handle_start(
         if force && simulator.is_active().await {
             println!("🔄 Force stopping existing simulator...");
             simulator.stop().await?;
+        }
+        if p2p {
+            simulator.enable_p2p(true).await;
         }
         match simulator.start().await {
             Ok(_) => {

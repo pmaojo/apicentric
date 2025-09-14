@@ -1,6 +1,7 @@
 //! API Simulator Manager - Central coordinator for the simulator functionality
 
 use crate::errors::{PulseError, PulseResult};
+use crate::collab::{crdt::{ServiceCrdt, CrdtMessage}, p2p};
 use crate::simulator::{
     config::{
         ConfigLoader, EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig,
@@ -36,6 +37,9 @@ pub struct ApiSimulatorManager {
     config_loader: ConfigLoader,
     is_active: Arc<RwLock<bool>>,
     config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
+    p2p_enabled: Arc<RwLock<bool>>,
+    collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
+    crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
 }
 
 impl Clone for ApiSimulatorManager {
@@ -47,6 +51,9 @@ impl Clone for ApiSimulatorManager {
             config_loader: self.config_loader.clone(),
             is_active: self.is_active.clone(),
             config_watcher: self.config_watcher.clone(),
+            p2p_enabled: self.p2p_enabled.clone(),
+            collab_sender: self.collab_sender.clone(),
+            crdts: self.crdts.clone(),
         }
     }
 }
@@ -60,6 +67,9 @@ impl ApiSimulatorManager {
         let request_router = Arc::new(RwLock::new(RequestRouter::new()));
         let is_active = Arc::new(RwLock::new(false));
         let config_watcher = Arc::new(RwLock::new(None));
+        let p2p_enabled = Arc::new(RwLock::new(false));
+        let collab_sender = Arc::new(RwLock::new(None));
+        let crdts = Arc::new(RwLock::new(HashMap::new()));
 
         Self {
             config,
@@ -68,7 +78,16 @@ impl ApiSimulatorManager {
             config_loader,
             is_active,
             config_watcher,
+            p2p_enabled,
+            collab_sender,
+            crdts,
         }
+    }
+
+    /// Enable or disable peer-to-peer collaboration.
+    pub async fn enable_p2p(&self, enabled: bool) {
+        let mut flag = self.p2p_enabled.write().await;
+        *flag = enabled;
     }
 
     /// Start the API simulator
@@ -101,26 +120,34 @@ impl ApiSimulatorManager {
         // Register and start services
         let mut registry = self.service_registry.write().await;
         let mut router = self.request_router.write().await;
+        let mut crdts_map = self.crdts.write().await;
 
         for service_def in services {
             let service_name = service_def.name.clone();
             let base_path = service_def.server.base_path.clone();
 
             // Register service in registry
-            registry.register_service(service_def).await?;
+            registry.register_service(service_def.clone()).await?;
 
             // Register routes in router
             router.register_service_routes(&service_name, &base_path);
+
+            // Create CRDT document for the service
+            crdts_map.insert(service_name, ServiceCrdt::new(service_def));
         }
+        drop(crdts_map);
 
         // Start all registered services
         registry.start_all_services().await?;
+        let service_count = registry.services_count();
+        drop(registry);
+        drop(router);
 
         *is_active = true;
 
         log::info!(
             "API Simulator started with {} services",
-            registry.services_count()
+            service_count
         );
         // Spawn configuration watcher for automatic reloads
         let (tx, mut rx) = mpsc::channel(16);
@@ -144,6 +171,53 @@ impl ApiSimulatorManager {
                 }
             }
         });
+
+        // Start peer-to-peer collaboration if enabled.
+        if *self.p2p_enabled.read().await {
+            match p2p::spawn().await {
+                Ok((tx, mut rx_net)) => {
+                    {
+                        let mut guard = self.collab_sender.write().await;
+                        *guard = Some(tx.clone());
+                    }
+
+                    // Broadcast initial state for all services.
+                    let mut crdts = self.crdts.write().await;
+                    for (name, doc) in crdts.iter_mut() {
+                        if let Ok(data) = serde_json::to_vec(&CrdtMessage {
+                            name: name.clone(),
+                            data: doc.encode(),
+                        }) {
+                            let _ = tx.send(data);
+                        }
+                    }
+                    drop(crdts);
+
+                    let manager_clone = self.clone();
+                    let crdts_map = self.crdts.clone();
+                    tokio::spawn(async move {
+                        while let Some(data) = rx_net.recv().await {
+                            if let Ok(msg) = serde_json::from_slice::<CrdtMessage>(&data) {
+                                let mut map = crdts_map.write().await;
+                                if let Some(existing) = map.get_mut(&msg.name) {
+                                    existing.merge_bytes(&msg.data);
+                                } else if let Some(new_doc) = ServiceCrdt::from_bytes(&msg.data) {
+                                    map.insert(msg.name.clone(), new_doc);
+                                }
+                                if let Some(doc) = map.get(&msg.name) {
+                                    let service = doc.to_service();
+                                    drop(map);
+                                    if let Err(err) = manager_clone.apply_remote_service(service).await {
+                                        eprintln!("Failed to apply remote update: {}", err);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                Err(e) => eprintln!("Failed to start P2P session: {}", e),
+            }
+        }
 
         Ok(())
     }
@@ -192,17 +266,58 @@ impl ApiSimulatorManager {
         router.clear_all_routes();
 
         // Re-register and start services with new configurations
+        let mut crdts_map = self.crdts.write().await;
+        crdts_map.clear();
         for service_def in services {
             let service_name = service_def.name.clone();
             let base_path = service_def.server.base_path.clone();
 
-            registry.register_service(service_def).await?;
+            registry.register_service(service_def.clone()).await?;
             router.register_service_routes(&service_name, &base_path);
+            crdts_map.insert(service_name, ServiceCrdt::new(service_def));
         }
+        drop(crdts_map);
 
         registry.start_all_services().await?;
 
+        // Broadcast new state to peers if P2P is enabled.
+        if *self.p2p_enabled.read().await {
+            if let Some(tx) = self.collab_sender.read().await.clone() {
+                let mut crdts = self.crdts.write().await;
+                for (name, doc) in crdts.iter_mut() {
+                    if let Ok(data) = serde_json::to_vec(&CrdtMessage { name: name.clone(), data: doc.encode() }) {
+                        let _ = tx.send(data);
+                    }
+                }
+                drop(crdts);
+            }
+        }
+
         log::info!("Service configurations reloaded successfully");
+
+        Ok(())
+    }
+
+    /// Apply a service definition received from a remote peer to the running
+    /// simulator. Existing service instances are restarted with the new
+    /// configuration and routing is updated accordingly.
+    async fn apply_remote_service(&self, service_def: ServiceDefinition) -> PulseResult<()> {
+        let service_name = service_def.name.clone();
+
+        {
+            let mut registry = self.service_registry.write().await;
+            if registry.get_service(&service_name).is_some() {
+                let _ = registry.unregister_service(&service_name).await;
+            }
+            registry.register_service(service_def.clone()).await?;
+            registry.start_all_services().await?;
+        }
+
+        {
+            let mut router = self.request_router.write().await;
+            router.unregister_service_routes(&service_name);
+            router.register_service_routes(&service_name, &service_def.server.base_path);
+        }
 
         Ok(())
     }

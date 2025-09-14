@@ -52,6 +52,10 @@ pub enum SimulatorAction {
         /// Force start even if services are already running
         #[arg(long)]
         force: bool,
+
+        /// Enable peer-to-peer collaboration for service editing
+        #[arg(long)]
+        p2p: bool,
     },
 
     /// Stop the API simulator
