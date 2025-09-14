@@ -356,6 +356,7 @@ impl ApiSimulatorManager {
                                             condition: None,
                                             content_type: content_type.clone(),
                                             body: String::from_utf8_lossy(&resp_bytes).into(),
+                                            script: None,
                                             headers: None,
                                             side_effects: None,
                                         },

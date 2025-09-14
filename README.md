@@ -258,6 +258,30 @@ bucket:
 {{json (bucket.get "items")}}
 ```
 
+### Scripts JS/WASM personalizados
+
+Ejecuta lógica dinámica antes de renderizar la respuesta. El script recibe el contexto
+de la petición y puede devolver un objeto con datos que se guardan en `runtime`.
+
+```yaml
+responses:
+  200:
+    content_type: application/json
+    body: '{"id": "{{ runtime.userId }}"}'
+    script: scripts/extract_id.js
+```
+
+Archivo `scripts/extract_id.js`:
+
+```javascript
+// ctx => { request, params, fixtures, runtime }
+({ userId: ctx.request.body.id })
+```
+
+Los scripts se ejecutan en un entorno aislado sin acceso a red ni sistema de archivos,
+proporcionando un sandbox seguro. También se pueden cargar módulos WASM desde el
+script utilizando la API estándar de WebAssembly.
+
 ### Mocking GraphQL
 
 ```yaml

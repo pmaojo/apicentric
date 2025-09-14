@@ -17,10 +17,13 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::fs;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::{Arc, RwLock as StdRwLock};
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+
+use deno_core::{JsRuntime, RuntimeOptions};
 
 use async_graphql::Request as GraphQLRequest;
 use async_graphql_parser::parse_schema;
@@ -84,10 +87,7 @@ impl DataBucket {
     }
 
     pub fn get(&self, key: &str) -> Option<Value> {
-        self.data
-            .read()
-            .ok()
-            .and_then(|map| map.get(key).cloned())
+        self.data.read().ok().and_then(|map| map.get(key).cloned())
     }
 
     pub fn set(&self, key: String, value: Value) {
@@ -1141,8 +1141,11 @@ impl ServiceInstance {
                                         headers.clone(),
                                         request_body.clone(),
                                     );
-                                    let template_context =
-                                        TemplateContext::new(&state_guard, &params, request_context);
+                                    let template_context = TemplateContext::new(
+                                        &state_guard,
+                                        &params,
+                                        request_context,
+                                    );
                                     match template_engine.render(tmpl, &template_context) {
                                         Ok(body) => {
                                             let resp = Response::builder()
@@ -1349,63 +1352,80 @@ impl ServiceInstance {
                 }
 
                 if let Some(response_def) = selected_response {
-                    let response_body = response_def.body.clone();
+                    let request_context = RequestContext::from_request_data(
+                        method.to_string(),
+                        relative_path.clone(),
+                        query_params.clone(),
+                        headers.clone(),
+                        request_body.clone(),
+                    );
 
-                    // Use template engine for dynamic response generation
-                    let processed_body = if response_body.contains("{{") {
-                        let state_guard = state.read().await;
-
-                        // Create template context
-                        let request_context = RequestContext::from_request_data(
-                            method.to_string(),
-                            relative_path.clone(),
-                            query_params,
-                            headers.clone(),
-                            request_body,
-                        );
-
-                        let template_context = TemplateContext::new(
-                            &state_guard,
+                    if let Some(ref script_path) = response_def.script {
+                        if let Err(e) = Self::execute_script(
+                            script_path.as_path(),
+                            &state,
                             &route_match.path_params,
-                            request_context,
-                        );
+                            &request_context,
+                        )
+                        .await
+                        {
+                            log::warn!("Script execution error: {}", e);
+                        }
+                    }
 
-                        // Render template
+                    let state_guard = state.read().await;
+                    let template_context = TemplateContext::new(
+                        &state_guard,
+                        &route_match.path_params,
+                        request_context,
+                    );
+                    drop(state_guard);
+
+                    let response_body = response_def.body.clone();
+                    let processed_body = if response_body.contains("{{") {
                         match template_engine.render(&response_body, &template_context) {
-                            Ok(rendered) => {
-                                // Process side effects if defined
-                                if let Some(ref side_effects) = response_def.side_effects {
-                                    let mut state_guard = state.write().await;
-                                    for side_effect in side_effects {
-                                        if let Err(e) = Self::process_side_effect(
-                                            side_effect,
-                                            &mut state_guard,
-                                            &template_context,
-                                            &template_engine,
-                                        ) {
-                                            log::warn!("Side effect processing error: {}", e);
-                                        }
-                                    }
-                                }
-                                rendered
-                            }
+                            Ok(rendered) => rendered,
                             Err(e) => {
                                 log::warn!("Template rendering error: {}", e);
-                                response_body // Fallback to original template
+                                response_body
                             }
                         }
                     } else {
                         response_body
                     };
 
+                    if let Some(ref side_effects) = response_def.side_effects {
+                        let mut state_guard = state.write().await;
+                        for side_effect in side_effects {
+                            if let Err(e) = Self::process_side_effect(
+                                side_effect,
+                                &mut state_guard,
+                                &template_context,
+                                &template_engine,
+                            ) {
+                                log::warn!("Side effect processing error: {}", e);
+                            }
+                        }
+                    }
+
                     let mut response = Response::builder()
                         .status(StatusCode::from_u16(selected_status).unwrap_or(StatusCode::OK))
                         .header("content-type", &response_def.content_type);
 
-                    // Add custom headers if defined
-                    if let Some(ref headers) = response_def.headers {
-                        for (key, value) in headers {
-                            response = response.header(key, value);
+                    if let Some(ref headers_map) = response_def.headers {
+                        for (key, value) in headers_map {
+                            let header_value = if value.contains("{{") {
+                                match template_engine.render(value, &template_context) {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        log::warn!("Header template rendering error: {}", e);
+                                        value.clone()
+                                    }
+                                }
+                            } else {
+                                value.clone()
+                            };
+                            response = response.header(key, header_value);
                         }
                     }
 
@@ -1654,6 +1674,91 @@ impl ServiceInstance {
                 }
             }
         }
+    }
+
+    /// Execute a user-provided script with request context
+    async fn execute_script(
+        script_path: &Path,
+        state: &Arc<RwLock<ServiceState>>,
+        path_params: &PathParameters,
+        request_context: &RequestContext,
+    ) -> PulseResult<()> {
+        let script_source = tokio::fs::read_to_string(script_path).await.map_err(|e| {
+            PulseError::runtime_error(
+                format!("Failed to read script {}: {}", script_path.display(), e),
+                Some("Check script path"),
+            )
+        })?;
+
+        let state_guard = state.read().await;
+        let context = serde_json::json!({
+            "request": {
+                "method": request_context.method.clone(),
+                "path": request_context.path.clone(),
+                "query": request_context.query.clone(),
+                "headers": request_context.headers.clone(),
+                "body": request_context.body.clone(),
+            },
+            "params": path_params.all().clone(),
+            "fixtures": state_guard.all_fixtures().clone(),
+            "runtime": state_guard.all_runtime_data().clone(),
+        });
+        drop(state_guard);
+        let ctx_json = serde_json::to_string(&context).unwrap();
+
+        let result = tokio::task::spawn_blocking(move || -> PulseResult<serde_json::Value> {
+            let mut runtime = JsRuntime::new(RuntimeOptions::default());
+            runtime
+                .execute_script("<init>", format!("globalThis.ctx = {};", ctx_json))
+                .map_err(|e| {
+                    PulseError::runtime_error(format!("Script init error: {}", e), None::<String>)
+                })?;
+            runtime
+                .execute_script(
+                    "user_script",
+                    format!(
+                        "globalThis.result = (function(ctx){{ {} }})(ctx);",
+                        script_source
+                    ),
+                )
+                .map_err(|e| {
+                    PulseError::runtime_error(
+                        format!("Script execution error: {}", e),
+                        None::<String>,
+                    )
+                })?;
+            deno_core::futures::executor::block_on(
+                runtime.run_event_loop(deno_core::PollEventLoopOptions::default()),
+            )
+            .map_err(|e| {
+                PulseError::runtime_error(format!("Script event loop error: {}", e), None::<String>)
+            })?;
+            let value = runtime.execute_script("<result>", "result").map_err(|e| {
+                PulseError::runtime_error(format!("Script result error: {}", e), None::<String>)
+            })?;
+            let scope = &mut runtime.handle_scope();
+            let result_str = value.open(scope).to_rust_string_lossy(scope);
+            let result: serde_json::Value = serde_json::from_str(&result_str).map_err(|e| {
+                PulseError::runtime_error(
+                    format!("Script result serialization error: {}", e),
+                    Some("Ensure script returns an object".to_string()),
+                )
+            })?;
+            Ok(result)
+        })
+        .await
+        .map_err(|e| {
+            PulseError::runtime_error(format!("Script thread error: {}", e), None::<String>)
+        })??;
+
+        if let serde_json::Value::Object(map) = result {
+            let mut state_guard = state.write().await;
+            for (k, v) in map {
+                state_guard.set_runtime_data(k, v);
+            }
+        }
+
+        Ok(())
     }
 
     /// Process a side effect from a response
@@ -1933,6 +2038,7 @@ mod tests {
                                 condition: None,
                                 content_type: "application/json".to_string(),
                                 body: "{{ fixtures.users }}".to_string(),
+                                script: None,
                                 headers: None,
                                 side_effects: None,
                             },
@@ -1958,6 +2064,7 @@ mod tests {
                                 condition: None,
                                 content_type: "application/json".to_string(),
                                 body: r#"{"id": 1, "name": "Alice"}"#.to_string(),
+                                script: None,
                                 headers: None,
                                 side_effects: None,
                             },
@@ -2374,6 +2481,7 @@ mod tests {
                                 body:
                                     r#"{"id": "{{ params.id }}", "name": "User {{ params.id }}"}"#
                                         .to_string(),
+                                script: None,
                                 headers: None,
                                 side_effects: None,
                             },
@@ -2397,6 +2505,7 @@ mod tests {
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: r#"{"userId": "{{ params.userId }}", "orderId": "{{ params.orderId }}"}"#.to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         });
@@ -2433,6 +2542,7 @@ mod tests {
                         condition: None,
                         content_type: "application/json".to_string(),
                         body: "{\"status\":\"ok\"}".to_string(),
+                        script: None,
                         headers: None,
                         side_effects: None,
                     },
@@ -2503,6 +2613,7 @@ mod tests {
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: "{\"result\":\"query\"}".to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },
@@ -2521,6 +2632,7 @@ mod tests {
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: "{\"result\":\"header\"}".to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },
@@ -2542,6 +2654,7 @@ mod tests {
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: "{\"result\":\"body\"}".to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },
@@ -2556,6 +2669,7 @@ mod tests {
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: "{\"error\":\"forced\"}".to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },

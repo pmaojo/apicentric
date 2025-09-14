@@ -76,6 +76,7 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
                         .clone()
                         .unwrap_or_else(|| "application/json".into()),
                     body: resp.body.clone(),
+                    script: None,
                     headers: if headers.is_empty() {
                         None
                     } else {

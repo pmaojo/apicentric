@@ -179,6 +179,7 @@ pub fn scaffold_endpoint_definition() -> PulseResult<EndpointDefinition> {
             condition: None,
             content_type,
             body,
+            script: None,
             headers: None,
             side_effects: None,
         },

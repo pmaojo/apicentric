@@ -233,6 +233,8 @@ pub struct ResponseDefinition {
     pub content_type: String,
     pub body: String, // Template string
     #[serde(default)]
+    pub script: Option<PathBuf>,
+    #[serde(default)]
     pub headers: Option<HashMap<String, String>>,
     #[serde(default)]
     pub side_effects: Option<Vec<SideEffect>>,
@@ -1505,6 +1507,7 @@ mod tests {
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: r#"{"message": "test"}"#.to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },
@@ -1586,6 +1589,7 @@ endpoints:
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: r#"{"message": "test"}"#.to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },
@@ -1661,6 +1665,7 @@ endpoints:
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: r#"{"message": "test"}"#.to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },
@@ -1742,6 +1747,7 @@ endpoints:
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: r#"{"message": "test"}"#.to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },
@@ -1798,6 +1804,7 @@ endpoints:
                             condition: None,
                             content_type: "application/json".to_string(),
                             body: r#"{"message": "test"}"#.to_string(),
+                            script: None,
                             headers: None,
                             side_effects: None,
                         },

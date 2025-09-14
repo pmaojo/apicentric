@@ -95,6 +95,7 @@ pub fn from_openapi(spec: &Spec) -> ServiceDefinition {
                                     .and_then(|p| p.first().cloned())
                                     .unwrap_or_else(|| "application/json".into()),
                                 body: resp.description.clone(),
+                                script: None,
                                 headers: None,
                                 side_effects: None,
                             },
