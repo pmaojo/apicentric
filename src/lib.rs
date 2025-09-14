@@ -7,6 +7,7 @@ pub mod utils;
 pub mod validation;
 pub mod collab;
 pub mod storage;
+pub mod ai;
 
 // Domain layer (core business logic)
 pub mod domain;
