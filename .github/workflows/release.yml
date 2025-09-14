@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: Build and upload release binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            os_name: linux
+            target: x86_64-unknown-linux-gnu
+            arch: x86_64
+            ext: ''
+          - os: macos-latest
+            os_name: macos
+            target: x86_64-apple-darwin
+            arch: x86_64
+            ext: ''
+          - os: windows-latest
+            os_name: windows
+            target: x86_64-pc-windows-msvc
+            arch: x86_64
+            ext: '.exe'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          target: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: target/${{ matrix.target }}/release/mockforge${{ matrix.ext }}
+          asset_name: mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.ext }}
+          asset_content_type: application/octet-stream
