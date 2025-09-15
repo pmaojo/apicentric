@@ -1,3 +1,4 @@
+import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import RouteEditor from "../route_editor";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -36,6 +37,19 @@ beforeEach(() => {
   mockPort.saveService = vi.fn().mockResolvedValue();
 });
 
+vi.mock("@monaco-editor/react", () => ({
+  default: (props: any) => {
+    const { value, onChange } = props;
+    return (
+      <textarea
+        data-testid="editor"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  },
+}));
+
 describe("RouteEditor", () => {
   beforeEach(() => {
     window.history.replaceState({}, "Test", "/route_editor?service=test.yaml");
@@ -52,6 +66,7 @@ describe("RouteEditor", () => {
     expect(screen.getByDisplayValue("/hello")).toBeInTheDocument();
   });
 
+
   test("adds response and validates path", async () => {
     render(
       <ServicePortProvider port={mockPort}>
@@ -60,13 +75,30 @@ describe("RouteEditor", () => {
     );
     await screen.findByDisplayValue("GET");
 
-    fireEvent.click(screen.getByText("Add Response"));
-    expect(screen.getAllByText(/Status:/i)).toHaveLength(1);
+    fireEvent.click(screen.getByText("Add Scenario"));
+    expect(screen.getByText(/Status:/i)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Path:"), { target: { value: "" } });
-    fireEvent.click(screen.getByText("Save"));
-    expect(mockPort.saveService).not.toHaveBeenCalled();
-    expect(await screen.findByText("Path is required")).toBeInTheDocument();
+    const pathInput = screen.getByLabelText("Path:");
+    fireEvent.change(pathInput, { target: { value: "invalid" } });
+    expect(await screen.findByText("Path must start with /"))
+      .toBeInTheDocument();
+  });
+
+  test("switches between response scenarios", async () => {
+    render(<RouteEditor />);
+    await screen.findByDisplayValue("GET");
+
+    fireEvent.click(screen.getByText("Add Scenario"));
+    fireEvent.change(screen.getByLabelText("Status:"), {
+      target: { value: "201" },
+    });
+    fireEvent.click(screen.getByText("Add Scenario"));
+    fireEvent.change(screen.getByLabelText("Status:"), {
+      target: { value: "202" },
+    });
+    fireEvent.click(screen.getByText("Scenario 1"));
+    expect(screen.getByLabelText("Status:")).toHaveValue(201);
+
   });
 });
 
