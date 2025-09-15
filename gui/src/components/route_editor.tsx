@@ -1,23 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
 import { load as loadYaml, dump as dumpYaml } from "js-yaml";
-
-/** Port for loading and saving services */
-interface ServicePort {
-  load(path: string): Promise<any>;
-  save(path: string, data: any): Promise<void>;
-}
-
-const servicePort: ServicePort = {
-  load: async (path) => {
-    const yamlStr = await invoke<string>("load_service", { path });
-    return loadYaml(yamlStr);
-  },
-  save: async (path, data) => {
-    const yamlStr = dumpYaml(data);
-    await invoke("save_service", { path, yaml: yamlStr });
-  },
-};
+import { useServicePort } from "../ports/ServicePort";
 
 interface Header {
   key: string;
@@ -116,6 +99,7 @@ export const RouteEditor: React.FC = () => {
   const params = new URLSearchParams(window.location.search);
   const service = params.get("service");
   const endpointIdx = parseInt(params.get("endpoint") || "0", 10);
+  const port = useServicePort();
 
   const [method, setMethod] = useState("");
   const [path, setPath] = useState("");
@@ -130,9 +114,10 @@ export const RouteEditor: React.FC = () => {
 
   useEffect(() => {
     if (!service) return;
-    servicePort
-      .load(service)
-      .then((def) => {
+    port
+      .loadService(service)
+      .then((yamlStr) => {
+        const def = loadYaml(yamlStr);
         setServiceDef(def);
         const ep = def.endpoints?.[endpointIdx];
         if (ep) {
@@ -162,7 +147,7 @@ export const RouteEditor: React.FC = () => {
       .catch((e) => {
         setErrors({ load: String(e) });
       });
-  }, [service, endpointIdx]);
+  }, [service, endpointIdx, port]);
 
   const validate = () => {
     const err: Record<string, string> = {};
@@ -196,7 +181,8 @@ export const RouteEditor: React.FC = () => {
     const def = { ...serviceDef };
     if (!def.endpoints) def.endpoints = [];
     def.endpoints[endpointIdx] = ep;
-    await servicePort.save(service, def);
+    const yamlStr = dumpYaml(def);
+    await port.saveService(service, yamlStr);
     alert("Saved");
   };
 

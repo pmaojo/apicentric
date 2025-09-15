@@ -1,22 +1,23 @@
 import React, { useState } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
+import { useServicePort } from "../ports/ServicePort";
 
 const ServiceManager: React.FC = () => {
   const [path, setPath] = useState("");
   const [yaml, setYaml] = useState("");
   const [types, setTypes] = useState("");
+  const port = useServicePort();
 
   const load = async () => {
-    const content = await invoke<string>("load_service", { path });
+    const content = await port.loadService(path);
     setYaml(content);
   };
 
   const save = async () => {
-    await invoke("save_service", { path, yaml });
+    await port.saveService(path, yaml);
   };
 
   const exportTypes = async () => {
-    const t = await invoke<string>("export_types", { path });
+    const t = await port.exportTypes(path);
     setTypes(t);
   };
 
