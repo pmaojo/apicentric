@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { load as loadYaml, dump as dumpYaml } from "js-yaml";
 import { useNavigate } from "react-router-dom";
 
-interface Endpoint {
+interface EndpointSummary {
   method: string;
   path: string;
 }
@@ -162,5 +162,6 @@ const Sidebar: React.FC = () => {
     </div>
   );
 };
+
 
 export default Sidebar;

@@ -1,23 +1,8 @@
 import React, { useEffect, useState } from "react";
+import Editor from "@monaco-editor/react";
 import { invoke } from "@tauri-apps/api/tauri";
 import { load as loadYaml, dump as dumpYaml } from "js-yaml";
-
-/** Port for loading and saving services */
-interface ServicePort {
-  load(path: string): Promise<any>;
-  save(path: string, data: any): Promise<void>;
-}
-
-const servicePort: ServicePort = {
-  load: async (path) => {
-    const yamlStr = await invoke<string>("load_service", { path });
-    return loadYaml(yamlStr);
-  },
-  save: async (path, data) => {
-    const yamlStr = dumpYaml(data);
-    await invoke("save_service", { path, yaml: yamlStr });
-  },
-};
+import { useServicePort } from "../ports/ServicePort";
 
 interface Header {
   key: string;
@@ -36,6 +21,14 @@ const emptyResponse = (): ResponseScenario => ({
   headers: [],
   body: "",
 });
+
+const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
+const validatePath = (value: string): string | null => {
+  if (!value.trim()) return "Path is required";
+  if (!value.startsWith("/")) return "Path must start with /";
+  return null;
+};
 
 const HeadersEditor: React.FC<{
   headers: Header[];
@@ -76,29 +69,29 @@ const HeadersEditor: React.FC<{
 const ResponseEditor: React.FC<{
   scenario: ResponseScenario;
   onChange: (s: ResponseScenario) => void;
-  onRemove: () => void;
-}> = ({ scenario, onChange, onRemove }) => {
+}> = ({ scenario, onChange }) => {
   const update = (key: keyof ResponseScenario, value: any) =>
     onChange({ ...scenario, [key]: value });
 
   return (
     <div style={{ border: "1px solid #ccc", padding: 8, marginBottom: 8 }}>
       <div style={{ display: "flex", alignItems: "center" }}>
-        <label>Status:</label>
+        <label htmlFor="status">Status:</label>
         <input
+          id="status"
           type="number"
           value={scenario.status}
           onChange={(e) => update("status", Number(e.target.value))}
           style={{ marginLeft: 4, marginRight: 8 }}
         />
-        <button onClick={onRemove}>Remove</button>
       </div>
       <div>
         <label>Body:</label>
-        <textarea
+        <Editor
+          height="120px"
+          language="json"
           value={scenario.body}
-          onChange={(e) => update("body", e.target.value)}
-          style={{ width: "100%", height: 80 }}
+          onChange={(v) => update("body", v || "")}
         />
       </div>
       <div>
@@ -116,12 +109,14 @@ export const RouteEditor: React.FC = () => {
   const params = new URLSearchParams(window.location.search);
   const service = params.get("service");
   const endpointIdx = parseInt(params.get("endpoint") || "0", 10);
+  const port = useServicePort();
 
   const [method, setMethod] = useState("");
   const [path, setPath] = useState("");
   const [headers, setHeaders] = useState<Header[]>([]);
   const [payload, setPayload] = useState("");
   const [responses, setResponses] = useState<ResponseScenario[]>([]);
+  const [active, setActive] = useState(0);
   const [strategy, setStrategy] = useState<"sequential" | "random">(
     "sequential"
   );
@@ -130,9 +125,10 @@ export const RouteEditor: React.FC = () => {
 
   useEffect(() => {
     if (!service) return;
-    servicePort
-      .load(service)
-      .then((def) => {
+    port
+      .loadService(service)
+      .then((yamlStr) => {
+        const def = loadYaml(yamlStr);
         setServiceDef(def);
         const ep = def.endpoints?.[endpointIdx];
         if (ep) {
@@ -162,12 +158,22 @@ export const RouteEditor: React.FC = () => {
       .catch((e) => {
         setErrors({ load: String(e) });
       });
-  }, [service, endpointIdx]);
+  }, [service, endpointIdx, port]);
+
+  const handlePathChange = (value: string) => {
+    setPath(value);
+    const err = validatePath(value);
+    setErrors((prev) => {
+      const { path: _, ...rest } = prev;
+      return err ? { ...rest, path: err } : rest;
+    });
+  };
 
   const validate = () => {
     const err: Record<string, string> = {};
     if (!method.trim()) err.method = "Method is required";
-    if (!path.trim()) err.path = "Path is required";
+    const pathErr = validatePath(path);
+    if (pathErr) err.path = pathErr;
     setErrors(err);
     return Object.keys(err).length === 0;
   };
@@ -196,13 +202,29 @@ export const RouteEditor: React.FC = () => {
     const def = { ...serviceDef };
     if (!def.endpoints) def.endpoints = [];
     def.endpoints[endpointIdx] = ep;
-    await servicePort.save(service, def);
+    const yamlStr = dumpYaml(def);
+    await port.saveService(service, yamlStr);
     alert("Saved");
   };
 
-  const addResponse = () => setResponses([...responses, emptyResponse()]);
-  const removeResponse = (idx: number) =>
-    setResponses(responses.filter((_, i) => i !== idx));
+  const addResponse = () => {
+    const next = [...responses, emptyResponse()];
+    setResponses(next);
+    setActive(next.length - 1);
+  };
+  const removeResponse = (idx: number) => {
+    const next = responses.filter((_, i) => i !== idx);
+    setResponses(next);
+    setActive((a) => (a >= next.length ? next.length - 1 : a));
+  };
+  const moveResponse = (idx: number, dir: number) => {
+    const next = [...responses];
+    const [item] = next.splice(idx, 1);
+    const newIdx = idx + dir;
+    next.splice(newIdx, 0, item);
+    setResponses(next);
+    setActive(newIdx);
+  };
 
   return (
     <div style={{ padding: "1rem" }}>
@@ -212,12 +234,18 @@ export const RouteEditor: React.FC = () => {
       )}
       <div>
         <label htmlFor="method">Method:</label>
-        <input
+        <select
           id="method"
           value={method}
           onChange={(e) => setMethod(e.target.value)}
           style={{ marginLeft: 4 }}
-        />
+        >
+          {HTTP_METHODS.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
         {errors.method && (
           <span style={{ color: "red", marginLeft: 4 }}>{errors.method}</span>
         )}
@@ -227,7 +255,7 @@ export const RouteEditor: React.FC = () => {
         <input
           id="path"
           value={path}
-          onChange={(e) => setPath(e.target.value)}
+          onChange={(e) => handlePathChange(e.target.value)}
           style={{ marginLeft: 4 }}
         />
         {errors.path && (
@@ -259,19 +287,43 @@ export const RouteEditor: React.FC = () => {
       </div>
       <div>
         <h3>Responses</h3>
-        {responses.map((r, i) => (
+        <div role="tablist" style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+          {responses.map((_, i) => (
+            <div
+              key={i}
+              style={{ display: "flex", alignItems: "center", gap: 2 }}
+            >
+              <button
+                role="tab"
+                aria-selected={i === active}
+                onClick={() => setActive(i)}
+              >
+                Scenario {i + 1}
+              </button>
+              <button onClick={() => moveResponse(i, -1)} disabled={i === 0}>
+                ◀
+              </button>
+              <button
+                onClick={() => moveResponse(i, 1)}
+                disabled={i === responses.length - 1}
+              >
+                ▶
+              </button>
+              <button onClick={() => removeResponse(i)}>Delete</button>
+            </div>
+          ))}
+          <button onClick={addResponse}>Add Scenario</button>
+        </div>
+        {responses[active] && (
           <ResponseEditor
-            key={i}
-            scenario={r}
+            scenario={responses[active]}
             onChange={(nr) => {
               const next = [...responses];
-              next[i] = nr;
+              next[active] = nr;
               setResponses(next);
             }}
-            onRemove={() => removeResponse(i)}
           />
-        ))}
-        <button onClick={addResponse}>Add Response</button>
+        )}
       </div>
       <div style={{ marginTop: 8 }}>
         <button onClick={onSave}>Save</button>

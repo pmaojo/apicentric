@@ -1,6 +1,8 @@
-import React, { useState } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import LogsView from "./logs_view";
+import { useServicePort, ServiceInfo } from "../ports/ServicePort";
 
 const Dashboard: React.FC = () => {
   const [path, setPath] = useState("");
@@ -13,19 +15,50 @@ const Dashboard: React.FC = () => {
 
   const stopSimulator = async () => {
     await invoke("stop_simulator");
+
+  const navigate = useNavigate();
+  const port = useServicePort();
+
+  const refresh = async () => {
+    const list = await port.listServices();
+    setServices(list);
+  };
+
+  const startSimulator = async () => {
+    await port.startSimulator();
+    refresh();
+  };
+
+  const stopSimulator = async () => {
+    await port.stopSimulator();
+    refresh();
+  };
+
+  const shareService = async (service: string) => {
+    const [peer, token] = await port.shareService(service);
+    alert(`Peer: ${peer}\nToken: ${token}`);
+  };
+
+  const connectService = async (service: string) => {
+    const peer = prompt("Peer ID?");
+    if (!peer) return;
+    const portStr = prompt("Local port?", "8080");
+    const port = Number(portStr || 0);
+    const token = prompt("Token?") || "";
+    await port.connectService({ peer, token, service, port });
   };
 
   const load = async () => {
-    const content = await invoke<string>("load_service", { path });
+    const content = await port.loadService(path);
     setYaml(content);
   };
 
   const save = async () => {
-    await invoke("save_service", { path, yaml });
+    await port.saveService(path, yaml);
   };
 
   const exportTypes = async () => {
-    const t = await invoke<string>("export_types", { path });
+    const t = await port.exportTypes(path);
     setTypes(t);
   };
 
