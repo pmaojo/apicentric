@@ -3,12 +3,13 @@
 use crate::errors::{PulseError, PulseResult};
 use crate::simulator::{
     config::{PortRange, ServiceDefinition},
+    log::RequestLogEntry,
     service::ServiceInstance,
     ServiceInfo,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 
 /// Port manager for automatic port assignment
 pub struct PortManager {
@@ -70,15 +71,21 @@ pub struct ServiceRegistry {
     services: HashMap<String, Arc<RwLock<ServiceInstance>>>,
     port_manager: PortManager,
     storage: Arc<dyn crate::storage::Storage>,
+    log_sender: broadcast::Sender<RequestLogEntry>,
 }
 
 impl ServiceRegistry {
     /// Create a new service registry
-    pub fn new(port_range: PortRange, storage: Arc<dyn crate::storage::Storage>) -> Self {
+    pub fn new(
+        port_range: PortRange,
+        storage: Arc<dyn crate::storage::Storage>,
+        log_sender: broadcast::Sender<RequestLogEntry>,
+    ) -> Self {
         Self {
             services: HashMap::new(),
             port_manager: PortManager::new(port_range),
             storage,
+            log_sender,
         }
     }
 
@@ -101,7 +108,12 @@ impl ServiceRegistry {
         let port = self.port_manager.assign_port(definition.server.port)?;
 
         // Create service instance
-        let service_instance = ServiceInstance::new(definition, port, self.storage.clone())?;
+        let service_instance = ServiceInstance::new(
+            definition,
+            port,
+            self.storage.clone(),
+            self.log_sender.clone(),
+        )?;
 
         // Store in registry
         self.services.insert(
@@ -367,9 +379,11 @@ mod tests {
     #[tokio::test]
     async fn test_service_registry_registration() {
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let (tx, _) = broadcast::channel(100);
         let mut registry = ServiceRegistry::new(
             PortRange { start: 9000, end: 9999 },
             storage,
+            tx,
         );
 
         let service_def = create_test_service_definition("test-service", None);
@@ -383,9 +397,11 @@ mod tests {
     #[tokio::test]
     async fn test_service_registry_duplicate_registration() {
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let (tx, _) = broadcast::channel(100);
         let mut registry = ServiceRegistry::new(
             PortRange { start: 9000, end: 9999 },
             storage,
+            tx,
         );
 
         let service_def1 = create_test_service_definition("test-service", None);
@@ -400,9 +416,11 @@ mod tests {
     #[tokio::test]
     async fn test_service_registry_unregistration() {
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let (tx, _) = broadcast::channel(100);
         let mut registry = ServiceRegistry::new(
             PortRange { start: 9000, end: 9999 },
             storage,
+            tx,
         );
 
         let service_def = create_test_service_definition("test-service", None);
@@ -420,9 +438,11 @@ mod tests {
     #[tokio::test]
     async fn test_service_registry_list_services() {
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let (tx, _) = broadcast::channel(100);
         let mut registry = ServiceRegistry::new(
             PortRange { start: 9000, end: 9999 },
             storage,
+            tx,
         );
 
         let service_def1 = create_test_service_definition("service-a", Some(9001));

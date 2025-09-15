@@ -23,7 +23,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::{Arc, RwLock as StdRwLock};
 use tokio::net::TcpListener;
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
 
 use deno_core::{JsRuntime, RuntimeOptions};
@@ -117,6 +117,7 @@ pub struct ServiceState {
     request_log: RequestLog,
     bucket: DataBucket,
     response_counters: HashMap<usize, usize>,
+    log_sender: Option<tokio::sync::broadcast::Sender<RequestLogEntry>>,
 }
 
 impl ServiceState {
@@ -124,6 +125,7 @@ impl ServiceState {
         fixtures: Option<HashMap<String, Value>>,
         bucket: Option<HashMap<String, Value>>,
         storage: Arc<dyn Storage>,
+        log_sender: Option<tokio::sync::broadcast::Sender<RequestLogEntry>>,
     ) -> Self {
         let fixtures = fixtures.unwrap_or_default();
         Self {
@@ -133,6 +135,7 @@ impl ServiceState {
             request_log: RequestLog::new(storage),
             bucket: DataBucket::new(bucket),
             response_counters: HashMap::new(),
+            log_sender,
         }
     }
 
@@ -380,7 +383,10 @@ impl ServiceState {
 
     /// Append a request log entry
     pub fn add_log_entry(&mut self, entry: RequestLogEntry) {
-        self.request_log.add(entry);
+        self.request_log.add(entry.clone());
+        if let Some(sender) = &self.log_sender {
+            let _ = sender.send(entry);
+        }
     }
 
     /// Retrieve recent request log entries
@@ -421,12 +427,14 @@ impl ServiceInstance {
         definition: ServiceDefinition,
         port: u16,
         storage: Arc<dyn Storage>,
+        log_sender: broadcast::Sender<RequestLogEntry>,
     ) -> PulseResult<Self> {
         // Initialize state with fixtures and bucket from definition
         let state = ServiceState::new(
             definition.fixtures.clone(),
             definition.bucket.clone(),
             storage.clone(),
+            Some(log_sender),
         );
 
         // persist service definition
@@ -2189,7 +2197,8 @@ mod tests {
     async fn test_service_instance_creation() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8003, storage).unwrap(); // Use different port
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8003, storage, tx).unwrap(); // Use different port
 
         assert_eq!(service.name(), "test-service");
         assert_eq!(service.port(), 8003);
@@ -2202,8 +2211,9 @@ mod tests {
     async fn test_service_start_stop() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let (tx, _) = broadcast::channel(100);
         let mut service =
-            ServiceInstance::new(definition, 8002, storage).unwrap(); // Use different port to avoid conflicts
+            ServiceInstance::new(definition, 8002, storage, tx).unwrap(); // Use different port to avoid conflicts
 
         assert!(!service.is_running());
 
@@ -2218,7 +2228,8 @@ mod tests {
     async fn test_service_state_management() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8004, storage).unwrap(); // Use different port
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8004, storage, tx).unwrap(); // Use different port
 
         // Test fixture access
         let users = service.get_state("users").await.unwrap();
@@ -2236,7 +2247,8 @@ mod tests {
     async fn test_fixture_array_operations() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8010, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8010, storage, tx).unwrap();
 
         // Test adding to fixture array
         let new_user = serde_json::json!({"id": 3, "name": "Charlie"});
@@ -2274,7 +2286,8 @@ mod tests {
     async fn test_fixture_array_operations_by_field() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8011, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8011, storage, tx).unwrap();
 
         // Test updating by field value
         let updated_user = serde_json::json!({"id": 1, "name": "Alice Updated"});
@@ -2305,7 +2318,8 @@ mod tests {
     async fn test_fixture_reset() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8012, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8012, storage, tx).unwrap();
 
         // Modify fixtures
         service
@@ -2334,7 +2348,8 @@ mod tests {
     async fn test_runtime_data_management() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8013, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8013, storage, tx).unwrap();
 
         // Test setting runtime data
         service
@@ -2380,6 +2395,7 @@ mod tests {
             }),
             None,
             storage,
+            None,
         );
 
         let template_engine = TemplateEngine::new().unwrap();
@@ -2435,7 +2451,8 @@ mod tests {
     async fn test_endpoint_finding() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8005, storage).unwrap(); // Use different port
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8005, storage, tx).unwrap(); // Use different port
 
         let headers = HashMap::new();
         let endpoint = service.find_endpoint("GET", "/users", &headers);
@@ -2453,7 +2470,8 @@ mod tests {
     async fn test_path_parameter_extraction() {
         let definition = create_test_service_definition_with_params();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8008, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8008, storage, tx).unwrap();
 
         // Test parameter extraction
         let headers = HashMap::new();
@@ -2488,7 +2506,8 @@ mod tests {
     async fn test_endpoint_header_matching() {
         let definition = create_test_service_definition_with_header_match();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8010, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8010, storage, tx).unwrap();
 
         let mut headers = HashMap::new();
         // Missing header should not match
@@ -2505,7 +2524,8 @@ mod tests {
     fn test_endpoint_path_to_regex() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8009, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8009, storage, tx).unwrap();
 
         // Test simple parameter
         let regex = service.endpoint_path_to_regex("/users/{id}");
@@ -2528,7 +2548,7 @@ mod tests {
         use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let mut state = ServiceState::new(None, None, storage);
+        let mut state = ServiceState::new(None, None, storage, None);
         state.set_fixture(
             "users".to_string(),
             serde_json::json!([{"id": 1, "name": "Alice"}]),
@@ -2679,7 +2699,8 @@ mod tests {
     async fn test_service_validation() {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8006, storage).unwrap(); // Use different port
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8006, storage, tx).unwrap(); // Use different port
 
         let result = service.validate_consistency();
         assert!(result.is_ok());
@@ -2704,7 +2725,8 @@ mod tests {
         });
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8007, storage).unwrap(); // Use different port
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8007, storage, tx).unwrap(); // Use different port
         let result = service.validate_consistency();
         assert!(result.is_err());
     }
@@ -2806,7 +2828,7 @@ mod tests {
         };
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let state = Arc::new(RwLock::new(ServiceState::new(None, None, storage)));
+        let state = Arc::new(RwLock::new(ServiceState::new(None, None, storage, None)));
 
         // Query condition
         let mut query = HashMap::new();
@@ -2930,7 +2952,7 @@ mod tests {
             stream: None,
         };
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let state = Arc::new(RwLock::new(ServiceState::new(None, None, storage)));
+        let state = Arc::new(RwLock::new(ServiceState::new(None, None, storage, None)));
         let mut results = Vec::new();
         for _ in 0..4 {
             let res = ServiceInstance::match_scenario(
@@ -3001,7 +3023,7 @@ mod tests {
         };
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let state = Arc::new(RwLock::new(ServiceState::new(None, None, storage)));
+        let state = Arc::new(RwLock::new(ServiceState::new(None, None, storage, None)));
         let mut statuses = HashSet::new();
         for _ in 0..20 {
             let res = ServiceInstance::match_scenario(
@@ -3072,7 +3094,8 @@ mod tests {
         };
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let mut service = ServiceInstance::new(definition, service_port, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let mut service = ServiceInstance::new(definition, service_port, storage, tx).unwrap();
         service.start().await.unwrap();
         sleep(Duration::from_millis(50)).await;
 
@@ -3113,7 +3136,8 @@ mod tests {
         };
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let mut service = ServiceInstance::new(definition, service_port, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let mut service = ServiceInstance::new(definition, service_port, storage, tx).unwrap();
         service.start().await.unwrap();
         sleep(Duration::from_millis(50)).await;
 
@@ -3128,7 +3152,7 @@ mod tests {
     #[test]
     fn test_service_state_operations() {
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let mut state = ServiceState::new(None, None, storage);
+        let mut state = ServiceState::new(None, None, storage, None);
 
         // Test runtime data
         state.set_runtime_data("key1".to_string(), serde_json::json!("value1"));
