@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
-
-interface ServiceInfo {
-  name: string;
-  [key: string]: any;
-}
+import { useServicePort, ServiceInfo } from "../ports/ServicePort";
 
 const SimulatorControls: React.FC = () => {
   const [services, setServices] = useState<ServiceInfo[]>([]);
@@ -29,8 +24,10 @@ const SimulatorControls: React.FC = () => {
     port?: string;
   }>({});
 
+  const port = useServicePort();
+
   const refresh = async () => {
-    const list = await invoke<ServiceInfo[]>("list_services");
+    const list = await port.listServices();
     setServices(list);
   };
 
@@ -39,9 +36,7 @@ const SimulatorControls: React.FC = () => {
       setShareError("Service name is required");
       return;
     }
-    const [peer, token] = await invoke<[string, string]>("share_service", {
-      service: shareService.trim(),
-    });
+    const [peer, token] = await port.shareService(shareService.trim());
     setShareInfo({ peer, token });
     setShareService("");
     setShareError("");
@@ -59,7 +54,7 @@ const SimulatorControls: React.FC = () => {
     setConnectErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
-    await invoke("connect_service", {
+    await port.connectService({
       peer: connectForm.peer.trim(),
       service: connectForm.service.trim(),
       port: portNum,
@@ -76,10 +71,10 @@ const SimulatorControls: React.FC = () => {
 
   return (
     <div>
-      <button onClick={() => invoke("start_simulator").then(refresh)}>
+      <button onClick={() => port.startSimulator().then(refresh)}>
         Start Simulator
       </button>
-      <button onClick={() => invoke("stop_simulator").then(refresh)}>
+      <button onClick={() => port.stopSimulator().then(refresh)}>
         Stop Simulator
       </button>
       <button onClick={() => setShowShare(true)}>Share Service</button>

@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
 import { useNavigate } from "react-router-dom";
 import LogsView from "./logs_view";
-
-interface ServiceInfo {
-  name: string;
-  port: number;
-  is_running: boolean;
-}
+import { useServicePort, ServiceInfo } from "../ports/ServicePort";
 
 const Dashboard: React.FC = () => {
   const [services, setServices] = useState<ServiceInfo[]>([]);
@@ -15,26 +9,25 @@ const Dashboard: React.FC = () => {
   const [yaml, setYaml] = useState("");
   const [types, setTypes] = useState("");
   const navigate = useNavigate();
+  const port = useServicePort();
 
   const refresh = async () => {
-    const list = await invoke<ServiceInfo[]>("list_services");
+    const list = await port.listServices();
     setServices(list);
   };
 
   const startSimulator = async () => {
-    await invoke("start_simulator");
+    await port.startSimulator();
     refresh();
   };
 
   const stopSimulator = async () => {
-    await invoke("stop_simulator");
+    await port.stopSimulator();
     refresh();
   };
 
   const shareService = async (service: string) => {
-    const [peer, token] = await invoke<[string, string]>("share_service", {
-      service,
-    });
+    const [peer, token] = await port.shareService(service);
     alert(`Peer: ${peer}\nToken: ${token}`);
   };
 
@@ -44,20 +37,20 @@ const Dashboard: React.FC = () => {
     const portStr = prompt("Local port?", "8080");
     const port = Number(portStr || 0);
     const token = prompt("Token?") || "";
-    await invoke("connect_service", { peer, token, service, port });
+    await port.connectService({ peer, token, service, port });
   };
 
   const load = async () => {
-    const content = await invoke<string>("load_service", { path });
+    const content = await port.loadService(path);
     setYaml(content);
   };
 
   const save = async () => {
-    await invoke("save_service", { path, yaml });
+    await port.saveService(path, yaml);
   };
 
   const exportTypes = async () => {
-    const t = await invoke<string>("export_types", { path });
+    const t = await port.exportTypes(path);
     setTypes(t);
   };
 
