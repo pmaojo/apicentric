@@ -6,6 +6,7 @@ pub mod shared;
 pub mod contract_demo;
 pub mod gui;
 pub mod ai;
+pub mod tui;
 
 pub use setup_npm::SetupNpmHandler;
 pub use contract::{contract_command, ContractAction};
@@ -14,3 +15,4 @@ pub use ai::{ai_command, AiAction};
 pub use shared::{find_yaml_files, validate_yaml_file};
 pub use contract_demo::run_full_demo;
 pub use gui::gui_command;
+pub use tui::tui_command;
