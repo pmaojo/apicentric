@@ -4,6 +4,7 @@
 //! by serving locally-defined APIs through YAML configuration files.
 
 pub mod config;
+pub mod lifecycle;
 pub mod log;
 pub mod manager;
 pub mod mockoon;
@@ -11,10 +12,9 @@ pub mod openapi;
 pub mod postman;
 pub mod react_query;
 pub mod react_view;
+pub mod recording_proxy;
 pub mod registry;
 pub mod route_registry;
-pub mod lifecycle;
-pub mod recording_proxy;
 pub mod router;
 pub mod service;
 pub mod template;
@@ -30,7 +30,7 @@ pub use manager::ApiSimulatorManager;
 pub use registry::ServiceRegistry;
 pub use router::RequestRouter;
 pub use service::ServiceInstance;
-pub use template::{RequestContext, TemplateContext, TemplateEngine};
+pub use template::{RequestContext, TemplateContext, TemplateEngine, TemplateRenderer};
 
 // Re-export for convenience, but not used in this module directly
 
