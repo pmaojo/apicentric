@@ -4,17 +4,22 @@
 //! that supports dynamic responses based on request data, fixtures, and service state.
 
 use crate::errors::{PulseError, PulseResult};
-use crate::simulator::service::{routing::PathParameters, state::{DataBucket, ServiceState}};
+use crate::simulator::service::state::DataBucket;
 use handlebars::Handlebars;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
 
+pub mod context;
 pub mod helpers;
-use self::helpers::{register_bucket_helpers, register_core_helpers};
+pub mod preprocessor;
+
+pub use context::{RequestContext, TemplateContext};
+use helpers::{bucket::register_bucket_helpers, core::register_core_helpers};
+use preprocessor::TemplatePreprocessor;
 
 /// Template engine for rendering dynamic responses
 pub struct TemplateEngine {
     handlebars: Handlebars<'static>,
+    preprocessor: TemplatePreprocessor,
 }
 
 /// Port trait for rendering templates
@@ -33,35 +38,17 @@ impl TemplateRenderer for TemplateEngine {
     }
 }
 
-/// Template context containing all available data for rendering
-#[derive(Debug, Clone)]
-pub struct TemplateContext {
-    pub fixtures: HashMap<String, Value>,
-    pub params: HashMap<String, String>,
-    pub runtime: HashMap<String, Value>,
-    pub env: HashMap<String, String>,
-    pub request: RequestContext,
-}
-
-/// Request context information available in templates
-#[derive(Debug, Clone)]
-pub struct RequestContext {
-    pub method: String,
-    pub path: String,
-    pub query: HashMap<String, String>,
-    pub headers: HashMap<String, String>,
-    pub body: Option<Value>,
-}
-
 impl TemplateEngine {
     /// Create a new template engine with built-in helpers
     pub fn new() -> PulseResult<Self> {
         let mut handlebars = Handlebars::new();
-
         // Register built-in helpers
         Self::register_helpers(&mut handlebars)?;
 
-        Ok(Self { handlebars })
+        Ok(Self {
+            handlebars,
+            preprocessor: TemplatePreprocessor::default(),
+        })
     }
 
     /// Register helpers that require access to the service data bucket
@@ -70,147 +57,8 @@ impl TemplateEngine {
         Ok(())
     }
 
-    /// Pre-process template to convert pipe syntax to Handlebars helpers
-    fn preprocess_template(&self, template: &str) -> String {
-        use regex::Regex;
-
-        // Normalize bucket helper names
-        let bucket_regex = Regex::new(r"\{\{\s*bucket\.(set|get)").unwrap();
-        let mut result = bucket_regex
-            .replace_all(template, "{{bucket_$1")
-            .to_string();
-
-        // Handle simple cases first - just return fixtures as JSON
-        let simple_fixture_regex = Regex::new(r"\{\{\s*fixtures\.(\w+)\s*\}\}").unwrap();
-        result = simple_fixture_regex
-            .replace_all(&result, "{{json fixtures.$1}}")
-            .to_string();
-
-        // Handle complex pipe operations with multiple pipes
-        let complex_pipe_regex = Regex::new(r"\{\{\s*([^{}]+?)\s*\}\}").unwrap();
-
-        result = complex_pipe_regex
-            .replace_all(&result, |caps: &regex::Captures| {
-                let content = caps.get(1).unwrap().as_str().trim();
-
-                // Skip if it's already processed (contains json, length, etc.)
-                if content.starts_with("json ")
-                    || content.starts_with("length ")
-                    || content.starts_with("find_by_field ")
-                    || content.starts_with("merge ")
-                {
-                    return format!("{{{{{}}}}}", content);
-                }
-
-                // Handle 'not (...)' expressions
-                if content.starts_with("not (") && content.ends_with(")") {
-                    let inner_content = &content[5..content.len() - 1]; // Remove "not (" and ")"
-                    if inner_content.contains(" | ") {
-                        // Process the inner pipe expression first
-                        let inner_processed = Self::process_pipe_expression(inner_content);
-                        return format!("{{{{not ({})}}}}", inner_processed);
-                    } else {
-                        return format!("{{{{not {}}}}}", inner_content);
-                    }
-                }
-
-                // Parse pipe operations
-                if content.contains(" | ") {
-                    let processed = Self::process_pipe_expression(content);
-                    return format!("{{{{{}}}}}", processed);
-                }
-
-                // Handle simple non-piped expressions
-                Self::process_simple_expression(content)
-            })
-            .to_string();
-
-        result
-    }
-
-    /// Process pipe expressions like "fixtures.users | find(id=params.id)"
-    fn process_pipe_expression(content: &str) -> String {
-        let parts: Vec<&str> = content.split(" | ").collect();
-        if parts.len() >= 2 {
-            let mut current_value = parts[0].trim().to_string();
-
-            for pipe_part in &parts[1..] {
-                let pipe_part = pipe_part.trim();
-
-                if pipe_part.starts_with("find(") && pipe_part.ends_with(")") {
-                    // Parse find arguments: find(id=params.id) or find(email=request.body.email, password=request.body.password)
-                    let args_content = &pipe_part[5..pipe_part.len() - 1]; // Remove "find(" and ")"
-                    let conditions: Vec<&str> = args_content.split(',').map(|s| s.trim()).collect();
-
-                    if conditions.len() == 1 {
-                        // Single condition: find(id=params.id)
-                        if let Some((key, val)) = conditions[0].split_once('=') {
-                            current_value = format!(
-                                "find_by_field {} \"{}\" {}",
-                                current_value,
-                                key.trim(),
-                                val.trim()
-                            );
-                        }
-                    } else {
-                        // Multiple conditions: find(email=request.body.email, password=request.body.password)
-                        let mut find_args = vec![current_value];
-                        for condition in conditions {
-                            if let Some((key, val)) = condition.split_once('=') {
-                                find_args.push(format!("\"{}\"", key.trim()));
-                                find_args.push(val.trim().to_string());
-                            }
-                        }
-                        current_value = format!("find_by_multi_field {}", find_args.join(" "));
-                    }
-                } else if pipe_part.starts_with("select(") && pipe_part.ends_with(")") {
-                    // Parse select arguments: select("id", "email") -> select current_value "id" "email"
-                    let args_content = &pipe_part[7..pipe_part.len() - 1]; // Remove "select(" and ")"
-                    let fields: Vec<&str> = args_content.split(',').map(|s| s.trim()).collect();
-                    let field_args = fields.join(" ");
-                    current_value = format!("select ({}) {}", current_value, field_args);
-                } else if pipe_part == "length" {
-                    current_value = format!("length {}", current_value);
-                } else if pipe_part.starts_with("merge(") && pipe_part.ends_with(")") {
-                    let args_content = &pipe_part[6..pipe_part.len() - 1]; // Remove "merge(" and ")"
-                    current_value = format!("merge {} {}", current_value, args_content);
-                } else if pipe_part.starts_with("default(") && pipe_part.ends_with(")") {
-                    let args_content = &pipe_part[8..pipe_part.len() - 1]; // Remove "default(" and ")"
-                    current_value = format!("default {} {}", current_value, args_content);
-                }
-            }
-
-            current_value
-        } else {
-            content.to_string()
-        }
-    }
-
-    /// Process simple expressions without pipes
-    fn process_simple_expression(content: &str) -> String {
-        if content.starts_with("fixtures.") {
-            format!("{{{{json {}}}}}", content)
-        } else if content.starts_with("params.")
-            || content.starts_with("request.")
-            || content.starts_with("runtime.")
-        {
-            format!("{{{{{}}}}}", content)
-        } else if content.contains("random_string(") {
-            // Handle random_string(20) -> random_string 20
-            use regex::Regex;
-            let random_regex = Regex::new(r"random_string\((\d+)\)").unwrap();
-            let processed = random_regex.replace_all(content, "random_string $1");
-            format!("{{{{{}}}}}", processed)
-        } else if content == "now()" {
-            format!("{{{{now}}}}")
-        } else {
-            format!("{{{{{}}}}}", content)
-        }
-    }
-
     /// Register built-in template helpers
     fn register_helpers(handlebars: &mut Handlebars) -> PulseResult<()> {
-        // Helper for generating current timestamp
         helpers::faker::register(handlebars);
         helpers::math::register(handlebars);
         helpers::text::register(handlebars);
@@ -221,7 +69,7 @@ impl TemplateEngine {
     /// Render a template with the given context
     pub fn render(&self, template: &str, context: &TemplateContext) -> PulseResult<String> {
         // Pre-process template to convert pipe syntax
-        let processed_template = self.preprocess_template(template);
+        let processed_template = self.preprocessor.preprocess(template);
 
         // Convert context to JSON for Handlebars
         let json_context = self.context_to_json(context)?;
@@ -235,6 +83,7 @@ impl TemplateEngine {
                 )
             })
     }
+
     /// Convert template context to JSON for Handlebars
     fn context_to_json(&self, context: &TemplateContext) -> PulseResult<Value> {
         let mut json_context = Map::new();
@@ -359,65 +208,11 @@ impl TemplateEngine {
     }
 }
 
-impl TemplateContext {
-    /// Create a new template context from service state and request data
-    pub fn new(
-        state: &ServiceState,
-        path_params: &PathParameters,
-        request_context: RequestContext,
-    ) -> Self {
-        Self {
-            fixtures: state.all_fixtures().clone(),
-            params: path_params.all().clone(),
-            runtime: state.all_runtime_data().clone(),
-            env: std::env::vars().collect(),
-            request: request_context,
-        }
-    }
-
-    /// Create a minimal context for testing
-    pub fn minimal() -> Self {
-        Self {
-            fixtures: HashMap::new(),
-            params: HashMap::new(),
-            runtime: HashMap::new(),
-            env: std::env::vars().collect(),
-            request: RequestContext {
-                method: "GET".to_string(),
-                path: "/".to_string(),
-                query: HashMap::new(),
-                headers: HashMap::new(),
-                body: None,
-            },
-        }
-    }
-}
-
-impl RequestContext {
-    /// Create request context from HTTP request data
-    pub fn from_request_data(
-        method: String,
-        path: String,
-        query: HashMap<String, String>,
-        headers: HashMap<String, String>,
-        body: Option<Value>,
-    ) -> Self {
-        Self {
-            method,
-            path,
-            query,
-            headers,
-            body,
-        }
-    }
-}
-
-/// Built-in template helpers
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
     use crate::simulator::service::state::DataBucket;
+    use serde_json::json;
 
     #[test]
     fn test_template_engine_creation() {
@@ -529,9 +324,7 @@ mod tests {
         std::env::set_var("PULSE_TEST_ENV", "123");
         let engine = TemplateEngine::new().unwrap();
         let context = TemplateContext::minimal();
-        let result = engine
-            .render("{{env.PULSE_TEST_ENV}}", &context)
-            .unwrap();
+        let result = engine.render("{{env.PULSE_TEST_ENV}}", &context).unwrap();
         assert_eq!(result, "123");
         std::env::remove_var("PULSE_TEST_ENV");
     }
