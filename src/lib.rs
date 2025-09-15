@@ -49,7 +49,7 @@ pub use simulator::{ApiSimulatorManager, ServiceDefinition, SimulatorConfig};
 
 // Re-export contract testing functionality
 pub use domain::contract_testing::*;
-pub use domain::contract_use_cases::*;
+pub use domain::contract::*;
 
 // Reexports from infrastructure
 pub mod infrastructure {

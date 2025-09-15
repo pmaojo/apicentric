@@ -126,7 +126,7 @@ pub enum ContractAction {
 pub async fn contract_command(action: &ContractAction, context: &Context, exec_ctx: &ExecutionContext) -> PulseResult<()> {
     use mockforge::infrastructure::{FileSystemContractRepository, YamlServiceSpecLoader, ReqwestHttpClientAdapter};
     use mockforge::domain::ports::ServiceSpecLoader;
-    use mockforge::domain::contract_use_cases::*;
+    use mockforge::domain::contract::*;
     use mockforge::domain::contract_testing::*;
 
     if exec_ctx.dry_run { print_dry_run(action); return Ok(()); }
