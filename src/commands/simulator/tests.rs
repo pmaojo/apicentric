@@ -35,6 +35,7 @@ async fn start_runs() {
             services_dir: "services".into(),
             force: false,
             p2p: false,
+            env: None,
         },
         &ctx,
         &exec,

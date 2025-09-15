@@ -6,6 +6,7 @@ mod export;
 mod import;
 mod inspect;
 mod service;
+mod start;
 
 #[derive(Subcommand, Debug)]
 pub enum SimulatorAction {
@@ -20,6 +21,9 @@ pub enum SimulatorAction {
         /// Enable peer-to-peer collaboration for service editing
         #[arg(long)]
         p2p: bool,
+        /// Load environment variables from .env file
+        #[arg(long, value_name = "file")]
+        env: Option<String>,
     },
     /// Stop the API simulator
     Stop {
@@ -210,7 +214,8 @@ pub async fn simulator_command(
             services_dir,
             force,
             p2p,
-        } => control::handle_start(context, services_dir, *force, *p2p, exec_ctx).await,
+            env,
+        } => start::handle_start(context, services_dir, *force, *p2p, env, exec_ctx).await,
         SimulatorAction::Stop { force } => control::handle_stop(context, *force, exec_ctx).await,
         SimulatorAction::Status { detailed } => {
             control::handle_status(context, *detailed, exec_ctx).await

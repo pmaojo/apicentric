@@ -120,6 +120,7 @@ async fn run(cli: Cli) -> PulseResult<()> {
                 services_dir: _,
                 force: _,
                 p2p,
+                env: _,
             } => {
                 // Start and block to keep services alive
                 if let Some(sim) = context.api_simulator() {

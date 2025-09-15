@@ -4,19 +4,22 @@
 //! that supports dynamic responses based on request data, fixtures, and service state.
 
 use crate::errors::{PulseError, PulseResult};
-use crate::simulator::service::{routing::PathParameters, state::{DataBucket, ServiceState}};
+use crate::simulator::service::{
+    routing::PathParameters,
+    state::{DataBucket, ServiceState},
+};
 use handlebars::Handlebars;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 
 mod helpers;
 use self::helpers::{
-    default_helper, filter_helper, find_by_field_helper, find_by_multi_field_helper, find_helper,
-    json_helper, length_helper, lower_helper, merge_helper, not_helper, now_helper, random_helper,
-    random_string_helper, select_helper, upper_helper, faker_helper,
-    and_helper, or_helper, eq_helper, ne_helper, gt_helper, gte_helper, lt_helper, lte_helper,
-    contains_helper, starts_with_helper, ends_with_helper, regex_match_helper, exists_helper,
-    register_bucket_helpers,
+    and_helper, contains_helper, default_helper, ends_with_helper, env_helper, eq_helper,
+    exists_helper, faker_helper, filter_helper, find_by_field_helper, find_by_multi_field_helper,
+    find_helper, gt_helper, gte_helper, json_helper, length_helper, lower_helper, lt_helper,
+    lte_helper, merge_helper, ne_helper, not_helper, now_helper, or_helper, random_helper,
+    random_string_helper, regex_match_helper, register_bucket_helpers, select_helper,
+    starts_with_helper, upper_helper, var_helper,
 };
 
 /// Template engine for rendering dynamic responses
@@ -30,7 +33,6 @@ pub struct TemplateContext {
     pub fixtures: HashMap<String, Value>,
     pub params: HashMap<String, String>,
     pub runtime: HashMap<String, Value>,
-    pub env: HashMap<String, String>,
     pub request: RequestContext,
 }
 
@@ -208,6 +210,8 @@ impl TemplateEngine {
         handlebars.register_helper("random", Box::new(random_helper));
         handlebars.register_helper("random_string", Box::new(random_string_helper));
         handlebars.register_helper("faker", Box::new(faker_helper));
+        handlebars.register_helper("env", Box::new(env_helper));
+        handlebars.register_helper("var", Box::new(var_helper));
 
         // Helper for array operations
         handlebars.register_helper("length", Box::new(length_helper));
@@ -303,13 +307,13 @@ impl TemplateEngine {
         );
 
         // Add environment variables
+        let env_vars: HashMap<String, String> = std::env::vars().collect();
         json_context.insert(
             "env".to_string(),
             Value::Object(
-                context
-                    .env
-                    .iter()
-                    .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+                env_vars
+                    .into_iter()
+                    .map(|(k, v)| (k, Value::String(v)))
                     .collect(),
             ),
         );
@@ -397,7 +401,6 @@ impl TemplateContext {
             fixtures: state.all_fixtures().clone(),
             params: path_params.all().clone(),
             runtime: state.all_runtime_data().clone(),
-            env: std::env::vars().collect(),
             request: request_context,
         }
     }
@@ -408,7 +411,6 @@ impl TemplateContext {
             fixtures: HashMap::new(),
             params: HashMap::new(),
             runtime: HashMap::new(),
-            env: std::env::vars().collect(),
             request: RequestContext {
                 method: "GET".to_string(),
                 path: "/".to_string(),
@@ -443,8 +445,8 @@ impl RequestContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
     use crate::simulator::service::state::DataBucket;
+    use serde_json::json;
 
     #[test]
     fn test_template_engine_creation() {
@@ -552,14 +554,25 @@ mod tests {
     }
 
     #[test]
-    fn test_env_lookup() {
+    fn test_env_helper() {
         std::env::set_var("PULSE_TEST_ENV", "123");
         let engine = TemplateEngine::new().unwrap();
         let context = TemplateContext::minimal();
         let result = engine
-            .render("{{env.PULSE_TEST_ENV}}", &context)
+            .render("{{env \"PULSE_TEST_ENV\"}}", &context)
             .unwrap();
         assert_eq!(result, "123");
         std::env::remove_var("PULSE_TEST_ENV");
+    }
+
+    #[test]
+    fn test_var_helper() {
+        let engine = TemplateEngine::new().unwrap();
+        let mut context = TemplateContext::minimal();
+        context.runtime.insert("answer".to_string(), json!(42));
+        let result = engine
+            .render("{{var \"runtime.answer\"}}", &context)
+            .unwrap();
+        assert_eq!(result, "42");
     }
 }

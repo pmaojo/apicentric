@@ -1,10 +1,13 @@
+use crate::simulator::service::state::DataBucket;
 use chrono::{DateTime, Utc};
-use fake::{faker::{internet::en::FreeEmail, lorem::en::Sentence, name::en::Name}, Fake};
+use fake::{
+    faker::{internet::en::FreeEmail, lorem::en::Sentence, name::en::Name},
+    Fake,
+};
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext};
 use regex::Regex;
 use serde_json::Value;
 use uuid::Uuid;
-use crate::simulator::service::state::DataBucket;
 
 fn is_truthy(value: &Value) -> bool {
     if value.is_null() {
@@ -84,10 +87,7 @@ pub fn faker_helper(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    let key = h
-        .param(0)
-        .and_then(|v| v.value().as_str())
-        .unwrap_or("");
+    let key = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
 
     let value = match key {
         "internet.email" => FreeEmail().fake::<String>(),
@@ -97,6 +97,52 @@ pub fn faker_helper(
     };
 
     out.write(&value)?;
+    Ok(())
+}
+
+/// Helper for accessing environment variables
+pub fn env_helper(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    if let Some(key) = h.param(0).and_then(|v| v.value().as_str()) {
+        if let Ok(val) = std::env::var(key) {
+            out.write(&val)?;
+        }
+    }
+    Ok(())
+}
+
+/// Helper for resolving values by dynamic path
+pub fn var_helper(
+    h: &Helper,
+    _: &Handlebars,
+    ctx: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    if let Some(path) = h.param(0).and_then(|v| v.value().as_str()) {
+        let pointer = format!("/{}", path.replace('.', "/"));
+        if let Some(val) = ctx.data().pointer(&pointer) {
+            if val.is_string() {
+                out.write(val.as_str().unwrap_or(""))?;
+            } else if !val.is_null() {
+                out.write(&val.to_string())?;
+            }
+            return Ok(());
+        }
+        if let Some(default) = h.param(1) {
+            let d = default.value();
+            if d.is_string() {
+                out.write(d.as_str().unwrap_or(""))?;
+            } else if !d.is_null() {
+                out.write(&d.to_string())?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -408,7 +454,7 @@ pub fn find_by_multi_field_helper(
             // Parse field-value pairs: array field1 value1 field2 value2 ...
             let params: Vec<_> = h.params().into_iter().collect();
             println!("🔍 find_by_multi_field called with {} params", params.len());
-            
+
             if params.len() >= 3 && (params.len() - 1) % 2 == 0 {
                 // Find item that matches all field-value pairs
                 'item_loop: for item in array {
@@ -551,8 +597,16 @@ pub fn eq_helper(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    let a = h.param(0).map(|p| p.value()).cloned().unwrap_or(Value::Null);
-    let b = h.param(1).map(|p| p.value()).cloned().unwrap_or(Value::Null);
+    let a = h
+        .param(0)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
+    let b = h
+        .param(1)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
     out.write(if a == b { "true" } else { "false" })?;
     Ok(())
 }
@@ -565,8 +619,16 @@ pub fn ne_helper(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    let a = h.param(0).map(|p| p.value()).cloned().unwrap_or(Value::Null);
-    let b = h.param(1).map(|p| p.value()).cloned().unwrap_or(Value::Null);
+    let a = h
+        .param(0)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
+    let b = h
+        .param(1)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
     out.write(if a != b { "true" } else { "false" })?;
     Ok(())
 }
@@ -632,8 +694,16 @@ pub fn contains_helper(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    let hay = h.param(0).map(|p| p.value()).cloned().unwrap_or(Value::Null);
-    let needle = h.param(1).map(|p| p.value()).cloned().unwrap_or(Value::Null);
+    let hay = h
+        .param(0)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
+    let needle = h
+        .param(1)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
     let result = match (hay, needle) {
         (Value::String(s), Value::String(n)) => s.contains(&n),
         (Value::Array(arr), v) => arr.iter().any(|e| e == &v),
@@ -692,7 +762,11 @@ pub fn exists_helper(
     out: &mut dyn Output,
 ) -> HelperResult {
     if let Some(param) = h.param(0) {
-        out.write(if is_truthy(param.value()) { "true" } else { "false" })?;
+        out.write(if is_truthy(param.value()) {
+            "true"
+        } else {
+            "false"
+        })?;
     } else {
         out.write("false")?;
     }
@@ -704,27 +778,39 @@ pub fn register_bucket_helpers(handlebars: &mut Handlebars, bucket: DataBucket) 
     let get_bucket = bucket.clone();
     handlebars.register_helper(
         "bucket_get",
-        Box::new(move |h: &Helper, _: &Handlebars, _: &Context, _: &mut RenderContext, out: &mut dyn Output| {
-            let key = h.param(0).and_then(|p| p.value().as_str()).unwrap_or("");
-            if let Some(val) = get_bucket.get(key) {
-                out.write(&serde_json::to_string(&val).unwrap_or_default())?;
-            } else {
-                out.write("null")?;
-            }
-            Ok(())
-        }),
+        Box::new(
+            move |h: &Helper,
+                  _: &Handlebars,
+                  _: &Context,
+                  _: &mut RenderContext,
+                  out: &mut dyn Output| {
+                let key = h.param(0).and_then(|p| p.value().as_str()).unwrap_or("");
+                if let Some(val) = get_bucket.get(key) {
+                    out.write(&serde_json::to_string(&val).unwrap_or_default())?;
+                } else {
+                    out.write("null")?;
+                }
+                Ok(())
+            },
+        ),
     );
 
     let set_bucket = bucket.clone();
     handlebars.register_helper(
         "bucket_set",
-        Box::new(move |h: &Helper, _: &Handlebars, _: &Context, _: &mut RenderContext, out: &mut dyn Output| {
-            let key = h.param(0).and_then(|p| p.value().as_str()).unwrap_or("");
-            if let Some(val) = h.param(1) {
-                set_bucket.set(key.to_string(), val.value().clone());
-            }
-            out.write("")?;
-            Ok(())
-        }),
+        Box::new(
+            move |h: &Helper,
+                  _: &Handlebars,
+                  _: &Context,
+                  _: &mut RenderContext,
+                  out: &mut dyn Output| {
+                let key = h.param(0).and_then(|p| p.value().as_str()).unwrap_or("");
+                if let Some(val) = h.param(1) {
+                    set_bucket.set(key.to_string(), val.value().clone());
+                }
+                out.write("")?;
+                Ok(())
+            },
+        ),
     );
 }
