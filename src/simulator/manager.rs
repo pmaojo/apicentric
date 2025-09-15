@@ -7,6 +7,7 @@ use crate::simulator::{
         ConfigLoader, EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig,
         ServiceDefinition, SimulatorConfig,
     },
+    log::RequestLogEntry,
     registry::ServiceRegistry,
     router::RequestRouter,
     watcher::ConfigWatcher,
@@ -28,7 +29,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tokio::sync::{mpsc, Mutex, RwLock};
+use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 
 /// Central coordinator for the API simulator functionality
 pub struct ApiSimulatorManager {
@@ -41,6 +42,7 @@ pub struct ApiSimulatorManager {
     p2p_enabled: Arc<RwLock<bool>>,
     collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
     crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
+    log_sender: broadcast::Sender<RequestLogEntry>,
 }
 
 impl Clone for ApiSimulatorManager {
@@ -55,6 +57,7 @@ impl Clone for ApiSimulatorManager {
             p2p_enabled: self.p2p_enabled.clone(),
             collab_sender: self.collab_sender.clone(),
             crdts: self.crdts.clone(),
+            log_sender: self.log_sender.clone(),
         }
     }
 }
@@ -67,9 +70,11 @@ impl ApiSimulatorManager {
             SqliteStorage::init_db(config.db_path.clone())
                 .expect("failed to initialize sqlite storage"),
         );
+        let (log_sender, _) = broadcast::channel(100);
         let service_registry = Arc::new(RwLock::new(ServiceRegistry::new(
             config.port_range.clone(),
             storage,
+            log_sender.clone(),
         )));
         let request_router = Arc::new(RwLock::new(RequestRouter::new()));
         let is_active = Arc::new(RwLock::new(false));
@@ -88,6 +93,7 @@ impl ApiSimulatorManager {
             p2p_enabled,
             collab_sender,
             crdts,
+            log_sender,
         }
     }
 
@@ -106,6 +112,11 @@ impl ApiSimulatorManager {
     pub async fn enable_p2p(&self, enabled: bool) {
         let mut flag = self.p2p_enabled.write().await;
         *flag = enabled;
+    }
+
+    /// Subscribe to log events
+    pub fn subscribe_logs(&self) -> broadcast::Receiver<RequestLogEntry> {
+        self.log_sender.subscribe()
     }
 
     /// Start the API simulator

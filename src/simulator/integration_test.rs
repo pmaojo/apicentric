@@ -20,6 +20,7 @@ mod tests {
     use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::time::{sleep, Duration};
+    use tokio::sync::broadcast;
 
     fn create_test_service_with_params() -> ServiceDefinition {
         ServiceDefinition {
@@ -137,7 +138,8 @@ mod tests {
         };
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let mut service = ServiceInstance::new(definition, free_port, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let mut service = ServiceInstance::new(definition, free_port, storage, tx).unwrap();
 
         // Start the service
         service.start().await.unwrap();
@@ -204,7 +206,8 @@ mod tests {
     async fn test_parameter_extraction_accuracy() {
         let definition = create_test_service_with_params();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8101, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8101, storage, tx).unwrap();
 
         // Test single parameter extraction
         let headers = HashMap::new();
@@ -242,7 +245,8 @@ mod tests {
     async fn test_template_processing_integration() {
         let definition = create_test_service_with_params();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let service = ServiceInstance::new(definition, 8102, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let service = ServiceInstance::new(definition, 8102, storage, tx).unwrap();
 
         // Test fixture template processing
         let headers = HashMap::new();
@@ -283,7 +287,8 @@ mod tests {
         };
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
-        let mut service = ServiceInstance::new(definition, free_port, storage).unwrap();
+        let (tx, _) = broadcast::channel(100);
+        let mut service = ServiceInstance::new(definition, free_port, storage, tx).unwrap();
         service.start().await.unwrap();
         sleep(Duration::from_millis(100)).await;
 

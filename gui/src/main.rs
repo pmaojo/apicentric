@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::Arc;
-use tauri::State;
+use tauri::{Manager, State};
 use mockforge::simulator::{ApiSimulatorManager, SimulatorConfig, ServiceInfo, ServiceDefinition};
 use mockforge::simulator::log::RequestLogEntry;
 use mockforge::collab::share;
@@ -104,6 +104,17 @@ fn main() {
     let manager = ApiSimulatorManager::new(cfg);
     tauri::Builder::default()
         .manage(SimulatorState(Arc::new(manager)))
+        .setup(|app| {
+            let handle = app.handle();
+            let state = app.state::<SimulatorState>().0.clone();
+            let mut rx = state.subscribe_logs();
+            tauri::async_runtime::spawn(async move {
+                while let Ok(entry) = rx.recv().await {
+                    let _ = handle.emit_all("log", entry);
+                }
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             start_simulator,
             stop_simulator,
