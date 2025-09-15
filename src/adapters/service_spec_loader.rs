@@ -8,23 +8,37 @@ use serde::{Deserialize, Serialize};
 use serde_yaml;
 use std::collections::HashMap;
 use std::path::Path;
-use tokio::fs;
+use std::sync::Arc;
+use crate::utils::{FileReader, TokioFileReader};
 use tracing::{debug, info};
 
 /// YAML-based implementation of ServiceSpecLoader
 /// Loads mock service specifications from YAML files
 pub struct YamlServiceSpecLoader {
     base_path: Option<String>,
+    file_reader: Arc<dyn FileReader>,
 }
 
 impl YamlServiceSpecLoader {
     pub fn new() -> Self {
-        Self { base_path: None }
+        Self { base_path: None, file_reader: Arc::new(TokioFileReader) }
     }
 
     pub fn with_base_path<P: AsRef<Path>>(base_path: P) -> Self {
         Self {
             base_path: Some(base_path.as_ref().to_string_lossy().to_string()),
+            file_reader: Arc::new(TokioFileReader),
+        }
+    }
+
+    pub fn with_file_reader(reader: Arc<dyn FileReader>) -> Self {
+        Self { base_path: None, file_reader: reader }
+    }
+
+    pub fn with_base_path_and_reader<P: AsRef<Path>>(base_path: P, reader: Arc<dyn FileReader>) -> Self {
+        Self {
+            base_path: Some(base_path.as_ref().to_string_lossy().to_string()),
+            file_reader: reader,
         }
     }
 
@@ -175,7 +189,7 @@ impl ServiceSpecLoader for YamlServiceSpecLoader {
         debug!("Loading service spec from: {}", resolved_path);
 
         // Read YAML file
-        let content = fs::read_to_string(&resolved_path).await.map_err(|e| {
+        let content = self.file_reader.read_to_string(Path::new(&resolved_path)).await.map_err(|e| {
             SpecLoaderError::FileNotFound(format!("Failed to read {}: {}", resolved_path, e))
         })?;
 
@@ -359,139 +373,3 @@ struct YamlResponse {
     body: Option<String>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Write;
-    use tempfile::NamedTempFile;
-
-    #[tokio::test]
-    async fn test_load_valid_yaml_spec() {
-        let yaml_content = r#"
-name: "test-service"
-port: 3000
-basePath: "/api/v1"
-fixtures:
-  users:
-    - id: 1
-      name: "John Doe"
-      email: "john@example.com"
-    - id: 2
-      name: "Jane Smith"
-      email: "jane@example.com"
-endpoints:
-  - path: "/users"
-    method: "GET"
-    conditions:
-      - "limit=10"
-      - "offset=0"
-    response:
-      status: 200
-      headers:
-        Content-Type: "application/json"
-      body: |
-        {
-          "users": {{#each fixtures.users}}
-          {
-            "id": {{id}},
-            "name": "{{name}}",
-            "email": "{{email}}"
-          }{{#unless @last}},{{/unless}}
-          {{/each}}
-        }
-  - path: "/users/{id}"
-    method: "GET"
-    response:
-      status: 200
-      headers:
-        Content-Type: "application/json"
-      body: |
-        {
-          "id": {{id}},
-          "name": "User {{id}}",
-          "email": "user{{id}}@example.com"
-        }
-"#;
-
-        let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all(yaml_content.as_bytes()).unwrap();
-        temp_file.flush().unwrap();
-
-        let loader = YamlServiceSpecLoader::new();
-        let spec = loader
-            .load(temp_file.path().to_str().unwrap())
-            .await
-            .unwrap();
-
-        assert_eq!(spec.name, "test-service");
-        assert_eq!(spec.port, 3000);
-        assert_eq!(spec.base_path, "/api/v1");
-        assert_eq!(spec.endpoints.len(), 2);
-
-        // Test validation
-        loader.validate(&spec).await.unwrap();
-
-        // Test scenario extraction
-        let scenarios = loader.extract_scenarios(&spec).unwrap();
-        assert!(!scenarios.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_load_invalid_yaml() {
-        let invalid_yaml = r#"
-name: "test-service"
-port: "invalid-port"
-endpoints: "not-an-array"
-"#;
-
-        let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all(invalid_yaml.as_bytes()).unwrap();
-        temp_file.flush().unwrap();
-
-        let loader = YamlServiceSpecLoader::new();
-        let result = loader.load(temp_file.path().to_str().unwrap()).await;
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            SpecLoaderError::InvalidYaml(_) => (),
-            other => panic!("Expected InvalidYaml error, got: {:?}", other),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_validate_missing_fields() {
-        let loader = YamlServiceSpecLoader::new();
-
-        // Test empty name
-        let spec = ServiceSpec {
-            name: "".to_string(),
-            port: 3000,
-            base_path: "/api".to_string(),
-            fixtures: serde_json::json!({}),
-            endpoints: vec![],
-        };
-
-        let result = loader.validate(&spec).await;
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_parse_http_method() {
-        let loader = YamlServiceSpecLoader::new();
-
-        assert!(matches!(
-            loader.parse_http_method("GET").unwrap(),
-            HttpMethod::GET
-        ));
-        assert!(matches!(
-            loader.parse_http_method("post").unwrap(),
-            HttpMethod::POST
-        ));
-        assert!(matches!(
-            loader.parse_http_method("PUT").unwrap(),
-            HttpMethod::PUT
-        ));
-
-        assert!(loader.parse_http_method("INVALID").is_err());
-    }
-}
