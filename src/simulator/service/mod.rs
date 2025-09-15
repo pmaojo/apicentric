@@ -156,9 +156,9 @@ impl ServiceInstance {
                                 let graphql_cfg = graphql_cfg_outer.clone();
 
                                 async move {
-                                    Self::handle_request_static(
+                                    match Self::handle_request_static(
                                         req,
-                                        service_name,
+                                        service_name.clone(),
                                         base_path,
                                         endpoints,
                                         state,
@@ -169,6 +169,27 @@ impl ServiceInstance {
                                         graphql_cfg,
                                     )
                                     .await
+                                    {
+                                        Ok(resp) => Ok::<_, Infallible>(resp),
+                                        Err(err) => {
+                                            eprintln!(
+                                                "Error handling request for service '{}': {}",
+                                                service_name, err
+                                            );
+                                            let fallback = match Response::builder()
+                                                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                                                .header("content-type", "application/json")
+                                                .body(Full::new(Bytes::from(format!(
+                                                    r#"{{"error": "{}"}}"#,
+                                                    err
+                                                ))))
+                                            {
+                                                Ok(r) => r,
+                                                Err(_) => Response::new(Full::new(Bytes::new())),
+                                            };
+                                            Ok::<_, Infallible>(fallback)
+                                        }
+                                    }
                                 }
                             });
 
@@ -232,7 +253,7 @@ impl ServiceInstance {
             ));
         }
 
-        let result = Self::handle_request_static(
+        Self::handle_request_static(
             req,
             self.definition.name.clone(),
             self.definition.server.base_path.clone(),
@@ -244,13 +265,7 @@ impl ServiceInstance {
             Arc::clone(&self.active_scenario),
             self.graphql.clone(),
         )
-        .await;
-
-        // The static handler returns Result<Response, Infallible>, so we can safely unwrap
-        match result {
-            Ok(response) => Ok(response),
-            Err(_) => unreachable!("Infallible error should never occur"),
-        }
+        .await
     }
 
     /// Check if the service is currently running
@@ -589,7 +604,7 @@ impl ServiceInstance {
         proxy_base_url: Option<String>,
         active_scenario: Arc<RwLock<Option<String>>>,
         graphql: Option<Arc<GraphQLMocks>>,
-    ) -> Result<Response<Full<Bytes>>, Infallible> {
+    ) -> PulseResult<Response<Full<Bytes>>> {
         let (parts, body) = req.into_parts();
         let method = parts.method.as_str();
         let path = parts.uri.path();
@@ -704,7 +719,12 @@ impl ServiceInstance {
                 .header("access-control-allow-headers", &req_headers)
                 .header("access-control-max-age", "86400")
                 .body(Full::new(Bytes::from_static(b"")))
-                .unwrap();
+                .map_err(|e| {
+                    PulseError::runtime_error(
+                        format!("Failed to build CORS preflight response: {}", e),
+                        None::<String>,
+                    )
+                })?;
 
             println!(
                 "✅ [{}] CORS preflight response sent with status 204",
@@ -732,7 +752,12 @@ impl ServiceInstance {
                     .body(Full::new(Bytes::from(
                         r#"{"error": "Failed to read request body"}"#,
                     )))
-                    .unwrap();
+                    .map_err(|e| {
+                        PulseError::runtime_error(
+                            format!("Failed to build bad request response: {}", e),
+                            None::<String>,
+                        )
+                    })?;
                 Self::record_log(
                     &state,
                     &service_name,
@@ -829,12 +854,17 @@ impl ServiceInstance {
                     limit,
                 )
             };
-            let body = serde_json::to_string(&logs).unwrap();
+            let body = serde_json::to_string(&logs)?;
             let resp = Response::builder()
                 .status(StatusCode::OK)
                 .header("content-type", "application/json")
                 .body(Full::new(Bytes::from(body)))
-                .unwrap();
+                .map_err(|e| {
+                    PulseError::runtime_error(
+                        format!("Failed to build logs response: {}", e),
+                        None::<String>,
+                    )
+                })?;
             Self::record_log(&state, &service_name, None, method, path, 200).await;
             return Ok(resp);
         }
@@ -1049,7 +1079,12 @@ impl ServiceInstance {
 
                     let final_response = response
                         .body(Full::new(Bytes::from(processed_body)))
-                        .unwrap();
+                        .map_err(|e| {
+                            PulseError::runtime_error(
+                                format!("Failed to build response body: {}", e),
+                                None::<String>,
+                            )
+                        })?;
 
                     println!(
                         "📤 [{}] Sending response with status {}",
@@ -1073,7 +1108,12 @@ impl ServiceInstance {
                         .body(Full::new(Bytes::from(
                             r#"{"error": "No response definition found"}"#,
                         )))
-                        .unwrap();
+                        .map_err(|e| {
+                            PulseError::runtime_error(
+                                format!("Failed to build error response: {}", e),
+                                None::<String>,
+                            )
+                        })?;
                     Self::record_log(
                         &state,
                         &service_name,
@@ -1132,7 +1172,14 @@ impl ServiceInstance {
                                     response = response.header(name.as_str(), v);
                                 }
                             }
-                            let final_resp = response.body(Full::new(bytes)).unwrap();
+                            let final_resp = response
+                                .body(Full::new(bytes))
+                                .map_err(|e| {
+                                    PulseError::runtime_error(
+                                        format!("Failed to build proxy response: {}", e),
+                                        None::<String>,
+                                    )
+                                })?;
                             Self::record_log(
                                 &state,
                                 &service_name,
@@ -1152,7 +1199,12 @@ impl ServiceInstance {
                                     r#"{{"error": "Proxy request failed", "details": "{}"}}"#,
                                     e
                                 ))))
-                                .unwrap();
+                                .map_err(|e| {
+                                    PulseError::runtime_error(
+                                        format!("Failed to build proxy error response: {}", e),
+                                        None::<String>,
+                                    )
+                                })?;
                             Self::record_log(
                                 &state,
                                 &service_name,
@@ -1173,7 +1225,12 @@ impl ServiceInstance {
                             r#"{{"error": "Endpoint not found", "method": "{}", "path": "{}", "service": "{}"}}"#,
                             method, relative_path, service_name
                         ))))
-                        .unwrap();
+                        .map_err(|e| {
+                            PulseError::runtime_error(
+                                format!("Failed to build not found response: {}", e),
+                                None::<String>,
+                            )
+                        })?;
                     Self::record_log(
                         &state,
                         &service_name,
@@ -1278,7 +1335,7 @@ impl ServiceInstance {
             "runtime": state_guard.all_runtime_data().clone(),
         });
         drop(state_guard);
-        let ctx_json = serde_json::to_string(&context).unwrap();
+        let ctx_json = serde_json::to_string(&context)?;
 
         let result = tokio::task::spawn_blocking(move || -> PulseResult<serde_json::Value> {
             let mut runtime = JsRuntime::new(RuntimeOptions::default());
@@ -1395,7 +1452,11 @@ impl ServiceInstance {
                             chars.next(); // consume the '}'
                             break;
                         }
-                        param_name.push(chars.next().unwrap());
+                        if let Some(c) = chars.next() {
+                            param_name.push(c);
+                        } else {
+                            break;
+                        }
                     }
 
                     if !param_name.is_empty() {
@@ -2215,6 +2276,12 @@ mod tests {
         let service = ServiceInstance::new(definition, 8007, storage, tx).unwrap(); // Use different port
         let result = service.validate_consistency();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_endpoint_path_to_regex_handles_unclosed_brace() {
+        let pattern = ServiceInstance::endpoint_path_to_regex_static("/users/{id");
+        assert!(pattern.contains("users"));
     }
 
     #[tokio::test]
