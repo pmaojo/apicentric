@@ -9,12 +9,13 @@ pub mod manager;
 pub mod mockoon;
 pub mod openapi;
 pub mod postman;
+pub mod react_query;
+pub mod react_view;
 pub mod registry;
 pub mod router;
 pub mod service;
 pub mod template;
 pub mod typescript;
-pub mod react_query;
 pub mod watcher;
 
 #[cfg(test)]

@@ -138,6 +138,16 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
+    /// Export a default React view component for a service
+    #[command(name = "export-view")]
+    ExportView {
+        /// Path to service YAML definition
+        #[arg(short, long)]
+        input: String,
+        /// Output path for generated TSX view
+        #[arg(short, long)]
+        output: String,
+    },
     /// Export a service definition to a Postman collection
     #[command(name = "export-postman")]
     ExportPostman {
@@ -255,6 +265,9 @@ pub async fn simulator_command(
         }
         SimulatorAction::ExportQuery { input, output } => {
             export::handle_export_query(input, output, exec_ctx).await
+        }
+        SimulatorAction::ExportView { input, output } => {
+            export::handle_export_view(input, output, exec_ctx).await
         }
         SimulatorAction::ExportPostman { input, output } => {
             export::handle_export_postman(input, output, exec_ctx).await

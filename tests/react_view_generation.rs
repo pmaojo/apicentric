@@ -1,0 +1,88 @@
+use std::process::Command;
+
+use mockforge::simulator::config::ServiceDefinition;
+use mockforge::simulator::react_query::to_react_query;
+use mockforge::simulator::react_view::to_react_view;
+use tempfile::tempdir;
+
+#[test]
+fn generated_view_compiles_and_composes_with_hooks() {
+    let yaml = std::fs::read_to_string("tests/data/service_hooks.yaml").unwrap();
+    let service: ServiceDefinition = serde_yaml::from_str(&yaml).unwrap();
+    let hooks_ts = to_react_query(&service).unwrap();
+    let view_tsx = to_react_view(&service).unwrap();
+
+    let dir = tempdir().unwrap();
+    let hooks_path = dir.path().join("hooks.ts");
+    let view_path = dir.path().join("view.tsx");
+    std::fs::write(&hooks_path, hooks_ts).unwrap();
+    std::fs::write(&view_path, view_tsx).unwrap();
+
+    // stub tanstack/react-query
+    let rq_dir = dir.path().join("node_modules/@tanstack/react-query");
+    std::fs::create_dir_all(&rq_dir).unwrap();
+    std::fs::write(
+        rq_dir.join("index.d.ts"),
+        "export function useQuery(key: any, fn: any): any;\nexport function useMutation(fn: any): any;",
+    )
+    .unwrap();
+    std::fs::write(
+        rq_dir.join("index.js"),
+        "exports.useQuery=(k,f)=>f();exports.useMutation=(f)=>({mutate:f});",
+    )
+    .unwrap();
+
+    // stub react
+    let react_dir = dir.path().join("node_modules/react");
+    std::fs::create_dir_all(&react_dir).unwrap();
+    std::fs::write(
+        react_dir.join("index.d.ts"),
+        "export function useState<T>(i:T): [T,(v:T)=>void];\nexport declare const React: {createElement:any; useState: typeof useState};\nexport default React;",
+    )
+    .unwrap();
+    std::fs::write(
+        react_dir.join("index.js"),
+        "function useState(i){return [i, function(){}];}\nfunction createElement(type, props, ...children){return {type, props:{...props, children}};}\nmodule.exports={useState, createElement, default:{createElement,useState}};",
+    )
+    .unwrap();
+
+    // compile
+    let status = Command::new("npx")
+        .args([
+            "-y",
+            "tsc",
+            hooks_path.to_str().unwrap(),
+            view_path.to_str().unwrap(),
+            "--jsx",
+            "react",
+            "--module",
+            "commonjs",
+        ])
+        .current_dir(dir.path())
+        .status()
+        .expect("tsc failed");
+    assert!(status.success());
+
+    // run component to ensure hooks execute
+    let script = r#"
+const { ServiceView } = require('./view.js');
+const calls = [];
+global.fetch = (url, init) => { calls.push({url, method: init && init.method}); return Promise.resolve({ json: async () => ({}) }); };
+const tree = ServiceView({ baseUrl: 'http://example.com' });
+const children = Array.isArray(tree.props.children) ? tree.props.children : [tree.props.children];
+const form = children.find(c => c.type === 'form');
+form.props.onSubmit({ preventDefault(){} });
+console.log(JSON.stringify(calls));
+"#;
+    let output = Command::new("node")
+        .arg("-e")
+        .arg(script)
+        .current_dir(dir.path())
+        .output()
+        .expect("node run failed");
+    assert!(output.status.success());
+    let calls: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(calls[0]["url"], "http://example.com/api/pets");
+    assert_eq!(calls[1]["url"], "http://example.com/api/pets");
+    assert_eq!(calls[1]["method"], "POST");
+}

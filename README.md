@@ -88,6 +88,9 @@ mockforge record --output services/ --url http://localhost:3000
 
 # Exporta interfaces TypeScript
 mockforge export-types --input services/petstore.yaml --output types.ts
+
+# Genera un componente React preconfigurado
+mockforge export-view --input services/petstore.yaml --output view.tsx
 ```
 
 ## Instalación y uso en Node.js
@@ -155,6 +158,22 @@ mockforge ai generate "Servicio de usuarios con GET /users"
 
 Usar el proveedor local mantiene todos los datos en tu máquina. Con OpenAI, el
 prompt y el resultado se envían al servicio externo.
+
+### Generación de vistas React
+
+El subcomando `export-view` crea un componente React mínimo que invoca los hooks
+de TanStack Query generados para cada endpoint. Siguiendo principios SOLID, la
+función generadora tiene una única responsabilidad y permanece abierta a
+extensiones sin modificar su núcleo. Dentro de la arquitectura Hexagonal, este
+componente actúa como un adaptador de la capa de presentación y mantiene el
+dominio aislado.
+
+```bash
+mockforge export-view --input services/petstore.yaml --output view.tsx
+```
+
+El TSX generado puede personalizarse libremente para ajustar estilos o lógica
+de interacción según las necesidades del proyecto.
 
 ## 🚀 Qualitas Setup (host app)
 
