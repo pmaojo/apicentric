@@ -3,7 +3,7 @@ use mockforge::{PulseResult, PulseError, Context};
 use mockforge::domain::contract_testing::*;
 
 pub async fn run_full_demo<T, S>(
-    manage_contracts: &mockforge::domain::contract_use_cases::ManageContractsUseCase<T,S>,
+    manage_contracts: &mockforge::domain::contract::ManageContractsUseCase<T,S>,
     context: &Context,
     exec_ctx: &mockforge::ExecutionContext,
     contract_id: &str,
@@ -40,7 +40,7 @@ where
     Ok(())
 }
 
-async fn resolve_contract<T,S>(contract_id: &str, spec_file: &Option<String>, manage: &mockforge::domain::contract_use_cases::ManageContractsUseCase<T,S>) -> PulseResult<Contract>
+async fn resolve_contract<T,S>(contract_id: &str, spec_file: &Option<String>, manage: &mockforge::domain::contract::ManageContractsUseCase<T,S>) -> PulseResult<Contract>
 where T: mockforge::domain::ports::ContractRepository, S: mockforge::domain::ports::ServiceSpecLoader {
     if let Some(path) = spec_file { use mockforge::infrastructure::YamlServiceSpecLoader; use mockforge::domain::ports::ServiceSpecLoader; let loader = YamlServiceSpecLoader::new(); let spec = loader.load(path).await.map_err(|e| PulseError::validation_error(format!("Spec load error: {}", e), None::<String>, None::<String>))?; return Ok(Contract { id: ContractId::new(contract_id.to_string()).map_err(|e| PulseError::validation_error(format!("Invalid id: {}", e), None::<String>, None::<String>))?, service_name: spec.name.clone(), description: Some(format!("Generated from {}", path)), spec_path: path.clone(), created_at: chrono::Utc::now(), updated_at: chrono::Utc::now() }); }
     let id = ContractId::new(contract_id.to_string()).map_err(|e| PulseError::validation_error(format!("Invalid id: {}", e), None::<String>, None::<String>))?; match manage.get_contract(id).await { Ok(Some(c)) => Ok(c), Ok(None) => Err(PulseError::validation_error("Contract not found", None::<String>, None::<String>)), Err(e) => Err(PulseError::runtime_error(format!("Repo error: {}", e), None::<String>)) }
