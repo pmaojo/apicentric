@@ -14,6 +14,9 @@ pub mod ai;
 // Domain layer (core business logic)
 pub mod domain;
 
+// Contract modules (execution, scenarios, reporting)
+pub mod contract;
+
 // Adapter layer (implementations of domain ports)
 pub mod adapters {
     pub mod contract_repository;
