@@ -123,3 +123,32 @@ pub async fn handle_export_query(
     println!("✅ Exported React Query hooks to {}", output);
     Ok(())
 }
+
+pub async fn handle_export_view(
+    input: &str,
+    output: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would export React view from '{}' to '{}'",
+            input, output
+        );
+        return Ok(());
+    }
+    let yaml = std::fs::read_to_string(input).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
+    })?;
+    let service: mockforge::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+        .map_err(|e| {
+            PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
+        })?;
+    let tsx = mockforge::simulator::react_view::to_react_view(&service).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to generate view: {}", e), None::<String>)
+    })?;
+    std::fs::write(output, tsx).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to write view file: {}", e), None::<String>)
+    })?;
+    println!("✅ Exported React view to {}", output);
+    Ok(())
+}
