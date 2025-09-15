@@ -17,6 +17,7 @@ impl Plugin for LoggerPlugin {
 }
 
 #[no_mangle]
+#[allow(improper_ctypes_definitions)]
 pub extern "C" fn create_plugin() -> Box<dyn Plugin> {
     Box::new(LoggerPlugin)
 }

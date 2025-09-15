@@ -206,17 +206,10 @@ pub async fn share_service(port: u16) -> Result<(PeerId, String), Box<dyn Error>
                 },
                 SwarmEvent::Behaviour(ShareBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
                     for (peer, addr) in list {
-                        swarm.behaviour_mut().request_response.add_address(&peer, addr);
+                        swarm.add_peer_address(peer, addr);
                     }
                 }
-                SwarmEvent::Behaviour(ShareBehaviourEvent::Mdns(mdns::Event::Expired(list))) => {
-                    for (peer, addr) in list {
-                        swarm
-                            .behaviour_mut()
-                            .request_response
-                            .remove_address(&peer, &addr);
-                    }
-                }
+                SwarmEvent::Behaviour(ShareBehaviourEvent::Mdns(mdns::Event::Expired(_))) => {}
                 _ => {}
             }
         }
@@ -285,14 +278,10 @@ pub async fn connect_service(
                         },
                         SwarmEvent::Behaviour(ShareBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
                             for (peer, addr) in list {
-                                swarm.behaviour_mut().request_response.add_address(&peer, addr);
+                                swarm.add_peer_address(peer, addr);
                             }
                         }
-                        SwarmEvent::Behaviour(ShareBehaviourEvent::Mdns(mdns::Event::Expired(list))) => {
-                            for (peer, addr) in list {
-                                swarm.behaviour_mut().request_response.remove_address(&peer, &addr);
-                            }
-                        }
+                        SwarmEvent::Behaviour(ShareBehaviourEvent::Mdns(mdns::Event::Expired(_))) => {}
                         _ => {}
                     }
                 }

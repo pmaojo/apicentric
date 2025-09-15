@@ -1,7 +1,6 @@
 use crate::domain::ports::ui::{ProgressPort, UserInterfacePort};
 
 pub struct CliProgress {
-    current: u64,
     total: u64,
     message: String,
 }
@@ -10,7 +9,6 @@ impl CliProgress {
     pub fn new(total: u64, message: &str) -> Self {
         println!("🔄 {} (0/{})", message, total);
         Self {
-            current: 0,
             total,
             message: message.to_string(),
         }

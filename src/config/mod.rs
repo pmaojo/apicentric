@@ -323,6 +323,9 @@ mod tests {
     #[test]
     fn builder_produces_valid_default_config() {
         let tmp = TempDir::new().unwrap();
+        std::fs::create_dir_all(tmp.path().join("routes")).unwrap();
+        std::fs::create_dir_all(tmp.path().join("specs")).unwrap();
+        std::fs::create_dir_all(tmp.path().join("services")).unwrap();
         let config = PulseConfig::builder()
             .routes_dir(tmp.path().join("routes"))
             .specs_dir(tmp.path().join("specs"))

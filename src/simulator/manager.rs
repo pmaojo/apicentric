@@ -25,7 +25,6 @@ pub struct ApiSimulatorManager {
     route_registry: Arc<RwLock<RequestRouter>>,
     config_loader: ConfigLoader,
     is_active: Arc<RwLock<bool>>,
-    config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
     p2p_enabled: Arc<RwLock<bool>>,
     collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
     crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
@@ -50,7 +49,7 @@ impl ApiSimulatorManager {
         )));
         let route_registry = Arc::new(RwLock::new(RequestRouter::new()));
         let is_active = Arc::new(RwLock::new(false));
-        let config_watcher = Arc::new(RwLock::new(None));
+        let config_watcher: Arc<RwLock<Option<ConfigWatcher>>> = Arc::new(RwLock::new(None));
         let p2p_enabled = Arc::new(RwLock::new(false));
         let collab_sender = Arc::new(RwLock::new(None));
         let crdts = Arc::new(RwLock::new(HashMap::new()));
@@ -75,7 +74,6 @@ impl ApiSimulatorManager {
             route_registry,
             config_loader,
             is_active,
-            config_watcher,
             p2p_enabled,
             collab_sender,
             crdts,

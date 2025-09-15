@@ -1,24 +1,26 @@
 use super::*;
-use mockforge::config::{generate_default_config, save_config};
+use mockforge::config::{save_config, PulseConfig};
 use mockforge::context::{ContextBuilder, ExecutionContext};
 use std::fs;
 use tempfile::TempDir;
 
 fn build() -> (mockforge::Context, ExecutionContext) {
     let temp = TempDir::new().unwrap();
-    let mut config = generate_default_config();
-    config.routes_dir = temp.path().join("routes");
-    config.specs_dir = temp.path().join("specs");
-    config.index_cache_path = temp.path().join("cache").join("index.json");
-    if let Some(ref mut sim) = config.simulator {
-        sim.services_dir = temp.path().join("services");
-    }
-    fs::create_dir_all(&config.routes_dir).unwrap();
-    fs::create_dir_all(&config.specs_dir).unwrap();
-    fs::create_dir_all(config.index_cache_path.parent().unwrap()).unwrap();
-    if let Some(ref sim) = config.simulator {
-        fs::create_dir_all(&sim.services_dir).unwrap();
-    }
+    let routes = temp.path().join("routes");
+    let specs = temp.path().join("specs");
+    let services = temp.path().join("services");
+    let cache = temp.path().join("cache");
+    fs::create_dir_all(&routes).unwrap();
+    fs::create_dir_all(&specs).unwrap();
+    fs::create_dir_all(&services).unwrap();
+    fs::create_dir_all(&cache).unwrap();
+    let config = PulseConfig::builder()
+        .routes_dir(routes)
+        .specs_dir(specs)
+        .index_cache_path(cache.join("index.json"))
+        .simulator_services_dir(services)
+        .build()
+        .unwrap();
     let cfg_path = temp.path().join("mockforge.json");
     save_config(&config, &cfg_path).unwrap();
     let builder = ContextBuilder::new(&cfg_path).unwrap();
