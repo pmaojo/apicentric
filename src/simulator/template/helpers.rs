@@ -4,7 +4,7 @@ use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContex
 use regex::Regex;
 use serde_json::Value;
 use uuid::Uuid;
-use crate::simulator::service::DataBucket;
+use crate::simulator::service::state::DataBucket;
 
 fn is_truthy(value: &Value) -> bool {
     if value.is_null() {

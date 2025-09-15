@@ -1,12 +1,20 @@
 //! Service Instance - Individual service implementation with state management
 
+pub mod routing;
+pub mod graphql;
+pub mod state;
+
+pub use graphql::*;
+pub use routing::*;
+pub use state::*;
+
 use crate::errors::{PulseError, PulseResult};
 use crate::simulator::config::{
     EndpointDefinition, ResponseDefinition, ScenarioDefinition, ScenarioStrategy, ServiceDefinition,
 };
-use crate::simulator::log::{RequestLog, RequestLogEntry};
-use crate::storage::Storage;
+use crate::simulator::log::RequestLogEntry;
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
+use crate::storage::Storage;
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::header::HOST;
@@ -18,395 +26,13 @@ use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::Infallible;
-use std::fs;
 use std::net::SocketAddr;
 use std::path::Path;
-use std::sync::{Arc, RwLock as StdRwLock};
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
-
 use deno_core::{JsRuntime, RuntimeOptions};
-
-use async_graphql::Request as GraphQLRequest;
-use async_graphql_parser::parse_schema;
-
-/// Extracted path parameters from a request
-#[derive(Debug, Clone)]
-pub struct PathParameters {
-    params: HashMap<String, String>,
-}
-
-impl PathParameters {
-    pub fn new() -> Self {
-        Self {
-            params: HashMap::new(),
-        }
-    }
-
-    pub fn insert(&mut self, key: String, value: String) {
-        self.params.insert(key, value);
-    }
-
-    pub fn get(&self, key: &str) -> Option<&String> {
-        self.params.get(key)
-    }
-
-    pub fn all(&self) -> &HashMap<String, String> {
-        &self.params
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.params.is_empty()
-    }
-}
-
-/// Route matching result with extracted parameters
-#[derive(Debug, Clone)]
-pub struct RouteMatch {
-    pub endpoint: EndpointDefinition,
-    pub endpoint_index: usize,
-    pub path_params: PathParameters,
-}
-
-/// Holds loaded GraphQL schema and mock templates
-#[derive(Debug, Clone)]
-pub struct GraphQLMocks {
-    pub schema: String,
-    pub mocks: HashMap<String, String>,
-}
-
-/// Shared in-memory data bucket for stateful routes
-#[derive(Debug, Clone)]
-pub struct DataBucket {
-    data: Arc<StdRwLock<HashMap<String, Value>>>,
-}
-
-impl DataBucket {
-    pub fn new(initial: Option<HashMap<String, Value>>) -> Self {
-        Self {
-            data: Arc::new(StdRwLock::new(initial.unwrap_or_default())),
-        }
-    }
-
-    pub fn get(&self, key: &str) -> Option<Value> {
-        self.data.read().ok().and_then(|map| map.get(key).cloned())
-    }
-
-    pub fn set(&self, key: String, value: Value) {
-        if let Ok(mut map) = self.data.write() {
-            map.insert(key, value);
-        }
-    }
-
-    pub fn remove(&self, key: &str) -> Option<Value> {
-        self.data.write().ok().and_then(|mut map| map.remove(key))
-    }
-
-    pub fn all(&self) -> HashMap<String, Value> {
-        self.data.read().map(|m| m.clone()).unwrap_or_default()
-    }
-}
-
-/// Service state for managing fixtures and runtime data
-#[derive(Debug, Clone)]
-pub struct ServiceState {
-    fixtures: HashMap<String, Value>,
-    runtime_data: HashMap<String, Value>,
-    initial_fixtures: HashMap<String, Value>, // Backup of original fixtures for reset
-    request_log: RequestLog,
-    bucket: DataBucket,
-    response_counters: HashMap<usize, usize>,
-    log_sender: Option<tokio::sync::broadcast::Sender<RequestLogEntry>>,
-}
-
-impl ServiceState {
-    pub fn new(
-        fixtures: Option<HashMap<String, Value>>,
-        bucket: Option<HashMap<String, Value>>,
-        storage: Arc<dyn Storage>,
-        log_sender: Option<tokio::sync::broadcast::Sender<RequestLogEntry>>,
-    ) -> Self {
-        let fixtures = fixtures.unwrap_or_default();
-        Self {
-            initial_fixtures: fixtures.clone(),
-            fixtures,
-            runtime_data: HashMap::new(),
-            request_log: RequestLog::new(storage),
-            bucket: DataBucket::new(bucket),
-            response_counters: HashMap::new(),
-            log_sender,
-        }
-    }
-
-    pub fn next_response_index(
-        &mut self,
-        endpoint_index: usize,
-        total: usize,
-        strategy: ScenarioStrategy,
-    ) -> usize {
-        match strategy {
-            ScenarioStrategy::Sequential => {
-                let counter = self.response_counters.entry(endpoint_index).or_insert(0);
-                let idx = *counter;
-                *counter = (*counter + 1) % total;
-                idx
-            }
-            ScenarioStrategy::Random => {
-                use rand::Rng;
-                rand::thread_rng().gen_range(0..total)
-            }
-        }
-    }
-
-    pub fn bucket(&self) -> DataBucket {
-        self.bucket.clone()
-    }
-
-    /// Get a fixture by key
-    pub fn get_fixture(&self, key: &str) -> Option<&Value> {
-        self.fixtures.get(key)
-    }
-
-    /// Set a fixture value
-    pub fn set_fixture(&mut self, key: String, value: Value) {
-        self.fixtures.insert(key, value);
-    }
-
-    /// Remove a fixture
-    pub fn remove_fixture(&mut self, key: &str) -> Option<Value> {
-        self.fixtures.remove(key)
-    }
-
-    /// Add an item to a fixture array
-    pub fn add_to_fixture_array(&mut self, fixture_key: &str, item: Value) -> PulseResult<()> {
-        match self.fixtures.get_mut(fixture_key) {
-            Some(Value::Array(arr)) => {
-                arr.push(item);
-                Ok(())
-            }
-            Some(_) => Err(PulseError::runtime_error(
-                format!("Fixture '{}' is not an array", fixture_key),
-                Some("Use add_to_fixture_array only with array fixtures"),
-            )),
-            None => {
-                // Create new array with the item
-                self.fixtures
-                    .insert(fixture_key.to_string(), Value::Array(vec![item]));
-                Ok(())
-            }
-        }
-    }
-
-    /// Remove an item from a fixture array by index
-    pub fn remove_from_fixture_array(
-        &mut self,
-        fixture_key: &str,
-        index: usize,
-    ) -> PulseResult<Value> {
-        match self.fixtures.get_mut(fixture_key) {
-            Some(Value::Array(arr)) => {
-                if index < arr.len() {
-                    Ok(arr.remove(index))
-                } else {
-                    Err(PulseError::runtime_error(
-                        format!(
-                            "Index {} out of bounds for fixture array '{}'",
-                            index, fixture_key
-                        ),
-                        Some("Check array length before removing items"),
-                    ))
-                }
-            }
-            Some(_) => Err(PulseError::runtime_error(
-                format!("Fixture '{}' is not an array", fixture_key),
-                Some("Use remove_from_fixture_array only with array fixtures"),
-            )),
-            None => Err(PulseError::runtime_error(
-                format!("Fixture '{}' not found", fixture_key),
-                Some("Check that the fixture exists before removing items"),
-            )),
-        }
-    }
-
-    /// Update an item in a fixture array by index
-    pub fn update_fixture_array_item(
-        &mut self,
-        fixture_key: &str,
-        index: usize,
-        item: Value,
-    ) -> PulseResult<()> {
-        match self.fixtures.get_mut(fixture_key) {
-            Some(Value::Array(arr)) => {
-                if index < arr.len() {
-                    arr[index] = item;
-                    Ok(())
-                } else {
-                    Err(PulseError::runtime_error(
-                        format!(
-                            "Index {} out of bounds for fixture array '{}'",
-                            index, fixture_key
-                        ),
-                        Some("Check array length before updating items"),
-                    ))
-                }
-            }
-            Some(_) => Err(PulseError::runtime_error(
-                format!("Fixture '{}' is not an array", fixture_key),
-                Some("Use update_fixture_array_item only with array fixtures"),
-            )),
-            None => Err(PulseError::runtime_error(
-                format!("Fixture '{}' not found", fixture_key),
-                Some("Check that the fixture exists before updating items"),
-            )),
-        }
-    }
-
-    /// Find and update an item in a fixture array by a field value
-    pub fn update_fixture_array_item_by_field(
-        &mut self,
-        fixture_key: &str,
-        field: &str,
-        field_value: &Value,
-        new_item: Value,
-    ) -> PulseResult<bool> {
-        match self.fixtures.get_mut(fixture_key) {
-            Some(Value::Array(arr)) => {
-                for item in arr.iter_mut() {
-                    if let Some(obj) = item.as_object() {
-                        if let Some(value) = obj.get(field) {
-                            if value == field_value {
-                                *item = new_item;
-                                return Ok(true);
-                            }
-                        }
-                    }
-                }
-                Ok(false) // Item not found
-            }
-            Some(_) => Err(PulseError::runtime_error(
-                format!("Fixture '{}' is not an array", fixture_key),
-                Some("Use update_fixture_array_item_by_field only with array fixtures"),
-            )),
-            None => Err(PulseError::runtime_error(
-                format!("Fixture '{}' not found", fixture_key),
-                Some("Check that the fixture exists before updating items"),
-            )),
-        }
-    }
-
-    /// Find and remove an item from a fixture array by a field value
-    pub fn remove_fixture_array_item_by_field(
-        &mut self,
-        fixture_key: &str,
-        field: &str,
-        field_value: &Value,
-    ) -> PulseResult<Option<Value>> {
-        match self.fixtures.get_mut(fixture_key) {
-            Some(Value::Array(arr)) => {
-                for (index, item) in arr.iter().enumerate() {
-                    if let Some(obj) = item.as_object() {
-                        if let Some(value) = obj.get(field) {
-                            if value == field_value {
-                                return Ok(Some(arr.remove(index)));
-                            }
-                        }
-                    }
-                }
-                Ok(None) // Item not found
-            }
-            Some(_) => Err(PulseError::runtime_error(
-                format!("Fixture '{}' is not an array", fixture_key),
-                Some("Use remove_fixture_array_item_by_field only with array fixtures"),
-            )),
-            None => Err(PulseError::runtime_error(
-                format!("Fixture '{}' not found", fixture_key),
-                Some("Check that the fixture exists before removing items"),
-            )),
-        }
-    }
-
-    /// Reset fixtures to their initial state
-    pub fn reset_fixtures(&mut self) {
-        self.fixtures = self.initial_fixtures.clone();
-    }
-
-    /// Get runtime data by key
-    pub fn get_runtime_data(&self, key: &str) -> Option<&Value> {
-        self.runtime_data.get(key)
-    }
-
-    /// Set runtime data
-    pub fn set_runtime_data(&mut self, key: String, value: Value) {
-        self.runtime_data.insert(key, value);
-    }
-
-    /// Remove runtime data
-    pub fn remove_runtime_data(&mut self, key: &str) -> Option<Value> {
-        self.runtime_data.remove(key)
-    }
-
-    /// Clear all runtime data
-    pub fn clear_runtime_data(&mut self) {
-        self.runtime_data.clear();
-    }
-
-    /// Get all fixtures
-    pub fn all_fixtures(&self) -> &HashMap<String, Value> {
-        &self.fixtures
-    }
-
-    /// Get all runtime data
-    pub fn all_runtime_data(&self) -> &HashMap<String, Value> {
-        &self.runtime_data
-    }
-
-    /// Get fixture count
-    pub fn fixture_count(&self) -> usize {
-        self.fixtures.len()
-    }
-
-    /// Get runtime data count
-    pub fn runtime_data_count(&self) -> usize {
-        self.runtime_data.len()
-    }
-
-    /// Check if a fixture exists
-    pub fn has_fixture(&self, key: &str) -> bool {
-        self.fixtures.contains_key(key)
-    }
-
-    /// Check if runtime data exists
-    pub fn has_runtime_data(&self, key: &str) -> bool {
-        self.runtime_data.contains_key(key)
-    }
-
-    /// Append a request log entry
-    pub fn add_log_entry(&mut self, entry: RequestLogEntry) {
-        self.request_log.add(entry.clone());
-        if let Some(sender) = &self.log_sender {
-            let _ = sender.send(entry);
-        }
-    }
-
-    /// Retrieve recent request log entries
-    pub fn get_logs(&self, limit: usize) -> Vec<RequestLogEntry> {
-        self.request_log.recent(limit)
-    }
-
-    /// Query log entries with optional filters
-    pub fn query_logs(
-        &self,
-        service: Option<&str>,
-        route: Option<&str>,
-        method: Option<&str>,
-        status: Option<u16>,
-        limit: usize,
-    ) -> Vec<RequestLogEntry> {
-        self.request_log
-            .query(service, route, method, status, limit)
-    }
-}
 
 /// Individual service instance with HTTP server capabilities
 pub struct ServiceInstance {
@@ -445,35 +71,7 @@ impl ServiceInstance {
         template_engine.register_bucket_helpers(state.bucket())?;
 
         let graphql = if let Some(ref gql_cfg) = definition.graphql {
-            let schema = fs::read_to_string(&gql_cfg.schema_path).map_err(|e| {
-                PulseError::config_error(
-                    format!(
-                        "Failed to read GraphQL schema {}: {}",
-                        gql_cfg.schema_path, e
-                    ),
-                    Some("Check that the schema file exists and is readable"),
-                )
-            })?;
-
-            if let Err(e) = parse_schema(&schema) {
-                return Err(PulseError::config_error(
-                    format!("Invalid GraphQL schema: {}", e),
-                    Some("Ensure the schema is valid SDL"),
-                ));
-            }
-
-            let mut mocks = HashMap::new();
-            for (op, path) in &gql_cfg.mocks {
-                let tmpl = fs::read_to_string(path).map_err(|e| {
-                    PulseError::config_error(
-                        format!("Failed to read GraphQL mock template {}: {}", path, e),
-                        Some("Check template file path"),
-                    )
-                })?;
-                mocks.insert(op.clone(), tmpl);
-            }
-
-            Some(Arc::new(GraphQLMocks { schema, mocks }))
+            Some(Arc::new(load_graphql_mocks(gql_cfg)?))
         } else {
             None
         };
@@ -1191,134 +789,22 @@ impl ServiceInstance {
 
         // Handle GraphQL endpoint if configured
         if let Some(gql) = &graphql {
-            if relative_path == "/graphql" {
-                if method == "GET" {
-                    let resp = Response::builder()
-                        .status(StatusCode::OK)
-                        .header("content-type", "text/plain")
-                        .body(Full::new(Bytes::from(gql.schema.clone())))
-                        .unwrap();
-                    Self::record_log(&state, &service_name, None, method, path, 200).await;
-                    return Ok(resp);
-                } else if method == "POST" {
-                    match serde_json::from_slice::<GraphQLRequest>(&body_bytes) {
-                        Ok(req_data) => {
-                            if let Some(op) = req_data.operation_name.clone() {
-                                if let Some(tmpl) = gql.mocks.get(&op) {
-                                    let state_guard = state.read().await;
-                                    let params = PathParameters::new();
-                                    let request_context = RequestContext::from_request_data(
-                                        method.to_string(),
-                                        relative_path.clone(),
-                                        query_params.clone(),
-                                        headers.clone(),
-                                        request_body.clone(),
-                                    );
-                                    let template_context = TemplateContext::new(
-                                        &state_guard,
-                                        &params,
-                                        request_context,
-                                    );
-                                    match template_engine.render(tmpl, &template_context) {
-                                        Ok(body) => {
-                                            let resp = Response::builder()
-                                                .status(StatusCode::OK)
-                                                .header("content-type", "application/json")
-                                                .body(Full::new(Bytes::from(body)))
-                                                .unwrap();
-                                            Self::record_log(
-                                                &state,
-                                                &service_name,
-                                                None,
-                                                method,
-                                                path,
-                                                200,
-                                            )
-                                            .await;
-                                            return Ok(resp);
-                                        }
-                                        Err(e) => {
-                                            let resp = Response::builder()
-                                                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                                                .header("content-type", "application/json")
-                                                .body(Full::new(Bytes::from(format!(
-                                                    "{{\"error\":\"{}\"}}",
-                                                    e
-                                                ))))
-                                                .unwrap();
-                                            Self::record_log(
-                                                &state,
-                                                &service_name,
-                                                None,
-                                                method,
-                                                path,
-                                                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                                            )
-                                            .await;
-                                            return Ok(resp);
-                                        }
-                                    }
-                                } else {
-                                    let resp = Response::builder()
-                                        .status(StatusCode::BAD_REQUEST)
-                                        .header("content-type", "application/json")
-                                        .body(Full::new(Bytes::from(format!(
-                                            "{{\"error\":\"Unknown operation {}\"}}",
-                                            op
-                                        ))))
-                                        .unwrap();
-                                    Self::record_log(
-                                        &state,
-                                        &service_name,
-                                        None,
-                                        method,
-                                        path,
-                                        StatusCode::BAD_REQUEST.as_u16(),
-                                    )
-                                    .await;
-                                    return Ok(resp);
-                                }
-                            } else {
-                                let resp = Response::builder()
-                                    .status(StatusCode::BAD_REQUEST)
-                                    .header("content-type", "application/json")
-                                    .body(Full::new(Bytes::from(
-                                        r#"{"error":"Missing operationName"}"#,
-                                    )))
-                                    .unwrap();
-                                Self::record_log(
-                                    &state,
-                                    &service_name,
-                                    None,
-                                    method,
-                                    path,
-                                    StatusCode::BAD_REQUEST.as_u16(),
-                                )
-                                .await;
-                                return Ok(resp);
-                            }
-                        }
-                        Err(_) => {
-                            let resp = Response::builder()
-                                .status(StatusCode::BAD_REQUEST)
-                                .header("content-type", "application/json")
-                                .body(Full::new(Bytes::from(
-                                    r#"{"error":"Invalid GraphQL request"}"#,
-                                )))
-                                .unwrap();
-                            Self::record_log(
-                                &state,
-                                &service_name,
-                                None,
-                                method,
-                                path,
-                                StatusCode::BAD_REQUEST.as_u16(),
-                            )
-                            .await;
-                            return Ok(resp);
-                        }
-                    }
-                }
+            if let Some((resp, status)) = handle_graphql_request(
+                gql,
+                method,
+                &relative_path,
+                &body_bytes,
+                &query_params,
+                &headers,
+                &template_engine,
+                &state,
+                &service_name,
+                path,
+            )
+            .await
+            {
+                Self::record_log(&state, &service_name, None, method, path, status).await;
+                return Ok(resp);
             }
         }
 
