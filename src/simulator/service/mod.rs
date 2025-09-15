@@ -3,10 +3,18 @@
 pub mod routing;
 pub mod graphql;
 pub mod state;
+pub mod scenario;
+pub mod state_service;
+pub mod router;
+pub mod http_server;
 
 pub use graphql::*;
 pub use routing::*;
 pub use state::*;
+pub use scenario::ScenarioService;
+pub use state_service::StateService;
+pub use router::{RequestRouter, DefaultRouter};
+pub use http_server::HttpServer;
 
 use crate::errors::{PulseError, PulseResult};
 use crate::simulator::config::{
