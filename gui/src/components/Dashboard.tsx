@@ -1,13 +1,21 @@
+import { invoke } from "@tauri-apps/api/tauri";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LogsView from "./logs_view";
 import { useServicePort, ServiceInfo } from "../ports/ServicePort";
 
 const Dashboard: React.FC = () => {
-  const [services, setServices] = useState<ServiceInfo[]>([]);
   const [path, setPath] = useState("");
   const [yaml, setYaml] = useState("");
   const [types, setTypes] = useState("");
+
+  const startSimulator = async () => {
+    await invoke("start_simulator");
+  };
+
+  const stopSimulator = async () => {
+    await invoke("stop_simulator");
+
   const navigate = useNavigate();
   const port = useServicePort();
 
@@ -54,10 +62,6 @@ const Dashboard: React.FC = () => {
     setTypes(t);
   };
 
-  useEffect(() => {
-    refresh();
-  }, []);
-
   return (
     <div style={{ padding: "1rem", fontFamily: "sans-serif" }}>
       <h1>Dashboard</h1>
@@ -67,72 +71,6 @@ const Dashboard: React.FC = () => {
           Stop Simulator
         </button>
       </div>
-
-      <section style={{ marginBottom: "1rem" }}>
-        <h2>Services</h2>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left" }}>Name</th>
-              <th>Status</th>
-              <th>Actions</th>
-              <th>Links</th>
-            </tr>
-          </thead>
-          <tbody>
-            {services.map((s) => (
-              <tr key={s.name}>
-                <td>{s.name}</td>
-                <td>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
-                      backgroundColor: s.is_running ? "green" : "red",
-                      marginRight: 4,
-                    }}
-                  />
-                  {s.is_running ? "Running" : "Stopped"}
-                </td>
-                <td>
-                  <button onClick={() => shareService(s.name)}>Share</button>
-                  <button
-                    onClick={() => connectService(s.name)}
-                    style={{ marginLeft: "0.5rem" }}
-                  >
-                    Connect
-                  </button>
-                </td>
-                <td>
-                  <a
-                    href="#logs"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      document
-                        .getElementById("logs")
-                        ?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    style={{ marginRight: "0.5rem" }}
-                  >
-                    Logs
-                  </a>
-                  <a
-                    href={`/route_editor?service=${s.name}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate(`/route_editor?service=${s.name}`);
-                    }}
-                  >
-                    Route Editor
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
 
       <section style={{ marginBottom: "1rem" }}>
         <h2>Service Manager</h2>
