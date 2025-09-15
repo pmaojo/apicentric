@@ -17,6 +17,22 @@ pub struct TemplateEngine {
     handlebars: Handlebars<'static>,
 }
 
+/// Port trait for rendering templates
+///
+/// This allows higher level components to depend on an abstraction
+/// rather than the concrete Handlebars implementation, following
+/// the dependency inversion principle.
+pub trait TemplateRenderer: Send + Sync {
+    /// Render the given template with the provided context
+    fn render_template(&self, template: &str, context: &TemplateContext) -> PulseResult<String>;
+}
+
+impl TemplateRenderer for TemplateEngine {
+    fn render_template(&self, template: &str, context: &TemplateContext) -> PulseResult<String> {
+        self.render(template, context)
+    }
+}
+
 /// Template context containing all available data for rendering
 #[derive(Debug, Clone)]
 pub struct TemplateContext {
