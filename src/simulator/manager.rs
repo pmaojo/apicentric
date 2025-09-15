@@ -43,6 +43,7 @@ pub struct ApiSimulatorManager {
     collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
     crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
     log_sender: broadcast::Sender<RequestLogEntry>,
+    tls_config: Arc<RwLock<Option<(PathBuf, PathBuf)>>>,
 }
 
 impl Clone for ApiSimulatorManager {
@@ -58,6 +59,7 @@ impl Clone for ApiSimulatorManager {
             collab_sender: self.collab_sender.clone(),
             crdts: self.crdts.clone(),
             log_sender: self.log_sender.clone(),
+            tls_config: self.tls_config.clone(),
         }
     }
 }
@@ -82,6 +84,7 @@ impl ApiSimulatorManager {
         let p2p_enabled = Arc::new(RwLock::new(false));
         let collab_sender = Arc::new(RwLock::new(None));
         let crdts = Arc::new(RwLock::new(HashMap::new()));
+        let tls_config = Arc::new(RwLock::new(None));
 
         Self {
             config,
@@ -94,6 +97,7 @@ impl ApiSimulatorManager {
             collab_sender,
             crdts,
             log_sender,
+            tls_config,
         }
     }
 
@@ -112,6 +116,17 @@ impl ApiSimulatorManager {
     pub async fn enable_p2p(&self, enabled: bool) {
         let mut flag = self.p2p_enabled.write().await;
         *flag = enabled;
+    }
+
+    /// Set TLS certificate and key for all services
+    pub async fn set_tls_config(
+        &self,
+        cert: Option<PathBuf>,
+        key: Option<PathBuf>,
+    ) -> PulseResult<()> {
+        let mut cfg = self.tls_config.write().await;
+        *cfg = cert.zip(key);
+        Ok(())
     }
 
     /// Subscribe to log events
@@ -150,8 +165,13 @@ impl ApiSimulatorManager {
         let mut registry = self.service_registry.write().await;
         let mut router = self.request_router.write().await;
         let mut crdts_map = self.crdts.write().await;
+        let tls_cfg = self.tls_config.read().await.clone();
 
-        for service_def in services {
+        for mut service_def in services {
+            if let Some((ref cert, ref key)) = tls_cfg {
+                service_def.server.cert = Some(cert.clone());
+                service_def.server.key = Some(key.clone());
+            }
             let service_name = service_def.name.clone();
             let base_path = service_def.server.base_path.clone();
 
@@ -581,6 +601,8 @@ impl ApiSimulatorManager {
                 base_path: "/".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: None,
             fixtures: None,

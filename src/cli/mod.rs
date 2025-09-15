@@ -60,6 +60,14 @@ pub enum SimulatorAction {
         /// Enable peer-to-peer collaboration for service editing
         #[arg(long)]
         p2p: bool,
+
+        /// TLS certificate file
+        #[arg(long)]
+        cert: Option<String>,
+
+        /// TLS private key file
+        #[arg(long)]
+        key: Option<String>,
     },
 
     /// Stop the API simulator

@@ -5,6 +5,8 @@ pub async fn handle_start(
     services_dir: &str,
     force: bool,
     p2p: bool,
+    cert: Option<&str>,
+    key: Option<&str>,
     exec_ctx: &ExecutionContext,
 ) -> PulseResult<()> {
     if exec_ctx.dry_run {
@@ -25,6 +27,11 @@ pub async fn handle_start(
         }
         if p2p {
             simulator.enable_p2p(true).await;
+        }
+        if let (Some(c), Some(k)) = (cert, key) {
+            simulator
+                .set_tls_config(Some(c.into()), Some(k.into()))
+                .await?;
         }
         match simulator.start().await {
             Ok(_) => {

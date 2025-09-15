@@ -285,6 +285,8 @@ mod tests {
                 base_path: format!("/api/{}", name),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: None,
             fixtures: None,

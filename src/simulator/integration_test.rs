@@ -32,6 +32,8 @@ mod tests {
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: None,
             fixtures: {

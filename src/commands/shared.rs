@@ -130,6 +130,8 @@ pub fn scaffold_service_definition() -> PulseResult<ServiceDefinition> {
             base_path,
             proxy_base_url: None,
             cors: None,
+            cert: None,
+            key: None,
         },
         models: None,
         fixtures: None,

@@ -120,6 +120,8 @@ async fn run(cli: Cli) -> PulseResult<()> {
                 services_dir: _,
                 force: _,
                 p2p,
+                cert,
+                key,
             } => {
                 // Start and block to keep services alive
                 if let Some(sim) = context.api_simulator() {
@@ -129,6 +131,11 @@ async fn run(cli: Cli) -> PulseResult<()> {
                     }
                     if *p2p {
                         sim.enable_p2p(true).await;
+                    }
+                    if let (Some(c), Some(k)) = (cert, key) {
+                        sim
+                            .set_tls_config(Some(c.into()), Some(k.into()))
+                            .await?;
                     }
                     println!("🚀 Starting API Simulator (blocking)…");
                     sim.start().await?;

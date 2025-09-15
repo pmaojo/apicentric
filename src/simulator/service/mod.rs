@@ -33,6 +33,11 @@ use tokio::net::TcpListener;
 use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
 use deno_core::{JsRuntime, RuntimeOptions};
+use tokio_rustls::rustls::{Certificate, PrivateKey, ServerConfig as RustlsServerConfig};
+use tokio_rustls::TlsAcceptor;
+use rustls_pemfile::{certs, pkcs8_private_keys};
+use std::fs::File;
+use std::io::BufReader;
 
 /// Individual service instance with HTTP server capabilities
 pub struct ServiceInstance {
@@ -89,6 +94,51 @@ impl ServiceInstance {
         })
     }
 
+    fn build_tls_acceptor(cert_path: &Path, key_path: &Path) -> PulseResult<TlsAcceptor> {
+        let cert_file = File::open(cert_path).map_err(|e| {
+            PulseError::config_error(
+                format!("Failed to open certificate file: {}", e),
+                None::<String>,
+            )
+        })?;
+        let mut cert_reader = BufReader::new(cert_file);
+        let cert_chain = certs(&mut cert_reader)
+            .map_err(|_| PulseError::config_error("Invalid certificate".to_string(), None::<String>))?
+            .into_iter()
+            .map(Certificate)
+            .collect::<Vec<_>>();
+
+        let key_file = File::open(key_path).map_err(|e| {
+            PulseError::config_error(
+                format!("Failed to open key file: {}", e),
+                None::<String>,
+            )
+        })?;
+        let mut key_reader = BufReader::new(key_file);
+        let mut keys = pkcs8_private_keys(&mut key_reader)
+            .map_err(|_| PulseError::config_error("Invalid private key".to_string(), None::<String>))?;
+        if keys.is_empty() {
+            return Err(PulseError::config_error(
+                "No private key found".to_string(),
+                None::<String>,
+            ));
+        }
+        let key = PrivateKey(keys.remove(0));
+
+        let cfg = RustlsServerConfig::builder()
+            .with_safe_defaults()
+            .with_no_client_auth()
+            .with_single_cert(cert_chain, key)
+            .map_err(|e| {
+                PulseError::runtime_error(
+                    format!("Failed to build TLS configuration: {}", e),
+                    None::<String>,
+                )
+            })?;
+
+        Ok(TlsAcceptor::from(Arc::new(cfg)))
+    }
+
     /// Start the service HTTP server
     pub async fn start(&mut self) -> PulseResult<()> {
         if self.is_running {
@@ -117,6 +167,22 @@ impl ServiceInstance {
         let proxy = self.definition.server.proxy_base_url.clone();
         let active_scenario = Arc::clone(&self.active_scenario);
         let graphql = self.graphql.clone();
+        let tls_acceptor = match (
+            self.definition.server.cert.clone(),
+            self.definition.server.key.clone(),
+        ) {
+            (Some(cert), Some(key)) => match Self::build_tls_acceptor(&cert, &key) {
+                Ok(a) => Some(a),
+                Err(e) => {
+                    eprintln!(
+                        "Failed to configure TLS for service '{}': {}",
+                        service_name, e
+                    );
+                    None
+                }
+            },
+            _ => None,
+        };
 
         // Spawn the HTTP server task
         let server_handle = tokio::spawn(async move {
@@ -130,7 +196,7 @@ impl ServiceInstance {
             loop {
                 match listener.accept().await {
                     Ok((stream, _)) => {
-                        let io = TokioIo::new(stream);
+                        let tls_acc = tls_acceptor.clone();
                         let service_name = service_name.clone();
                         let base_path = base_path.clone();
                         let endpoints = endpoints.clone();
@@ -144,62 +210,130 @@ impl ServiceInstance {
                         // Handle each connection
                         let connection_service_name = service_name.clone();
                         tokio::task::spawn(async move {
-                            let service = service_fn(move |req| {
-                                let service_name = service_name.clone();
-                                let base_path = base_path.clone();
-                                let endpoints = endpoints.clone();
-                                let state = Arc::clone(&state);
-                                let template_engine = Arc::clone(&template_engine);
-                                let cors_cfg = cors_cfg.clone();
-                                let proxy_cfg = proxy_cfg.clone();
-                                let scenario_cfg = Arc::clone(&scenario_cfg_outer);
-                                let graphql_cfg = graphql_cfg_outer.clone();
+                            if let Some(acc) = tls_acc {
+                                match acc.accept(stream).await {
+                                    Ok(s) => {
+                                        let io = TokioIo::new(s);
+                                        let service = service_fn(move |req| {
+                                            let service_name = service_name.clone();
+                                            let base_path = base_path.clone();
+                                            let endpoints = endpoints.clone();
+                                            let state = Arc::clone(&state);
+                                            let template_engine = Arc::clone(&template_engine);
+                                            let cors_cfg = cors_cfg.clone();
+                                            let proxy_cfg = proxy_cfg.clone();
+                                            let scenario_cfg = Arc::clone(&scenario_cfg_outer);
+                                            let graphql_cfg = graphql_cfg_outer.clone();
 
-                                async move {
-                                    match Self::handle_request_static(
-                                        req,
-                                        service_name.clone(),
-                                        base_path,
-                                        endpoints,
-                                        state,
-                                        template_engine,
-                                        cors_cfg,
-                                        proxy_cfg,
-                                        scenario_cfg,
-                                        graphql_cfg,
-                                    )
-                                    .await
-                                    {
-                                        Ok(resp) => Ok::<_, Infallible>(resp),
-                                        Err(err) => {
+                                            async move {
+                                                match Self::handle_request_static(
+                                                    req,
+                                                    service_name.clone(),
+                                                    base_path,
+                                                    endpoints,
+                                                    state,
+                                                    template_engine,
+                                                    cors_cfg,
+                                                    proxy_cfg,
+                                                    scenario_cfg,
+                                                    graphql_cfg,
+                                                )
+                                                .await
+                                                {
+                                                    Ok(resp) => Ok::<_, Infallible>(resp),
+                                                    Err(err) => {
+                                                        eprintln!(
+                                                            "Error handling request for service '{}': {}",
+                                                            service_name, err
+                                                        );
+                                                        let fallback = match Response::builder()
+                                                            .status(StatusCode::INTERNAL_SERVER_ERROR)
+                                                            .header("content-type", "application/json")
+                                                            .body(Full::new(Bytes::from(format!(
+                                                                r#"{{"error": "{}"}}"#,
+                                                                err
+                                                            ))))
+                                                        {
+                                                            Ok(r) => r,
+                                                            Err(_) => Response::new(Full::new(Bytes::new())),
+                                                        };
+                                                        Ok::<_, Infallible>(fallback)
+                                                    }
+                                                }
+                                            }
+                                        });
+
+                                        if let Err(err) = http1::Builder::new().serve_connection(io, service).await {
                                             eprintln!(
-                                                "Error handling request for service '{}': {}",
-                                                service_name, err
+                                                "Error serving connection for service '{}': {:?}",
+                                                connection_service_name, err
                                             );
-                                            let fallback = match Response::builder()
-                                                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                                                .header("content-type", "application/json")
-                                                .body(Full::new(Bytes::from(format!(
-                                                    r#"{{"error": "{}"}}"#,
-                                                    err
-                                                ))))
-                                            {
-                                                Ok(r) => r,
-                                                Err(_) => Response::new(Full::new(Bytes::new())),
-                                            };
-                                            Ok::<_, Infallible>(fallback)
                                         }
                                     }
+                                    Err(e) => {
+                                        eprintln!(
+                                            "TLS handshake error for service '{}': {}",
+                                            connection_service_name, e
+                                        );
+                                    }
                                 }
-                            });
+                            } else {
+                                let io = TokioIo::new(stream);
+                                let service = service_fn(move |req| {
+                                    let service_name = service_name.clone();
+                                    let base_path = base_path.clone();
+                                    let endpoints = endpoints.clone();
+                                    let state = Arc::clone(&state);
+                                    let template_engine = Arc::clone(&template_engine);
+                                    let cors_cfg = cors_cfg.clone();
+                                    let proxy_cfg = proxy_cfg.clone();
+                                    let scenario_cfg = Arc::clone(&scenario_cfg_outer);
+                                    let graphql_cfg = graphql_cfg_outer.clone();
 
-                            if let Err(err) =
-                                http1::Builder::new().serve_connection(io, service).await
-                            {
-                                eprintln!(
-                                    "Error serving connection for service '{}': {:?}",
-                                    connection_service_name, err
-                                );
+                                    async move {
+                                        match Self::handle_request_static(
+                                            req,
+                                            service_name.clone(),
+                                            base_path,
+                                            endpoints,
+                                            state,
+                                            template_engine,
+                                            cors_cfg,
+                                            proxy_cfg,
+                                            scenario_cfg,
+                                            graphql_cfg,
+                                        )
+                                        .await
+                                        {
+                                            Ok(resp) => Ok::<_, Infallible>(resp),
+                                            Err(err) => {
+                                                eprintln!(
+                                                    "Error handling request for service '{}': {}",
+                                                    service_name, err
+                                                );
+                                                let fallback = match Response::builder()
+                                                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                                                    .header("content-type", "application/json")
+                                                    .body(Full::new(Bytes::from(format!(
+                                                        r#"{{"error": "{}"}}"#,
+                                                        err
+                                                    ))))
+                                                {
+                                                    Ok(r) => r,
+                                                    Err(_) => Response::new(Full::new(Bytes::new())),
+                                                };
+                                                Ok::<_, Infallible>(fallback)
+                                            }
+                                        }
+                                    }
+                                });
+
+                                if let Err(err) = http1::Builder::new().serve_connection(io, service).await {
+                                    eprintln!(
+                                        "Error serving connection for service '{}': {:?}",
+                                        connection_service_name, err
+                                    );
+                                }
                             }
                         });
                     }
@@ -1667,6 +1801,8 @@ mod tests {
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: None,
             fixtures: {
@@ -2135,6 +2271,8 @@ mod tests {
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: None,
             fixtures: {

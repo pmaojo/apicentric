@@ -119,6 +119,12 @@ pub struct ServerConfig {
     pub proxy_base_url: Option<String>,
     #[serde(default)]
     pub cors: Option<CorsConfig>,
+    /// TLS certificate for HTTPS
+    #[serde(default)]
+    pub cert: Option<PathBuf>,
+    /// TLS private key for HTTPS
+    #[serde(default)]
+    pub key: Option<PathBuf>,
 }
 
 /// CORS configuration
@@ -1045,6 +1051,34 @@ impl ConfigValidator for ServerConfig {
             }
         }
 
+        // Validate TLS settings
+        match (&self.cert, &self.key) {
+            (Some(cert), Some(key)) => {
+                if !Path::new(cert).exists() {
+                    errors.push(ValidationError {
+                        field: "server.cert".to_string(),
+                        message: "Certificate file not found".to_string(),
+                        suggestion: None,
+                    });
+                }
+                if !Path::new(key).exists() {
+                    errors.push(ValidationError {
+                        field: "server.key".to_string(),
+                        message: "Key file not found".to_string(),
+                        suggestion: None,
+                    });
+                }
+            }
+            (Some(_), None) | (None, Some(_)) => {
+                errors.push(ValidationError {
+                    field: "server.tls".to_string(),
+                    message: "Both certificate and key must be provided for TLS".to_string(),
+                    suggestion: Some("Specify both --cert and --key or omit both".to_string()),
+                });
+            }
+            _ => {}
+        }
+
         if errors.is_empty() {
             Ok(())
         } else {
@@ -1510,6 +1544,8 @@ mod tests {
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: None,
             fixtures: None,
@@ -1592,6 +1628,8 @@ endpoints:
                 base_path: "/api".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: None,
             fixtures: None,
@@ -1668,6 +1706,8 @@ endpoints:
                 base_path: "/api".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: Some(models),
             fixtures: None,
@@ -1750,6 +1790,8 @@ endpoints:
                 base_path: "/api".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: Some(models),
             fixtures: Some(fixtures),
@@ -1803,6 +1845,8 @@ endpoints:
                 base_path: "/api".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                cert: None,
+                key: None,
             },
             models: None, // No models defined
             fixtures: None,
@@ -2046,6 +2090,8 @@ name: 'invalid-service'
                     base_path: "/api/service1".to_string(),
                     proxy_base_url: None,
                     cors: None,
+                    cert: None,
+                    key: None,
                 },
                 models: None,
                 fixtures: None,
@@ -2063,6 +2109,8 @@ name: 'invalid-service'
                     base_path: "/api/service2".to_string(),
                     proxy_base_url: None,
                     cors: None,
+                    cert: None,
+                    key: None,
                 },
                 models: None,
                 fixtures: None,

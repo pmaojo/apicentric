@@ -16,6 +16,8 @@ pub fn from_openapi(spec: &Spec) -> ServiceDefinition {
         base_path: spec.base_path.clone().unwrap_or_else(|| "/".to_string()),
         proxy_base_url: None,
         cors: None,
+        cert: None,
+        key: None,
     };
 
     // models

@@ -124,7 +124,7 @@ mod tests {
             name: "Test".into(),
             version: None,
             description: None,
-            server: ServerConfig { port: None, base_path: "/api".into(), proxy_base_url: None, cors: None },
+            server: ServerConfig { port: None, base_path: "/api".into(), proxy_base_url: None, cors: None, cert: None, key: None },
             models: None,
             fixtures: None,
             bucket: None,
