@@ -1,6 +1,6 @@
 pub mod setup_npm;
 pub mod contract;
-pub mod docs; // (pendiente de implementación real)
+// pub mod docs; // (pendiente de implementación real)
 pub mod simulator;
 pub mod shared;
 pub mod contract_demo;
