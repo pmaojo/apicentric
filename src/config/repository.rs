@@ -130,6 +130,9 @@ mod tests {
     fn save_and_load_roundtrip() {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("cfg.json");
+        std::fs::create_dir_all(tmp.path().join("routes")).unwrap();
+        std::fs::create_dir_all(tmp.path().join("specs")).unwrap();
+        std::fs::create_dir_all(tmp.path().join("services")).unwrap();
         let config = super::PulseConfig::builder()
             .routes_dir(tmp.path().join("routes"))
             .specs_dir(tmp.path().join("specs"))

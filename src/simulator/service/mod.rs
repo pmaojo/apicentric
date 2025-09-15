@@ -52,7 +52,6 @@ pub struct ServiceInstance {
     is_running: bool,
     active_scenario: Arc<RwLock<Option<String>>>,
     graphql: Option<Arc<GraphQLMocks>>,
-    storage: Arc<dyn Storage>,
 }
 
 impl ServiceInstance {
@@ -93,7 +92,6 @@ impl ServiceInstance {
             is_running: false,
             active_scenario: Arc::new(RwLock::new(None)),
             graphql,
-            storage,
         })
     }
 

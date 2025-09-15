@@ -36,14 +36,12 @@ pub trait NpmIntegrator {
 #[derive(Debug, Clone)]
 pub struct NpmIntegration {
     project_root: PathBuf,
-    package_json_path: PathBuf,
 }
 
 impl NpmIntegration {
     pub fn new(project_root: &Path) -> Self {
         Self {
             project_root: project_root.to_path_buf(),
-            package_json_path: project_root.join("package.json"),
         }
     }
 
