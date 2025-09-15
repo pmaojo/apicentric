@@ -1,0 +1,145 @@
+use super::{generate_default_config, PulseConfig};
+use crate::errors::{PulseError, PulseResult};
+use crate::validation::ConfigValidator;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+pub trait ConfigRepository {
+    fn load(&self) -> PulseResult<PulseConfig>;
+    fn save(&self, config: &PulseConfig) -> PulseResult<()>;
+}
+
+pub struct FileConfigRepository {
+    path: PathBuf,
+}
+
+impl FileConfigRepository {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self { path: path.into() }
+    }
+}
+
+impl ConfigRepository for FileConfigRepository {
+    fn load(&self) -> PulseResult<PulseConfig> {
+        let path = &self.path;
+        if !path.exists() {
+            return Err(PulseError::config_error(
+                format!("Configuration file not found: {}", path.display()),
+                Some(
+                    "Create a mockforge.json file or run 'mockforge init' to generate a default configuration",
+                ),
+            ));
+        }
+        let content = fs::read_to_string(path).map_err(|e| {
+            PulseError::config_error(
+                format!("Cannot read configuration file: {}", e),
+                Some("Check file permissions and ensure the file is readable"),
+            )
+        })?;
+        let mut config: PulseConfig = serde_json::from_str(&content).map_err(|e| {
+            PulseError::config_error(
+                format!("Invalid JSON in configuration file: {}", e),
+                Some("Check JSON syntax and ensure all required fields are present"),
+            )
+        })?;
+        let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
+        resolve_relative_paths(&mut config, base_dir);
+        if let Err(validation_errors) = config.validate() {
+            let error_message =
+                crate::errors::ErrorFormatter::format_validation_errors(&validation_errors);
+            return Err(PulseError::config_error(
+                format!("Configuration validation failed:\n{}", error_message),
+                Some("Fix the validation errors listed above"),
+            ));
+        }
+        Ok(config)
+    }
+
+    fn save(&self, config: &PulseConfig) -> PulseResult<()> {
+        let path = &self.path;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                PulseError::fs_error(
+                    format!("Cannot create config directory: {}", e),
+                    Some("Check permissions for the parent directory"),
+                )
+            })?;
+        }
+        let content = serde_json::to_string_pretty(config).map_err(|e| {
+            PulseError::config_error(
+                format!("Cannot serialize configuration: {}", e),
+                None::<String>,
+            )
+        })?;
+        fs::write(path, content).map_err(|e| {
+            PulseError::fs_error(
+                format!("Cannot write configuration file: {}", e),
+                Some("Check write permissions for the target directory"),
+            )
+        })?;
+        Ok(())
+    }
+}
+
+fn resolve_relative_paths(config: &mut PulseConfig, base_dir: &Path) {
+    if !config.routes_dir.is_absolute() {
+        config.routes_dir = base_dir.join(&config.routes_dir);
+    }
+    if !config.specs_dir.is_absolute() {
+        config.specs_dir = base_dir.join(&config.specs_dir);
+    }
+    if !config.index_cache_path.is_absolute() {
+        config.index_cache_path = base_dir.join(&config.index_cache_path);
+    }
+}
+
+pub fn load_config(path: &Path) -> PulseResult<PulseConfig> {
+    FileConfigRepository::new(path).load()
+}
+
+pub fn save_config(config: &PulseConfig, path: &Path) -> PulseResult<()> {
+    FileConfigRepository::new(path).save(config)
+}
+
+pub fn init_config(path: &Path) -> PulseResult<()> {
+    if path.exists() {
+        return Err(PulseError::config_error(
+            format!("Configuration file already exists: {}", path.display()),
+            Some("Use --force to overwrite existing configuration or choose a different path"),
+        ));
+    }
+    let default_config = generate_default_config();
+    save_config(&default_config, path)?;
+    println!("✅ Created default configuration at: {}", path.display());
+    println!("💡 Edit the configuration file to customize settings for your project");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn load_nonexistent_config() {
+        let result = load_config(Path::new("nonexistent.json"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn save_and_load_roundtrip() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("cfg.json");
+        let config = super::PulseConfig::builder()
+            .routes_dir(tmp.path().join("routes"))
+            .specs_dir(tmp.path().join("specs"))
+            .index_cache_path(tmp.path().join("index.json"))
+            .simulator_services_dir(tmp.path().join("services"))
+            .build()
+            .unwrap();
+        save_config(&config, &path).unwrap();
+        let loaded = load_config(&path).unwrap();
+        assert_eq!(config.base_url, loaded.base_url);
+    }
+}
+
