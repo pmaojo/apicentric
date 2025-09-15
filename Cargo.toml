@@ -42,6 +42,8 @@ deno_core = "0.272.0"
 uuid = { version = "1.11.0", features = ["v4"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 wasm-bindgen = "0.2"
+libloading = "0.8"
+http = "0.2"
 
 # UI dependencies (CLI only)
 indicatif = "0.17.7"
