@@ -14,6 +14,7 @@ pub mod router;
 pub mod service;
 pub mod template;
 pub mod typescript;
+pub mod react_query;
 pub mod watcher;
 
 #[cfg(test)]

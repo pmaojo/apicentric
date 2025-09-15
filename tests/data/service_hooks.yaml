@@ -1,0 +1,27 @@
+name: Hook Service
+version: "1.0"
+server:
+  port: null
+  base_path: /api
+  proxy_base_url: null
+  cors: null
+endpoints:
+  - method: GET
+    path: /pets
+    responses:
+      200:
+        content_type: application/json
+        body: ok
+        headers: null
+        condition: null
+        side_effects: null
+  - method: POST
+    path: /pets
+    request_body: null
+    responses:
+      201:
+        content_type: application/json
+        body: created
+        headers: null
+        condition: null
+        side_effects: null

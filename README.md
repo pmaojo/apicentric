@@ -242,6 +242,41 @@ export interface paths {
 }
 ```
 
+### Exportar hooks de TanStack Query
+
+```bash
+# Generar hooks React Query desde un servicio YAML
+mockforge export-query --input services/petstore.yaml --output hooks.ts
+```
+
+Archivo generado (`hooks.ts`):
+
+```ts
+import { useQuery, useMutation } from '@tanstack/react-query';
+
+export function usePetsQuery(baseUrl: string) {
+  return useQuery(['GET','/pets'], () => fetch(`${baseUrl}/api/pets`).then(res => res.json()));
+}
+
+export function usePostPetsMutation(baseUrl: string) {
+  return useMutation((body: any) =>
+    fetch(`${baseUrl}/api/pets`, { method: 'POST', body: JSON.stringify(body) }).then(res => res.json())
+  );
+}
+```
+
+En una aplicación React:
+
+```tsx
+import { usePetsQuery, usePostPetsMutation } from './hooks';
+
+function Pets() {
+  const pets = usePetsQuery('/api');
+  const addPet = usePostPetsMutation('/api');
+  // ...
+}
+```
+
 ### Convertir desde Mockoon
 
 ```bash
