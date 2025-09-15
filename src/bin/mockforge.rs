@@ -6,7 +6,7 @@ pub use mockforge::{PulseError, PulseResult as _PulseResult};
 mod ai_cmd;
 #[path = "../commands/shared.rs"]
 mod shared_impl;
-#[path = "../commands/simulator.rs"]
+#[path = "../commands/simulator/mod.rs"]
 mod simulator_cmd;
 #[path = "../commands/tui.rs"]
 mod tui_cmd;
