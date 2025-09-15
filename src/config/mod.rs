@@ -1,3 +1,4 @@
+use crate::adapters::npm::config::NpmConfig;
 use crate::errors::{PulseError, PulseResult, ValidationError};
 use crate::validation::{ConfigValidator, ValidationUtils};
 use serde::{Deserialize, Serialize};
@@ -110,29 +111,6 @@ pub enum ExecutionMode {
     Debug,
 }
 
-/// NPM integration configuration
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NpmConfig {
-    #[serde(default = "default_pulse_script")]
-    pub pulse_script: String,
-
-    #[serde(default = "default_pulse_watch_script")]
-    pub pulse_watch_script: String,
-
-    #[serde(default = "default_dev_script")]
-    pub dev_script: String,
-}
-
-impl Default for NpmConfig {
-    fn default() -> Self {
-        Self {
-            pulse_script: default_pulse_script(),
-            pulse_watch_script: default_pulse_watch_script(),
-            dev_script: default_dev_script(),
-        }
-    }
-}
-
 /// Configuration for AI assisted code generation.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AiConfig {
@@ -165,16 +143,18 @@ impl ConfigValidator for AiConfig {
         match self.provider {
             AiProviderKind::Local => {
                 if self.model_path.as_deref().unwrap_or("").is_empty() {
-                    errors.push(
-                        ValidationError::new("ai.model_path", "model_path is required for local provider"),
-                    );
+                    errors.push(ValidationError::new(
+                        "ai.model_path",
+                        "model_path is required for local provider",
+                    ));
                 }
             }
             AiProviderKind::Openai => {
                 if self.api_key.as_deref().unwrap_or("").is_empty() {
-                    errors.push(
-                        ValidationError::new("ai.api_key", "api_key is required for openai provider"),
-                    );
+                    errors.push(ValidationError::new(
+                        "ai.api_key",
+                        "api_key is required for openai provider",
+                    ));
                 }
             }
         }
@@ -240,18 +220,6 @@ fn default_execution_mode() -> ExecutionMode {
 
 fn default_continue_on_failure() -> bool {
     true
-}
-
-fn default_pulse_script() -> String {
-    "cargo run --manifest-path utils/mockforge/Cargo.toml --".to_string()
-}
-
-fn default_pulse_watch_script() -> String {
-    "cargo run --manifest-path utils/mockforge/Cargo.toml -- watch".to_string()
-}
-
-fn default_dev_script() -> String {
-    "npm run dev".to_string()
 }
 
 impl ConfigValidator for PulseConfig {
@@ -394,38 +362,6 @@ impl ConfigValidator for ExecutionConfig {
     fn validate(&self) -> Result<(), Vec<ValidationError>> {
         // Execution config validation is mostly structural, no specific validation needed
         Ok(())
-    }
-}
-
-impl ConfigValidator for NpmConfig {
-    fn validate(&self) -> Result<(), Vec<ValidationError>> {
-        let mut errors = Vec::new();
-
-        // Validate scripts are not empty
-        if let Err(e) =
-            ValidationUtils::validate_non_empty_string(&self.pulse_script, "npm.pulse_script")
-        {
-            errors.push(e);
-        }
-
-        if let Err(e) = ValidationUtils::validate_non_empty_string(
-            &self.pulse_watch_script,
-            "npm.pulse_watch_script",
-        ) {
-            errors.push(e);
-        }
-
-        if let Err(e) =
-            ValidationUtils::validate_non_empty_string(&self.dev_script, "npm.dev_script")
-        {
-            errors.push(e);
-        }
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors)
-        }
     }
 }
 

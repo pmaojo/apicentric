@@ -21,6 +21,7 @@ pub mod adapters {
     pub mod ui_cli;
     pub mod mock_server;
     pub mod npm_integration;
+    pub mod npm;
     pub mod report_sink;
     pub mod service_spec_loader;
 
@@ -29,6 +30,7 @@ pub mod adapters {
     pub use ui_cli::*;
     pub use report_sink::*;
     pub use service_spec_loader::*;
+    pub use npm::*;
 }
 
 // API Simulator module
