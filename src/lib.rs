@@ -20,7 +20,7 @@ pub mod adapters {
     pub mod http_client;
     pub mod ui_cli;
     pub mod mock_server;
-    pub mod npm_integration;
+    pub mod npm;
     pub mod report_sink;
     pub mod service_spec_loader;
 

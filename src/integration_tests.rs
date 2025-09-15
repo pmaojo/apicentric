@@ -7,7 +7,7 @@
 mod tests {
     use crate::config::{PulseConfig, ServerConfig, ExecutionConfig, ExecutionMode, NpmConfig, load_config, save_config, generate_default_config};
     use crate::adapters::server_manager::{ServerManager, ServerManagerPort, MockServerManager};
-    use crate::adapters::npm_integration::NpmIntegration;
+    use crate::adapters::npm::NpmIntegration;
     use crate::errors::{PulseError, ErrorFormatter};
     use crate::validation::{ConfigValidator, ValidationUtils};
     use tempfile::TempDir;

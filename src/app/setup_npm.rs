@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::adapters::npm_integration::NpmIntegration;
+use crate::adapters::npm::NpmIntegration;
 use crate::errors::PulseResult;
 
 /// Configura o prueba los scripts de npm necesarios para Pulse.
