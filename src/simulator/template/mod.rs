@@ -4,7 +4,7 @@
 //! that supports dynamic responses based on request data, fixtures, and service state.
 
 use crate::errors::{PulseError, PulseResult};
-use crate::simulator::service::{DataBucket, PathParameters, ServiceState};
+use crate::simulator::service::{routing::PathParameters, state::{DataBucket, ServiceState}};
 use handlebars::Handlebars;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -444,7 +444,7 @@ impl RequestContext {
 mod tests {
     use super::*;
     use serde_json::json;
-    use crate::simulator::service::DataBucket;
+    use crate::simulator::service::state::DataBucket;
 
     #[test]
     fn test_template_engine_creation() {
