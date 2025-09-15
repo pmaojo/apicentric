@@ -52,6 +52,23 @@ winget install --id your-org.mockforge
 mockforge --version
 ```
 
+## Container Image
+
+Las releases publican una imagen de contenedor mínima en el GitHub Container Registry.
+Descárgala y ejecútala sin instalar dependencias locales:
+
+```bash
+docker pull ghcr.io/your-org/mockforge:latest
+docker run --rm ghcr.io/your-org/mockforge:latest --help
+```
+
+Para lanzar el simulador con tus servicios locales:
+
+```bash
+docker run --rm -v $(pwd)/services:/services ghcr.io/your-org/mockforge:latest \
+  simulator start --services-dir /services
+```
+
 ## ✨ Guía Rápida
 
 ```
