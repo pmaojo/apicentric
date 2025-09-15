@@ -1,24 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { invoke } from "@tauri-apps/api/tauri";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/api/dialog";
 import { writeTextFile } from "@tauri-apps/api/fs";
-
-export interface LogEntry {
-  timestamp: string;
-  method: string;
-  path: string;
-  status: number;
-  service: string;
-  endpoint?: number;
-}
-
-interface ServiceInfo {
-  name: string;
-  port: number;
-  is_running: boolean;
-}
+import { useServicePort, LogEntry, ServiceInfo } from "../ports/ServicePort";
 
 export const LogsView: React.FC = () => {
   const [logsByService, setLogsByService] = useState<Record<string, LogEntry[]>>({});
@@ -26,6 +11,7 @@ export const LogsView: React.FC = () => {
   const [methodFilter, setMethodFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const navigate = useNavigate();
+  const port = useServicePort();
 
   useEffect(() => {
     let mounted = true;
@@ -33,10 +19,10 @@ export const LogsView: React.FC = () => {
 
     const init = async () => {
       try {
-        const services: ServiceInfo[] = await invoke("list_services");
+        const services: ServiceInfo[] = await port.listServices();
         const running = services.filter((s) => s.is_running);
         const results = await Promise.all(
-          running.map((s) => invoke<LogEntry[]>("get_logs", { service: s.name, limit: 100 }))
+          running.map((s) => port.getLogs(s.name, 100))
         );
         if (mounted) {
           const initial: Record<string, LogEntry[]> = {};

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useServicePort } from "../ports/ServicePort";
 import { invoke } from "@tauri-apps/api/tauri";
 import { load as loadYaml, dump as dumpYaml } from "js-yaml";
 import Sidebar from "./Sidebar";
@@ -15,19 +16,6 @@ interface ServicePort {
   list(): Promise<ServiceInfo[]>;
 }
 
-const servicePort: ServicePort = {
-  load: async (path) => {
-    const yamlStr = await invoke<string>("load_service", { path });
-    return loadYaml(yamlStr);
-  },
-  save: async (path, data) => {
-    const yamlStr = dumpYaml(data);
-    await invoke("save_service", { path, yaml: yamlStr });
-  },
-  list: async () => {
-    return invoke<ServiceInfo[]>("list_services");
-  },
-};
 
 const ServiceManager: React.FC = () => {
   const [path, setPath] = useState("");
@@ -35,42 +23,21 @@ const ServiceManager: React.FC = () => {
   const [port, setPort] = useState("");
   const [endpoints, setEndpoints] = useState<any[]>([]);
   const [types, setTypes] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const port = useServicePort();
 
   const load = async () => {
-    const content = await servicePort.load(path);
-    setName(content.name || "");
-    setPort(content.port ? String(content.port) : "");
-    setEndpoints(content.endpoints || []);
-  };
-
-  const validate = async () => {
-    const err: Record<string, string> = {};
-    if (!name.trim()) err.name = "Service name is required";
-    if (!port.trim()) err.port = "Port is required";
-    const portNum = Number(port);
-    if (!err.port && (isNaN(portNum) || portNum <= 0)) {
-      err.port = "Port must be a number";
-    }
-    if (!err.port) {
-      const services = await servicePort.list();
-      const dup = services.find(
-        (s) => s.port === portNum && s.name !== name
-      );
-      if (dup) err.port = "Port already in use";
-    }
-    setErrors(err);
-    return Object.keys(err).length === 0;
+    const content = await port.loadService(path);
+    setYaml(content);
   };
 
   const save = async () => {
-    if (!(await validate())) return;
-    const data = { name, port: Number(port), endpoints };
-    await servicePort.save(path, data);
+    await port.saveService(path, yaml);
+
   };
 
   const exportTypes = async () => {
-    const t = await invoke<string>("export_types", { path });
+    const t = await port.exportTypes(path);
     setTypes(t);
   };
 
