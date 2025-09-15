@@ -129,6 +129,16 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
+    /// Export React Query hooks for a service
+    #[command(name = "export-query")]
+    ExportQuery {
+        /// Path to service YAML definition
+        #[arg(short, long)]
+        input: String,
+        /// Output path for generated TypeScript hooks
+        #[arg(short, long)]
+        output: String,
+    },
     /// Export a service definition to a Postman collection
     #[command(name = "export-postman")]
     ExportPostman {
@@ -246,6 +256,9 @@ pub async fn simulator_command(
         SimulatorAction::Export { input, output } => handle_export(input, output, exec_ctx).await,
         SimulatorAction::ExportTypes { input, output } => {
             handle_export_types(input, output, exec_ctx).await
+        }
+        SimulatorAction::ExportQuery { input, output } => {
+            handle_export_query(input, output, exec_ctx).await
         }
         SimulatorAction::ExportPostman { input, output } => {
             handle_export_postman(input, output, exec_ctx).await
@@ -953,6 +966,35 @@ async fn handle_export_types(
         PulseError::runtime_error(format!("Failed to write types file: {}", e), None::<String>)
     })?;
     println!("✅ Exported TypeScript types to {}", output);
+    Ok(())
+}
+
+async fn handle_export_query(
+    input: &str,
+    output: &str,
+    exec_ctx: &ExecutionContext,
+) -> PulseResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would export React Query hooks from '{}' to '{}'",
+            input, output
+        );
+        return Ok(());
+    }
+    let yaml = std::fs::read_to_string(input).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
+    })?;
+    let service: mockforge::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+        .map_err(|e| {
+            PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
+        })?;
+    let ts = mockforge::simulator::react_query::to_react_query(&service).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to generate hooks: {}", e), None::<String>)
+    })?;
+    std::fs::write(output, ts).map_err(|e| {
+        PulseError::runtime_error(format!("Failed to write hooks file: {}", e), None::<String>)
+    })?;
+    println!("✅ Exported React Query hooks to {}", output);
     Ok(())
 }
 
