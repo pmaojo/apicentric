@@ -9,15 +9,8 @@ use handlebars::Handlebars;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 
-mod helpers;
-use self::helpers::{
-    default_helper, filter_helper, find_by_field_helper, find_by_multi_field_helper, find_helper,
-    json_helper, length_helper, lower_helper, merge_helper, not_helper, now_helper, random_helper,
-    random_string_helper, select_helper, upper_helper, faker_helper,
-    and_helper, or_helper, eq_helper, ne_helper, gt_helper, gte_helper, lt_helper, lte_helper,
-    contains_helper, starts_with_helper, ends_with_helper, regex_match_helper, exists_helper,
-    register_bucket_helpers,
-};
+pub mod helpers;
+use self::helpers::{register_bucket_helpers, register_core_helpers};
 
 /// Template engine for rendering dynamic responses
 pub struct TemplateEngine {
@@ -202,46 +195,10 @@ impl TemplateEngine {
     /// Register built-in template helpers
     fn register_helpers(handlebars: &mut Handlebars) -> PulseResult<()> {
         // Helper for generating current timestamp
-        handlebars.register_helper("now", Box::new(now_helper));
-
-        // Helper for generating random values
-        handlebars.register_helper("random", Box::new(random_helper));
-        handlebars.register_helper("random_string", Box::new(random_string_helper));
-        handlebars.register_helper("faker", Box::new(faker_helper));
-
-        // Helper for array operations
-        handlebars.register_helper("length", Box::new(length_helper));
-        handlebars.register_helper("find", Box::new(find_helper));
-        handlebars.register_helper("find_by_field", Box::new(find_by_field_helper));
-        handlebars.register_helper("find_by_multi_field", Box::new(find_by_multi_field_helper));
-        handlebars.register_helper("filter", Box::new(filter_helper));
-
-        // Helper for string operations
-        handlebars.register_helper("upper", Box::new(upper_helper));
-        handlebars.register_helper("lower", Box::new(lower_helper));
-
-        // Helper for JSON serialization
-        handlebars.register_helper("json", Box::new(json_helper));
-
-        // Helper for logical operations
-        handlebars.register_helper("not", Box::new(not_helper));
-        handlebars.register_helper("and", Box::new(and_helper));
-        handlebars.register_helper("or", Box::new(or_helper));
-        handlebars.register_helper("eq", Box::new(eq_helper));
-        handlebars.register_helper("ne", Box::new(ne_helper));
-        handlebars.register_helper("gt", Box::new(gt_helper));
-        handlebars.register_helper("gte", Box::new(gte_helper));
-        handlebars.register_helper("lt", Box::new(lt_helper));
-        handlebars.register_helper("lte", Box::new(lte_helper));
-        handlebars.register_helper("contains", Box::new(contains_helper));
-        handlebars.register_helper("starts_with", Box::new(starts_with_helper));
-        handlebars.register_helper("ends_with", Box::new(ends_with_helper));
-        handlebars.register_helper("matches", Box::new(regex_match_helper));
-        handlebars.register_helper("exists", Box::new(exists_helper));
-        handlebars.register_helper("merge", Box::new(merge_helper));
-        handlebars.register_helper("select", Box::new(select_helper));
-        handlebars.register_helper("default", Box::new(default_helper));
-
+        helpers::faker::register(handlebars);
+        helpers::math::register(handlebars);
+        helpers::text::register(handlebars);
+        register_core_helpers(handlebars);
         Ok(())
     }
 
