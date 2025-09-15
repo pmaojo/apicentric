@@ -142,7 +142,6 @@ pub enum AiAction {
     },
 }
 
-
 #[derive(Subcommand)]
 pub enum Commands {
     /// API Simulator operations for managing service definitions
@@ -159,6 +158,9 @@ pub enum Commands {
 
     /// Launch the graphical editor for mock services
     Gui,
+
+    /// Launch the terminal dashboard
+    Tui,
 }
 
 /// Parse command line arguments into a [`Cli`] instance.

@@ -1,15 +1,23 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use mockforge::{ExecutionContext, PulseResult, ContextBuilder};
-pub use mockforge::{PulseError, PulseResult as _PulseResult};
 use mockforge::context::init;
-#[path = "../commands/simulator.rs"]
-mod simulator_cmd;
+use mockforge::{ContextBuilder, ExecutionContext, PulseResult};
+pub use mockforge::{PulseError, PulseResult as _PulseResult};
 #[path = "../commands/ai.rs"]
 mod ai_cmd;
 #[path = "../commands/shared.rs"]
 mod shared_impl;
-mod commands { pub mod shared { pub use crate::shared_impl::*; } }
-mod collab { pub use mockforge::collab::*; }
+#[path = "../commands/simulator.rs"]
+mod simulator_cmd;
+#[path = "../commands/tui.rs"]
+mod tui_cmd;
+mod commands {
+    pub mod shared {
+        pub use crate::shared_impl::*;
+    }
+}
+mod collab {
+    pub use mockforge::collab::*;
+}
 
 #[derive(Parser)]
 #[command(author, version, about = "MockForge CLI (lightweight)")]
@@ -67,6 +75,8 @@ enum Commands {
         #[command(subcommand)]
         action: ai_cmd::AiAction,
     },
+    /// Launch the terminal dashboard
+    Tui,
 }
 
 #[tokio::main]
@@ -87,26 +97,39 @@ async fn run(cli: Cli) -> PulseResult<()> {
     // Build simulator from config
     let api_simulator = init::build_api_simulator(&cfg);
 
-    let context = builder
-        .with_api_simulator(api_simulator)
-        .build()?;
+    let context = builder.with_api_simulator(api_simulator).build()?;
 
     if let Some(sim) = context.api_simulator() {
         sim.set_db_path(&cli.db_path).await.ok();
     }
 
     let mut exec_ctx = ExecutionContext::new(context.config());
-    if let Some(mode) = cli.mode { exec_ctx = exec_ctx.with_mode(mode.into()); }
-    if cli.dry_run { exec_ctx = exec_ctx.with_dry_run(true); }
-    if cli.verbose { exec_ctx = exec_ctx.with_verbose(true); }
+    if let Some(mode) = cli.mode {
+        exec_ctx = exec_ctx.with_mode(mode.into());
+    }
+    if cli.dry_run {
+        exec_ctx = exec_ctx.with_dry_run(true);
+    }
+    if cli.verbose {
+        exec_ctx = exec_ctx.with_verbose(true);
+    }
 
     match cli.command {
         Commands::Simulator { action } => match &action {
-            simulator_cmd::SimulatorAction::Start { services_dir: _, force: _, p2p } => {
+            simulator_cmd::SimulatorAction::Start {
+                services_dir: _,
+                force: _,
+                p2p,
+            } => {
                 // Start and block to keep services alive
                 if let Some(sim) = context.api_simulator() {
-                    if exec_ctx.dry_run { println!("🏃 Dry run: Would start API simulator"); return Ok(()); }
-                    if *p2p { sim.enable_p2p(true).await; }
+                    if exec_ctx.dry_run {
+                        println!("🏃 Dry run: Would start API simulator");
+                        return Ok(());
+                    }
+                    if *p2p {
+                        sim.enable_p2p(true).await;
+                    }
                     println!("🚀 Starting API Simulator (blocking)…");
                     sim.start().await?;
                     println!("🔄 Simulator running... Press Ctrl+C to stop");
@@ -121,5 +144,6 @@ async fn run(cli: Cli) -> PulseResult<()> {
             _ => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
         },
         Commands::Ai { action } => ai_cmd::ai_command(&action, &context, &exec_ctx).await,
+        Commands::Tui => tui_cmd::tui_command(),
     }
 }
