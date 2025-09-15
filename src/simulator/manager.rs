@@ -10,7 +10,7 @@ use crate::simulator::{
     log::RequestLogEntry,
     registry::ServiceRegistry,
     router::RequestRouter,
-    watcher::ConfigWatcher,
+    watcher::{ConfigWatcher, ConfigChangeHandler},
     ConfigChange, SimulatorStatus,
 };
 use crate::storage::sqlite::SqliteStorage;
@@ -179,8 +179,8 @@ impl ApiSimulatorManager {
             service_count
         );
         // Spawn configuration watcher for automatic reloads
-        let (tx, mut rx) = mpsc::channel(16);
-        let watcher = ConfigWatcher::new(self.config.services_dir.clone(), tx).map_err(|e| {
+        let handler = Arc::new(self.clone());
+        let watcher = ConfigWatcher::new(self.config.services_dir.clone(), handler).map_err(|e| {
             PulseError::runtime_error(
                 format!("Failed to watch services directory: {}", e),
                 None::<String>,
@@ -191,15 +191,6 @@ impl ApiSimulatorManager {
             let mut guard = self.config_watcher.write().await;
             *guard = Some(watcher);
         }
-
-        let manager_clone = self.clone();
-        tokio::spawn(async move {
-            while let Some(change) = rx.recv().await {
-                if let Err(e) = manager_clone.handle_config_change(change).await {
-                    eprintln!("Error handling config change: {}", e);
-                }
-            }
-        });
 
         // Start peer-to-peer collaboration if enabled.
         if *self.p2p_enabled.read().await {
@@ -265,6 +256,10 @@ impl ApiSimulatorManager {
         // Clear router mappings
         let mut router = self.request_router.write().await;
         router.clear_all_routes();
+
+        // Drop configuration watcher to release file handles
+        let mut watcher = self.config_watcher.write().await;
+        *watcher = None;
 
         *is_active = false;
 
@@ -633,16 +628,13 @@ impl ApiSimulatorManager {
     pub async fn handle_config_change(&self, change: ConfigChange) -> PulseResult<()> {
         match change {
             ConfigChange::ServiceAdded(service_name) => {
-                println!("📁 Service added: {}", service_name);
-                // Future: Load and register the new service
+                log::info!("Service added: {}", service_name);
             }
             ConfigChange::ServiceModified(service_name) => {
-                println!("📝 Service modified: {}", service_name);
-                // Future: Reload the specific service
+                log::info!("Service modified: {}", service_name);
             }
             ConfigChange::ServiceRemoved(service_name) => {
-                println!("🗑️ Service removed: {}", service_name);
-                // Future: Unregister and stop the service
+                log::info!("Service removed: {}", service_name);
             }
         }
 
@@ -652,6 +644,13 @@ impl ApiSimulatorManager {
         }
 
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl ConfigChangeHandler for ApiSimulatorManager {
+    async fn on_config_change(&self, change: ConfigChange) -> PulseResult<()> {
+        self.handle_config_change(change).await
     }
 }
 

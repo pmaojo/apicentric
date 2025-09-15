@@ -69,6 +69,13 @@ pub enum SimulatorAction {
         force: bool,
     },
 
+    /// Watch services directory and reload on changes
+    Watch {
+        /// Services directory path
+        #[arg(short, long, default_value = "services")]
+        services_dir: String,
+    },
+
     /// Show simulator and services status
     Status {
         /// Show detailed service information
