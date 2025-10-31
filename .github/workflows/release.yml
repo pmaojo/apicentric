@@ -16,31 +16,37 @@ jobs:
             target: x86_64-unknown-linux-gnu
             arch: x86_64
             ext: ''
+            archive_ext: .tar.gz
           - os: ubuntu-latest
             os_name: linux
             target: aarch64-unknown-linux-gnu
-            arch: aarch64
+            arch: arm64
             ext: ''
+            archive_ext: .tar.gz
           - os: macos-latest
             os_name: macos
             target: x86_64-apple-darwin
             arch: x86_64
             ext: ''
+            archive_ext: .tar.gz
           - os: macos-latest
             os_name: macos
             target: aarch64-apple-darwin
-            arch: aarch64
+            arch: arm64
             ext: ''
+            archive_ext: .tar.gz
           - os: windows-latest
             os_name: windows
             target: x86_64-pc-windows-msvc
             arch: x86_64
             ext: '.exe'
+            archive_ext: .zip
           - os: windows-latest
             os_name: windows
             target: aarch64-pc-windows-msvc
-            arch: aarch64
+            arch: arm64
             ext: '.exe'
+            archive_ext: .zip
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
@@ -50,14 +56,26 @@ jobs:
           target: ${{ matrix.target }}
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
+      - name: Package binary
+        if: runner.os != 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar -czf mockforge-${{ github.ref_name }}-${{ matrix.target }}.tar.gz mockforge
+      - name: Package binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $releaseDir = "target/${{ matrix.target }}/release"
+          $archivePath = Join-Path $releaseDir "mockforge-${{ github.ref_name }}-${{ matrix.target }}.zip"
+          Compress-Archive -Path (Join-Path $releaseDir 'mockforge.exe') -DestinationPath $archivePath -Force
       - name: Upload release asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/${{ matrix.target }}/release/mockforge${{ matrix.ext }}
-          asset_name: mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.ext }}
+          asset_path: target/${{ matrix.target }}/release/mockforge-${{ github.ref_name }}-${{ matrix.target }}${{ matrix.archive_ext }}
+          asset_name: mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}
           asset_content_type: application/octet-stream
 
   container:
