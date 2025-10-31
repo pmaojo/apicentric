@@ -61,6 +61,11 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           tar -czf mockforge-${{ github.ref_name }}-${{ matrix.target }}.tar.gz mockforge
+          contents=$(tar -tzf mockforge-${{ github.ref_name }}-${{ matrix.target }}.tar.gz | tr -d '\r\n')
+          if [ "$contents" != "mockforge" ]; then
+            echo "Unexpected archive contents: $contents"
+            exit 1
+          fi
       - name: Package binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -68,6 +73,13 @@ jobs:
           $releaseDir = "target/${{ matrix.target }}/release"
           $archivePath = Join-Path $releaseDir "mockforge-${{ github.ref_name }}-${{ matrix.target }}.zip"
           Compress-Archive -Path (Join-Path $releaseDir 'mockforge.exe') -DestinationPath $archivePath -Force
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+          $entries = $zip.Entries | ForEach-Object { $_.FullName }
+          $zip.Dispose()
+          if ($entries.Count -ne 1 -or $entries[0] -ne 'mockforge.exe') {
+            throw "Unexpected archive contents: $($entries -join ', ')"
+          }
       - name: Upload release asset
         uses: actions/upload-release-asset@v1
         env:
