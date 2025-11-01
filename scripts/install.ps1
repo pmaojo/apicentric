@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 $ErrorActionPreference = 'Stop'
 
-$repoUrl = 'https://github.com/pulse-1/mockforge/releases/latest/download'
+$repoUrl = 'https://github.com/pmaojo/mockforge/releases/latest/download'
 $os = 'windows'
 $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
 switch ($arch) {
