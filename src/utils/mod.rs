@@ -1,6 +1,5 @@
 pub mod debounce;
 pub mod fs_utils;
-pub mod gamification;
 pub mod directory_scanner;
 pub mod file_ops;
 
