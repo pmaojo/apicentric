@@ -1,19 +1,19 @@
-PackageIdentifier: pulse-1.mockforge
+PackageIdentifier: pmaojo.mockforge
 PackageVersion: 0.1.0
 PackageName: mockforge
-Publisher: pulse-1
+Publisher: pmaojo
 License: MIT
 ShortDescription: API mocking and simulation toolkit
 Installers:
   - Architecture: x64
     InstallerType: zip
-    InstallerUrl: https://github.com/pulse-1/mockforge/releases/download/v0.1.0/mockforge-windows-x86_64.zip
+    InstallerUrl: https://github.com/pmaojo/mockforge/releases/download/v0.1.0/mockforge-windows-x86_64.zip
     InstallerSha256: REPLACE_WITH_SHA256
     Commands:
       - mockforge
   - Architecture: arm64
     InstallerType: zip
-    InstallerUrl: https://github.com/pulse-1/mockforge/releases/download/v0.1.0/mockforge-windows-arm64.zip
+    InstallerUrl: https://github.com/pmaojo/mockforge/releases/download/v0.1.0/mockforge-windows-arm64.zip
     InstallerSha256: REPLACE_WITH_SHA256
     Commands:
       - mockforge

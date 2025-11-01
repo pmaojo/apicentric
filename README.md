@@ -13,21 +13,21 @@ Para instalar la versión más reciente de `mockforge`, ejecuta uno de los scrip
 - **Linux/macOS**: `./scripts/install.sh`
 - **Windows (PowerShell)**: `./scripts/install.ps1`
 
-Cada script detecta automáticamente tu sistema operativo y arquitectura, descarga el binario adecuado desde las últimas releases y lo coloca en una ubicación habitual (`/usr/local/bin` o `%UserProfile%\bin`).
+Cada script detecta automáticamente tu sistema operativo y arquitectura, descarga el binario adecuado desde las últimas releases y lo coloca en una ubicación habitual (`/usr/local/bin` o `%UserProfile%\bin`) desde `https://github.com/pmaojo/mockforge/releases`.
 
 ## 📦 Instalación
 
 ### Homebrew (macOS)
 
 ```bash
-brew tap your-org/pulse
+brew tap pmaojo/mockforge
 brew install mockforge
 ```
 
 ### Windows (winget)
 
 ```powershell
-winget install --id your-org.mockforge
+winget install --id pmaojo.mockforge
 ```
 
 ## Installation
@@ -35,17 +35,18 @@ winget install --id your-org.mockforge
 - **Linux**
 
   ```bash
-  curl -L <release_url>/mockforge-linux-x64.tar.gz | tar -xz && sudo mv mockforge /usr/local/bin
+  curl -L https://github.com/pmaojo/mockforge/releases/latest/download/mockforge-linux-x64.tar.gz \
+    | tar -xz && sudo mv mockforge /usr/local/bin
   ```
 
 - **macOS**
 
   ```bash
-  brew install <tap>/mockforge
+  brew install pmaojo/mockforge/mockforge
   ```
 
 - **Windows**
-  1. Download `mockforge-windows-x64.zip` from `<release_url>`.
+  1. Download `mockforge-windows-x64.zip` from `https://github.com/pmaojo/mockforge/releases/latest/download`.
   2. Extract `mockforge.exe` and add its folder to your `PATH`.
 
 ```bash
@@ -58,14 +59,14 @@ Las releases publican una imagen de contenedor mínima en el GitHub Container Re
 Descárgala y ejecútala sin instalar dependencias locales:
 
 ```bash
-docker pull ghcr.io/your-org/mockforge:latest
-docker run --rm ghcr.io/your-org/mockforge:latest --help
+docker pull ghcr.io/pmaojo/mockforge:latest
+docker run --rm ghcr.io/pmaojo/mockforge:latest --help
 ```
 
 Para lanzar el simulador con tus servicios locales:
 
 ```bash
-docker run --rm -v $(pwd)/services:/services ghcr.io/your-org/mockforge:latest \
+docker run --rm -v $(pwd)/services:/services ghcr.io/pmaojo/mockforge:latest \
   simulator start --services-dir /services
 ```
 

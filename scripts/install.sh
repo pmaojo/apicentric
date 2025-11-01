@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="https://github.com/pulse-1/mockforge/releases/latest/download"
+REPO_URL="https://github.com/pmaojo/mockforge/releases/latest/download"
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
