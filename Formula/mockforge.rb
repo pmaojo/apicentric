@@ -1,9 +1,19 @@
 class Mockforge < Formula
   desc "API mocking and simulation toolkit"
-  homepage "https://github.com/your-org/mockforge"
+  homepage "https://github.com/pulse-1/mockforge"
   version "0.1.0"
-  url "https://github.com/your-org/mockforge/releases/download/v#{version}/mockforge-#{version}-x86_64-apple-darwin.tar.gz"
-  sha256 "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5" # TODO: replace with real sha256
+
+  on_macos do
+    on_arm do
+      url "https://github.com/pulse-1/mockforge/releases/download/v#{version}/mockforge-macos-arm64.tar.gz"
+      sha256 :no_check
+    end
+
+    on_intel do
+      url "https://github.com/pulse-1/mockforge/releases/download/v#{version}/mockforge-macos-x86_64.tar.gz"
+      sha256 :no_check
+    end
+  end
 
   def install
     bin.install "mockforge"

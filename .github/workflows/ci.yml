@@ -28,3 +28,18 @@ jobs:
           override: true
       - name: Run Rust tests
         run: cargo test --all
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: jetli/wasm-pack-action@v0.3.1
+        with:
+          version: latest
+      - name: Install npm dependencies
+        run: npm install
+      - name: Build wasm package
+        run: npm run build

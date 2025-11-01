@@ -60,18 +60,26 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          tar -czf mockforge-${{ github.ref_name }}-${{ matrix.target }}.tar.gz mockforge
-          contents=$(tar -tzf mockforge-${{ github.ref_name }}-${{ matrix.target }}.tar.gz | tr -d '\r\n')
+          archive_name="mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
+          tar -czf "$archive_name" mockforge
+          contents=$(tar -tzf "$archive_name" | tr -d '\r\n')
           if [ "$contents" != "mockforge" ]; then
             echo "Unexpected archive contents: $contents"
             exit 1
           fi
+      - name: Compute checksum
+        if: runner.os != 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          archive_name="mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
+          shasum -a 256 "$archive_name" > "$archive_name.sha256"
       - name: Package binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $releaseDir = "target/${{ matrix.target }}/release"
-          $archivePath = Join-Path $releaseDir "mockforge-${{ github.ref_name }}-${{ matrix.target }}.zip"
+          $archiveName = "mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
+          $archivePath = Join-Path $releaseDir $archiveName
           Compress-Archive -Path (Join-Path $releaseDir 'mockforge.exe') -DestinationPath $archivePath -Force
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $zip = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
@@ -80,13 +88,27 @@ jobs:
           if ($entries.Count -ne 1 -or $entries[0] -ne 'mockforge.exe') {
             throw "Unexpected archive contents: $($entries -join ', ')"
           }
+      - name: Compute checksum (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $releaseDir = "target/${{ matrix.target }}/release"
+          $archiveName = "mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
+          $hash = Get-FileHash -Path (Join-Path $releaseDir $archiveName) -Algorithm SHA256
+          $line = ($hash.Hash.ToLower() + "  " + $archiveName)
+          Set-Content -Path (Join-Path $releaseDir ($archiveName + ".sha256")) -Value $line
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksum-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: target/${{ matrix.target }}/release/mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}.sha256
       - name: Upload release asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/${{ matrix.target }}/release/mockforge-${{ github.ref_name }}-${{ matrix.target }}${{ matrix.archive_ext }}
+          asset_path: target/${{ matrix.target }}/release/mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}
           asset_name: mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}
           asset_content_type: application/octet-stream
 
@@ -111,3 +133,33 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ghcr.io/${{ github.repository_owner }}/mockforge:${{ github.ref_name }}
+
+  npm:
+    name: Publish npm package
+    runs-on: ubuntu-latest
+    needs: build
+    if: secrets.NPM_TOKEN != ''
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - uses: jetli/wasm-pack-action@v0.3.1
+        with:
+          version: latest
+      - name: Install dependencies
+        run: npm install
+      - name: Build wasm package
+        run: npm run build
+      - name: Upload wasm pkg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-pkg
+          path: pkg
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
