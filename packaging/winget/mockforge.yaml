@@ -1,13 +1,19 @@
-PackageIdentifier: your-org.mockforge
+PackageIdentifier: pulse-1.mockforge
 PackageVersion: 0.1.0
 PackageName: mockforge
-Publisher: your-org
+Publisher: pulse-1
 License: MIT
 ShortDescription: API mocking and simulation toolkit
 Installers:
   - Architecture: x64
     InstallerType: zip
-    InstallerUrl: https://github.com/your-org/mockforge/releases/download/v0.1.0/mockforge-0.1.0-x86_64-pc-windows-msvc.zip
-    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    InstallerUrl: https://github.com/pulse-1/mockforge/releases/download/v0.1.0/mockforge-windows-x86_64.zip
+    InstallerSha256: REPLACE_WITH_SHA256
+    Commands:
+      - mockforge
+  - Architecture: arm64
+    InstallerType: zip
+    InstallerUrl: https://github.com/pulse-1/mockforge/releases/download/v0.1.0/mockforge-windows-arm64.zip
+    InstallerSha256: REPLACE_WITH_SHA256
     Commands:
       - mockforge
