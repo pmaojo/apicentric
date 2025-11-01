@@ -77,7 +77,6 @@ pub use domain::contract::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod infrastructure {
     pub use crate::adapters::*;
-    pub use crate::app::generate_docs::generate_docs;
     pub use crate::app::setup_npm::setup_npm_scripts;
 }
 #[cfg(not(target_arch = "wasm32"))]
