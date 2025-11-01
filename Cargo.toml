@@ -1,9 +1,9 @@
 [package]
 name = "mockforge"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Toolkit for building, recording, and sharing mock APIs"
-repository = "https://github.com/example/mockforge"
+repository = "https://github.com/pmaojo/mockforge"
 license = "MIT"
 
 [lib]
