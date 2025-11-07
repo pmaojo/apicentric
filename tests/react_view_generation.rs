@@ -47,10 +47,10 @@ fn generated_view_compiles_and_composes_with_hooks() {
     .unwrap();
 
     // compile
-    let status = Command::new("npx")
+    let root_dir = std::env::current_dir().unwrap();
+    let tsc_path = root_dir.join("node_modules/.bin/tsc");
+    let status = Command::new(tsc_path)
         .args([
-            "-y",
-            "tsc",
             hooks_path.to_str().unwrap(),
             view_path.to_str().unwrap(),
             "--jsx",
