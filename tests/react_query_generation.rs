@@ -29,8 +29,10 @@ fn generated_hooks_compile_and_call_endpoints() {
     .unwrap();
 
     // compile TypeScript
-    let status = Command::new("npx")
-        .args(["-y", "tsc", hooks_path.to_str().unwrap(), "--module", "commonjs"])
+    let root_dir = std::env::current_dir().unwrap();
+    let tsc_path = root_dir.join("node_modules/.bin/tsc");
+    let status = Command::new(tsc_path)
+        .args([hooks_path.to_str().unwrap(), "--module", "commonjs"])
         .current_dir(dir.path())
         .status()
         .expect("tsc failed");

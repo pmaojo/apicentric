@@ -18,6 +18,8 @@
   },
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
 }
-
