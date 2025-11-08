@@ -50,7 +50,7 @@ openapi = "0.1.5"
 reqwest = { version = "0.11", features = ["json"] }
 async-trait = "0.1.74"
 
-# Database (lightweight)
+# Database (system SQLite for faster builds)
 rusqlite = { version = "0.31", features = ["bundled"] }
 
 # Plugin system (basic)
