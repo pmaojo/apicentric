@@ -357,14 +357,14 @@
   - Generate release notes automatically
   - _Requirements: 7.6_
 
-- [-] 5.10 Test CI workflow with pull request
+- [ ] 5.10 Test CI workflow with pull request
   - Create test branch and PR
   - Verify all CI jobs run successfully
   - Check that caching works correctly
   - Verify build times are under 10 minutes
   - _Requirements: 7.4, 7.7, 7.8_
 
-- [x] 5.11 Test release workflow with test tag
+- [-] 5.11 Test release workflow with test tag
   - Create test tag (e.g., v0.1.2-test)
   - Verify release workflow triggers
   - Check that all platform binaries build
