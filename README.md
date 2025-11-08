@@ -1,11 +1,8 @@
-┌─ ESTADO DEL SISTEMA ─────────────────────────────────────────────────────────────────┐
-│                                                                                      │
-│  🎯 MISIÓN: Simulación y mock de APIs para desarrollo rápido                         │
-│  🔧 MOTOR:  Rust + servicios YAML                                                    │
-│  📊 MÉTRICAS: Monitorización en tiempo real (Prometheus, Sentry y Allure)            │
-│  🚀 VELOCIDAD: Conversión y grabación automáticas                                    │
-│                                                                                      │
-└──────────────────────────────────────────────────────────────────────────────────────
+🎯 MISIÓN: Simulación y mock de APIs para desarrollo rápido 
+🔧 MOTOR:  Rust + servicios YAML                              
+📊 MÉTRICAS: Monitorización en tiempo real (Prometheus, Sentry y Allure)  
+🚀 VELOCIDAD: Conversión y grabación automáticas           
+
 ## 🛠️ Instalación
 
 Para instalar la versión más reciente de `apicentric`, ejecuta uno de los scripts de instalación incluidos:
