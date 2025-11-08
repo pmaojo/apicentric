@@ -1,113 +1,47 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { save } from "@tauri-apps/api/dialog";
-import { writeTextFile } from "@tauri-apps/api/fs";
-import { useServicePort, LogEntry, ServiceInfo } from "../ports/ServicePort";
+import { getServiceLogs } from "../api/client";
 
-export const LogsView: React.FC = () => {
-  const [logsByService, setLogsByService] = useState<Record<string, LogEntry[]>>({});
-  const [serviceFilter, setServiceFilter] = useState("");
-  const [methodFilter, setMethodFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const navigate = useNavigate();
-  const port = useServicePort();
+interface LogsViewProps {
+  serviceId: string; // "global" for all, or a specific service ID
+}
+
+const LogsView: React.FC<LogsViewProps> = ({ serviceId }) => {
+  const [logs, setLogs] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-    let unlisten: UnlistenFn | undefined;
-
-    const init = async () => {
+    const fetchLogs = async () => {
       try {
-        const services: ServiceInfo[] = await port.listServices();
-        const running = services.filter((s) => s.is_running);
-        const results = await Promise.all(
-          running.map((s) => port.getLogs(s.name, 100))
-        );
-        if (mounted) {
-          const initial: Record<string, LogEntry[]> = {};
-          running.forEach((s, idx) => {
-            initial[s.name] = results[idx];
-          });
-          setLogsByService(initial);
+        setError(null);
+        // The backend doesn't support global logs yet, so we'll just show a message.
+        if (serviceId === "global") {
+          setLogs(["Global log view is not yet implemented."]);
+          return;
         }
-
-        unlisten = await listen<LogEntry>("log", (event) => {
-          const entry = event.payload;
-          setLogsByService((prev) => {
-            const serviceLogs = prev[entry.service] ? [entry, ...prev[entry.service]] : [entry];
-            return { ...prev, [entry.service]: serviceLogs };
-          });
-        });
-      } catch (e) {
-        console.error("Failed to initialize logs", e);
+        const fetchedLogs = await getServiceLogs(serviceId, 200);
+        setLogs(fetchedLogs);
+      } catch (err) {
+        console.error(`Failed to fetch logs for ${serviceId}:`, err);
+        setError((err as Error).message);
+        setLogs([]);
       }
     };
 
-    init();
+    fetchLogs();
 
-    return () => {
-      mounted = false;
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, []);
+    // TODO: Implement real-time log streaming, perhaps with WebSockets
+    const interval = setInterval(fetchLogs, 5000); // Poll every 5 seconds
 
-  const allLogs = Object.values(logsByService).flat();
-  const filtered = allLogs.filter((log) => {
-    const serviceMatch =
-      !serviceFilter || log.service.toLowerCase().includes(serviceFilter.toLowerCase());
-    const methodMatch =
-      !methodFilter || log.method.toLowerCase().includes(methodFilter.toLowerCase());
-    const statusMatch =
-      !statusFilter || log.status.toString().includes(statusFilter);
-    return serviceMatch && methodMatch && statusMatch;
-  });
-
-  const exportLogs = async () => {
-    const filePath = await save({ filters: [{ name: "JSON", extensions: ["json"] }] });
-    if (filePath) {
-      const data = JSON.stringify(allLogs, null, 2);
-      await writeTextFile(filePath, data);
-    }
-  };
+    return () => clearInterval(interval);
+  }, [serviceId]);
 
   return (
-    <div>
-      <div>
-        <input
-          placeholder="service"
-          value={serviceFilter}
-          onChange={(e) => setServiceFilter(e.target.value)}
-        />
-        <input
-          placeholder="method"
-          value={methodFilter}
-          onChange={(e) => setMethodFilter(e.target.value)}
-        />
-        <input
-          placeholder="status"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        />
-        <button onClick={exportLogs}>Export</button>
-      </div>
-      <ul>
-        {filtered.map((log, idx) => (
-          <li key={idx}>
-            <a
-              href={`/route_editor?service=${log.service}&endpoint=${log.endpoint}`}
-              onClick={(e) => {
-                e.preventDefault();
-                navigate(`/route_editor?service=${log.service}&endpoint=${log.endpoint}`);
-              }}
-            >
-              [{log.service}] [{log.method}] {log.path} - {log.status}
-            </a>
-          </li>
-        ))}
-      </ul>
+    <div style={{ background: "#222", color: "#eee", padding: "1rem", borderRadius: "4px", fontFamily: "monospace" }}>
+      <h3>Logs for {serviceId}</h3>
+      {error && <div style={{ color: "red" }}>Error: {error}</div>}
+      <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", height: "300px", overflowY: "auto" }}>
+        {logs.length > 0 ? logs.join("\n") : "No logs to display."}
+      </pre>
     </div>
   );
 };

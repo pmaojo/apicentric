@@ -1,109 +1,32 @@
-import { invoke } from "@tauri-apps/api/tauri";
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React from "react";
+import { Link } from "react-router-dom";
 import LogsView from "./logs_view";
-import { useServicePort, ServiceInfo } from "../ports/ServicePort";
 
-const Dashboard: React.FC = () => {
-  const [path, setPath] = useState("");
-  const [yaml, setYaml] = useState("");
-  const [types, setTypes] = useState("");
-
-  const startSimulator = async () => {
-    await invoke("start_simulator");
-  };
-
-  const stopSimulator = async () => {
-    await invoke("stop_simulator");
-
-  const navigate = useNavigate();
-  const port = useServicePort();
-
-  const refresh = async () => {
-    const list = await port.listServices();
-    setServices(list);
-  };
-
-  const startSimulator = async () => {
-    await port.startSimulator();
-    refresh();
-  };
-
-  const stopSimulator = async () => {
-    await port.stopSimulator();
-    refresh();
-  };
-
-  const shareService = async (service: string) => {
-    const [peer, token] = await port.shareService(service);
-    alert(`Peer: ${peer}\nToken: ${token}`);
-  };
-
-  const connectService = async (service: string) => {
-    const peer = prompt("Peer ID?");
-    if (!peer) return;
-    const portStr = prompt("Local port?", "8080");
-    const port = Number(portStr || 0);
-    const token = prompt("Token?") || "";
-    await port.connectService({ peer, token, service, port });
-  };
-
-  const load = async () => {
-    const content = await port.loadService(path);
-    setYaml(content);
-  };
-
-  const save = async () => {
-    await port.saveService(path, yaml);
-  };
-
-  const exportTypes = async () => {
-    const t = await port.exportTypes(path);
-    setTypes(t);
-  };
-
+export const Dashboard: React.FC = () => {
   return (
     <div style={{ padding: "1rem", fontFamily: "sans-serif" }}>
-      <h1>Dashboard</h1>
-      <div style={{ marginBottom: "1rem" }}>
-        <button onClick={startSimulator}>Start Simulator</button>
-        <button onClick={stopSimulator} style={{ marginLeft: "0.5rem" }}>
-          Stop Simulator
-        </button>
-      </div>
-
-      <section style={{ marginBottom: "1rem" }}>
-        <h2>Service Manager</h2>
-        <div style={{ marginBottom: "0.5rem" }}>
-          <input
-            placeholder="service.yaml"
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-          />
-          <button onClick={load} style={{ marginLeft: "0.5rem" }}>
-            Load
-          </button>
-          <button onClick={save} style={{ marginLeft: "0.5rem" }}>
-            Save
-          </button>
-          <button onClick={exportTypes} style={{ marginLeft: "0.5rem" }}>
-            Export TS Types
-          </button>
-        </div>
-        <textarea
-          style={{ width: "100%", height: 200 }}
-          value={yaml}
-          onChange={(e) => setYaml(e.target.value)}
-        />
-        <pre>{types}</pre>
-      </section>
+      <h1>Welcome to Apicentric Cloud</h1>
+      <p>
+        This is the central hub for managing and simulating your API services.
+      </p>
+      <p>
+        Use the navigation on the left to get started:
+      </p>
+      <ul>
+        <li>
+          <Link to="/services">Service Manager</Link>: Load, view, and save your
+          service definitions.
+        </li>
+        <li>
+          <Link to="/simulator">Simulator</Link>: Start, stop, and monitor your
+          mock services.
+        </li>
+      </ul>
 
       <section id="logs">
-        <h2>Logs</h2>
-        <LogsView />
+        <h2>Recent Global Logs</h2>
+        <LogsView serviceId="global" />
       </section>
     </div>
   );
 };
-
-export default Dashboard;
