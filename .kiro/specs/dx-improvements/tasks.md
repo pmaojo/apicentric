@@ -477,14 +477,14 @@
   - Prepare release announcement
   - _Requirements: All_
 
-- [-] 8.1 End-to-end testing
+- [x] 8.1 End-to-end testing
   - Test complete workflow: install → configure → start simulator → use TUI → stop
   - Test with minimal, default, and full feature sets
   - Test on Linux, macOS, and Windows
   - Document any issues found
   - _Requirements: All_
 
-- [ ] 8.2 Fresh system installation testing
+- [-] 8.2 Fresh system installation testing
   - Test installation on clean Ubuntu VM
   - Test installation on clean macOS system
   - Test installation on clean Windows system
