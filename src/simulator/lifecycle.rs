@@ -4,7 +4,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::{broadcast, mpsc, RwLock};
 
-use crate::collab::{crdt::{ServiceCrdt, CrdtMessage}, p2p};
+// Disabled heavy P2P dependencies for lighter CLI build
+// use crate::collab::{crdt::{ServiceCrdt, CrdtMessage}, p2p};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     config::{ConfigLoader, SimulatorConfig, ServiceDefinition},

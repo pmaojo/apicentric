@@ -14,8 +14,9 @@ pub mod errors;
 pub mod utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod validation;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod collab;
+// Disabled heavy dependencies for lighter CLI build
+// #[cfg(not(target_arch = "wasm32"))]
+// pub mod collab;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod storage;
 #[cfg(not(target_arch = "wasm32"))]

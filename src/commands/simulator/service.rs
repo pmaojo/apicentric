@@ -1,6 +1,7 @@
-use crate::collab::share;
+// Disabled heavy P2P dependencies for lighter CLI build  
+// use crate::collab::share;
 use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_definition};
-use libp2p::PeerId;
+// use libp2p::PeerId;
 use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
 
 pub async fn handle_record(
