@@ -448,7 +448,7 @@
   - Use consistent formatting
   - _Requirements: 5.3_
 
-- [-] 7.4 Ensure consistent terminology
+- [x] 7.4 Ensure consistent terminology
   - Create glossary of terms
   - Review all documentation for consistency
   - Update code comments to use standard terms
@@ -468,7 +468,7 @@
   - Test validation with edge cases
   - _Requirements: 5.6_
 
-- [ ] 8. Final Polish and Testing
+- [-] 8. Final Polish and Testing
   - Perform end-to-end testing of all features
   - Test installation on fresh systems
   - Verify documentation accuracy
@@ -477,7 +477,7 @@
   - Prepare release announcement
   - _Requirements: All_
 
-- [ ] 8.1 End-to-end testing
+- [-] 8.1 End-to-end testing
   - Test complete workflow: install → configure → start simulator → use TUI → stop
   - Test with minimal, default, and full feature sets
   - Test on Linux, macOS, and Windows
