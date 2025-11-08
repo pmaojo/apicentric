@@ -1,21 +1,29 @@
 import React, { useEffect, useState } from "react";
-import { useServicePort, ServiceInfo } from "../ports/ServicePort";
+import {
+  listServices,
+  Service,
+  startSimulator,
+  stopSimulator,
+  shareService,
+  connectService,
+  ConnectServiceRequest,
+} from "../api/client";
 
 const SimulatorControls: React.FC = () => {
-  const [services, setServices] = useState<ServiceInfo[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [shareInfo, setShareInfo] = useState<{ peer: string; token: string } | null>(
     null
   );
 
   const [showShare, setShowShare] = useState(false);
-  const [shareService, setShareService] = useState("");
+  const [shareServiceForm, setShareServiceForm] = useState("");
   const [shareError, setShareError] = useState("");
 
   const [showConnect, setShowConnect] = useState(false);
-  const [connectForm, setConnectForm] = useState({
+  const [connectForm, setConnectForm] = useState<ConnectServiceRequest>({
     peer: "",
     service: "",
-    port: "8080",
+    port: 8080,
     token: "",
   });
   const [connectErrors, setConnectErrors] = useState<{
@@ -24,23 +32,31 @@ const SimulatorControls: React.FC = () => {
     port?: string;
   }>({});
 
-  const port = useServicePort();
-
   const refresh = async () => {
-    const list = await port.listServices();
-    setServices(list);
+    try {
+      const list = await listServices();
+      setServices(list);
+    } catch (error) {
+      console.error("Failed to fetch services:", error);
+      // Optionally, set an error state to display in the UI
+    }
   };
 
   const submitShare = async () => {
-    if (!shareService.trim()) {
+    if (!shareServiceForm.trim()) {
       setShareError("Service name is required");
       return;
     }
-    const [peer, token] = await port.shareService(shareService.trim());
-    setShareInfo({ peer, token });
-    setShareService("");
-    setShareError("");
-    setShowShare(false);
+    try {
+      const [peer, token] = await shareService(shareServiceForm.trim());
+      setShareInfo({ peer, token });
+      setShareServiceForm("");
+      setShareError("");
+      setShowShare(false);
+    } catch (error) {
+      console.error("Failed to share service:", error);
+      setShareError((error as Error).message);
+    }
   };
 
   const submitConnect = async () => {
@@ -54,15 +70,33 @@ const SimulatorControls: React.FC = () => {
     setConnectErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
-    await port.connectService({
-      peer: connectForm.peer.trim(),
-      service: connectForm.service.trim(),
-      port: portNum,
-      token: connectForm.token,
-    });
-    setConnectForm({ peer: "", service: "", port: "8080", token: "" });
-    setShowConnect(false);
-    setConnectErrors({});
+    try {
+      await connectService({ ...connectForm, port: portNum });
+      setConnectForm({ peer: "", service: "", port: 8080, token: "" });
+      setShowConnect(false);
+      setConnectErrors({});
+    } catch (error) {
+      console.error("Failed to connect to service:", error);
+      // Optionally set a connection error state
+    }
+  };
+
+  const handleStartSimulator = async (serviceId: string) => {
+    try {
+      await startSimulator(serviceId);
+      await refresh();
+    } catch (error) {
+      console.error(`Failed to start simulator for ${serviceId}:`, error);
+    }
+  };
+
+  const handleStopSimulator = async (serviceId: string) => {
+    try {
+      await stopSimulator(serviceId);
+      await refresh();
+    } catch (error) {
+      console.error(`Failed to stop simulator for ${serviceId}:`, error);
+    }
   };
 
   useEffect(() => {
@@ -71,22 +105,17 @@ const SimulatorControls: React.FC = () => {
 
   return (
     <div>
-      <button onClick={() => port.startSimulator().then(refresh)}>
-        Start Simulator
-      </button>
-      <button onClick={() => port.stopSimulator().then(refresh)}>
-        Stop Simulator
-      </button>
+      {/* These controls are now per-service */}
       <button onClick={() => setShowShare(true)}>Share Service</button>
       <button onClick={() => setShowConnect(true)}>Connect Service</button>
 
       {showShare && (
         <div>
           <input
-            placeholder="Service name"
-            value={shareService}
+            placeholder="Service name to share"
+            value={shareServiceForm}
             onChange={(e) => {
-              setShareService(e.target.value);
+              setShareServiceForm(e.target.value);
               setShareError("");
             }}
           />
@@ -95,7 +124,7 @@ const SimulatorControls: React.FC = () => {
           <button
             onClick={() => {
               setShowShare(false);
-              setShareService("");
+              setShareServiceForm("");
               setShareError("");
             }}
           >
@@ -127,17 +156,18 @@ const SimulatorControls: React.FC = () => {
             <div style={{ color: "red" }}>{connectErrors.service}</div>
           )}
           <input
+            type="number"
             placeholder="Local port"
             value={connectForm.port}
             onChange={(e) =>
-              setConnectForm({ ...connectForm, port: e.target.value })
+              setConnectForm({ ...connectForm, port: Number(e.target.value) })
             }
           />
           {connectErrors.port && (
             <div style={{ color: "red" }}>{connectErrors.port}</div>
           )}
           <input
-            placeholder="Token"
+            placeholder="Token (optional)"
             value={connectForm.token}
             onChange={(e) =>
               setConnectForm({ ...connectForm, token: e.target.value })
@@ -150,7 +180,7 @@ const SimulatorControls: React.FC = () => {
               setConnectForm({
                 peer: "",
                 service: "",
-                port: "8080",
+                port: 8080,
                 token: "",
               });
               setConnectErrors({});
@@ -164,7 +194,38 @@ const SimulatorControls: React.FC = () => {
       {shareInfo && (
         <pre>{`Peer: ${shareInfo.peer}\nToken: ${shareInfo.token}`}</pre>
       )}
-      <pre>{JSON.stringify(services, null, 2)}</pre>
+      
+      <h3>Services</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Port</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {services.map((service) => (
+            <tr key={service.id}>
+              <td>{service.name}</td>
+              <td>{service.is_running ? "Running" : "Stopped"}</td>
+              <td>{service.port || "N/A"}</td>
+              <td>
+                {service.is_running ? (
+                  <button onClick={() => handleStopSimulator(service.id)}>
+                    Stop
+                  </button>
+                ) : (
+                  <button onClick={() => handleStartSimulator(service.id)}>
+                    Start
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

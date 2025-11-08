@@ -193,9 +193,9 @@ apicentric export-view --input services/petstore.yaml --output view.tsx
 El TSX generado puede personalizarse libremente para ajustar estilos o lógica
 de interacción según las necesidades del proyecto.
 
-## 🚀 Qualitas Setup (host app)
+## 🚀 Ejemplo de uso
 
-- Directorio de trabajo: ejecuta los comandos desde `qualitas-cloud-2-frontend/`.
+- Directorio de trabajo: ejecuta los comandos desde `Ejemplo-cloud-2-frontend/`.
 - Servicios mock: los YAML están en `mock_services/` (puertos 9011 y 9012).
 
 Comandos útiles:
@@ -818,7 +818,7 @@ Esta vía usa el lector de YAML y el servidor mock definidos en:
 
 El API Simulator permite agrupar múltiples servicios YAML con base paths y plantillas. Para activarlo:
 
-1) En `apicentric.json` habilita el simulador y apunta a tu carpeta de servicios. Importante: la ruta se resuelve respecto al directorio desde el que ejecutas apicentric (normalmente el root de tu app). En el caso de Qualitas, apunta a `mock_services` del host app:
+1) En `apicentric.json` habilita el simulador y apunta a tu carpeta de servicios. Importante: la ruta se resuelve respecto al directorio desde el que ejecutas apicentric (normalmente el root de tu app). En el caso de Ejemplo, apunta a `mock_services` del host app:
 
 ```json
 {
@@ -830,7 +830,7 @@ El API Simulator permite agrupar múltiples servicios YAML con base paths y plan
 }
 ```
 
-2) Arranca, para y consulta estado desde la CLI (ejecuta desde el root de `qualitas-cloud-2-frontend` para que `mock_services` se resuelva correctamente):
+2) Arranca, para y consulta estado desde la CLI (ejecuta desde el root de `Ejemplo-cloud-2-frontend` para que `mock_services` se resuelva correctamente):
 
 ```bash
 # Validar servicios (sin arrancar)
