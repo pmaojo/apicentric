@@ -50,6 +50,8 @@ uuid = { version = "1.11.0", features = ["v4"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
 libloading = "0.8"
 http = "0.2"
+jsonwebtoken = "9.3.0"
+argon2 = "0.5.3"
 
 # UI dependencies (CLI only)
 indicatif = "0.17.7"

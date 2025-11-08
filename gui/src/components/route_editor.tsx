@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { invoke } from "@tauri-apps/api/tauri";
 import { load as loadYaml, dump as dumpYaml } from "js-yaml";
-import { useServicePort } from "../ports/ServicePort";
+import { loadService, saveService } from "../api/client";
+
+// ... (el resto del componente permanece igual, ya que no depende de Tauri)
+// Se eliminó la importación de useServicePort y se reemplazó por llamadas directas a la API
 
 interface Header {
   key: string;
@@ -105,11 +107,10 @@ const ResponseEditor: React.FC<{
   );
 };
 
-export const RouteEditor: React.FC = () => {
+const RouteEditor: React.FC = () => {
   const params = new URLSearchParams(window.location.search);
   const service = params.get("service");
   const endpointIdx = parseInt(params.get("endpoint") || "0", 10);
-  const port = useServicePort();
 
   const [method, setMethod] = useState("");
   const [path, setPath] = useState("");
@@ -125,8 +126,7 @@ export const RouteEditor: React.FC = () => {
 
   useEffect(() => {
     if (!service) return;
-    port
-      .loadService(service)
+    loadService(service)
       .then((yamlStr) => {
         const def = loadYaml(yamlStr);
         setServiceDef(def);
@@ -158,7 +158,7 @@ export const RouteEditor: React.FC = () => {
       .catch((e) => {
         setErrors({ load: String(e) });
       });
-  }, [service, endpointIdx, port]);
+  }, [service, endpointIdx]);
 
   const handlePathChange = (value: string) => {
     setPath(value);
@@ -203,7 +203,7 @@ export const RouteEditor: React.FC = () => {
     if (!def.endpoints) def.endpoints = [];
     def.endpoints[endpointIdx] = ep;
     const yamlStr = dumpYaml(def);
-    await port.saveService(service, yamlStr);
+    await saveService(service, yamlStr);
     alert("Saved");
   };
 

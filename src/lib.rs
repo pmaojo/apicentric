@@ -22,6 +22,8 @@ pub mod storage;
 pub mod ai;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod cloud;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod auth;
 
 // Domain layer (core business logic)
 #[cfg(not(target_arch = "wasm32"))]
