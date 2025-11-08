@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum PulseError {
+pub enum ApicentricError {
     #[error("Test error: {0}")]
     Test(String),
     #[error("Filesystem error: {0}")]
@@ -14,4 +14,4 @@ pub enum PulseError {
     Config(String),
 }
 
-pub type PulseResult<T> = Result<T, PulseError>;
+pub type ApicentricResult<T> = Result<T, ApicentricError>;

@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use mockforge::context::init;
-use mockforge::{ContextBuilder, ExecutionContext, PulseResult};
-pub use mockforge::{PulseError, PulseResult as _PulseResult};
+use apicentric::context::init;
+use apicentric::{ContextBuilder, ExecutionContext, ApicentricResult};
+pub use apicentric::{ApicentricError, ApicentricResult as _ApicentricResult};
 #[path = "../commands/ai.rs"]
 mod ai_cmd;
 #[path = "../commands/shared.rs"]
@@ -16,14 +16,14 @@ mod commands {
     }
 }
 mod collab {
-    pub use mockforge::collab::*;
+    pub use apicentric::collab::*;
 }
 
 #[derive(Parser)]
-#[command(author, version, about = "MockForge CLI (lightweight)")]
+#[command(author, version, about = "apicentric CLI (lightweight)")]
 struct Cli {
-    /// Path to the mockforge.json config file
-    #[arg(short, long, default_value = "mockforge.json")]
+    /// Path to the apicentric.json config file
+    #[arg(short, long, default_value = "apicentric.json")]
     config: String,
 
     /// Execution mode (overrides config)
@@ -39,7 +39,7 @@ struct Cli {
     verbose: bool,
 
     /// Path to SQLite database for simulator storage
-    #[arg(long, default_value = "pulse.db")]
+    #[arg(long, default_value = "apicentric.db")]
     db_path: String,
 
     #[command(subcommand)]
@@ -53,12 +53,12 @@ enum CliExecutionMode {
     Debug,
 }
 
-impl From<CliExecutionMode> for mockforge::config::ExecutionMode {
+impl From<CliExecutionMode> for apicentric::config::ExecutionMode {
     fn from(cli_mode: CliExecutionMode) -> Self {
         match cli_mode {
-            CliExecutionMode::CI => mockforge::config::ExecutionMode::CI,
-            CliExecutionMode::Development => mockforge::config::ExecutionMode::Development,
-            CliExecutionMode::Debug => mockforge::config::ExecutionMode::Debug,
+            CliExecutionMode::CI => apicentric::config::ExecutionMode::CI,
+            CliExecutionMode::Development => apicentric::config::ExecutionMode::Development,
+            CliExecutionMode::Debug => apicentric::config::ExecutionMode::Debug,
         }
     }
 }
@@ -89,7 +89,7 @@ async fn main() {
     }
 }
 
-async fn run(cli: Cli) -> PulseResult<()> {
+async fn run(cli: Cli) -> ApicentricResult<()> {
     let config_path = std::path::Path::new(&cli.config);
     let builder = ContextBuilder::new(config_path)?;
     let cfg = builder.config().clone();

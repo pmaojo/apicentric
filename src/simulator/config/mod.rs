@@ -15,7 +15,7 @@ pub use endpoint::{
 pub use validation::{ConfigLoader, LoadError, LoadErrorType, LoadResult, ValidationSummary};
 
 fn default_db_path() -> PathBuf {
-    PathBuf::from("pulse.db")
+    PathBuf::from("apicentric.db")
 }
 
 /// Main simulator configuration

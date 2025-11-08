@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use mockforge::{Context, ExecutionContext, PulseResult};
+use apicentric::{Context, ExecutionContext, ApicentricResult};
 
 mod control;
 mod export;
@@ -204,7 +204,7 @@ pub async fn simulator_command(
     action: &SimulatorAction,
     context: &Context,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     match action {
         SimulatorAction::Start {
             services_dir,

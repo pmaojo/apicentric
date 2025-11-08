@@ -1,7 +1,7 @@
 use clap::Subcommand;
-use mockforge::ai::{AiProvider, LocalAiProvider, OpenAiProvider};
-use mockforge::config::AiProviderKind;
-use mockforge::{Context, ExecutionContext, PulseError, PulseResult};
+use apicentric::ai::{AiProvider, LocalAiProvider, OpenAiProvider};
+use apicentric::config::AiProviderKind;
+use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
 
 #[derive(Subcommand, Debug)]
 pub enum AiAction {
@@ -16,7 +16,7 @@ pub async fn ai_command(
     action: &AiAction,
     context: &Context,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     match action {
         AiAction::Generate { prompt } => handle_ai_generate(context, prompt, exec_ctx).await,
     }
@@ -26,7 +26,7 @@ async fn handle_ai_generate(
     context: &Context,
     prompt: &str,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!("🏃 Dry run: Would generate service from prompt: {}", prompt);
         return Ok(());
@@ -36,9 +36,9 @@ async fn handle_ai_generate(
     let ai_cfg = match &cfg.ai {
         Some(cfg) => cfg,
         None => {
-            return Err(PulseError::config_error(
+            return Err(ApicentricError::config_error(
                 "AI provider not configured",
-                Some("Add an 'ai' section to pulse.json"),
+                Some("Add an 'ai' section to apicentric.json"),
             ))
         }
     };
@@ -54,9 +54,9 @@ async fn handle_ai_generate(
         }
         AiProviderKind::Openai => {
             let key = ai_cfg.api_key.clone().ok_or_else(|| {
-                PulseError::config_error(
+                ApicentricError::config_error(
                     "OpenAI API key missing",
-                    Some("Set ai.api_key in pulse.json"),
+                    Some("Set ai.api_key in apicentric.json"),
                 )
             })?;
             let model = ai_cfg

@@ -1,4 +1,4 @@
-use super::{AiConfig, AiProviderKind, ExecutionConfig, NpmConfig, PulseConfig, ServerConfig};
+use super::{AiConfig, AiProviderKind, ExecutionConfig, NpmConfig, ApicentricConfig, ServerConfig};
 use crate::errors::ValidationError;
 use crate::validation::{ConfigValidator, ValidationUtils};
 
@@ -27,7 +27,7 @@ impl ConfigValidator for AiConfig {
     }
 }
 
-impl ConfigValidator for PulseConfig {
+impl ConfigValidator for ApicentricConfig {
     fn validate(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
         if let Err(e) = ValidationUtils::validate_url(&self.base_url, "base_url") {
@@ -128,13 +128,13 @@ impl ConfigValidator for NpmConfig {
     fn validate(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
         if let Err(e) =
-            ValidationUtils::validate_non_empty_string(&self.pulse_script, "npm.pulse_script")
+            ValidationUtils::validate_non_empty_string(&self.apicentric_script, "npm.apicentric_script")
         {
             errors.push(e);
         }
         if let Err(e) = ValidationUtils::validate_non_empty_string(
-            &self.pulse_watch_script,
-            "npm.pulse_watch_script",
+            &self.apicentric_watch_script,
+            "npm.apicentric_watch_script",
         ) {
             errors.push(e);
         }

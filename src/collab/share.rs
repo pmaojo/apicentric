@@ -38,7 +38,7 @@ struct HttpResponseMsg {
     body: Vec<u8>,
 }
 
-const PROTOCOL: &str = "/pulse/http/1.0.0";
+const PROTOCOL: &str = "/apicentric/http/1.0.0";
 
 #[derive(Clone, Default)]
 struct HttpCodec;

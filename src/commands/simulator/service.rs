@@ -1,14 +1,14 @@
 use crate::collab::share;
 use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_definition};
 use libp2p::PeerId;
-use mockforge::{Context, ExecutionContext, PulseError, PulseResult};
+use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
 
 pub async fn handle_record(
     context: &Context,
     output: &str,
     url: &Option<String>,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     let target = url
         .clone()
         .unwrap_or_else(|| context.config().base_url.clone());
@@ -25,9 +25,9 @@ pub async fn handle_record(
             .await?;
         Ok(())
     } else {
-        Err(PulseError::config_error(
+        Err(ApicentricError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in mockforge.json"),
+            Some("Enable simulator in apicentric.json"),
         ))
     }
 }
@@ -36,7 +36,7 @@ pub async fn handle_share(
     context: &Context,
     service: &str,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!("🏃 Dry run: Would share service '{}'", service);
         return Ok(());
@@ -53,7 +53,7 @@ pub async fn handle_share(
                     println!("   Token: {}", token);
                     Ok(())
                 }
-                Err(e) => Err(PulseError::runtime_error(
+                Err(e) => Err(ApicentricError::runtime_error(
                     format!("Failed to share service: {}", e),
                     None::<String>,
                 )),
@@ -63,9 +63,9 @@ pub async fn handle_share(
             Ok(())
         }
     } else {
-        Err(PulseError::config_error(
+        Err(ApicentricError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in mockforge.json"),
+            Some("Enable simulator in apicentric.json"),
         ))
     }
 }
@@ -76,7 +76,7 @@ pub async fn handle_connect(
     port: u16,
     token: Option<&str>,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would connect to peer '{}' service '{}' on port {}",
@@ -85,15 +85,15 @@ pub async fn handle_connect(
         return Ok(());
     }
     let peer_id = peer.parse::<PeerId>().map_err(|e| {
-        PulseError::runtime_error(format!("Invalid peer id: {}", e), None::<String>)
+        ApicentricError::runtime_error(format!("Invalid peer id: {}", e), None::<String>)
     })?;
     let token = token.unwrap_or("").to_string();
     share::connect_service(peer_id, token, service.to_string(), port)
         .await
-        .map_err(|e| PulseError::runtime_error(format!("Failed to connect: {}", e), None::<String>))
+        .map_err(|e| ApicentricError::runtime_error(format!("Failed to connect: {}", e), None::<String>))
 }
 
-pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {
+pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!("🏃 Dry run: Would scaffold new service in {}", output);
         return Ok(());
@@ -101,26 +101,26 @@ pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> PulseResul
 
     let service = scaffold_service_definition()?;
     std::fs::create_dir_all(output).map_err(|e| {
-        PulseError::fs_error(
+        ApicentricError::fs_error(
             format!("Failed to create directory {}: {}", output, e),
             None::<String>,
         )
     })?;
     let file_path = std::path::Path::new(output).join(format!("{}.yaml", service.name));
     if file_path.exists() {
-        return Err(PulseError::fs_error(
+        return Err(ApicentricError::fs_error(
             format!("File {} already exists", file_path.display()),
             Some("Choose a different service name"),
         ));
     }
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
-        PulseError::runtime_error(
+        ApicentricError::runtime_error(
             format!("Failed to serialize service: {}", e),
             None::<String>,
         )
     })?;
     std::fs::write(&file_path, yaml).map_err(|e| {
-        PulseError::runtime_error(
+        ApicentricError::runtime_error(
             format!("Failed to write service file: {}", e),
             None::<String>,
         )
@@ -129,31 +129,31 @@ pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> PulseResul
     Ok(())
 }
 
-pub async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> PulseResult<()> {
+pub async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!("🏃 Dry run: Would edit service {}", input);
         return Ok(());
     }
 
     let yaml = std::fs::read_to_string(input).map_err(|e| {
-        PulseError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
+        ApicentricError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
     })?;
-    let mut service: mockforge::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
+    let mut service: apicentric::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
         .map_err(|e| {
-            PulseError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
+            ApicentricError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;
 
     let endpoint = scaffold_endpoint_definition()?;
     service.endpoints.push(endpoint);
 
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
-        PulseError::runtime_error(
+        ApicentricError::runtime_error(
             format!("Failed to serialize service: {}", e),
             None::<String>,
         )
     })?;
     std::fs::write(input, yaml).map_err(|e| {
-        PulseError::runtime_error(
+        ApicentricError::runtime_error(
             format!("Failed to write service file: {}", e),
             None::<String>,
         )

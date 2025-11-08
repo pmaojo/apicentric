@@ -1,4 +1,4 @@
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use serde_json::{Map, Value};
 use std::fs;
 use std::path::Path;
@@ -18,23 +18,23 @@ impl NpmWriter {
         }
     }
 
-    /// Automatically add mockforge scripts to package.json
-    pub fn setup_scripts(&self, force: bool) -> PulseResult<()> {
+    /// Automatically add apicentric scripts to package.json
+    pub fn setup_scripts(&self, force: bool) -> ApicentricResult<()> {
         if !self.reader.package_json_path.exists() {
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 "package.json not found",
                 Some("Create a package.json file first using 'npm init' or 'yarn init'"),
             ));
         }
 
         let mut package_json = self.reader.read_package_json()?;
-        let mockforge_binary_path = self.reader.resolve_mockforge_binary_path()?;
+        let apicentric_binary_path = self.reader.resolve_apicentric_binary_path()?;
         let script_templates = self
             .reader
-            .generate_script_templates(&mockforge_binary_path);
+            .generate_script_templates(&apicentric_binary_path);
 
         if !package_json.is_object() {
-            return Err(PulseError::config_error(
+            return Err(ApicentricError::config_error(
                 "package.json is not a valid JSON object",
                 Some("Fix the package.json file structure"),
             ));
@@ -50,7 +50,7 @@ impl NpmWriter {
             .unwrap()
             .as_object_mut()
             .ok_or_else(|| {
-                PulseError::config_error(
+                ApicentricError::config_error(
                     "scripts field in package.json is not an object",
                     Some("Fix the scripts field in package.json to be an object"),
                 )
@@ -83,23 +83,23 @@ impl NpmWriter {
             );
         }
         if added_scripts.is_empty() && skipped_scripts.is_empty() {
-            println!("ℹ️ All mockforge scripts are already configured");
+            println!("ℹ️ All apicentric scripts are already configured");
         }
 
         Ok(())
     }
 
     /// Write package.json with proper formatting
-    pub fn write_package_json(&self, package_json: &Value) -> PulseResult<()> {
+    pub fn write_package_json(&self, package_json: &Value) -> ApicentricResult<()> {
         let content = serde_json::to_string_pretty(package_json).map_err(|e| {
-            PulseError::config_error(
+            ApicentricError::config_error(
                 format!("Cannot serialize package.json: {}", e),
                 None::<String>,
             )
         })?;
 
         fs::write(&self.reader.package_json_path, content).map_err(|e| {
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!("Cannot write package.json: {}", e),
                 Some("Check write permissions for package.json"),
             )
@@ -133,7 +133,7 @@ mod tests {
         let reader = NpmReader::new(temp_dir.path());
         let json = reader.read_package_json().unwrap();
         let scripts = json["scripts"].as_object().unwrap();
-        assert!(scripts.contains_key("mockforge"));
-        assert!(scripts.contains_key("mockforge:watch"));
+        assert!(scripts.contains_key("apicentric"));
+        assert!(scripts.contains_key("apicentric:watch"));
     }
 }

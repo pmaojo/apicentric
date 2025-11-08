@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::config::PulseConfig;
+use crate::config::ApicentricConfig;
 
 /// Build the API simulator manager if enabled in configuration.
 pub fn build_api_simulator(
-    cfg: &PulseConfig,
+    cfg: &ApicentricConfig,
 ) -> Option<Arc<crate::simulator::ApiSimulatorManager>> {
     if let Some(ref simulator_config) = cfg.simulator {
         let (enabled, _) = simulator_config.effective_enabled_state();

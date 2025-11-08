@@ -1,14 +1,14 @@
-//! Integration tests for mockforge functionality
+//! Integration tests for apicentric functionality
 //! 
 //! These tests verify that different components work together correctly
 //! and test complete workflows from configuration to execution.
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{PulseConfig, ServerConfig, ExecutionConfig, ExecutionMode, NpmConfig, load_config, save_config, generate_default_config};
+    use crate::config::{ApicentricConfig, ServerConfig, ExecutionConfig, ExecutionMode, NpmConfig, load_config, save_config, generate_default_config};
     use crate::adapters::server_manager::{ServerManager, ServerManagerPort, MockServerManager};
     use crate::adapters::npm::NpmIntegration;
-    use crate::errors::{PulseError, ErrorFormatter};
+    use crate::errors::{ApicentricError, ErrorFormatter};
     use crate::validation::{ConfigValidator, ValidationUtils};
     use tempfile::TempDir;
     use std::fs;
@@ -17,13 +17,13 @@ mod tests {
     #[test]
     fn test_complete_config_workflow() {
         let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join("mockforge.json");
+        let config_path = temp_dir.path().join("apicentric.json");
         
         // Step 1: Generate and save default config
         let mut config = generate_default_config();
         config.routes_dir = temp_dir.path().join("app/routes");
         config.specs_dir = temp_dir.path().join("app/routes");
-        config.index_cache_path = temp_dir.path().join(".mockforge/route-index.json");
+        config.index_cache_path = temp_dir.path().join(".apicentric/route-index.json");
         
         // Create required directories
         fs::create_dir_all(&config.routes_dir).unwrap();
@@ -106,8 +106,8 @@ mod tests {
         // Step 2: Detect initial status
         let initial_status = npm_integration.detect_setup_status().unwrap();
         assert!(initial_status.package_json_exists);
-        assert!(!initial_status.mockforge_script_exists);
-        assert!(!initial_status.mockforge_watch_script_exists);
+        assert!(!initial_status.apicentric_script_exists);
+        assert!(!initial_status.apicentric_watch_script_exists);
         assert!(!initial_status.setup_instructions.is_empty());
         
         // Step 3: Setup scripts
@@ -115,8 +115,8 @@ mod tests {
         
         // Step 4: Verify setup
         let final_status = npm_integration.detect_setup_status().unwrap();
-        assert!(final_status.mockforge_script_exists);
-        assert!(final_status.mockforge_watch_script_exists);
+        assert!(final_status.apicentric_script_exists);
+        assert!(final_status.apicentric_watch_script_exists);
         
         // Step 5: Validate setup
         assert!(npm_integration.validate_npm_setup().unwrap());
@@ -124,8 +124,8 @@ mod tests {
         // Step 6: Verify package.json content
         let package_json = npm_integration.read_package_json().unwrap();
         let scripts = package_json["scripts"].as_object().unwrap();
-        assert!(scripts.contains_key("mockforge"));
-        assert!(scripts.contains_key("mockforge:watch"));
+        assert!(scripts.contains_key("apicentric"));
+        assert!(scripts.contains_key("apicentric:watch"));
         assert!(scripts.contains_key("build")); // Original scripts preserved
         assert!(scripts.contains_key("test"));
     }
@@ -168,7 +168,7 @@ mod tests {
         let setup_result = npm_integration.setup_scripts(false);
         assert!(setup_result.is_err()); // Should fail because no package.json
         
-        if let Err(PulseError::FileSystem { message, suggestion }) = setup_result {
+        if let Err(ApicentricError::FileSystem { message, suggestion }) = setup_result {
             assert!(message.contains("package.json not found"));
             assert!(suggestion.as_ref().unwrap().contains("npm init"));
         }
@@ -180,7 +180,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         
         // Create a config with multiple validation issues
-        let config = PulseConfig {
+        let config = ApicentricConfig {
             cypress_config_path: "".to_string(), // Empty
             base_url: "ftp://invalid".to_string(), // Wrong protocol
             specs_pattern: "[".to_string(), // Invalid glob
@@ -203,8 +203,8 @@ mod tests {
                 verbose: false,
             },
             npm: NpmConfig {
-                pulse_script: "".to_string(), // Empty
-                pulse_watch_script: "valid".to_string(),
+                apicentric_script: "".to_string(), // Empty
+                apicentric_watch_script: "valid".to_string(),
                 dev_script: "   ".to_string(), // Whitespace only
             },
             testcase: None,
@@ -232,7 +232,7 @@ mod tests {
         assert!(field_names.contains(&"server.start_command"));
         assert!(field_names.contains(&"server.startup_timeout_ms"));
         assert!(field_names.contains(&"server.health_check_retries"));
-        assert!(field_names.contains(&"npm.mockforge_script"));
+        assert!(field_names.contains(&"npm.apicentric_script"));
         assert!(field_names.contains(&"npm.dev_script"));
         
         // Test error formatting
@@ -268,7 +268,7 @@ mod tests {
         let result = mock.start_server("invalid command");
         assert!(result.is_err());
         
-        if let Err(PulseError::Server { message, .. }) = result {
+        if let Err(ApicentricError::Server { message, .. }) = result {
             assert!(message.contains("Command not found"));
         }
         
@@ -292,7 +292,7 @@ mod tests {
             "routes_dir": "app/routes",
             "specs_dir": "app/routes",
             "reports_dir": "cypress/reports",
-            "index_cache_path": ".mockforge/route-index.json",
+            "index_cache_path": ".apicentric/route-index.json",
             "default_timeout": 30000,
             // Legacy sections that should be removed
             "testcase": {
@@ -310,7 +310,7 @@ mod tests {
         
         // Create required directories
         let routes_dir = temp_dir.path().join("app/routes");
-        let cache_dir = temp_dir.path().join(".mockforge");
+        let cache_dir = temp_dir.path().join(".apicentric");
         fs::create_dir_all(&routes_dir).unwrap();
         fs::create_dir_all(&cache_dir).unwrap();
         
@@ -321,7 +321,7 @@ mod tests {
         assert_eq!(migrated.base_url, "http://localhost:5173");
         assert_eq!(migrated.server.start_command, "npm run dev");
         assert_eq!(migrated.execution.mode, ExecutionMode::Development);
-        assert!(migrated.npm.mockforge_script.contains("cargo run"));
+        assert!(migrated.npm.apicentric_script.contains("cargo run"));
         
         // Note: backup creation depends on whether migration was actually performed
         // Since we're just loading the config, no backup may be created
@@ -393,14 +393,14 @@ mod tests {
     #[test]
     fn test_complete_error_workflow() {
         // Test error creation and formatting
-        let config_error = PulseError::config_error(
+        let config_error = ApicentricError::config_error(
             "Invalid configuration detected",
-            Some("Check your mockforge.json file for syntax errors")
+            Some("Check your apicentric.json file for syntax errors")
         );
         
         let formatted = ErrorFormatter::format_for_user(&config_error);
         assert!(formatted.contains("❌ Configuration error"));
-        assert!(formatted.contains("💡 Suggestion: Check your mockforge.json"));
+        assert!(formatted.contains("💡 Suggestion: Check your apicentric.json"));
         
         // Test validation errors
         let validation_errors = vec![
@@ -419,12 +419,12 @@ mod tests {
         
         // Test error chaining
         let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
-        let pulse_error: PulseError = io_error.into();
+        let apicentric_error: ApicentricError = io_error.into();
         
-        match pulse_error {
-            PulseError::Io(_) => {
+        match apicentric_error {
+            ApicentricError::Io(_) => {
                 // Expected
-                let formatted = ErrorFormatter::format_for_user(&pulse_error);
+                let formatted = ErrorFormatter::format_for_user(&apicentric_error);
                 assert!(formatted.contains("❌ IO error"));
             }
             _ => panic!("Expected IO error"),
@@ -436,14 +436,14 @@ mod tests {
     fn test_npm_workspace_detection() {
         let temp_dir = TempDir::new().unwrap();
         
-        // Test 1: Workspace with utils/mockforge structure
-        let utils_mockforge = temp_dir.path().join("utils/mockforge");
-        fs::create_dir_all(&utils_mockforge).unwrap();
-        fs::write(utils_mockforge.join("Cargo.toml"), "[package]\nname = \"mockforge\"").unwrap();
+        // Test 1: Workspace with utils/apicentric structure
+        let utils_apicentric = temp_dir.path().join("utils/apicentric");
+        fs::create_dir_all(&utils_apicentric).unwrap();
+        fs::write(utils_apicentric.join("Cargo.toml"), "[package]\nname = \"apicentric\"").unwrap();
 
         let npm_integration = NpmIntegration::new(temp_dir.path());
-        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
-        assert_eq!(binary_path, "cargo run --manifest-path utils/mockforge/Cargo.toml --");
+        let binary_path = npm_integration.resolve_apicentric_binary_path().unwrap();
+        assert_eq!(binary_path, "cargo run --manifest-path utils/apicentric/Cargo.toml --");
     }
     
     #[test]
@@ -451,22 +451,22 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         
         // Test with built binary in release (no Cargo.toml)
-        let utils_mockforge = temp_dir.path().join("utils/mockforge");
-        let release_dir = utils_mockforge.join("target/release");
+        let utils_apicentric = temp_dir.path().join("utils/apicentric");
+        let release_dir = utils_apicentric.join("target/release");
         fs::create_dir_all(&release_dir).unwrap();
-        fs::write(release_dir.join("mockforge"), "fake binary").unwrap();
+        fs::write(release_dir.join("apicentric"), "fake binary").unwrap();
 
         let npm_integration = NpmIntegration::new(temp_dir.path());
-        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
-        assert_eq!(binary_path, "./utils/mockforge/target/release/mockforge");
+        let binary_path = npm_integration.resolve_apicentric_binary_path().unwrap();
+        assert_eq!(binary_path, "./utils/apicentric/target/release/apicentric");
 
         // Test with only debug binary available
-        fs::remove_file(release_dir.join("mockforge")).unwrap();
-        let debug_dir = utils_mockforge.join("target/debug");
+        fs::remove_file(release_dir.join("apicentric")).unwrap();
+        let debug_dir = utils_apicentric.join("target/debug");
         fs::create_dir_all(&debug_dir).unwrap();
-        fs::write(debug_dir.join("mockforge"), "fake binary").unwrap();
+        fs::write(debug_dir.join("apicentric"), "fake binary").unwrap();
 
-        let binary_path = npm_integration.resolve_mockforge_binary_path().unwrap();
-        assert_eq!(binary_path, "./utils/mockforge/target/debug/mockforge");
+        let binary_path = npm_integration.resolve_apicentric_binary_path().unwrap();
+        assert_eq!(binary_path, "./utils/apicentric/target/debug/apicentric");
     }
 }

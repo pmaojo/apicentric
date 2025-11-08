@@ -1,4 +1,4 @@
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::ScenarioStrategy;
 use crate::simulator::log::{RequestLog, RequestLogEntry};
 use crate::storage::Storage;
@@ -109,13 +109,13 @@ impl ServiceState {
     }
 
     /// Add an item to a fixture array
-    pub fn add_to_fixture_array(&mut self, fixture_key: &str, item: Value) -> PulseResult<()> {
+    pub fn add_to_fixture_array(&mut self, fixture_key: &str, item: Value) -> ApicentricResult<()> {
         match self.fixtures.get_mut(fixture_key) {
             Some(Value::Array(arr)) => {
                 arr.push(item);
                 Ok(())
             }
-            Some(_) => Err(PulseError::runtime_error(
+            Some(_) => Err(ApicentricError::runtime_error(
                 format!("Fixture '{}' is not an array", fixture_key),
                 Some("Use add_to_fixture_array only with array fixtures"),
             )),
@@ -133,23 +133,23 @@ impl ServiceState {
         &mut self,
         fixture_key: &str,
         index: usize,
-    ) -> PulseResult<Value> {
+    ) -> ApicentricResult<Value> {
         match self.fixtures.get_mut(fixture_key) {
             Some(Value::Array(arr)) => {
                 if index < arr.len() {
                     Ok(arr.remove(index))
                 } else {
-                    Err(PulseError::runtime_error(
+                    Err(ApicentricError::runtime_error(
                         format!("Index {} out of bounds for fixture array '{}'", index, fixture_key),
                         Some("Check array length before removing items"),
                     ))
                 }
             }
-            Some(_) => Err(PulseError::runtime_error(
+            Some(_) => Err(ApicentricError::runtime_error(
                 format!("Fixture '{}' is not an array", fixture_key),
                 Some("Use remove_from_fixture_array only with array fixtures"),
             )),
-            None => Err(PulseError::runtime_error(
+            None => Err(ApicentricError::runtime_error(
                 format!("Fixture '{}' not found", fixture_key),
                 Some("Check that the fixture exists before removing items"),
             )),
@@ -162,24 +162,24 @@ impl ServiceState {
         fixture_key: &str,
         index: usize,
         item: Value,
-    ) -> PulseResult<()> {
+    ) -> ApicentricResult<()> {
         match self.fixtures.get_mut(fixture_key) {
             Some(Value::Array(arr)) => {
                 if index < arr.len() {
                     arr[index] = item;
                     Ok(())
                 } else {
-                    Err(PulseError::runtime_error(
+                    Err(ApicentricError::runtime_error(
                         format!("Index {} out of bounds for fixture array '{}'", index, fixture_key),
                         Some("Check array length before updating items"),
                     ))
                 }
             }
-            Some(_) => Err(PulseError::runtime_error(
+            Some(_) => Err(ApicentricError::runtime_error(
                 format!("Fixture '{}' is not an array", fixture_key),
                 Some("Use update_fixture_array_item only with array fixtures"),
             )),
-            None => Err(PulseError::runtime_error(
+            None => Err(ApicentricError::runtime_error(
                 format!("Fixture '{}' not found", fixture_key),
                 Some("Check that the fixture exists before updating items"),
             )),
@@ -193,7 +193,7 @@ impl ServiceState {
         field: &str,
         field_value: &Value,
         new_item: Value,
-    ) -> PulseResult<bool> {
+    ) -> ApicentricResult<bool> {
         match self.fixtures.get_mut(fixture_key) {
             Some(Value::Array(arr)) => {
                 for item in arr.iter_mut() {
@@ -208,11 +208,11 @@ impl ServiceState {
                 }
                 Ok(false) // Item not found
             }
-            Some(_) => Err(PulseError::runtime_error(
+            Some(_) => Err(ApicentricError::runtime_error(
                 format!("Fixture '{}' is not an array", fixture_key),
                 Some("Use update_fixture_array_item_by_field only with array fixtures"),
             )),
-            None => Err(PulseError::runtime_error(
+            None => Err(ApicentricError::runtime_error(
                 format!("Fixture '{}' not found", fixture_key),
                 Some("Check that the fixture exists before updating items"),
             )),
@@ -225,7 +225,7 @@ impl ServiceState {
         fixture_key: &str,
         field: &str,
         field_value: &Value,
-    ) -> PulseResult<Option<Value>> {
+    ) -> ApicentricResult<Option<Value>> {
         match self.fixtures.get_mut(fixture_key) {
             Some(Value::Array(arr)) => {
                 for (index, item) in arr.iter().enumerate() {
@@ -239,11 +239,11 @@ impl ServiceState {
                 }
                 Ok(None) // Item not found
             }
-            Some(_) => Err(PulseError::runtime_error(
+            Some(_) => Err(ApicentricError::runtime_error(
                 format!("Fixture '{}' is not an array", fixture_key),
                 Some("Use remove_fixture_array_item_by_field only with array fixtures"),
             )),
-            None => Err(PulseError::runtime_error(
+            None => Err(ApicentricError::runtime_error(
                 format!("Fixture '{}' not found", fixture_key),
                 Some("Check that the fixture exists before removing items"),
             )),

@@ -2,18 +2,18 @@
 
 use std::time::Duration;
 
-use crate::domain::errors::PulseResult;
+use crate::domain::errors::ApicentricResult;
 
 /// Controls the lifecycle of external servers required for tests.
 pub trait ServerControllerPort {
-    fn ensure_started(&self, timeout: Duration) -> PulseResult<()>;
-    fn stop(&self) -> PulseResult<()>;
+    fn ensure_started(&self, timeout: Duration) -> ApicentricResult<()>;
+    fn stop(&self) -> ApicentricResult<()>;
 }
 
 /// Manages the lifecycle of a mock API server.
 pub trait MockApiPort {
-    fn start(&self) -> PulseResult<()>;
-    fn stop(&self) -> PulseResult<()>;
+    fn start(&self) -> ApicentricResult<()>;
+    fn stop(&self) -> ApicentricResult<()>;
 }
 
 /// Provides access to the current time.
@@ -23,11 +23,11 @@ pub trait Clock {
 
 /// Abstraction over file system operations used by the application.
 pub trait FsPort {
-    fn read_to_string(&self, path: &str) -> PulseResult<String>;
+    fn read_to_string(&self, path: &str) -> ApicentricResult<String>;
 }
 
 /// Executes external processes.
 pub trait ProcessPort {
-    fn run(&self, cmd: &str, args: &[&str]) -> PulseResult<(i32, String, String)>;
+    fn run(&self, cmd: &str, args: &[&str]) -> ApicentricResult<(i32, String, String)>;
 }
 

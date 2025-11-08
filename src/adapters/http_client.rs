@@ -21,7 +21,7 @@ impl ReqwestHttpClientAdapter {
     pub fn new() -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
-            .user_agent("mockforge-contract-tester/1.0")
+            .user_agent("apicentric-contract-tester/1.0")
             .build()
             .expect("Failed to create HTTP client");
 
@@ -37,7 +37,7 @@ impl ReqwestHttpClientAdapter {
         self.default_timeout = timeout;
         self.client = Client::builder()
             .timeout(timeout)
-            .user_agent("mockforge-contract-tester/1.0")
+            .user_agent("apicentric-contract-tester/1.0")
             .build()
             .expect("Failed to create HTTP client with custom timeout");
         self
@@ -315,7 +315,7 @@ impl HttpClientBuilder {
             timeout: Duration::from_secs(30),
             max_retries: 3,
             retry_delay: Duration::from_millis(1000),
-            user_agent: "mockforge-contract-tester/1.0".to_string(),
+            user_agent: "apicentric-contract-tester/1.0".to_string(),
             default_headers: HashMap::new(),
         }
     }

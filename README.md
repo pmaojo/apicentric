@@ -8,26 +8,26 @@
 └──────────────────────────────────────────────────────────────────────────────────────
 ## 🛠️ Instalación
 
-Para instalar la versión más reciente de `mockforge`, ejecuta uno de los scripts de instalación incluidos:
+Para instalar la versión más reciente de `apicentric`, ejecuta uno de los scripts de instalación incluidos:
 
 - **Linux/macOS**: `./scripts/install.sh`
 - **Windows (PowerShell)**: `./scripts/install.ps1`
 
-Cada script detecta automáticamente tu sistema operativo y arquitectura, descarga el binario adecuado desde las últimas releases y lo coloca en una ubicación habitual (`/usr/local/bin` o `%UserProfile%\bin`) desde `https://github.com/pmaojo/mockforge/releases`.
+Cada script detecta automáticamente tu sistema operativo y arquitectura, descarga el binario adecuado desde las últimas releases y lo coloca en una ubicación habitual (`/usr/local/bin` o `%UserProfile%\bin`) desde `https://github.com/pmaojo/apicentric/releases`.
 
 ## 📦 Instalación
 
 ### Homebrew (macOS)
 
 ```bash
-brew tap pmaojo/mockforge
-brew install mockforge
+brew tap pmaojo/apicentric
+brew install apicentric
 ```
 
 ### Windows (winget)
 
 ```powershell
-winget install --id pmaojo.mockforge
+winget install --id pmaojo.apicentric
 ```
 
 ## Installation
@@ -35,22 +35,22 @@ winget install --id pmaojo.mockforge
 - **Linux**
 
   ```bash
-  curl -L https://github.com/pmaojo/mockforge/releases/latest/download/mockforge-linux-x64.tar.gz \
-    | tar -xz && sudo mv mockforge /usr/local/bin
+  curl -L https://github.com/pmaojo/apicentric/releases/latest/download/apicentric-linux-x64.tar.gz \
+    | tar -xz && sudo mv apicentric /usr/local/bin
   ```
 
 - **macOS**
 
   ```bash
-  brew install pmaojo/mockforge/mockforge
+  brew install pmaojo/apicentric/apicentric
   ```
 
 - **Windows**
-  1. Download `mockforge-windows-x64.zip` from `https://github.com/pmaojo/mockforge/releases/latest/download`.
-  2. Extract `mockforge.exe` and add its folder to your `PATH`.
+  1. Download `apicentric-windows-x64.zip` from `https://github.com/pmaojo/apicentric/releases/latest/download`.
+  2. Extract `apicentric.exe` and add its folder to your `PATH`.
 
 ```bash
-mockforge --version
+apicentric --version
 ```
 
 ## Container Image
@@ -59,14 +59,14 @@ Las releases publican una imagen de contenedor mínima en el GitHub Container Re
 Descárgala y ejecútala sin instalar dependencias locales:
 
 ```bash
-docker pull ghcr.io/pmaojo/mockforge:latest
-docker run --rm ghcr.io/pmaojo/mockforge:latest --help
+docker pull ghcr.io/pmaojo/apicentric:latest
+docker run --rm ghcr.io/pmaojo/apicentric:latest --help
 ```
 
 Para lanzar el simulador con tus servicios locales:
 
 ```bash
-docker run --rm -v $(pwd)/services:/services ghcr.io/pmaojo/mockforge:latest \
+docker run --rm -v $(pwd)/services:/services ghcr.io/pmaojo/apicentric:latest \
   simulator start --services-dir /services
 ```
 
@@ -74,51 +74,51 @@ docker run --rm -v $(pwd)/services:/services ghcr.io/pmaojo/mockforge:latest \
 
 ```
 ╭──────────────────────────────────────────────────────────────────────────────╮
-│ 1) Configura mockforge.json                                                       │
-│ 2) Integra scripts npm (mockforge setup-npm)                                      │
+│ 1) Configura apicentric.json                                                       │
+│ 2) Integra scripts npm (apicentric setup-npm)                                      │
 │ 3) Arranca el simulador y gestiona servicios mock                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ```bash
-# Inicializa config por defecto (si aún no tienes mockforge.json)
-mockforge init
+# Inicializa config por defecto (si aún no tienes apicentric.json)
+apicentric init
 
-# Ajusta rutas y directorios de servicios en mockforge.json
+# Ajusta rutas y directorios de servicios en apicentric.json
 
 # Añade scripts npm automáticamente
-mockforge setup-npm
+apicentric setup-npm
 
 # Inicia el simulador con tus servicios mock
-npm run mockforge:sim -- simulator start --services-dir mock_services
+npm run apicentric:sim -- simulator start --services-dir mock_services
 
 # Especifica una ruta de base de datos SQLite para almacenar servicios y logs
-npm run mockforge:sim -- simulator start --services-dir mock_services --db-path pulse.db
+npm run apicentric:sim -- simulator start --services-dir mock_services --db-path apicentric.db
 
 # Habilita la edición colaborativa distribuida entre pares
-npm run mockforge:sim -- simulator start --services-dir mock_services --p2p
+npm run apicentric:sim -- simulator start --services-dir mock_services --p2p
 
 # Convierte un archivo Mockoon a YAML
-mockforge import-mockoon --input mockoon.json --output services/mockoon.yaml
+apicentric import-mockoon --input mockoon.json --output services/mockoon.yaml
 
 # Graba tráfico de una API real
-mockforge record --output services/ --url http://localhost:3000
+apicentric record --output services/ --url http://localhost:3000
 
 # Exporta interfaces TypeScript
-mockforge export-types --input services/petstore.yaml --output types.ts
+apicentric export-types --input services/petstore.yaml --output types.ts
 
 # Genera un componente React preconfigurado
-mockforge export-view --input services/petstore.yaml --output view.tsx
+apicentric export-view --input services/petstore.yaml --output view.tsx
 ```
 
 ## Instalación y uso en Node.js
 
 ```bash
-npm install mockforge
+npm install apicentric
 ```
 
 ```javascript
-const { greet } = require('mockforge');
+const { greet } = require('apicentric');
 console.log(greet('World'));
 ```
 
@@ -136,11 +136,11 @@ mock de forma remota.
 
 ```bash
 # En el host que tiene el simulador corriendo
-mockforge simulator share my-service
+apicentric simulator share my-service
 # Muestra Peer ID y token de acceso
 
 # En otro equipo
-mockforge simulator connect <peer-id> --service my-service --port 8080 --token <token>
+apicentric simulator connect <peer-id> --service my-service --port 8080 --token <token>
 # Abre un proxy local en http://localhost:8080
 ```
 
@@ -151,7 +151,7 @@ control más fino pueden implementarse listas de peers permitidos.
 
 ### Generación asistida por IA
 
-Configura un proveedor en `mockforge.json` para generar servicios desde prompts en
+Configura un proveedor en `apicentric.json` para generar servicios desde prompts en
 lenguaje natural. Ejemplo con un modelo local:
 
 ```json
@@ -171,7 +171,7 @@ O utilizando la API de OpenAI:
 Para generar un servicio YAML y aplicarlo al proyecto activo:
 
 ```bash
-mockforge ai generate "Servicio de usuarios con GET /users"
+apicentric ai generate "Servicio de usuarios con GET /users"
 ```
 
 Usar el proveedor local mantiene todos los datos en tu máquina. Con OpenAI, el
@@ -187,7 +187,7 @@ componente actúa como un adaptador de la capa de presentación y mantiene el
 dominio aislado.
 
 ```bash
-mockforge export-view --input services/petstore.yaml --output view.tsx
+apicentric export-view --input services/petstore.yaml --output view.tsx
 ```
 
 El TSX generado puede personalizarse libremente para ajustar estilos o lógica
@@ -202,56 +202,56 @@ Comandos útiles:
 
 ```bash
 # 1) Validar YAMLs del simulador
-npm run mockforge:sim -- simulator validate --path mock_services --verbose
+npm run apicentric:sim -- simulator validate --path mock_services --verbose
 
 # 2) Arrancar simulador (Ctrl+C para parar)
-npm run mockforge:sim -- simulator start --services-dir mock_services
+npm run apicentric:sim -- simulator start --services-dir mock_services
 
 # 2b) Arrancar simulador con colaboración P2P
-npm run mockforge:sim -- simulator start --services-dir mock_services --p2p
+npm run apicentric:sim -- simulator start --services-dir mock_services --p2p
 
 # 3) Convertir un proyecto Mockoon existente
-npm run mockforge:sim -- simulator import-mockoon --input mockoon.json --output mock_services/mockoon.yaml
+npm run apicentric:sim -- simulator import-mockoon --input mockoon.json --output mock_services/mockoon.yaml
 
 # 4) Grabar tráfico de una API en vivo
-npm run mockforge:sim -- simulator record --output mock_services/ --url http://localhost:3000
+npm run apicentric:sim -- simulator record --output mock_services/ --url http://localhost:3000
 
 # 5) Exportar tipos TypeScript
-npm run mockforge:sim -- simulator export-types --input mock_services/petstore.yaml --output types.ts
+npm run apicentric:sim -- simulator export-types --input mock_services/petstore.yaml --output types.ts
 ```
 
 ### Grabar tráfico de API
 
 ```bash
 # Proxy que captura peticiones y genera servicios YAML automáticamente
-mockforge record --output services/ --url http://localhost:3000
+apicentric record --output services/ --url http://localhost:3000
 ```
 
 ### Filtrar y exportar logs del simulador
 
 ```bash
 # Mostrar los últimos 50 logs GET con estado 200
-mockforge logs my-service --limit 50 --method GET --status 200
+apicentric logs my-service --limit 50 --method GET --status 200
 
 # Filtrar por ruta y exportar a un archivo JSON
-mockforge logs my-service --route /users --output logs.json
+apicentric logs my-service --route /users --output logs.json
 ```
 
 ### Importar/Exportar OpenAPI
 
 ```bash
 # Generar un servicio YAML desde un spec OpenAPI
-mockforge import --input openapi.yaml --output services/petstore.yaml
+apicentric import --input openapi.yaml --output services/petstore.yaml
 
 # Exportar un servicio mock existente a OpenAPI
-mockforge export --input services/petstore.yaml --output openapi.yaml
+apicentric export --input services/petstore.yaml --output openapi.yaml
 ```
 
 ### Exportar tipos TypeScript
 
 ```bash
 # Generar interfaces TypeScript desde un servicio YAML
-mockforge export-types --input services/petstore.yaml --output types.ts
+apicentric export-types --input services/petstore.yaml --output types.ts
 ```
 
 Archivo generado (`types.ts`):
@@ -283,7 +283,7 @@ export interface paths {
 
 ```bash
 # Generar hooks React Query desde un servicio YAML
-mockforge export-query --input services/petstore.yaml --output hooks.ts
+apicentric export-query --input services/petstore.yaml --output hooks.ts
 ```
 
 Archivo generado (`hooks.ts`):
@@ -318,7 +318,7 @@ function Pets() {
 
 ```bash
 # Generar un servicio YAML desde un archivo JSON de Mockoon
-mockforge import-mockoon --input mockoon.json --output services/mockoon.yaml
+apicentric import-mockoon --input mockoon.json --output services/mockoon.yaml
 ```
 
 Ejemplo de conversión:
@@ -359,13 +359,13 @@ endpoints:
 
 ```bash
 # Importar una colección de Postman
-mockforge import-postman --input examples/postman-collection.json --output services/postman.yaml
+apicentric import-postman --input examples/postman-collection.json --output services/postman.yaml
 
 # Importar una exportación de Insomnia
-mockforge import-postman --input examples/insomnia-collection.json --output services/insomnia.yaml
+apicentric import-postman --input examples/insomnia-collection.json --output services/insomnia.yaml
 
 # Exportar un servicio a colección Postman
-mockforge export-postman --input services/postman.yaml --output postman-collection.json
+apicentric export-postman --input services/postman.yaml --output postman-collection.json
 ```
 
 Ejemplo (`examples/postman-collection.json`):
@@ -403,10 +403,10 @@ endpoints:
 
 ```bash
 # Asistente interactivo para un nuevo servicio
-mockforge new --output services
+apicentric new --output services
 
 # Añadir un endpoint a un servicio existente
-mockforge edit --input services/my-service.yaml
+apicentric edit --input services/my-service.yaml
 ```
 
 Ejemplo de YAML generado:
@@ -432,7 +432,7 @@ Endpoints de ejemplo (simulador):
 - Core público (logout): `http://localhost:9012/api/v1/logout`
 
 Notas:
-- `services_dir` en `mockforge.json` del host debe ser `"mock_services"`.
+- `services_dir` en `apicentric.json` del host debe ser `"mock_services"`.
 - Los scripts `start:*` ya exportan `VITE_*` para apuntar a los mocks o al backend real según el caso.
 
 ### Data Bucket compartido
@@ -546,17 +546,17 @@ Cada operación se resuelve con la plantilla indicada y puede usar fixtures o va
 
 ## 📦 Installation
 
-After installing `mockforge`, verify the CLI is available:
+After installing `apicentric`, verify the CLI is available:
 
 ```bash
-mockforge --help | head -n 5
+apicentric --help | head -n 5
 ```
 
-You should see the `mockforge` banner with the version and a short usage summary, confirming the installation succeeded.
+You should see the `apicentric` banner with the version and a short usage summary, confirming the installation succeeded.
 
 ## Configuración básica
 
-Ejemplo de `mockforge.json` mínimo:
+Ejemplo de `apicentric.json` mínimo:
 
 ```json
 {
@@ -566,7 +566,7 @@ Ejemplo de `mockforge.json` mínimo:
   "routes_dir": "app/routes",
   "specs_dir": "app/routes",
   "reports_dir": "cypress/reports",
-  "index_cache_path": ".mockforge/route-index.json",
+  "index_cache_path": ".apicentric/route-index.json",
   "default_timeout": 30000,
   "server": {
     "auto_start": true,
@@ -586,24 +586,24 @@ Ejemplo de `mockforge.json` mínimo:
 ### Scripts NPM
 
 ```bash
-# Añade scripts MockForge al package.json
-mockforge setup-npm
+# Añade scripts apicentric al package.json
+apicentric setup-npm
 
 # Solo mostrar instrucciones
-mockforge setup-npm --instructions-only
+apicentric setup-npm --instructions-only
 ```
 
 ### Ejecutar simulador
 
 ```bash
 # Iniciar el simulador con servicios YAML
-mockforge start --services-dir services
+apicentric start --services-dir services
 
 # Validar servicios antes de iniciar
-mockforge validate --path services
+apicentric validate --path services
 
 # Grabar tráfico de una API
-mockforge record --output services/ --url http://localhost:3000
+apicentric record --output services/ --url http://localhost:3000
 ```
 
 ## Usage
@@ -611,30 +611,30 @@ mockforge record --output services/ --url http://localhost:3000
 ### Command Line Interface
 
 ```bash
-mockforge [OPTIONS] <COMMAND>
+apicentric [OPTIONS] <COMMAND>
 
 Commands:
   simulator   Manage API mocks (start, validate, record, import, export)
-  setup-npm   Setup npm scripts for mockforge integration
+  setup-npm   Setup npm scripts for apicentric integration
   docs        Generate TypeScript documentation
 
 Options:
-  -c, --config <CONFIG>    Path to mockforge.json config file [default: mockforge.json]
+  -c, --config <CONFIG>    Path to apicentric.json config file [default: apicentric.json]
       --dry-run           Enable dry-run mode (show what would be executed)
   -v, --verbose           Enable verbose output
   -h, --help              Print help
 
 Simulador:
-  mockforge start --services-dir services
-  mockforge validate --path services
-  mockforge record --output services/ --url http://localhost:3000
+  apicentric start --services-dir services
+  apicentric validate --path services
+  apicentric record --output services/ --url http://localhost:3000
 ```
 
 ## 🦐 Mock API Simulator (Experimental)
 
 YAML data-driven local API para simular servicios y trabajar offline.
 
-### Ejemplo `mockforge-mock.yaml`
+### Ejemplo `apicentric-mock.yaml`
 
 ```yaml
 name: remora-sim
@@ -672,9 +672,9 @@ endpoints:
 ### Comandos
 
 ```bash
-mockforge validate --path mockforge-mock.yaml    # Validar YAML
-mockforge start --services mockforge-mock.yaml   # Iniciar servidor
-mockforge --dry-run simulator start --services mockforge-mock.yaml   # Dry run
+apicentric validate --path apicentric-mock.yaml    # Validar YAML
+apicentric start --services apicentric-mock.yaml   # Iniciar servidor
+apicentric --dry-run simulator start --services apicentric-mock.yaml   # Dry run
 ```
 
 ### Matching
@@ -717,9 +717,9 @@ La petición debe incluir `x-api-key: secret` para activar este endpoint.
 ```
 ╭─ AUTOMATIZA TU FLUJO ───────────────────────────────────────────────────────────────╮
 │                                                                                      │
-│  🛠️  Comando:      mockforge setup-npm                                                   │
+│  🛠️  Comando:      apicentric setup-npm                                                   │
 │  🔎 Detección:      workspace, binarios locales, $HOME/.cargo, PATH                  │
-│  🧩 Scripts:        "mockforge", "mockforge:sim"                                            │
+│  🧩 Scripts:        "apicentric", "apicentric:sim"                                            │
 │  🧪 Verificación:   --test para probar ejecución npm                                 │
 │  📘 Ejemplos:       --examples muestra usos útiles                                   │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
@@ -727,7 +727,7 @@ La petición debe incluir `x-api-key: secret` para activar este endpoint.
 
 ### ¿Qué hace?
 
-- Detecta si tienes `utils/mockforge` (workspace) o binarios compilados.
+- Detecta si tienes `utils/apicentric` (workspace) o binarios compilados.
 - Genera scripts npm recomendados sin pisar los existentes (a menos que uses `--force`).
 - Imprime instrucciones cuando falta `package.json` o scripts.
 
@@ -735,11 +735,11 @@ La petición debe incluir `x-api-key: secret` para activar este endpoint.
 
 El adaptador intenta, en orden:
 
-1) `utils/mockforge/Cargo.toml` → usa `cargo run --manifest-path utils/mockforge/Cargo.toml --`
-2) `./utils/mockforge/target/release|debug/mockforge` → usa el binario local
-3) `which mockforge` en el `PATH`
-4) `$HOME/.cargo/bin/mockforge`
-5) Fallback: `cargo run --manifest-path utils/mockforge/Cargo.toml --`
+1) `utils/apicentric/Cargo.toml` → usa `cargo run --manifest-path utils/apicentric/Cargo.toml --`
+2) `./utils/apicentric/target/release|debug/apicentric` → usa el binario local
+3) `which apicentric` en el `PATH`
+4) `$HOME/.cargo/bin/apicentric`
+5) Fallback: `cargo run --manifest-path utils/apicentric/Cargo.toml --`
 
 Esto asegura que los scripts npm funcionen tanto en desarrollo como en CI sin fricción.
 
@@ -748,8 +748,8 @@ Esto asegura que los scripts npm funcionen tanto en desarrollo como en CI sin fr
 ```json
 {
 "scripts": {
-    "mockforge": "<binario-detectado>",
-    "mockforge:sim": "<binario-detectado> simulator"
+    "apicentric": "<binario-detectado>",
+    "apicentric:sim": "<binario-detectado> simulator"
   }
 }
 ```
@@ -757,47 +757,47 @@ Esto asegura que los scripts npm funcionen tanto en desarrollo como en CI sin fr
 Puedes forzar la escritura con `--force`:
 
 ```bash
-mockforge setup-npm --force
+apicentric setup-npm --force
 ```
 
 ### Comprobación y ejemplos
 
 ```bash
 # Verifica si los scripts están listos y ejecutables
-mockforge setup-npm --test
+apicentric setup-npm --test
 
 # Muestra ejemplos de uso (útil para copy/paste)
-mockforge setup-npm --examples
+apicentric setup-npm --examples
 ```
 
 ### Solución de problemas
 
-- No hay `package.json`: crea uno (`npm init -y`) y vuelve a ejecutar `mockforge setup-npm`.
-- El binario no aparece: compila MockForge (`cargo build`) o usa la ruta del workspace.
+- No hay `package.json`: crea uno (`npm init -y`) y vuelve a ejecutar `apicentric setup-npm`.
+- El binario no aparece: compila apicentric (`cargo build`) o usa la ruta del workspace.
 - NPM falla al ejecutar: verifica la salida de `--test` y revisa permisos de archivos.
 
 ## 🛰️ Ejemplo incluido: Mock Services (SWAPI)
 
 Este repo trae ejemplos listos para usar de servicios mock basados en la API de Star Wars (SWAPI):
 
-- `mockforge/examples/swapi-mock.yaml`: definición simple para el Mock Server directo (un archivo, rutas planas)
-- `mockforge/examples/swapi-service.yaml`: definición de servicio para el API Simulator (plantillas, base_path, etc.)
+- `apicentric/examples/swapi-mock.yaml`: definición simple para el Mock Server directo (un archivo, rutas planas)
+- `apicentric/examples/swapi-service.yaml`: definición de servicio para el API Simulator (plantillas, base_path, etc.)
 
 ### Opción A — Mock Server (archivo único)
 
-Para un mock rápido sin directorios, puedes cargar un YAML y arrancar un servidor local con el módulo `mock` reexportado por MockForge:
+Para un mock rápido sin directorios, puedes cargar un YAML y arrancar un servidor local con el módulo `mock` reexportado por apicentric:
 
 ```rust
-// Cargo.toml: añade mockforge como dependencia si lo usas desde otro crate
+// Cargo.toml: añade apicentric como dependencia si lo usas desde otro crate
 // [dependencies]
-// mockforge = { path = "utils/mockforge" }
+// apicentric = { path = "utils/apicentric" }
 
-use mockforge::mock::{load_spec, run_mock_server};
+use apicentric::mock::{load_spec, run_mock_server};
 use std::path::Path;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  let spec = load_spec(Path::new("mockforge/examples/swapi-mock.yaml")).await?;
+  let spec = load_spec(Path::new("apicentric/examples/swapi-mock.yaml")).await?;
   run_mock_server(spec).await?; // Escucha en el puerto del YAML (p.ej. 8080)
   Ok(())
 }
@@ -811,14 +811,14 @@ Rutas de ejemplo (si usas `swapi-mock.yaml`):
 
 Esta vía usa el lector de YAML y el servidor mock definidos en:
 
-- `mockforge/src/adapters/mock_server.rs:106` (lectura de YAML)
-- `mockforge/src/adapters/mock_server.rs:120` (arranque del servidor)
+- `apicentric/src/adapters/mock_server.rs:106` (lectura de YAML)
+- `apicentric/src/adapters/mock_server.rs:120` (arranque del servidor)
 
 ### Opción B — API Simulator (directorio de servicios)
 
 El API Simulator permite agrupar múltiples servicios YAML con base paths y plantillas. Para activarlo:
 
-1) En `mockforge.json` habilita el simulador y apunta a tu carpeta de servicios. Importante: la ruta se resuelve respecto al directorio desde el que ejecutas MockForge (normalmente el root de tu app). En el caso de Qualitas, apunta a `mock_services` del host app:
+1) En `apicentric.json` habilita el simulador y apunta a tu carpeta de servicios. Importante: la ruta se resuelve respecto al directorio desde el que ejecutas apicentric (normalmente el root de tu app). En el caso de Qualitas, apunta a `mock_services` del host app:
 
 ```json
 {
@@ -834,15 +834,15 @@ El API Simulator permite agrupar múltiples servicios YAML con base paths y plan
 
 ```bash
 # Validar servicios (sin arrancar)
-mockforge validate --path mock_services --recursive --verbose
+apicentric validate --path mock_services --recursive --verbose
 
-# Arrancar (usa mockforge.json):
+# Arrancar (usa apicentric.json):
 export PULSE_API_SIMULATOR=true   # también puedes habilitar en el JSON
-mockforge start
+apicentric start
 
 # Estado / Parada
-mockforge status
-mockforge stop
+apicentric status
+apicentric stop
 ```
 
 3) Si una ruta no existe en tus mocks y quieres reenviarla a un backend real, añade `proxy_base_url` en el YAML del servicio:
@@ -862,19 +862,19 @@ Rutas de ejemplo (según `swapi-service.yaml` y el base_path configurado):
 Cómo sabemos que “sí los está leyendo” tras el refactor:
 
 - El manager carga todos los servicios desde `services_dir` a través del `ConfigLoader` y los registra:
-  - `mockforge/src/simulator/manager.rs:43` (crea `ConfigLoader` con `services_dir`)
-  - `mockforge/src/simulator/manager.rs:33` (constructor)
-  - `mockforge/src/simulator/manager.rs:27` (start → `load_all_services()` y arranque)
+  - `apicentric/src/simulator/manager.rs:43` (crea `ConfigLoader` con `services_dir`)
+  - `apicentric/src/simulator/manager.rs:33` (constructor)
+  - `apicentric/src/simulator/manager.rs:27` (start → `load_all_services()` y arranque)
 - El `ConfigLoader` abre archivos YAML y valida cada servicio con `serde_yaml` + validaciones:
-  - `mockforge/src/simulator/config.rs:578` (lee YAML del disco)
-  - `mockforge/src/simulator/config.rs:586` (parsea con `serde_yaml`)
-  - `mockforge/src/simulator/config.rs:598` (valida estructura)
-  - `mockforge/src/simulator/config.rs:615` y `660` (escaneo recursivo con estadísticas)
+  - `apicentric/src/simulator/config.rs:578` (lee YAML del disco)
+  - `apicentric/src/simulator/config.rs:586` (parsea con `serde_yaml`)
+  - `apicentric/src/simulator/config.rs:598` (valida estructura)
+  - `apicentric/src/simulator/config.rs:615` y `660` (escaneo recursivo con estadísticas)
 
-Además, puedes ejecutar una validación aislada contra un directorio sin necesidad de configurar `mockforge.json` (útil para CI):
+Además, puedes ejecutar una validación aislada contra un directorio sin necesidad de configurar `apicentric.json` (útil para CI):
 
 ```bash
-mockforge validate --path mockforge/examples --recursive --verbose
+apicentric validate --path apicentric/examples --recursive --verbose
 ```
 
 ## Configuration
@@ -989,7 +989,7 @@ mockforge validate --path mockforge/examples --recursive --verbose
 - Integración npm robusta: detección multinivel del binario, escritura segura de scripts y verificación (`--test`).
 - Recomendaciones: unificar tipos de error, homogeneizar logs con `tracing`, reemplazar dependencias externas frágiles (p.ej. `curl`) por clientes HTTP embebidos.
 
-> Resultado: MockForge está listo para integrarse en monorepos JavaScript/TypeScript con una DX de primera, tiempos de ejecución bajos y visibilidad operativa de nivel producción.
+> Resultado: apicentric está listo para integrarse en monorepos JavaScript/TypeScript con una DX de primera, tiempos de ejecución bajos y visibilidad operativa de nivel producción.
 
 #### Utilities
 
@@ -999,7 +999,7 @@ mockforge validate --path mockforge/examples --recursive --verbose
 
 ### Execution Flow
 
-1. **Configuration Loading**: Parse and validate mockforge.json
+1. **Configuration Loading**: Parse and validate apicentric.json
 2. **Change Detection**: Use git to identify modified files
 3. **Impact Analysis**: Map changes to relevant test files using route index
 4. **Server Management**: Start/check development server if needed
@@ -1015,24 +1015,24 @@ mockforge validate --path mockforge/examples --recursive --verbose
 
 ```bash
 # Diferentes configs para distintos entornos
-mockforge --config mockforge.ci.json simulator start --services-dir services
-mockforge --config mockforge.dev.json simulator start --services-dir services
+apicentric --config apicentric.ci.json simulator start --services-dir services
+apicentric --config apicentric.dev.json simulator start --services-dir services
 ```
 
 ### Integración con CI/CD
 
 ```yaml
 # GitHub Actions example
-- name: Start MockForge
+- name: Start apicentric
   run: |
-    mockforge --config mockforge.ci.json simulator start --services-dir services
+    apicentric --config apicentric.ci.json simulator start --services-dir services
 ```
 
 ### Depuración
 
 ```bash
 # Activar modo debug con salida detallada
-mockforge --dry-run simulator start --services-dir services
+apicentric --dry-run simulator start --services-dir services
 ```
 
 ## Resolución de Problemas
@@ -1043,7 +1043,7 @@ mockforge --dry-run simulator start --services-dir services
 
 ```bash
 # Verifica configuración del servidor
-mockforge --verbose run
+apicentric --verbose run
 
 # Prueba el comando manualmente
 npm run dev
@@ -1053,7 +1053,7 @@ npm run dev
 
 ```bash
 # Verifica el patrón de especificaciones
-mockforge --dry-run run
+apicentric --dry-run run
 
 # Comprueba rutas de archivos en la configuración
 ls -la app/routes/**/test/*.cy.ts
@@ -1072,7 +1072,7 @@ git diff --name-only
 #### Conflictos de puerto Prometheus
 
 ```bash
-# Si el puerto 9091 está en uso, cámbialo en mockforge.json
+# Si el puerto 9091 está en uso, cámbialo en apicentric.json
 {
   "metrics": {
     "prometheus": {
@@ -1092,7 +1092,7 @@ La aplicación de escritorio construida con Tauri permite gestionar los servicio
 mock definidos en YAML de forma visual. Para arrancarla ejecuta:
 
 ```bash
-mockforge gui
+apicentric gui
 ```
 
 Desde la interfaz podrás iniciar y detener el simulador, editar archivos de

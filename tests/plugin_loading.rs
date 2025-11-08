@@ -1,4 +1,4 @@
-use mockforge::app::PluginManager;
+use apicentric::app::PluginManager;
 use std::{path::PathBuf, process::Command};
 
 #[tokio::test]

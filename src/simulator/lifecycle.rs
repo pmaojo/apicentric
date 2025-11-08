@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use tokio::sync::{broadcast, mpsc, RwLock};
 
 use crate::collab::{crdt::{ServiceCrdt, CrdtMessage}, p2p};
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     config::{ConfigLoader, SimulatorConfig, ServiceDefinition},
     log::RequestLogEntry,
@@ -18,8 +18,8 @@ use crate::simulator::{
 /// Trait for managing simulator lifecycle.
 #[async_trait(?Send)]
 pub trait Lifecycle {
-    async fn start(&self) -> PulseResult<()>;
-    async fn stop(&self) -> PulseResult<()>;
+    async fn start(&self) -> ApicentricResult<()>;
+    async fn stop(&self) -> ApicentricResult<()>;
 }
 
 /// Handles starting and stopping of the simulator.
@@ -66,9 +66,9 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
 
 #[async_trait(?Send)]
 impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<R> {
-    async fn start(&self) -> PulseResult<()> {
+    async fn start(&self) -> ApicentricResult<()> {
         if !self.config.enabled {
-            return Err(PulseError::config_error(
+            return Err(ApicentricError::config_error(
                 "API simulator is not enabled",
                 Some("Set PULSE_API_SIMULATOR=true or enable in configuration"),
             ));
@@ -76,7 +76,7 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
         let mut is_active = self.is_active.write().await;
         if *is_active {
-            return Err(PulseError::runtime_error(
+            return Err(ApicentricError::runtime_error(
                 "API simulator is already running",
                 None::<String>,
             ));
@@ -86,7 +86,7 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         let services = self.config_loader.load_all_services()?;
 
         if services.is_empty() {
-            return Err(PulseError::config_error(
+            return Err(ApicentricError::config_error(
                 "No service definitions found",
                 Some("Add YAML service definition files to the services directory"),
             ));
@@ -121,7 +121,7 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         // Spawn configuration watcher for automatic reloads
         let (tx, mut rx) = mpsc::channel(16);
         let watcher = ConfigWatcher::new(self.config.services_dir.clone(), tx).map_err(|e| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!("Failed to watch services directory: {}", e),
                 None::<String>,
             )
@@ -191,7 +191,7 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         Ok(())
     }
 
-    async fn stop(&self) -> PulseResult<()> {
+    async fn stop(&self) -> ApicentricResult<()> {
         let mut is_active = self.is_active.write().await;
         if !*is_active {
             return Ok(()); // Already stopped
@@ -231,7 +231,7 @@ impl<R: RouteRegistry + Send + Sync> Clone for SimulatorLifecycle<R> {
 }
 
 impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
-    pub async fn apply_remote_service(&self, service: ServiceDefinition) -> PulseResult<()> {
+    pub async fn apply_remote_service(&self, service: ServiceDefinition) -> ApicentricResult<()> {
         let mut registry = self.service_registry.write().await;
         registry.register_service(service.clone()).await?;
         let mut router = self.route_registry.write().await;
@@ -240,7 +240,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         Ok(())
     }
 
-    pub async fn handle_config_change(&self, change: ConfigChange) -> PulseResult<()> {
+    pub async fn handle_config_change(&self, change: ConfigChange) -> ApicentricResult<()> {
         match change {
             ConfigChange::ServiceAdded(service_name) => {
                 println!("📁 Service added: {}", service_name);
@@ -260,7 +260,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         Ok(())
     }
 
-    pub async fn reload_services_internal(&self) -> PulseResult<()> {
+    pub async fn reload_services_internal(&self) -> ApicentricResult<()> {
         let services = self.config_loader.load_all_services()?;
         let mut registry = self.service_registry.write().await;
         let mut router = self.route_registry.write().await;

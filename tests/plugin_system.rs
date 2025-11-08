@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use http::{Request, Response};
-use mockforge::app::PluginManager;
-use mockforge::domain::ports::plugin::Plugin;
+use apicentric::app::PluginManager;
+use apicentric::domain::ports::plugin::Plugin;
 use std::fs;
 use std::path::PathBuf;
 

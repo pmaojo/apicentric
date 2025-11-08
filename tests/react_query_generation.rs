@@ -1,7 +1,7 @@
 use std::process::Command;
 
-use mockforge::simulator::config::ServiceDefinition;
-use mockforge::simulator::react_query::to_react_query;
+use apicentric::simulator::config::ServiceDefinition;
+use apicentric::simulator::react_query::to_react_query;
 use tempfile::tempdir;
 
 #[test]

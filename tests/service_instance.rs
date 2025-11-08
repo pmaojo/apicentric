@@ -3,19 +3,19 @@ use std::sync::Arc;
 use reqwest::{Client, StatusCode};
 use tokio::sync::broadcast;
 
-use mockforge::simulator::service::ServiceInstance;
-use mockforge::simulator::config::ServiceDefinition;
-use mockforge::storage::Storage;
-use mockforge::errors::PulseResult;
-use mockforge::simulator::log::RequestLogEntry;
+use apicentric::simulator::service::ServiceInstance;
+use apicentric::simulator::config::ServiceDefinition;
+use apicentric::storage::Storage;
+use apicentric::errors::ApicentricResult;
+use apicentric::simulator::log::RequestLogEntry;
 
 struct NoopStorage;
 
 impl Storage for NoopStorage {
-    fn save_service(&self, _service: &ServiceDefinition) -> PulseResult<()> { Ok(()) }
-    fn load_service(&self, _name: &str) -> PulseResult<Option<ServiceDefinition>> { Ok(None) }
-    fn append_log(&self, _entry: &RequestLogEntry) -> PulseResult<()> { Ok(()) }
-    fn query_logs(&self, _service: Option<&str>, _route: Option<&str>, _method: Option<&str>, _status: Option<u16>, _limit: usize) -> PulseResult<Vec<RequestLogEntry>> { Ok(vec![]) }
+    fn save_service(&self, _service: &ServiceDefinition) -> ApicentricResult<()> { Ok(()) }
+    fn load_service(&self, _name: &str) -> ApicentricResult<Option<ServiceDefinition>> { Ok(None) }
+    fn append_log(&self, _entry: &RequestLogEntry) -> ApicentricResult<()> { Ok(()) }
+    fn query_logs(&self, _service: Option<&str>, _route: Option<&str>, _method: Option<&str>, _status: Option<u16>, _limit: usize) -> ApicentricResult<Vec<RequestLogEntry>> { Ok(vec![]) }
 }
 
 fn test_service_definition() -> ServiceDefinition {

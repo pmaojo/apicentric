@@ -1,4 +1,4 @@
-use mockforge::utils::{DirectoryScanner, FileSystemUtils};
+use apicentric::utils::{DirectoryScanner, FileSystemUtils};
 use std::fs::File;
 use std::io::Write;
 use tempfile::TempDir;
@@ -34,7 +34,7 @@ fn test_resolve_glob_pattern_success() {
 fn test_resolve_glob_pattern_invalid_syntax() {
     let result = FileSystemUtils::resolve_glob_pattern("[invalid", None);
     assert!(result.is_err());
-    if let Err(mockforge::errors::PulseError::FileSystem { message, suggestion }) = result {
+    if let Err(apicentric::errors::ApicentricError::FileSystem { message, suggestion }) = result {
         assert!(message.contains("Invalid glob pattern syntax"));
         assert!(suggestion.is_some());
     } else {
@@ -48,7 +48,7 @@ fn test_resolve_glob_pattern_no_matches() {
     let pattern = format!("{}/**/nonexistent/*.cy.ts", temp_dir.path().display());
     let result = FileSystemUtils::resolve_glob_pattern(&pattern, None);
     assert!(result.is_err());
-    if let Err(mockforge::errors::PulseError::FileSystem { message, suggestion: _ }) = result {
+    if let Err(apicentric::errors::ApicentricError::FileSystem { message, suggestion: _ }) = result {
         assert!(message.contains("No valid files found"));
     }
 }

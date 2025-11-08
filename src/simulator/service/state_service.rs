@@ -40,7 +40,7 @@ impl StateService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::errors::PulseResult;
+    use crate::errors::ApicentricResult;
     use crate::simulator::config::ServiceDefinition;
     use crate::simulator::log::RequestLogEntry;
     use crate::storage::Storage;
@@ -48,15 +48,15 @@ mod tests {
     struct DummyStorage;
 
     impl Storage for DummyStorage {
-        fn save_service(&self, _service: &ServiceDefinition) -> PulseResult<()> {
+        fn save_service(&self, _service: &ServiceDefinition) -> ApicentricResult<()> {
             Ok(())
         }
 
-        fn load_service(&self, _name: &str) -> PulseResult<Option<ServiceDefinition>> {
+        fn load_service(&self, _name: &str) -> ApicentricResult<Option<ServiceDefinition>> {
             Ok(None)
         }
 
-        fn append_log(&self, _entry: &RequestLogEntry) -> PulseResult<()> {
+        fn append_log(&self, _entry: &RequestLogEntry) -> ApicentricResult<()> {
             Ok(())
         }
 
@@ -67,7 +67,7 @@ mod tests {
             _method: Option<&str>,
             _status: Option<u16>,
             _limit: usize,
-        ) -> PulseResult<Vec<RequestLogEntry>> {
+        ) -> ApicentricResult<Vec<RequestLogEntry>> {
             Ok(vec![])
         }
     }

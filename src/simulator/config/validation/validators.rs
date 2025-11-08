@@ -1,14 +1,14 @@
 use super::super::{BehaviorConfig, ServiceDefinition, SimulatorConfig};
-use crate::errors::{PulseError, PulseResult, ValidationError};
+use crate::errors::{ApicentricError, ApicentricResult, ValidationError};
 use crate::validation::{ConfigValidator, ValidationUtils};
 use std::collections::HashSet;
 
 /// Validate the basic structure of a service definition
-pub fn validate_service_schema(service: &ServiceDefinition) -> PulseResult<()> {
+pub fn validate_service_schema(service: &ServiceDefinition) -> ApicentricResult<()> {
     if let Err(validation_errors) = service.validate() {
         let error_message =
             crate::errors::ErrorFormatter::format_validation_errors(&validation_errors);
-        return Err(PulseError::config_error(
+        return Err(ApicentricError::config_error(
             format!("Service validation failed for '{}':\n{}", service.name, error_message),
             Some("Fix the validation errors listed above"),
         ));
@@ -20,9 +20,9 @@ pub fn validate_service_schema(service: &ServiceDefinition) -> PulseResult<()> {
 pub fn validate_unique_name(
     service: &ServiceDefinition,
     names: &mut HashSet<String>,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if !names.insert(service.name.clone()) {
-        return Err(PulseError::config_error(
+        return Err(ApicentricError::config_error(
             format!("Duplicate service name '{}'", service.name),
             Some("Ensure each service has a unique name"),
         ));

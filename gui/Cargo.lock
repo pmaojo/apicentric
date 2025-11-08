@@ -3536,7 +3536,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mockforge"
+name = "apicentric"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -3582,11 +3582,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "mockforge-gui"
+name = "apicentric-gui"
 version = "0.1.0"
 dependencies = [
  "libp2p",
- "mockforge",
+ "apicentric",
  "serde_yaml 0.9.34+deprecated",
  "tauri",
  "tauri-build",

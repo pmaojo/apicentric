@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="https://github.com/pmaojo/mockforge/releases/latest/download"
+REPO_URL="https://github.com/pmaojo/apicentric/releases/latest/download"
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -18,7 +18,7 @@ case "$ARCH" in
     ;;
 esac
 
-FILENAME="mockforge-${OS}-${ARCH}.tar.gz"
+FILENAME="apicentric-${OS}-${ARCH}.tar.gz"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -31,5 +31,5 @@ if [ ! -w "$INSTALL_DIR" ]; then
   mkdir -p "$INSTALL_DIR"
 fi
 
-install "$TMP_DIR/mockforge" "$INSTALL_DIR/mockforge"
-echo "mockforge installed to $INSTALL_DIR"
+install "$TMP_DIR/apicentric" "$INSTALL_DIR/apicentric"
+echo "apicentric installed to $INSTALL_DIR"

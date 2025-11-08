@@ -3,7 +3,7 @@
 //! This module provides a comprehensive template rendering system using Handlebars
 //! that supports dynamic responses based on request data, fixtures, and service state.
 
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::service::state::DataBucket;
 use handlebars::Handlebars;
 use serde_json::{Map, Value};
@@ -29,18 +29,18 @@ pub struct TemplateEngine {
 /// the dependency inversion principle.
 pub trait TemplateRenderer: Send + Sync {
     /// Render the given template with the provided context
-    fn render_template(&self, template: &str, context: &TemplateContext) -> PulseResult<String>;
+    fn render_template(&self, template: &str, context: &TemplateContext) -> ApicentricResult<String>;
 }
 
 impl TemplateRenderer for TemplateEngine {
-    fn render_template(&self, template: &str, context: &TemplateContext) -> PulseResult<String> {
+    fn render_template(&self, template: &str, context: &TemplateContext) -> ApicentricResult<String> {
         self.render(template, context)
     }
 }
 
 impl TemplateEngine {
     /// Create a new template engine with built-in helpers
-    pub fn new() -> PulseResult<Self> {
+    pub fn new() -> ApicentricResult<Self> {
         let mut handlebars = Handlebars::new();
         // Register built-in helpers
         Self::register_helpers(&mut handlebars)?;
@@ -52,13 +52,13 @@ impl TemplateEngine {
     }
 
     /// Register helpers that require access to the service data bucket
-    pub fn register_bucket_helpers(&mut self, bucket: DataBucket) -> PulseResult<()> {
+    pub fn register_bucket_helpers(&mut self, bucket: DataBucket) -> ApicentricResult<()> {
         register_bucket_helpers(&mut self.handlebars, bucket);
         Ok(())
     }
 
     /// Register built-in template helpers
-    fn register_helpers(handlebars: &mut Handlebars) -> PulseResult<()> {
+    fn register_helpers(handlebars: &mut Handlebars) -> ApicentricResult<()> {
         helpers::faker::register(handlebars);
         helpers::math::register(handlebars);
         helpers::text::register(handlebars);
@@ -67,7 +67,7 @@ impl TemplateEngine {
     }
 
     /// Render a template with the given context
-    pub fn render(&self, template: &str, context: &TemplateContext) -> PulseResult<String> {
+    pub fn render(&self, template: &str, context: &TemplateContext) -> ApicentricResult<String> {
         // Pre-process template to convert pipe syntax
         let processed_template = self.preprocessor.preprocess(template);
 
@@ -77,7 +77,7 @@ impl TemplateEngine {
         self.handlebars
             .render_template(&processed_template, &json_context)
             .map_err(|e| {
-                PulseError::runtime_error(
+                ApicentricError::runtime_error(
                     format!("Template rendering failed: {}", e),
                     Some("Check template syntax and available context variables"),
                 )
@@ -85,7 +85,7 @@ impl TemplateEngine {
     }
 
     /// Convert template context to JSON for Handlebars
-    fn context_to_json(&self, context: &TemplateContext) -> PulseResult<Value> {
+    fn context_to_json(&self, context: &TemplateContext) -> ApicentricResult<Value> {
         let mut json_context = Map::new();
 
         // Add fixtures
@@ -184,11 +184,11 @@ impl TemplateEngine {
     }
 
     /// Compile and cache a template for better performance
-    pub fn compile_template(&mut self, name: &str, template: &str) -> PulseResult<()> {
+    pub fn compile_template(&mut self, name: &str, template: &str) -> ApicentricResult<()> {
         self.handlebars
             .register_template_string(name, template)
             .map_err(|e| {
-                PulseError::config_error(
+                ApicentricError::config_error(
                     format!("Template compilation failed for '{}': {}", name, e),
                     Some("Check template syntax"),
                 )
@@ -196,11 +196,11 @@ impl TemplateEngine {
     }
 
     /// Render a pre-compiled template
-    pub fn render_compiled(&self, name: &str, context: &TemplateContext) -> PulseResult<String> {
+    pub fn render_compiled(&self, name: &str, context: &TemplateContext) -> ApicentricResult<String> {
         let json_context = self.context_to_json(context)?;
 
         self.handlebars.render(name, &json_context).map_err(|e| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!("Template rendering failed for '{}': {}", name, e),
                 Some("Check template syntax and available context variables"),
             )

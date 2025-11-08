@@ -1,4 +1,4 @@
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -13,9 +13,9 @@ pub struct NpmScriptTemplate {
 #[derive(Debug, Clone)]
 pub struct NpmSetupStatus {
     pub package_json_exists: bool,
-    pub mockforge_script_exists: bool,
-    pub mockforge_watch_script_exists: bool,
-    pub mockforge_binary_path: Option<String>,
+    pub apicentric_script_exists: bool,
+    pub apicentric_watch_script_exists: bool,
+    pub apicentric_binary_path: Option<String>,
     pub recommended_scripts: Vec<NpmScriptTemplate>,
     pub setup_instructions: Vec<String>,
 }
@@ -28,8 +28,8 @@ pub use writer::NpmWriter;
 
 /// Trait defining npm integration capabilities
 pub trait NpmIntegrator {
-    fn detect_setup_status(&self) -> PulseResult<NpmSetupStatus>;
-    fn setup_scripts(&self, force: bool) -> PulseResult<()>;
+    fn detect_setup_status(&self) -> ApicentricResult<NpmSetupStatus>;
+    fn setup_scripts(&self, force: bool) -> ApicentricResult<()>;
 }
 
 /// Concrete npm integration that delegates to reader and writer components
@@ -54,34 +54,34 @@ impl NpmIntegration {
     }
 
     /// Detect current npm setup status
-    pub fn detect_setup_status(&self) -> PulseResult<NpmSetupStatus> {
+    pub fn detect_setup_status(&self) -> ApicentricResult<NpmSetupStatus> {
         self.reader().detect_setup_status()
     }
 
     /// Automatically setup npm scripts
-    pub fn setup_scripts(&self, force: bool) -> PulseResult<()> {
+    pub fn setup_scripts(&self, force: bool) -> ApicentricResult<()> {
         self.writer().setup_scripts(force)
     }
 
     /// Read package.json
-    pub fn read_package_json(&self) -> PulseResult<Value> {
+    pub fn read_package_json(&self) -> ApicentricResult<Value> {
         self.reader().read_package_json()
     }
 
     /// Validate npm setup
-    pub fn validate_npm_setup(&self) -> PulseResult<bool> {
+    pub fn validate_npm_setup(&self) -> ApicentricResult<bool> {
         let status = self.detect_setup_status()?;
 
         if !status.package_json_exists {
             println!("❌ package.json not found");
             return Ok(false);
         }
-        if !status.mockforge_script_exists {
-            println!("❌ 'mockforge' script not found in package.json");
+        if !status.apicentric_script_exists {
+            println!("❌ 'apicentric' script not found in package.json");
             return Ok(false);
         }
-        if !status.mockforge_watch_script_exists {
-            println!("❌ 'mockforge:watch' script not found in package.json");
+        if !status.apicentric_watch_script_exists {
+            println!("❌ 'apicentric:watch' script not found in package.json");
             return Ok(false);
         }
 
@@ -90,10 +90,10 @@ impl NpmIntegration {
     }
 
     /// Print instructions for manual setup
-    pub fn print_setup_instructions(&self) -> PulseResult<()> {
+    pub fn print_setup_instructions(&self) -> ApicentricResult<()> {
         let status = self.detect_setup_status()?;
 
-        println!("📋 MockForge NPM Script Setup Instructions");
+        println!("📋 apicentric NPM Script Setup Instructions");
         println!("=====================================");
         println!("📁 Project Root: {}", self.project_root.display());
 
@@ -103,11 +103,11 @@ impl NpmIntegration {
             return Ok(());
         }
 
-        if status.mockforge_script_exists && status.mockforge_watch_script_exists {
-            println!("\n✅ All mockforge scripts are already configured!");
+        if status.apicentric_script_exists && status.apicentric_watch_script_exists {
+            println!("\n✅ All apicentric scripts are already configured!");
             println!("   You can run:");
-            println!("   - npm run mockforge -- run");
-            println!("   - npm run mockforge:watch");
+            println!("   - npm run apicentric -- run");
+            println!("   - npm run apicentric:watch");
             return Ok(());
         }
 
@@ -127,11 +127,11 @@ impl NpmIntegration {
         println!("```");
 
         println!("\n🚀 After adding the scripts, you can run:");
-        println!("   - npm run mockforge -- run        # Run all tests");
-        println!("   - npm run mockforge -- watch      # Watch for changes");
-        println!("   - npm run mockforge:watch         # Watch for changes (shortcut)");
+        println!("   - npm run apicentric -- run        # Run all tests");
+        println!("   - npm run apicentric -- watch      # Watch for changes");
+        println!("   - npm run apicentric:watch         # Watch for changes (shortcut)");
 
-        if let Some(binary_path) = &status.mockforge_binary_path {
+        if let Some(binary_path) = &status.apicentric_binary_path {
             println!("\n🔧 Binary path detected: {}", binary_path);
         }
 
@@ -139,8 +139,8 @@ impl NpmIntegration {
     }
 
     /// Show usage examples for npm scripts
-    pub fn show_usage_examples(&self) -> PulseResult<()> {
-        println!("📚 MockForge NPM Integration Usage Examples");
+    pub fn show_usage_examples(&self) -> ApicentricResult<()> {
+        println!("📚 apicentric NPM Integration Usage Examples");
         println!("======================================");
         println!();
         println!("📁 Working Directory: {}", self.project_root.display());
@@ -149,94 +149,94 @@ impl NpmIntegration {
         );
         println!();
         println!("🚀 Basic Usage:");
-        println!("   npm run mockforge -- run              # Run all tests");
-        println!("   npm run mockforge -- watch            # Watch for changes");
-        println!("   npm run mockforge:watch               # Watch for changes (shortcut)");
+        println!("   npm run apicentric -- run              # Run all tests");
+        println!("   npm run apicentric -- watch            # Watch for changes");
+        println!("   npm run apicentric:watch               # Watch for changes (shortcut)");
         println!();
         println!("⚙️ Advanced Usage:");
-        println!("   npm run mockforge -- run --workers 8  # Run with 8 parallel workers");
-        println!("   npm run mockforge -- watch --retries 5 # Watch with 5 retries");
-        println!("   npm run mockforge -- --mode ci run    # Run in CI mode");
-        println!("   npm run mockforge -- --dry-run run    # Show what would be executed");
-        println!("   npm run mockforge -- --verbose watch  # Verbose output");
+        println!("   npm run apicentric -- run --workers 8  # Run with 8 parallel workers");
+        println!("   npm run apicentric -- watch --retries 5 # Watch with 5 retries");
+        println!("   npm run apicentric -- --mode ci run    # Run in CI mode");
+        println!("   npm run apicentric -- --dry-run run    # Show what would be executed");
+        println!("   npm run apicentric -- --verbose watch  # Verbose output");
         println!();
         println!("🔧 Configuration:");
-        println!("   npm run mockforge -- --config custom.json run  # Use custom config");
-        println!("   npm run mockforge -- --help                    # Show all options");
+        println!("   npm run apicentric -- --config custom.json run  # Use custom config");
+        println!("   npm run apicentric -- --help                    # Show all options");
         println!();
         println!("📋 Setup Commands:");
-        println!("   cargo run --manifest-path utils/mockforge/Cargo.toml -- setup-npm");
-        println!("   cargo run --manifest-path utils/mockforge/Cargo.toml -- setup-npm --instructions-only");
-        println!("   cargo run --manifest-path utils/mockforge/Cargo.toml -- setup-npm --force");
-        println!("   cargo run --manifest-path utils/mockforge/Cargo.toml -- setup-npm --test");
+        println!("   cargo run --manifest-path utils/apicentric/Cargo.toml -- setup-npm");
+        println!("   cargo run --manifest-path utils/apicentric/Cargo.toml -- setup-npm --instructions-only");
+        println!("   cargo run --manifest-path utils/apicentric/Cargo.toml -- setup-npm --force");
+        println!("   cargo run --manifest-path utils/apicentric/Cargo.toml -- setup-npm --test");
         println!();
         println!("💡 Note: All commands run from the project root directory automatically");
         Ok(())
     }
 
     /// Test npm script execution (dry run)
-    pub fn test_npm_scripts(&self) -> PulseResult<()> {
+    pub fn test_npm_scripts(&self) -> ApicentricResult<()> {
         let status = self.detect_setup_status()?;
-        if !status.mockforge_script_exists {
-            return Err(PulseError::config_error(
-                "mockforge script not configured",
-                Some("Run mockforge setup-npm to configure npm scripts"),
+        if !status.apicentric_script_exists {
+            return Err(ApicentricError::config_error(
+                "apicentric script not configured",
+                Some("Run apicentric setup-npm to configure npm scripts"),
             ));
         }
 
         println!("🧪 Testing npm script execution...");
         println!("   Working directory: {}", self.project_root.display());
 
-        println!("   Testing 'npm run mockforge -- --help'");
+        println!("   Testing 'npm run apicentric -- --help'");
         let output = Command::new("npm")
-            .args(["run", "mockforge", "--", "--help"])
+            .args(["run", "apicentric", "--", "--help"])
             .current_dir(&self.project_root)
             .output()
             .map_err(|e| {
-                PulseError::fs_error(
+                ApicentricError::fs_error(
                     format!(
-                        "Failed to execute npm run mockforge from {}: {}",
+                        "Failed to execute npm run apicentric from {}: {}",
                         self.project_root.display(),
                         e
                     ),
-                    Some("Check that npm is installed and mockforge script is configured correctly"),
+                    Some("Check that npm is installed and apicentric script is configured correctly"),
                 )
             })?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(PulseError::test_error(
-                format!("npm run mockforge failed: {}", stderr),
-                Some("Check mockforge binary path and configuration"),
+            return Err(ApicentricError::test_error(
+                format!("npm run apicentric failed: {}", stderr),
+                Some("Check apicentric binary path and configuration"),
             ));
         }
-        println!("   ✅ 'npm run mockforge' works correctly");
+        println!("   ✅ 'npm run apicentric' works correctly");
 
-        if status.mockforge_watch_script_exists {
-            println!("   Testing 'npm run mockforge:watch -- --help'");
+        if status.apicentric_watch_script_exists {
+            println!("   Testing 'npm run apicentric:watch -- --help'");
             let output = Command::new("npm")
-                .args(["run", "mockforge:watch", "--", "--help"])
+                .args(["run", "apicentric:watch", "--", "--help"])
                 .current_dir(&self.project_root)
                 .output()
                 .map_err(|e| {
-                    PulseError::fs_error(
+                    ApicentricError::fs_error(
                         format!(
-                            "Failed to execute npm run mockforge:watch from {}: {}",
+                            "Failed to execute npm run apicentric:watch from {}: {}",
                             self.project_root.display(),
                             e
                         ),
                         Some(
-                            "Check that npm is installed and mockforge:watch script is configured correctly",
+                            "Check that npm is installed and apicentric:watch script is configured correctly",
                         ),
                     )
                 })?;
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                return Err(PulseError::test_error(
-                    format!("npm run mockforge:watch failed: {}", stderr),
-                    Some("Check mockforge binary path and configuration"),
+                return Err(ApicentricError::test_error(
+                    format!("npm run apicentric:watch failed: {}", stderr),
+                    Some("Check apicentric binary path and configuration"),
                 ));
             }
-            println!("   ✅ 'npm run mockforge:watch' works correctly");
+            println!("   ✅ 'npm run apicentric:watch' works correctly");
         }
 
         println!("✅ All npm scripts are working correctly");
@@ -244,17 +244,17 @@ impl NpmIntegration {
     }
 
     /// Resolve binary path using reader
-    pub fn resolve_mockforge_binary_path(&self) -> PulseResult<String> {
-        self.reader().resolve_mockforge_binary_path()
+    pub fn resolve_apicentric_binary_path(&self) -> ApicentricResult<String> {
+        self.reader().resolve_apicentric_binary_path()
     }
 }
 
 impl NpmIntegrator for NpmIntegration {
-    fn detect_setup_status(&self) -> PulseResult<NpmSetupStatus> {
+    fn detect_setup_status(&self) -> ApicentricResult<NpmSetupStatus> {
         self.reader().detect_setup_status()
     }
 
-    fn setup_scripts(&self, force: bool) -> PulseResult<()> {
+    fn setup_scripts(&self, force: bool) -> ApicentricResult<()> {
         self.writer().setup_scripts(force)
     }
 }
@@ -281,7 +281,7 @@ mod tests {
         npm.setup_scripts(false).unwrap();
         let json = npm.read_package_json().unwrap();
         let scripts = json["scripts"].as_object().unwrap();
-        assert!(scripts.contains_key("mockforge"));
-        assert!(scripts.contains_key("mockforge:watch"));
+        assert!(scripts.contains_key("apicentric"));
+        assert!(scripts.contains_key("apicentric:watch"));
     }
 }

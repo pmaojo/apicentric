@@ -142,7 +142,7 @@ cargo build --release
 
 La migración incluye:
 
-1. ✅ **Renombrado completo**: `mockforge`/`pulse` → `apicentric`
+1. ✅ **Renombrado completo**: `apicentric`/`apicentric` → `apicentric`
 2. ✅ **Servidor HTTP**: Nueva arquitectura cloud-native
 3. ✅ **API REST**: Exposición de toda la funcionalidad
 4. 🔄 **Frontend**: Adaptación React (en progreso)

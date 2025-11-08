@@ -2,7 +2,7 @@ pub mod mock_api_service;
 pub mod setup_npm;
 
 use crate::domain::ports::plugin::Plugin;
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use http::{Request, Response};
 use libloading::{Library, Symbol};
 use std::{fs, path::Path};
@@ -23,10 +23,10 @@ impl PluginManager {
     }
 
     /// Load all plugins from the specified directory.
-    pub fn load_from_directory<P: AsRef<Path>>(dir: P) -> PulseResult<Self> {
+    pub fn load_from_directory<P: AsRef<Path>>(dir: P) -> ApicentricResult<Self> {
         let dir_path = dir.as_ref();
         let entries = fs::read_dir(dir_path).map_err(|err| {
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!(
                     "Failed to read plugin directory '{}': {}",
                     dir_path.display(),
@@ -75,7 +75,7 @@ impl PluginManager {
                 message.push_str(&failure);
             }
 
-            Err(PulseError::runtime_error(
+            Err(ApicentricError::runtime_error(
                 message,
                 Some(
                     "Ensure each plugin exports a `create_plugin` symbol and is built for the current platform.",
@@ -95,9 +95,9 @@ impl PluginManager {
         }
     }
 
-    unsafe fn instantiate_plugin(path: &Path) -> PulseResult<(Box<dyn Plugin>, Library)> {
+    unsafe fn instantiate_plugin(path: &Path) -> ApicentricResult<(Box<dyn Plugin>, Library)> {
         let library = Library::new(path).map_err(|err| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!(
                     "Failed to open plugin library '{}': {}",
                     path.display(),
@@ -109,7 +109,7 @@ impl PluginManager {
 
         type PluginCreate = fn() -> Box<dyn Plugin>;
         let constructor: Symbol<PluginCreate> = library.get(b"create_plugin").map_err(|err| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!(
                     "Plugin library '{}' is missing the required `create_plugin` symbol: {}",
                     path.display(),

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use mockforge::simulator::log::RequestLogEntry;
-use mockforge::{Context, ExecutionContext, PulseError, PulseResult};
+use apicentric::simulator::log::RequestLogEntry;
+use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
 
 use crate::commands::shared::{find_yaml_files, validate_yaml_file};
 
@@ -12,7 +12,7 @@ pub async fn handle_validate(
     recursive: bool,
     verbose: bool,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would validate service definitions (path={}, recursive={}, verbose={})",
@@ -67,7 +67,7 @@ pub async fn handle_logs(
     status: Option<u16>,
     output: Option<&str>,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would fetch logs for service '{}' (limit={}, method={:?}, route={:?}, status={:?}, output={:?})",
@@ -86,7 +86,7 @@ pub async fn handle_logs(
             if !url.ends_with('/') {
                 url.push('/');
             }
-            url.push_str("__mockforge/logs?limit=");
+            url.push_str("__apicentric/logs?limit=");
             url.push_str(&limit.to_string());
             if let Some(m) = method {
                 url.push_str("&method=");
@@ -101,29 +101,29 @@ pub async fn handle_logs(
                 url.push_str(&s.to_string());
             }
             let resp = reqwest::get(&url).await.map_err(|e| {
-                PulseError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>)
+                ApicentricError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>)
             })?;
             if !resp.status().is_success() {
-                return Err(PulseError::runtime_error(
+                return Err(ApicentricError::runtime_error(
                     format!("Failed to fetch logs: status {}", resp.status()),
                     None::<String>,
                 ));
             }
             let logs: Vec<RequestLogEntry> = resp.json().await.map_err(|e| {
-                PulseError::runtime_error(format!("Failed to parse logs: {}", e), None::<String>)
+                ApicentricError::runtime_error(format!("Failed to parse logs: {}", e), None::<String>)
             })?;
             if logs.is_empty() {
                 println!("No logs available for service '{}'.", service);
             } else {
                 if let Some(path) = output {
                     let file = std::fs::File::create(path).map_err(|e| {
-                        PulseError::runtime_error(
+                        ApicentricError::runtime_error(
                             format!("Failed to write logs to {}: {}", path, e),
                             None::<String>,
                         )
                     })?;
                     serde_json::to_writer_pretty(file, &logs).map_err(|e| {
-                        PulseError::runtime_error(
+                        ApicentricError::runtime_error(
                             format!("Failed to serialize logs: {}", e),
                             None::<String>,
                         )
@@ -143,15 +143,15 @@ pub async fn handle_logs(
             }
             Ok(())
         } else {
-            Err(PulseError::runtime_error(
+            Err(ApicentricError::runtime_error(
                 format!("Service '{}' not found", service),
                 Some("Check simulator status for available services"),
             ))
         }
     } else {
-        Err(PulseError::config_error(
+        Err(ApicentricError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in mockforge.json"),
+            Some("Enable simulator in apicentric.json"),
         ))
     }
 }
@@ -162,7 +162,7 @@ pub async fn handle_monitor(
     json: bool,
     interval: Option<u64>,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would monitor simulator (service={:?}, json={}, interval={:?})",
@@ -174,9 +174,9 @@ pub async fn handle_monitor(
     let simulator = if let Some(sim) = context.api_simulator() {
         sim
     } else {
-        return Err(PulseError::config_error(
+        return Err(ApicentricError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in mockforge.json"),
+            Some("Enable simulator in apicentric.json"),
         ));
     };
 
@@ -202,18 +202,18 @@ pub async fn handle_monitor(
             if !url.ends_with('/') {
                 url.push('/');
             }
-            url.push_str("__mockforge/logs?limit=100");
+            url.push_str("__apicentric/logs?limit=100");
             let resp = reqwest::get(&url).await.map_err(|e| {
-                PulseError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>)
+                ApicentricError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>)
             })?;
             if !resp.status().is_success() {
-                return Err(PulseError::runtime_error(
+                return Err(ApicentricError::runtime_error(
                     format!("Failed to fetch logs: status {}", resp.status()),
                     None::<String>,
                 ));
             }
             let entries: Vec<RequestLogEntry> = resp.json().await.map_err(|e| {
-                PulseError::runtime_error(format!("Failed to parse logs: {}", e), None::<String>)
+                ApicentricError::runtime_error(format!("Failed to parse logs: {}", e), None::<String>)
             })?;
             let last = last_seen.get(&svc.name).copied();
             let new_entries: Vec<RequestLogEntry> = match last {

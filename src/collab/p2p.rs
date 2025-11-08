@@ -48,7 +48,7 @@ pub async fn spawn()
         .build();
 
     // Subscribe to a global topic for service CRDT messages.
-    let topic = IdentTopic::new("pulse-service-crdt");
+    let topic = IdentTopic::new("apicentric-service-crdt");
     swarm
         .behaviour_mut()
         .gossipsub

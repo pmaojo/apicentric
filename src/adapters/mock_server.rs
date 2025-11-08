@@ -1,4 +1,4 @@
-use crate::{PulseError, PulseResult};
+use crate::{ApicentricError, ApicentricResult};
 use bytes::Bytes;
 use http_body_util::{combinators::BoxBody, BodyExt, Full};
 use hyper::{body::Incoming, Method, Request, Response, StatusCode};
@@ -82,11 +82,11 @@ impl MockServerBuilder {
 }
 
 impl MockServerBuilder {
-    pub fn build(self) -> PulseResult<MockServerState> {
+    pub fn build(self) -> ApicentricResult<MockServerState> {
         let mut compiled = Vec::new();
         for ep in self.spec.endpoints {
             let method: Method = ep.method.parse().map_err(|_| {
-                PulseError::config_error(
+                ApicentricError::config_error(
                     format!("Método HTTP inválido: {}", ep.method),
                     Some("Usa GET, POST, PUT, DELETE, PATCH"),
                 )
@@ -95,7 +95,7 @@ impl MockServerBuilder {
                 // treat as regex style (OpenAPI like /users/{id}) -> convert {var} to [^/]+
                 let re_str = ep.path.replace('{', "(?P<").replace('}', ">[^/]+)");
                 let re = Regex::new(&format!("^{}$", re_str)).map_err(|e| {
-                    PulseError::config_error(
+                    ApicentricError::config_error(
                         format!("Regex inválido en path {}: {}", ep.path, e),
                         None::<String>,
                     )
@@ -103,7 +103,7 @@ impl MockServerBuilder {
                 EndpointMatcher::Regex(re)
             } else if ep.path.starts_with('^') {
                 let re = Regex::new(&ep.path).map_err(|e| {
-                    PulseError::config_error(
+                    ApicentricError::config_error(
                         format!("Regex inválido en path {}: {}", ep.path, e),
                         None::<String>,
                     )
@@ -124,15 +124,15 @@ impl MockServerBuilder {
     }
 }
 
-pub async fn load_spec(path: &Path) -> PulseResult<MockApiSpec> {
+pub async fn load_spec(path: &Path) -> ApicentricResult<MockApiSpec> {
     let content = std::fs::read_to_string(path).map_err(|e| {
-        PulseError::fs_error(
+        ApicentricError::fs_error(
             format!("No se puede leer YAML {}: {}", path.display(), e),
             Some("Verifica permisos"),
         )
     })?;
     let spec: MockApiSpec = serde_yaml::from_str(&content).map_err(|e| {
-        PulseError::config_error(
+        ApicentricError::config_error(
             format!("YAML inválido {}: {}", path.display(), e),
             Some("Valida formato YAML"),
         )
@@ -140,21 +140,21 @@ pub async fn load_spec(path: &Path) -> PulseResult<MockApiSpec> {
     Ok(spec)
 }
 
-pub async fn run_mock_server(spec: MockApiSpec) -> PulseResult<()> {
+pub async fn run_mock_server(spec: MockApiSpec) -> ApicentricResult<()> {
     let port = spec.port.unwrap_or(7070);
     let state = Arc::new(RwLock::new(MockServerBuilder::new(spec).build()?));
     let addr: SocketAddr = ([127, 0, 0, 1], port).into();
-    println!("🦐 Pulse Mock API escuchando en http://{}", addr);
+    println!("🦐 Apicentric Mock API escuchando en http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.map_err(|e| {
-        PulseError::server_error(
+        ApicentricError::server_error(
             format!("No se puede ligar puerto {}: {}", addr, e),
             None::<String>,
         )
     })?;
     loop {
         let (stream, remote) = listener.accept().await.map_err(|e| {
-            PulseError::server_error(format!("Fallo accept: {}", e), None::<String>)
+            ApicentricError::server_error(format!("Fallo accept: {}", e), None::<String>)
         })?;
         let state_clone = state.clone();
         tokio::spawn(async move {

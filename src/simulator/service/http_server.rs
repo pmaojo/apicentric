@@ -11,7 +11,7 @@ use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use super::router::RequestRouter;
 
 /// Adapter responsible for running an HTTP server that delegates
@@ -29,12 +29,12 @@ impl<R: RequestRouter + 'static> HttpServer<R> {
     }
 
     /// Start listening for HTTP requests.
-    pub async fn start(&mut self) -> PulseResult<()> {
+    pub async fn start(&mut self) -> ApicentricResult<()> {
         if self.handle.is_some() {
-            return Err(PulseError::runtime_error("server already running", None::<String>));
+            return Err(ApicentricError::runtime_error("server already running", None::<String>));
         }
         let listener = TcpListener::bind(self.addr).await.map_err(|e| {
-            PulseError::runtime_error(format!("failed to bind: {}", e), None::<String>)
+            ApicentricError::runtime_error(format!("failed to bind: {}", e), None::<String>)
         })?;
         self.listener_addr = Some(listener.local_addr().unwrap());
         let router = Arc::clone(&self.router);
@@ -77,7 +77,7 @@ impl<R: RequestRouter + 'static> HttpServer<R> {
     }
 
     /// Stop the server if it is running.
-    pub async fn stop(&mut self) -> PulseResult<()> {
+    pub async fn stop(&mut self) -> ApicentricResult<()> {
         if let Some(handle) = self.handle.take() {
             handle.abort();
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -99,7 +99,7 @@ mod tests {
     struct TestRouter;
     #[async_trait::async_trait]
     impl RequestRouter for TestRouter {
-        async fn route(&self, _req: Request<Full<Bytes>>) -> PulseResult<Response<Full<Bytes>>> {
+        async fn route(&self, _req: Request<Full<Bytes>>) -> ApicentricResult<Response<Full<Bytes>>> {
             Ok(Response::builder().status(StatusCode::OK).body(Full::new(Bytes::new())).unwrap())
         }
     }

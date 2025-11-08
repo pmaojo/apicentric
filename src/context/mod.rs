@@ -1,18 +1,18 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::{config, PulseError, PulseResult};
+use crate::{config, ApicentricError, ApicentricResult};
 
 pub mod init;
 
 /// Minimal application context containing configuration and optional API simulator.
 pub struct Context {
-    config: config::PulseConfig,
+    config: config::ApicentricConfig,
     api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
 }
 
 impl Context {
-    pub fn config(&self) -> &config::PulseConfig {
+    pub fn config(&self) -> &config::ApicentricConfig {
         &self.config
     }
 
@@ -20,10 +20,10 @@ impl Context {
         self.api_simulator.as_ref()
     }
 
-    pub async fn start_api_simulator(&self) -> PulseResult<()> {
+    pub async fn start_api_simulator(&self) -> ApicentricResult<()> {
         if let Some(ref sim) = self.api_simulator {
             sim.start().await.map_err(|e| {
-                PulseError::runtime_error(
+                ApicentricError::runtime_error(
                     format!("Failed to start API simulator: {}", e),
                     Some("Check simulator configuration and port"),
                 )
@@ -32,10 +32,10 @@ impl Context {
         Ok(())
     }
 
-    pub async fn stop_api_simulator(&self) -> PulseResult<()> {
+    pub async fn stop_api_simulator(&self) -> ApicentricResult<()> {
         if let Some(ref sim) = self.api_simulator {
             sim.stop().await.map_err(|e| {
-                PulseError::runtime_error(
+                ApicentricError::runtime_error(
                     format!("Failed to stop API simulator: {}", e),
                     None::<String>,
                 )
@@ -65,12 +65,12 @@ impl Context {
 
 /// Builder for [`Context`].
 pub struct ContextBuilder {
-    config: config::PulseConfig,
+    config: config::ApicentricConfig,
     api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
 }
 
 impl ContextBuilder {
-    pub fn new(config_path: &Path) -> PulseResult<Self> {
+    pub fn new(config_path: &Path) -> ApicentricResult<Self> {
         let config = config::load_config(config_path)?;
         Ok(Self {
             config,
@@ -86,11 +86,11 @@ impl ContextBuilder {
         self
     }
 
-    pub fn config(&self) -> &config::PulseConfig {
+    pub fn config(&self) -> &config::ApicentricConfig {
         &self.config
     }
 
-    pub fn build(self) -> PulseResult<Context> {
+    pub fn build(self) -> ApicentricResult<Context> {
         Ok(Context {
             config: self.config.clone(),
             api_simulator: self.api_simulator,
@@ -108,7 +108,7 @@ pub struct ExecutionContext {
 }
 
 impl ExecutionContext {
-    pub fn new(cfg: &config::PulseConfig) -> Self {
+    pub fn new(cfg: &config::ApicentricConfig) -> Self {
         Self {
             mode: cfg.execution.mode.clone(),
             dry_run: cfg.execution.dry_run,

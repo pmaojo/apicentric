@@ -9,9 +9,9 @@ pub mod repository;
 
 pub use repository::{ConfigRepository, FileConfigRepository, init_config, load_config, save_config};
 
-/// Main configuration structure for Pulse
+/// Main configuration structure for Apicentric
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct PulseConfig {
+pub struct ApicentricConfig {
     // Core configuration
     pub cypress_config_path: String,
     pub base_url: String,
@@ -118,11 +118,11 @@ pub enum ExecutionMode {
 /// NPM integration configuration
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NpmConfig {
-    #[serde(default = "default_pulse_script")]
-    pub pulse_script: String,
+    #[serde(default = "default_apicentric_script")]
+    pub apicentric_script: String,
 
-    #[serde(default = "default_pulse_watch_script")]
-    pub pulse_watch_script: String,
+    #[serde(default = "default_apicentric_watch_script")]
+    pub apicentric_watch_script: String,
 
     #[serde(default = "default_dev_script")]
     pub dev_script: String,
@@ -131,8 +131,8 @@ pub struct NpmConfig {
 impl Default for NpmConfig {
     fn default() -> Self {
         Self {
-            pulse_script: default_pulse_script(),
-            pulse_watch_script: default_pulse_watch_script(),
+            apicentric_script: default_apicentric_script(),
+            apicentric_watch_script: default_apicentric_watch_script(),
             dev_script: default_dev_script(),
         }
     }
@@ -220,41 +220,41 @@ fn default_continue_on_failure() -> bool {
     true
 }
 
-fn default_pulse_script() -> String {
-    "cargo run --manifest-path utils/mockforge/Cargo.toml --".to_string()
+fn default_apicentric_script() -> String {
+    "cargo run --manifest-path utils/apicentric/Cargo.toml --".to_string()
 }
 
-fn default_pulse_watch_script() -> String {
-    "cargo run --manifest-path utils/mockforge/Cargo.toml -- watch".to_string()
+fn default_apicentric_watch_script() -> String {
+    "cargo run --manifest-path utils/apicentric/Cargo.toml -- watch".to_string()
 }
 
 fn default_dev_script() -> String {
     "npm run dev".to_string()
 }
 
-/// Builder for [`PulseConfig`] enforcing defaults and validation.
-pub struct PulseConfigBuilder {
-    config: PulseConfig,
+/// Builder for [`ApicentricConfig`] enforcing defaults and validation.
+pub struct ApicentricConfigBuilder {
+    config: ApicentricConfig,
 }
 
-impl PulseConfig {
-    /// Start building a [`PulseConfig`].
-    pub fn builder() -> PulseConfigBuilder {
-        PulseConfigBuilder::default()
+impl ApicentricConfig {
+    /// Start building a [`ApicentricConfig`].
+    pub fn builder() -> ApicentricConfigBuilder {
+        ApicentricConfigBuilder::default()
     }
 }
 
-impl Default for PulseConfigBuilder {
+impl Default for ApicentricConfigBuilder {
     fn default() -> Self {
         Self {
-            config: PulseConfig {
+            config: ApicentricConfig {
                 cypress_config_path: "cypress.config.ts".to_string(),
                 base_url: "http://localhost:5173".to_string(),
                 specs_pattern: "app/routes/**/test/*.cy.ts".to_string(),
                 routes_dir: PathBuf::from("app/routes"),
                 specs_dir: PathBuf::from("app/routes"),
                 reports_dir: "cypress/reports".to_string(),
-                index_cache_path: PathBuf::from(".mockforge/route-index.json"),
+                index_cache_path: PathBuf::from(".apicentric/route-index.json"),
                 default_timeout: 30000,
                 server: ServerConfig::default(),
                 execution: ExecutionConfig::default(),
@@ -268,7 +268,7 @@ impl Default for PulseConfigBuilder {
     }
 }
 
-impl PulseConfigBuilder {
+impl ApicentricConfigBuilder {
     pub fn base_url(mut self, url: impl Into<String>) -> Self {
         self.config.base_url = url.into();
         self
@@ -301,16 +301,16 @@ impl PulseConfigBuilder {
         self
     }
 
-    /// Finalize the builder returning a validated [`PulseConfig`].
-    pub fn build(self) -> Result<PulseConfig, Vec<ValidationError>> {
+    /// Finalize the builder returning a validated [`ApicentricConfig`].
+    pub fn build(self) -> Result<ApicentricConfig, Vec<ValidationError>> {
         self.config.validate()?;
         Ok(self.config)
     }
 }
 
 /// Generate a default configuration
-pub fn generate_default_config() -> PulseConfig {
-    PulseConfig::builder()
+pub fn generate_default_config() -> ApicentricConfig {
+    ApicentricConfig::builder()
         .build()
         .expect("default configuration should be valid")
 }
@@ -326,7 +326,7 @@ mod tests {
         std::fs::create_dir_all(tmp.path().join("routes")).unwrap();
         std::fs::create_dir_all(tmp.path().join("specs")).unwrap();
         std::fs::create_dir_all(tmp.path().join("services")).unwrap();
-        let config = PulseConfig::builder()
+        let config = ApicentricConfig::builder()
             .routes_dir(tmp.path().join("routes"))
             .specs_dir(tmp.path().join("specs"))
             .index_cache_path(tmp.path().join("index.json"))
@@ -339,7 +339,7 @@ mod tests {
 
     #[test]
     fn builder_detects_invalid_url() {
-        let result = PulseConfig::builder().base_url("not-a-url").build();
+        let result = ApicentricConfig::builder().base_url("not-a-url").build();
         assert!(result.is_err());
     }
 }

@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-/// Main error type for Pulse operations
+/// Main error type for Apicentric operations
 #[derive(Debug, Error)]
-pub enum PulseError {
+pub enum ApicentricError {
     #[error("Configuration error: {message}")]
     Configuration {
         message: String,
@@ -56,7 +56,7 @@ pub enum PulseError {
     Anyhow(#[from] anyhow::Error),
 }
 
-impl PulseError {
+impl ApicentricError {
     /// Create a configuration error with a suggestion
     pub fn config_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::Configuration {
@@ -135,8 +135,8 @@ impl PulseError {
     }
 }
 
-/// Result type alias for Pulse operations
-pub type PulseResult<T> = Result<T, PulseError>;
+/// Result type alias for Apicentric operations
+pub type ApicentricResult<T> = Result<T, ApicentricError>;
 
 /// Validation error details
 #[derive(Debug, Clone)]
@@ -166,7 +166,7 @@ pub struct ErrorFormatter;
 
 impl ErrorFormatter {
     /// Format an error for user display with context and suggestions
-    pub fn format_for_user(error: &PulseError) -> String {
+    pub fn format_for_user(error: &ApicentricError) -> String {
         let mut output = format!("❌ {}", error);
 
         if let Some(suggestion) = error.suggestion() {
@@ -209,9 +209,9 @@ mod tests {
 
     #[test]
     fn test_error_creation() {
-        let error = PulseError::config_error("Invalid config", Some("Check your mockforge.json file"));
+        let error = ApicentricError::config_error("Invalid config", Some("Check your apicentric.json file"));
         assert!(error.suggestion().is_some());
-        assert_eq!(error.suggestion().unwrap(), "Check your mockforge.json file");
+        assert_eq!(error.suggestion().unwrap(), "Check your apicentric.json file");
     }
 
     #[test]
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn test_error_formatting() {
-        let error = PulseError::validation_error(
+        let error = ApicentricError::validation_error(
             "Invalid configuration",
             Some("base_url"),
             Some("Use a valid URL format"),
@@ -240,34 +240,34 @@ mod tests {
 
     #[test]
     fn test_all_error_types() {
-        let config_error = PulseError::config_error("Config issue", None::<String>);
-        assert!(matches!(config_error, PulseError::Configuration { .. }));
+        let config_error = ApicentricError::config_error("Config issue", None::<String>);
+        assert!(matches!(config_error, ApicentricError::Configuration { .. }));
 
-        let server_error = PulseError::server_error("Server issue", Some("Restart server"));
-        assert!(matches!(server_error, PulseError::Server { .. }));
+        let server_error = ApicentricError::server_error("Server issue", Some("Restart server"));
+        assert!(matches!(server_error, ApicentricError::Server { .. }));
         assert_eq!(server_error.suggestion().unwrap(), "Restart server");
 
-        let test_error = PulseError::test_error("Test failed", Some("Check test file"));
-        assert!(matches!(test_error, PulseError::TestExecution { .. }));
+        let test_error = ApicentricError::test_error("Test failed", Some("Check test file"));
+        assert!(matches!(test_error, ApicentricError::TestExecution { .. }));
 
-        let fs_error = PulseError::fs_error("File not found", Some("Create the file"));
-        assert!(matches!(fs_error, PulseError::FileSystem { .. }));
+        let fs_error = ApicentricError::fs_error("File not found", Some("Create the file"));
+        assert!(matches!(fs_error, ApicentricError::FileSystem { .. }));
 
         let validation_error =
-            PulseError::validation_error("Invalid", Some("field"), Some("Fix it"));
-        assert!(matches!(validation_error, PulseError::Validation { .. }));
+            ApicentricError::validation_error("Invalid", Some("field"), Some("Fix it"));
+        assert!(matches!(validation_error, ApicentricError::Validation { .. }));
         assert_eq!(validation_error.field().unwrap(), "field");
     }
 
     #[test]
     fn test_error_from_conversions() {
         let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
-        let pulse_error: PulseError = io_error.into();
-        assert!(matches!(pulse_error, PulseError::Io(_)));
+        let apicentric_error: ApicentricError = io_error.into();
+        assert!(matches!(apicentric_error, ApicentricError::Io(_)));
 
         let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
-        let pulse_error: PulseError = json_error.into();
-        assert!(matches!(pulse_error, PulseError::Json(_)));
+        let apicentric_error: ApicentricError = json_error.into();
+        assert!(matches!(apicentric_error, ApicentricError::Json(_)));
     }
 
     #[test]
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_error_suggestion_and_field_getters() {
-        let error = PulseError::validation_error(
+        let error = ApicentricError::validation_error(
             "Test message",
             Some("test_field"),
             Some("Test suggestion"),
@@ -313,14 +313,14 @@ mod tests {
         assert_eq!(error.suggestion().unwrap(), "Test suggestion");
         assert_eq!(error.field().unwrap(), "test_field");
 
-        let io_error: PulseError = std::io::Error::new(std::io::ErrorKind::NotFound, "test").into();
+        let io_error: ApicentricError = std::io::Error::new(std::io::ErrorKind::NotFound, "test").into();
         assert!(io_error.suggestion().is_none());
         assert!(io_error.field().is_none());
     }
 
     #[test]
     fn test_error_display() {
-        let error = PulseError::config_error("Test config error", Some("Fix the config"));
+        let error = ApicentricError::config_error("Test config error", Some("Fix the config"));
         let display_str = format!("{}", error);
         assert!(display_str.contains("Configuration error: Test config error"));
 

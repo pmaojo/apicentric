@@ -1,4 +1,4 @@
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::GraphQLConfig;
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 use async_graphql::Request as GraphQLRequest;
@@ -23,16 +23,16 @@ pub struct GraphQLMocks {
 }
 
 /// Load GraphQL schema and mock templates from configuration
-pub fn load_graphql_mocks(gql_cfg: &GraphQLConfig) -> PulseResult<GraphQLMocks> {
+pub fn load_graphql_mocks(gql_cfg: &GraphQLConfig) -> ApicentricResult<GraphQLMocks> {
     let schema = fs::read_to_string(&gql_cfg.schema_path).map_err(|e| {
-        PulseError::config_error(
+        ApicentricError::config_error(
             format!("Failed to read GraphQL schema {}: {}", gql_cfg.schema_path, e),
             Some("Check that the schema file exists and is readable"),
         )
     })?;
 
     if let Err(e) = parse_schema(&schema) {
-        return Err(PulseError::config_error(
+        return Err(ApicentricError::config_error(
             format!("Invalid GraphQL schema: {}", e),
             Some("Ensure the schema is valid SDL"),
         ));
@@ -41,7 +41,7 @@ pub fn load_graphql_mocks(gql_cfg: &GraphQLConfig) -> PulseResult<GraphQLMocks> 
     let mut mocks = HashMap::new();
     for (op, path) in &gql_cfg.mocks {
         let tmpl = fs::read_to_string(path).map_err(|e| {
-            PulseError::config_error(
+            ApicentricError::config_error(
                 format!("Failed to read GraphQL mock template {}: {}", path, e),
                 Some("Check template file path"),
             )

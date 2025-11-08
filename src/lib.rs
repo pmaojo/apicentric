@@ -61,11 +61,11 @@ pub mod cli_ui;
 
 // Re-export commonly used types
 #[cfg(not(target_arch = "wasm32"))]
-pub use config::PulseConfig;
+pub use config::ApicentricConfig;
 #[cfg(not(target_arch = "wasm32"))]
 pub use context::{Context, ContextBuilder, ExecutionContext};
 #[cfg(not(target_arch = "wasm32"))]
-pub use errors::{PulseError, PulseResult};
+pub use errors::{ApicentricError, ApicentricResult};
 #[cfg(not(target_arch = "wasm32"))]
 pub use simulator::{ApiSimulatorManager, ServiceDefinition, SimulatorConfig};
 

@@ -4,8 +4,8 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Path to the mockforge.json config file
-    #[arg(short, long, default_value = "mockforge.json")]
+    /// Path to the apicentric.json config file
+    #[arg(short, long, default_value = "apicentric.json")]
     pub config: String,
 
     /// Execution mode (overrides config)
@@ -21,7 +21,7 @@ pub struct Cli {
     pub verbose: bool,
 
     /// Path to SQLite database for simulator storage
-    #[arg(long, default_value = "pulse.db")]
+    #[arg(long, default_value = "apicentric.db")]
     pub db_path: String,
 
     #[command(subcommand)]

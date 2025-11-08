@@ -45,30 +45,30 @@ impl SetupNpmHandler {
             .and_then(|s| s.as_object_mut())
             .ok_or_else(|| anyhow!("Invalid scripts section in package.json"))?;
 
-        // Define mockforge scripts
-        let mockforge_scripts = [
-            ("mockforge:build", "cd utils/mockforge && cargo build --release"),
-            ("mockforge", "npm run mockforge:build && ./utils/mockforge/target/release/mockforge"),
-            ("mockforge:run", "npm run mockforge -- run"),
-            ("mockforge:watch", "npm run mockforge -- watch"),
-            ("mockforge:debug", "npm run mockforge -- --mode debug --verbose run"),
-            ("mockforge:ci", "npm run mockforge -- --mode ci run"),
-            ("mockforge:dry", "npm run mockforge -- --dry-run run"),
-            ("mockforge:impacted", "npm run mockforge -- watch --dry-run"),
-            ("mockforge:report:allure", "allure serve cypress/reports/allure-results"),
-            ("mockforge:docs:generate", "npm run mockforge -- docs generate"),
-            ("mockforge:docs:serve", "npm run mockforge -- docs serve"),
-            ("mockforge:simulator:start", "npm run mockforge -- simulator start"),
-            ("mockforge:simulator:stop", "npm run mockforge -- simulator stop"),
-            ("mockforge:simulator:status", "npm run mockforge -- simulator status"),
-            ("mockforge:contract:demo", "npm run mockforge -- contract demo"),
-            ("mockforge:contract:validate", "npm run mockforge -- contract validate"),
+        // Define apicentric scripts
+        let apicentric_scripts = [
+            ("apicentric:build", "cd utils/apicentric && cargo build --release"),
+            ("apicentric", "npm run apicentric:build && ./utils/apicentric/target/release/apicentric"),
+            ("apicentric:run", "npm run apicentric -- run"),
+            ("apicentric:watch", "npm run apicentric -- watch"),
+            ("apicentric:debug", "npm run apicentric -- --mode debug --verbose run"),
+            ("apicentric:ci", "npm run apicentric -- --mode ci run"),
+            ("apicentric:dry", "npm run apicentric -- --dry-run run"),
+            ("apicentric:impacted", "npm run apicentric -- watch --dry-run"),
+            ("apicentric:report:allure", "allure serve cypress/reports/allure-results"),
+            ("apicentric:docs:generate", "npm run apicentric -- docs generate"),
+            ("apicentric:docs:serve", "npm run apicentric -- docs serve"),
+            ("apicentric:simulator:start", "npm run apicentric -- simulator start"),
+            ("apicentric:simulator:stop", "npm run apicentric -- simulator stop"),
+            ("apicentric:simulator:status", "npm run apicentric -- simulator status"),
+            ("apicentric:contract:demo", "npm run apicentric -- contract demo"),
+            ("apicentric:contract:validate", "npm run apicentric -- contract validate"),
         ];
 
         let mut added = 0;
         let mut skipped = 0;
 
-        for (script_name, script_command) in mockforge_scripts.iter() {
+        for (script_name, script_command) in apicentric_scripts.iter() {
             if scripts.contains_key(*script_name) && !force {
                 println!("⏭️  Skipping '{}' (already exists)", script_name);
                 skipped += 1;
@@ -89,7 +89,7 @@ impl SetupNpmHandler {
 
         if added > 0 {
             println!("\n🎉 NPM integration setup complete!");
-            println!("💡 Try: npm run mockforge:watch");
+            println!("💡 Try: npm run apicentric:watch");
         }
 
         Ok(())
@@ -99,55 +99,55 @@ impl SetupNpmHandler {
         println!("📋 NPM Integration Setup Instructions");
         println!("=====================================");
         println!();
-        println!("To manually add MockForge scripts to your package.json:");
+        println!("To manually add apicentric scripts to your package.json:");
         println!();
         println!("1. Open your package.json file");
         println!("2. Add these scripts to the 'scripts' section:");
         println!();
         println!(r#"  "scripts": {{
-    "mockforge:build": "cd utils/mockforge && cargo build --release",
-    "mockforge": "npm run mockforge:build && ./utils/mockforge/target/release/mockforge",
-    "mockforge:run": "npm run mockforge -- run",
-    "mockforge:watch": "npm run mockforge -- watch",
-    "mockforge:debug": "npm run mockforge -- --mode debug --verbose run",
-    "mockforge:ci": "npm run mockforge -- --mode ci run",
-    "mockforge:dry": "npm run mockforge -- --dry-run run"
+    "apicentric:build": "cd utils/apicentric && cargo build --release",
+    "apicentric": "npm run apicentric:build && ./utils/apicentric/target/release/apicentric",
+    "apicentric:run": "npm run apicentric -- run",
+    "apicentric:watch": "npm run apicentric -- watch",
+    "apicentric:debug": "npm run apicentric -- --mode debug --verbose run",
+    "apicentric:ci": "npm run apicentric -- --mode ci run",
+    "apicentric:dry": "npm run apicentric -- --dry-run run"
   }}"#);
         println!();
-        println!("3. Run: npm run mockforge:watch");
+        println!("3. Run: npm run apicentric:watch");
         println!();
         println!("💡 Use --force to overwrite existing scripts");
     }
 
     fn show_examples(&self) {
-        println!("📚 MockForge NPM Script Examples");
+        println!("📚 apicentric NPM Script Examples");
         println!("============================");
         println!();
         println!("Basic Usage:");
-        println!("  npm run mockforge:watch        # Watch mode for development");
-        println!("  npm run mockforge:run          # Run all tests once");
-        println!("  npm run mockforge:build        # Build Rust binary");
+        println!("  npm run apicentric:watch        # Watch mode for development");
+        println!("  npm run apicentric:run          # Run all tests once");
+        println!("  npm run apicentric:build        # Build Rust binary");
         println!();
         println!("Advanced Usage:");
-        println!("  npm run mockforge:debug        # Debug mode with verbose output");
-        println!("  npm run mockforge:ci           # CI mode (for pipelines)");
-        println!("  npm run mockforge:dry          # Dry run (show what would execute)");
+        println!("  npm run apicentric:debug        # Debug mode with verbose output");
+        println!("  npm run apicentric:ci           # CI mode (for pipelines)");
+        println!("  npm run apicentric:dry          # Dry run (show what would execute)");
         println!();
         println!("Documentation:");
-        println!("  npm run mockforge:docs:generate  # Generate docs");
-        println!("  npm run mockforge:docs:serve     # Serve docs locally");
+        println!("  npm run apicentric:docs:generate  # Generate docs");
+        println!("  npm run apicentric:docs:serve     # Serve docs locally");
         println!();
         println!("API Simulator:");
-        println!("  npm run mockforge:simulator:start   # Start mock API");
-        println!("  npm run mockforge:simulator:stop    # Stop mock API");
-        println!("  npm run mockforge:simulator:status  # Check status");
+        println!("  npm run apicentric:simulator:start   # Start mock API");
+        println!("  npm run apicentric:simulator:stop    # Stop mock API");
+        println!("  npm run apicentric:simulator:status  # Check status");
         println!();
         println!("Contract Testing:");
-        println!("  npm run mockforge:contract:demo      # Run contract demo");
-        println!("  npm run mockforge:contract:validate  # Validate contracts");
+        println!("  npm run apicentric:contract:demo      # Run contract demo");
+        println!("  npm run apicentric:contract:validate  # Validate contracts");
         println!();
         println!("Reporting:");
-        println!("  npm run mockforge:report:allure     # Open Allure reports");
+        println!("  npm run apicentric:report:allure     # Open Allure reports");
     }
 
     fn test_npm_integration(&self) -> Result<()> {
@@ -167,7 +167,7 @@ impl SetupNpmHandler {
             .and_then(|s| s.as_object())
             .ok_or_else(|| anyhow!("No scripts section found"))?;
 
-        let required_scripts = ["mockforge:build", "mockforge", "mockforge:run", "mockforge:watch"];
+        let required_scripts = ["apicentric:build", "apicentric", "apicentric:run", "apicentric:watch"];
         let mut found = 0;
 
         for script in required_scripts.iter() {
@@ -181,9 +181,9 @@ impl SetupNpmHandler {
 
         if found == required_scripts.len() {
             println!("🎉 All required scripts found!");
-            println!("💡 Try running: npm run mockforge:watch");
+            println!("💡 Try running: npm run apicentric:watch");
         } else {
-            println!("⚠️  Some scripts are missing. Run: mockforge setup-npm");
+            println!("⚠️  Some scripts are missing. Run: apicentric setup-npm");
         }
 
         Ok(())

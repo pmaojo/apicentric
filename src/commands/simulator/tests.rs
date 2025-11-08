@@ -1,10 +1,10 @@
 use super::*;
-use mockforge::config::{save_config, PulseConfig};
-use mockforge::context::{ContextBuilder, ExecutionContext};
+use apicentric::config::{save_config, ApicentricConfig};
+use apicentric::context::{ContextBuilder, ExecutionContext};
 use std::fs;
 use tempfile::TempDir;
 
-fn build() -> (mockforge::Context, ExecutionContext) {
+fn build() -> (apicentric::Context, ExecutionContext) {
     let temp = TempDir::new().unwrap();
     let routes = temp.path().join("routes");
     let specs = temp.path().join("specs");
@@ -14,14 +14,14 @@ fn build() -> (mockforge::Context, ExecutionContext) {
     fs::create_dir_all(&specs).unwrap();
     fs::create_dir_all(&services).unwrap();
     fs::create_dir_all(&cache).unwrap();
-    let config = PulseConfig::builder()
+    let config = ApicentricConfig::builder()
         .routes_dir(routes)
         .specs_dir(specs)
         .index_cache_path(cache.join("index.json"))
         .simulator_services_dir(services)
         .build()
         .unwrap();
-    let cfg_path = temp.path().join("mockforge.json");
+    let cfg_path = temp.path().join("apicentric.json");
     save_config(&config, &cfg_path).unwrap();
     let builder = ContextBuilder::new(&cfg_path).unwrap();
     let context = builder.build().unwrap();

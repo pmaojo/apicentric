@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 $ErrorActionPreference = 'Stop'
 
-$repoUrl = 'https://github.com/pmaojo/mockforge/releases/latest/download'
+$repoUrl = 'https://github.com/pmaojo/apicentric/releases/latest/download'
 $os = 'windows'
 $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower()
 switch ($arch) {
@@ -10,7 +10,7 @@ switch ($arch) {
   default { Write-Error "Unsupported architecture: $arch"; exit 1 }
 }
 
-$file = "mockforge-$os-$arch.zip"
+$file = "apicentric-$os-$arch.zip"
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid())
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 $archive = Join-Path $tempDir $file
@@ -19,6 +19,6 @@ Expand-Archive -Path $archive -DestinationPath $tempDir -Force
 
 $dest = Join-Path $env:UserProfile 'bin'
 if (-not (Test-Path $dest)) { New-Item -ItemType Directory -Path $dest | Out-Null }
-Move-Item -Path (Join-Path $tempDir 'mockforge.exe') -Destination (Join-Path $dest 'mockforge.exe') -Force
-Write-Host "mockforge installed to $dest"
+Move-Item -Path (Join-Path $tempDir 'apicentric.exe') -Destination (Join-Path $dest 'apicentric.exe') -Force
+Write-Host "apicentric installed to $dest"
 

@@ -1,5 +1,5 @@
 use crate::utils::FileSystemUtils;
-use crate::PulseResult;
+use crate::ApicentricResult;
 use log::debug;
 use std::path::PathBuf;
 
@@ -30,7 +30,7 @@ impl DirectoryScanner {
     }
 
     /// Scan directory recursively with error resilience
-    pub fn scan_for_files(&self, pattern: &str) -> PulseResult<Vec<PathBuf>> {
+    pub fn scan_for_files(&self, pattern: &str) -> ApicentricResult<Vec<PathBuf>> {
         FileSystemUtils::validate_directory_access(&self.base_path)?;
         let full_pattern = self.base_path.join(pattern);
         let pattern_str = full_pattern.to_string_lossy();

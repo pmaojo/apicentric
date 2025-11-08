@@ -16,7 +16,7 @@ pub use state_service::StateService;
 pub use router::{RequestRouter, DefaultRouter};
 pub use http_server::HttpServer;
 
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::{
     EndpointDefinition, ResponseDefinition, ScenarioDefinition, ScenarioStrategy, ServiceDefinition,
 };
@@ -61,7 +61,7 @@ impl ServiceInstance {
         port: u16,
         storage: Arc<dyn Storage>,
         log_sender: broadcast::Sender<RequestLogEntry>,
-    ) -> PulseResult<Self> {
+    ) -> ApicentricResult<Self> {
         // Initialize state with fixtures and bucket from definition
         let state = ServiceState::new(
             definition.fixtures.clone(),
@@ -96,9 +96,9 @@ impl ServiceInstance {
     }
 
     /// Start the service HTTP server
-    pub async fn start(&mut self) -> PulseResult<()> {
+    pub async fn start(&mut self) -> ApicentricResult<()> {
         if self.is_running {
-            return Err(PulseError::runtime_error(
+            return Err(ApicentricError::runtime_error(
                 format!("Service '{}' is already running", self.definition.name),
                 None::<String>,
             ));
@@ -107,7 +107,7 @@ impl ServiceInstance {
         // Create TCP listener for the service
         let addr = SocketAddr::from(([127, 0, 0, 1], self.port));
         let listener = TcpListener::bind(addr).await.map_err(|e| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!("Failed to bind to port {}: {}", self.port, e),
                 Some("Port may already be in use or unavailable"),
             )
@@ -227,7 +227,7 @@ impl ServiceInstance {
     }
 
     /// Stop the service HTTP server
-    pub async fn stop(&mut self) -> PulseResult<()> {
+    pub async fn stop(&mut self) -> ApicentricResult<()> {
         if !self.is_running {
             return Ok(()); // Already stopped
         }
@@ -251,9 +251,9 @@ impl ServiceInstance {
     pub async fn handle_request(
         &self,
         req: Request<hyper::body::Incoming>,
-    ) -> PulseResult<Response<Full<Bytes>>> {
+    ) -> ApicentricResult<Response<Full<Bytes>>> {
         if !self.is_running {
-            return Err(PulseError::runtime_error(
+            return Err(ApicentricError::runtime_error(
                 format!("Service '{}' is not running", self.definition.name),
                 Some("Start the service before handling requests"),
             ));
@@ -392,7 +392,7 @@ impl ServiceInstance {
     }
 
     /// Add an item to a fixture array
-    pub async fn add_to_fixture_array(&self, fixture_key: &str, item: Value) -> PulseResult<()> {
+    pub async fn add_to_fixture_array(&self, fixture_key: &str, item: Value) -> ApicentricResult<()> {
         let mut state = self.state.write().await;
         state.add_to_fixture_array(fixture_key, item)
     }
@@ -402,7 +402,7 @@ impl ServiceInstance {
         &self,
         fixture_key: &str,
         index: usize,
-    ) -> PulseResult<Value> {
+    ) -> ApicentricResult<Value> {
         let mut state = self.state.write().await;
         state.remove_from_fixture_array(fixture_key, index)
     }
@@ -413,7 +413,7 @@ impl ServiceInstance {
         fixture_key: &str,
         index: usize,
         item: Value,
-    ) -> PulseResult<()> {
+    ) -> ApicentricResult<()> {
         let mut state = self.state.write().await;
         state.update_fixture_array_item(fixture_key, index, item)
     }
@@ -425,7 +425,7 @@ impl ServiceInstance {
         field: &str,
         field_value: &Value,
         new_item: Value,
-    ) -> PulseResult<bool> {
+    ) -> ApicentricResult<bool> {
         let mut state = self.state.write().await;
         state.update_fixture_array_item_by_field(fixture_key, field, field_value, new_item)
     }
@@ -436,7 +436,7 @@ impl ServiceInstance {
         fixture_key: &str,
         field: &str,
         field_value: &Value,
-    ) -> PulseResult<Option<Value>> {
+    ) -> ApicentricResult<Option<Value>> {
         let mut state = self.state.write().await;
         state.remove_fixture_array_item_by_field(fixture_key, field, field_value)
     }
@@ -610,7 +610,7 @@ impl ServiceInstance {
         proxy_base_url: Option<String>,
         active_scenario: Arc<RwLock<Option<String>>>,
         graphql: Option<Arc<GraphQLMocks>>,
-    ) -> PulseResult<Response<Full<Bytes>>> {
+    ) -> ApicentricResult<Response<Full<Bytes>>> {
         let (parts, body) = req.into_parts();
         let method = parts.method.as_str();
         let path = parts.uri.path();
@@ -726,7 +726,7 @@ impl ServiceInstance {
                 .header("access-control-max-age", "86400")
                 .body(Full::new(Bytes::from_static(b"")))
                 .map_err(|e| {
-                    PulseError::runtime_error(
+                    ApicentricError::runtime_error(
                         format!("Failed to build CORS preflight response: {}", e),
                         None::<String>,
                     )
@@ -759,7 +759,7 @@ impl ServiceInstance {
                         r#"{"error": "Failed to read request body"}"#,
                     )))
                     .map_err(|e| {
-                        PulseError::runtime_error(
+                        ApicentricError::runtime_error(
                             format!("Failed to build bad request response: {}", e),
                             None::<String>,
                         )
@@ -840,7 +840,7 @@ impl ServiceInstance {
         }
 
         // Internal logs endpoint
-        if method == "GET" && relative_path == "/__mockforge/logs" {
+        if method == "GET" && relative_path == "/__apicentric/logs" {
             let limit = query_params
                 .get("limit")
                 .and_then(|v| v.parse::<usize>().ok())
@@ -866,7 +866,7 @@ impl ServiceInstance {
                 .header("content-type", "application/json")
                 .body(Full::new(Bytes::from(body)))
                 .map_err(|e| {
-                    PulseError::runtime_error(
+                    ApicentricError::runtime_error(
                         format!("Failed to build logs response: {}", e),
                         None::<String>,
                     )
@@ -1086,7 +1086,7 @@ impl ServiceInstance {
                     let final_response = response
                         .body(Full::new(Bytes::from(processed_body)))
                         .map_err(|e| {
-                            PulseError::runtime_error(
+                            ApicentricError::runtime_error(
                                 format!("Failed to build response body: {}", e),
                                 None::<String>,
                             )
@@ -1115,7 +1115,7 @@ impl ServiceInstance {
                             r#"{"error": "No response definition found"}"#,
                         )))
                         .map_err(|e| {
-                            PulseError::runtime_error(
+                            ApicentricError::runtime_error(
                                 format!("Failed to build error response: {}", e),
                                 None::<String>,
                             )
@@ -1181,7 +1181,7 @@ impl ServiceInstance {
                             let final_resp = response
                                 .body(Full::new(bytes))
                                 .map_err(|e| {
-                                    PulseError::runtime_error(
+                                    ApicentricError::runtime_error(
                                         format!("Failed to build proxy response: {}", e),
                                         None::<String>,
                                     )
@@ -1206,7 +1206,7 @@ impl ServiceInstance {
                                     e
                                 ))))
                                 .map_err(|e| {
-                                    PulseError::runtime_error(
+                                    ApicentricError::runtime_error(
                                         format!("Failed to build proxy error response: {}", e),
                                         None::<String>,
                                     )
@@ -1232,7 +1232,7 @@ impl ServiceInstance {
                             method, relative_path, service_name
                         ))))
                         .map_err(|e| {
-                            PulseError::runtime_error(
+                            ApicentricError::runtime_error(
                                 format!("Failed to build not found response: {}", e),
                                 None::<String>,
                             )
@@ -1319,9 +1319,9 @@ impl ServiceInstance {
         state: &Arc<RwLock<ServiceState>>,
         path_params: &PathParameters,
         request_context: &RequestContext,
-    ) -> PulseResult<()> {
+    ) -> ApicentricResult<()> {
         let script_source = tokio::fs::read_to_string(script_path).await.map_err(|e| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!("Failed to read script {}: {}", script_path.display(), e),
                 Some("Check script path"),
             )
@@ -1343,12 +1343,12 @@ impl ServiceInstance {
         drop(state_guard);
         let ctx_json = serde_json::to_string(&context)?;
 
-        let result = tokio::task::spawn_blocking(move || -> PulseResult<serde_json::Value> {
+        let result = tokio::task::spawn_blocking(move || -> ApicentricResult<serde_json::Value> {
             let mut runtime = JsRuntime::new(RuntimeOptions::default());
             runtime
                 .execute_script("<init>", format!("globalThis.ctx = {};", ctx_json))
                 .map_err(|e| {
-                    PulseError::runtime_error(format!("Script init error: {}", e), None::<String>)
+                    ApicentricError::runtime_error(format!("Script init error: {}", e), None::<String>)
                 })?;
             runtime
                 .execute_script(
@@ -1359,7 +1359,7 @@ impl ServiceInstance {
                     ),
                 )
                 .map_err(|e| {
-                    PulseError::runtime_error(
+                    ApicentricError::runtime_error(
                         format!("Script execution error: {}", e),
                         None::<String>,
                     )
@@ -1368,15 +1368,15 @@ impl ServiceInstance {
                 runtime.run_event_loop(deno_core::PollEventLoopOptions::default()),
             )
             .map_err(|e| {
-                PulseError::runtime_error(format!("Script event loop error: {}", e), None::<String>)
+                ApicentricError::runtime_error(format!("Script event loop error: {}", e), None::<String>)
             })?;
             let value = runtime.execute_script("<result>", "result").map_err(|e| {
-                PulseError::runtime_error(format!("Script result error: {}", e), None::<String>)
+                ApicentricError::runtime_error(format!("Script result error: {}", e), None::<String>)
             })?;
             let scope = &mut runtime.handle_scope();
             let result_str = value.open(scope).to_rust_string_lossy(scope);
             let result: serde_json::Value = serde_json::from_str(&result_str).map_err(|e| {
-                PulseError::runtime_error(
+                ApicentricError::runtime_error(
                     format!("Script result serialization error: {}", e),
                     Some("Ensure script returns an object".to_string()),
                 )
@@ -1385,7 +1385,7 @@ impl ServiceInstance {
         })
         .await
         .map_err(|e| {
-            PulseError::runtime_error(format!("Script thread error: {}", e), None::<String>)
+            ApicentricError::runtime_error(format!("Script thread error: {}", e), None::<String>)
         })??;
 
         if let serde_json::Value::Object(map) = result {
@@ -1404,13 +1404,13 @@ impl ServiceInstance {
         state: &mut ServiceState,
         template_context: &TemplateContext,
         template_engine: &TemplateEngine,
-    ) -> PulseResult<()> {
+    ) -> ApicentricResult<()> {
         // Render the side effect value template
         let rendered_value = template_engine.render(&side_effect.value, template_context)?;
 
         // Parse the rendered value as JSON
         let value: Value = serde_json::from_str(&rendered_value).map_err(|e| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!("Failed to parse side effect value as JSON: {}", e),
                 Some("Ensure side effect value templates produce valid JSON"),
             )
@@ -1433,7 +1433,7 @@ impl ServiceInstance {
                 state.remove_runtime_data(&side_effect.target);
             }
             _ => {
-                return Err(PulseError::runtime_error(
+                return Err(ApicentricError::runtime_error(
                     format!("Unknown side effect action: {}", side_effect.action),
                     Some("Use supported actions: add_to_fixture, update_fixture, remove_from_fixture, set_runtime_data, remove_runtime_data")
                 ));
@@ -1601,14 +1601,14 @@ impl ServiceInstance {
     }
 
     /// Validate that the service configuration is consistent
-    pub fn validate_consistency(&self) -> PulseResult<()> {
+    pub fn validate_consistency(&self) -> ApicentricResult<()> {
         // Check for duplicate endpoint paths with same method
         let mut seen_endpoints = std::collections::HashSet::new();
 
         for endpoint in &self.definition.endpoints {
             let key = format!("{}:{}", endpoint.method.to_uppercase(), endpoint.path);
             if seen_endpoints.contains(&key) {
-                return Err(PulseError::config_error(
+                return Err(ApicentricError::config_error(
                     format!(
                         "Duplicate endpoint found: {} {}",
                         endpoint.method, endpoint.path
@@ -1625,7 +1625,7 @@ impl ServiceInstance {
                 if let Some(ref request_body) = endpoint.request_body {
                     if let Some(ref schema) = request_body.schema {
                         if !models.contains_key(schema) {
-                            return Err(PulseError::config_error(
+                            return Err(ApicentricError::config_error(
                                 format!("Referenced model '{}' not found in service '{}'", 
                                     schema, self.definition.name),
                                 Some("Define the model in the models section or remove the schema reference")

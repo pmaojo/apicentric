@@ -1,4 +1,4 @@
-//! API Simulator module for Pulse
+//! API Simulator module for Apicentric
 //!
 //! This module provides a comprehensive service simulation system that enables offline development
 //! by serving locally-defined APIs through YAML configuration files.

@@ -17,13 +17,13 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::{EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition};
 
 /// Trait for recording traffic through a proxy.
 #[async_trait(?Send)]
 pub trait RecordingProxy {
-    async fn record(&self, target: &str, output_dir: PathBuf, port: u16) -> PulseResult<()>;
+    async fn record(&self, target: &str, output_dir: PathBuf, port: u16) -> ApicentricResult<()>;
 }
 
 /// Default implementation of [`RecordingProxy`].
@@ -31,7 +31,7 @@ pub struct ProxyRecorder;
 
 #[async_trait(?Send)]
 impl RecordingProxy for ProxyRecorder {
-    async fn record(&self, target: &str, output_dir: PathBuf, port: u16) -> PulseResult<()> {
+    async fn record(&self, target: &str, output_dir: PathBuf, port: u16) -> ApicentricResult<()> {
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
         let connector = HttpConnector::new();
@@ -40,7 +40,7 @@ impl RecordingProxy for ProxyRecorder {
         let endpoints: Arc<Mutex<HashMap<(String, String), EndpointDefinition>>> =
             Arc::new(Mutex::new(HashMap::new()));
         let listener = TcpListener::bind(addr).await.map_err(|e| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!("Failed to bind recording proxy: {}", e),
                 None::<String>,
             )
@@ -54,7 +54,7 @@ impl RecordingProxy for ProxyRecorder {
         loop {
             tokio::select! {
                 res = listener.accept() => {
-                    let (stream, _) = res.map_err(|e| PulseError::runtime_error(format!("Accept error: {}", e), None::<String>))?;
+                    let (stream, _) = res.map_err(|e| ApicentricError::runtime_error(format!("Accept error: {}", e), None::<String>))?;
                     let io = TokioIo::new(stream);
                     let client = client.clone();
                     let target = target.to_string();
@@ -184,20 +184,20 @@ impl RecordingProxy for ProxyRecorder {
         };
 
         std::fs::create_dir_all(&output_dir).map_err(|e| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!("Failed to create output directory: {}", e),
                 None::<String>,
             )
         })?;
         let yaml = serde_yaml::to_string(&service).map_err(|e| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!("Failed to serialize service definition: {}", e),
                 None::<String>,
             )
         })?;
         let path = output_dir.join("recorded_service.yaml");
         std::fs::write(&path, yaml).map_err(|e| {
-            PulseError::runtime_error(
+            ApicentricError::runtime_error(
                 format!("Failed to write service file: {}", e),
                 None::<String>,
             )

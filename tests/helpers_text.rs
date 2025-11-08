@@ -1,5 +1,5 @@
 use handlebars::Handlebars;
-use mockforge::simulator::template::helpers::text;
+use apicentric::simulator::template::helpers::text;
 use serde_json::json;
 
 #[test]

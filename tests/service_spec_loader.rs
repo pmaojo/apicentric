@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use mockforge::adapters::service_spec_loader::YamlServiceSpecLoader;
-use mockforge::domain::ports::contract::{ServiceSpecLoader, ServiceSpec, EndpointSpec, ResponseSpec};
-use mockforge::domain::contract_testing::HttpMethod;
-use mockforge::utils::FileReader;
+use apicentric::adapters::service_spec_loader::YamlServiceSpecLoader;
+use apicentric::domain::ports::contract::{ServiceSpecLoader, ServiceSpec, EndpointSpec, ResponseSpec};
+use apicentric::domain::contract_testing::HttpMethod;
+use apicentric::utils::FileReader;
 use std::path::Path;
 use std::sync::Arc;
 

@@ -1,6 +1,6 @@
 //! Service Registry - Manages multiple service instances and their lifecycles
 
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     config::{PortRange, ServiceDefinition},
     log::RequestLogEntry,
@@ -26,11 +26,11 @@ impl PortManager {
     }
 
     /// Assign a port for a service, either from configuration or automatically
-    pub fn assign_port(&mut self, requested_port: Option<u16>) -> PulseResult<u16> {
+    pub fn assign_port(&mut self, requested_port: Option<u16>) -> ApicentricResult<u16> {
         if let Some(port) = requested_port {
             // Use requested port if available
             if self.used_ports.contains(&port) {
-                return Err(PulseError::runtime_error(
+                return Err(ApicentricError::runtime_error(
                     format!("Port {} is already in use", port),
                     Some("Choose a different port or let the system assign one automatically"),
                 ));
@@ -45,7 +45,7 @@ impl PortManager {
                     return Ok(port);
                 }
             }
-            Err(PulseError::runtime_error(
+            Err(ApicentricError::runtime_error(
                 format!(
                     "No available ports in range {}-{}",
                     self.port_range.start, self.port_range.end
@@ -94,11 +94,11 @@ impl ServiceRegistry {
     }
 
     /// Register a new service
-    pub async fn register_service(&mut self, definition: ServiceDefinition) -> PulseResult<()> {
+    pub async fn register_service(&mut self, definition: ServiceDefinition) -> ApicentricResult<()> {
         let service_name = definition.name.clone();
 
         if self.services.contains_key(&service_name) {
-            return Err(PulseError::runtime_error(
+            return Err(ApicentricError::runtime_error(
                 format!("Service '{}' is already registered", service_name),
                 Some("Use a different service name or unregister the existing service first"),
             ));
@@ -127,7 +127,7 @@ impl ServiceRegistry {
     }
 
     /// Unregister a service
-    pub async fn unregister_service(&mut self, service_name: &str) -> PulseResult<()> {
+    pub async fn unregister_service(&mut self, service_name: &str) -> ApicentricResult<()> {
         if let Some(service_arc) = self.services.remove(service_name) {
             let mut service = service_arc.write().await;
 
@@ -142,7 +142,7 @@ impl ServiceRegistry {
             log::info!("Unregistered service '{}'", service_name);
             Ok(())
         } else {
-            Err(PulseError::runtime_error(
+            Err(ApicentricError::runtime_error(
                 format!("Service '{}' is not registered", service_name),
                 None::<String>,
             ))
@@ -182,7 +182,7 @@ impl ServiceRegistry {
     }
 
     /// Start all registered services
-    pub async fn start_all_services(&mut self) -> PulseResult<()> {
+    pub async fn start_all_services(&mut self) -> ApicentricResult<()> {
         let mut errors = Vec::new();
 
         for (service_name, service_arc) in &self.services {
@@ -193,7 +193,7 @@ impl ServiceRegistry {
         }
 
         if !errors.is_empty() {
-            return Err(PulseError::runtime_error(
+            return Err(ApicentricError::runtime_error(
                 format!("Failed to start some services:\n{}", errors.join("\n")),
                 Some("Check service configurations and port availability"),
             ));
@@ -204,7 +204,7 @@ impl ServiceRegistry {
     }
 
     /// Stop all registered services
-    pub async fn stop_all_services(&mut self) -> PulseResult<()> {
+    pub async fn stop_all_services(&mut self) -> ApicentricResult<()> {
         let mut errors = Vec::new();
 
         for (service_name, service_arc) in &self.services {
@@ -217,7 +217,7 @@ impl ServiceRegistry {
         }
 
         if !errors.is_empty() {
-            return Err(PulseError::runtime_error(
+            return Err(ApicentricError::runtime_error(
                 format!("Failed to stop some services:\n{}", errors.join("\n")),
                 None::<String>,
             ));
@@ -255,7 +255,7 @@ impl ServiceRegistry {
     }
 
     /// Clear all services (stops and unregisters all)
-    pub async fn clear_all_services(&mut self) -> PulseResult<()> {
+    pub async fn clear_all_services(&mut self) -> ApicentricResult<()> {
         self.stop_all_services().await?;
 
         // Clear the services map and reset port manager

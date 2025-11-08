@@ -1,4 +1,4 @@
-use crate::{PulseError, PulseResult};
+use crate::{ApicentricError, ApicentricResult};
 use log::{debug, error, info, warn};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,12 +11,12 @@ impl FileSystemUtils {
     pub fn resolve_glob_pattern(
         pattern: &str,
         base_path: Option<&Path>,
-    ) -> PulseResult<Vec<PathBuf>> {
+    ) -> ApicentricResult<Vec<PathBuf>> {
         debug!("Resolving glob pattern: {}", pattern);
 
         // Validate the glob pattern syntax first
         if let Err(e) = glob::Pattern::new(pattern) {
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 format!("Invalid glob pattern syntax: {}", e),
                 Some("Check your glob pattern syntax. Examples: '**/*.cy.ts', 'app/routes/**/test/*.cy.ts'")
             ));
@@ -43,7 +43,7 @@ impl FileSystemUtils {
                     "Glob execution failed for pattern '{}': {}",
                     resolved_pattern, e
                 );
-                return Err(PulseError::fs_error(
+                return Err(ApicentricError::fs_error(
                     format!("Failed to execute glob pattern '{}': {}", pattern, e),
                     Some("Verify the pattern syntax and ensure the base directory exists"),
                 ));
@@ -90,7 +90,7 @@ impl FileSystemUtils {
         // Provide helpful feedback if no valid paths found
         if valid_paths.is_empty() {
             let suggestion = Self::generate_no_files_suggestion(pattern, base_path);
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 format!("No valid files found matching pattern: {}", pattern),
                 Some(suggestion),
             ));
@@ -105,10 +105,10 @@ impl FileSystemUtils {
     }
 
     /// Validate that a path is safe to access (no symlinks, within bounds, etc.)
-    pub fn validate_path_safety(path: &Path) -> PulseResult<()> {
+    pub fn validate_path_safety(path: &Path) -> ApicentricResult<()> {
         // Check if path exists
         if !path.exists() {
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 format!("Path does not exist: {}", path.display()),
                 None::<String>,
             ));
@@ -116,7 +116,7 @@ impl FileSystemUtils {
 
         // Skip symbolic links for security
         if path.is_symlink() {
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 format!("Skipping symbolic link for security: {}", path.display()),
                 Some("Symbolic links are not followed for security reasons"),
             ));
@@ -125,7 +125,7 @@ impl FileSystemUtils {
         // Check for suspicious paths
         let path_str = path.to_string_lossy();
         if path_str.contains("..") {
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 format!(
                     "Path contains suspicious '..' components: {}",
                     path.display()
@@ -142,7 +142,7 @@ impl FileSystemUtils {
                 }
                 Ok(())
             }
-            Err(e) => Err(PulseError::fs_error(
+            Err(e) => Err(ApicentricError::fs_error(
                 format!("Cannot access path metadata {}: {}", path.display(), e),
                 Some("Check file permissions and ensure the path is accessible"),
             )),
@@ -265,10 +265,10 @@ impl FileSystemUtils {
     }
 
     /// Safely create directory with proper error handling
-    pub fn ensure_directory_exists(path: &Path) -> PulseResult<()> {
+    pub fn ensure_directory_exists(path: &Path) -> ApicentricResult<()> {
         if path.exists() {
             if !path.is_dir() {
-                return Err(PulseError::fs_error(
+                return Err(ApicentricError::fs_error(
                     format!("Path exists but is not a directory: {}", path.display()),
                     Some("Remove the file or choose a different path"),
                 ));
@@ -279,7 +279,7 @@ impl FileSystemUtils {
 
         debug!("Creating directory: {}", path.display());
         fs::create_dir_all(path).map_err(|e| {
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!("Failed to create directory {}: {}", path.display(), e),
                 Some("Check parent directory permissions and available disk space"),
             )
@@ -290,13 +290,13 @@ impl FileSystemUtils {
     }
 
     /// Safely read file with size and permission checks
-    pub fn safe_read_file(path: &Path) -> PulseResult<String> {
+    pub fn safe_read_file(path: &Path) -> ApicentricResult<String> {
         // Validate path safety first
         Self::validate_path_safety(path)?;
 
         // Check if it's a file
         if !path.is_file() {
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 format!("Path is not a file: {}", path.display()),
                 None::<String>,
             ));
@@ -304,7 +304,7 @@ impl FileSystemUtils {
 
         // Check file size
         let metadata = fs::metadata(path).map_err(|e| {
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!("Cannot read file metadata {}: {}", path.display(), e),
                 Some("Check file permissions"),
             )
@@ -312,7 +312,7 @@ impl FileSystemUtils {
 
         const MAX_FILE_SIZE: u64 = 50 * 1024 * 1024; // 50MB
         if metadata.len() > MAX_FILE_SIZE {
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 format!(
                     "File too large to read: {} bytes (max: {} bytes)",
                     metadata.len(),
@@ -324,7 +324,7 @@ impl FileSystemUtils {
 
         // Read file content
         fs::read_to_string(path).map_err(|e| {
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!("Failed to read file {}: {}", path.display(), e),
                 Some("Check file permissions and encoding (must be UTF-8)"),
             )
@@ -332,7 +332,7 @@ impl FileSystemUtils {
     }
 
     /// Safely write file with backup and atomic operations
-    pub fn safe_write_file(path: &Path, content: &str) -> PulseResult<()> {
+    pub fn safe_write_file(path: &Path, content: &str) -> ApicentricResult<()> {
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
             Self::ensure_directory_exists(parent)?;
@@ -343,7 +343,7 @@ impl FileSystemUtils {
 
         // Write to temporary file first
         fs::write(&temp_path, content).map_err(|e| {
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!(
                     "Failed to write temporary file {}: {}",
                     temp_path.display(),
@@ -357,7 +357,7 @@ impl FileSystemUtils {
         fs::rename(&temp_path, path).map_err(|e| {
             // Clean up temporary file on failure
             let _ = fs::remove_file(&temp_path);
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!(
                     "Failed to move temporary file to final location {}: {}",
                     path.display(),
@@ -372,9 +372,9 @@ impl FileSystemUtils {
     }
 
     /// Check if directory is accessible and readable
-    pub fn validate_directory_access(path: &Path) -> PulseResult<()> {
+    pub fn validate_directory_access(path: &Path) -> ApicentricResult<()> {
         if !path.exists() {
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 format!("Directory does not exist: {}", path.display()),
                 Some(format!(
                     "Create the directory with: mkdir -p {}",
@@ -384,7 +384,7 @@ impl FileSystemUtils {
         }
 
         if !path.is_dir() {
-            return Err(PulseError::fs_error(
+            return Err(ApicentricError::fs_error(
                 format!("Path is not a directory: {}", path.display()),
                 Some("Ensure the path points to a directory, not a file"),
             ));
@@ -396,7 +396,7 @@ impl FileSystemUtils {
                 debug!("Directory is accessible: {}", path.display());
                 Ok(())
             }
-            Err(e) => Err(PulseError::fs_error(
+            Err(e) => Err(ApicentricError::fs_error(
                 format!("Cannot read directory {}: {}", path.display(), e),
                 Some("Check directory permissions"),
             )),
@@ -404,11 +404,11 @@ impl FileSystemUtils {
     }
 
     /// Get file count in directory with pattern matching
-    pub fn count_files_in_directory(dir: &Path, pattern: Option<&str>) -> PulseResult<usize> {
+    pub fn count_files_in_directory(dir: &Path, pattern: Option<&str>) -> ApicentricResult<usize> {
         Self::validate_directory_access(dir)?;
 
         let entries = fs::read_dir(dir).map_err(|e| {
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!("Failed to read directory {}: {}", dir.display(), e),
                 None::<String>,
             )

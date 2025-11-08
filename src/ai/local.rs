@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use crate::errors::PulseResult;
+use crate::errors::ApicentricResult;
 use super::AiProvider;
 
 /// Local AI provider backed by a small language model running on the user's machine.
@@ -22,7 +22,7 @@ impl LocalAiProvider {
 
 #[async_trait]
 impl AiProvider for LocalAiProvider {
-    async fn generate_yaml(&self, prompt: &str) -> PulseResult<String> {
+    async fn generate_yaml(&self, prompt: &str) -> ApicentricResult<String> {
         // In a full implementation we would load the model and generate the YAML
         // response here.  For now we simply wrap the prompt into a basic YAML
         // structure so the rest of the pipeline can be exercised without an

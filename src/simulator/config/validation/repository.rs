@@ -1,12 +1,12 @@
 use super::super::ServiceDefinition;
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Port for obtaining service configuration data
 pub trait ConfigRepository {
-    fn list_service_files(&self) -> PulseResult<Vec<PathBuf>>;
-    fn load_service(&self, path: &Path) -> PulseResult<ServiceDefinition>;
+    fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
+    fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
@@ -27,9 +27,9 @@ impl ConfigFileLoader {
             .unwrap_or(false)
     }
 
-    fn collect_yaml_recursive(dir: &Path, acc: &mut Vec<PathBuf>) -> PulseResult<()> {
+    fn collect_yaml_recursive(dir: &Path, acc: &mut Vec<PathBuf>) -> ApicentricResult<()> {
         let entries = fs::read_dir(dir).map_err(|e| {
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!("Cannot read directory {}: {}", dir.display(), e),
                 Some("Check directory permissions"),
             )
@@ -37,7 +37,7 @@ impl ConfigFileLoader {
 
         for entry in entries {
             let entry = entry.map_err(|e| {
-                PulseError::fs_error(
+                ApicentricError::fs_error(
                     format!("Error reading directory entry in {}: {}", dir.display(), e),
                     None::<String>,
                 )
@@ -61,9 +61,9 @@ impl ConfigFileLoader {
 }
 
 impl ConfigRepository for ConfigFileLoader {
-    fn list_service_files(&self) -> PulseResult<Vec<PathBuf>> {
+    fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>> {
         if !self.root.exists() {
-            return Err(PulseError::config_error(
+            return Err(ApicentricError::config_error(
                 format!("Services directory does not exist: {}", self.root.display()),
                 Some("Create the services directory and add YAML service definition files"),
             ));
@@ -73,15 +73,15 @@ impl ConfigRepository for ConfigFileLoader {
         Ok(files)
     }
 
-    fn load_service(&self, path: &Path) -> PulseResult<ServiceDefinition> {
+    fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition> {
         let content = fs::read_to_string(path).map_err(|e| {
-            PulseError::fs_error(
+            ApicentricError::fs_error(
                 format!("Cannot read service file {}: {}", path.display(), e),
                 Some("Check file permissions and ensure the file exists"),
             )
         })?;
         let service: ServiceDefinition = serde_yaml::from_str(&content).map_err(|e| {
-            PulseError::config_error(
+            ApicentricError::config_error(
                 format!("Invalid YAML in service file {}: {}", path.display(), e),
                 Some("Check YAML syntax and ensure all required fields are present"),
             )

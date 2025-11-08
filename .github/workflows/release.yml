@@ -60,10 +60,10 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          archive_name="mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
-          tar -czf "$archive_name" mockforge
+          archive_name="apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
+          tar -czf "$archive_name" apicentric
           contents=$(tar -tzf "$archive_name" | tr -d '\r\n')
-          if [ "$contents" != "mockforge" ]; then
+          if [ "$contents" != "apicentric" ]; then
             echo "Unexpected archive contents: $contents"
             exit 1
           fi
@@ -71,21 +71,21 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          archive_name="mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
+          archive_name="apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
           shasum -a 256 "$archive_name" > "$archive_name.sha256"
       - name: Package binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $releaseDir = "target/${{ matrix.target }}/release"
-          $archiveName = "mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
+          $archiveName = "apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
           $archivePath = Join-Path $releaseDir $archiveName
-          Compress-Archive -Path (Join-Path $releaseDir 'mockforge.exe') -DestinationPath $archivePath -Force
+          Compress-Archive -Path (Join-Path $releaseDir 'apicentric.exe') -DestinationPath $archivePath -Force
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $zip = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
           $entries = $zip.Entries | ForEach-Object { $_.FullName }
           $zip.Dispose()
-          if ($entries.Count -ne 1 -or $entries[0] -ne 'mockforge.exe') {
+          if ($entries.Count -ne 1 -or $entries[0] -ne 'apicentric.exe') {
             throw "Unexpected archive contents: $($entries -join ', ')"
           }
       - name: Compute checksum (Windows)
@@ -93,7 +93,7 @@ jobs:
         shell: pwsh
         run: |
           $releaseDir = "target/${{ matrix.target }}/release"
-          $archiveName = "mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
+          $archiveName = "apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
           $hash = Get-FileHash -Path (Join-Path $releaseDir $archiveName) -Algorithm SHA256
           $line = ($hash.Hash.ToLower() + "  " + $archiveName)
           Set-Content -Path (Join-Path $releaseDir ($archiveName + ".sha256")) -Value $line
@@ -101,15 +101,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: checksum-${{ matrix.os_name }}-${{ matrix.arch }}
-          path: target/${{ matrix.target }}/release/mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}.sha256
+          path: target/${{ matrix.target }}/release/apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}.sha256
       - name: Upload release asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/${{ matrix.target }}/release/mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}
-          asset_name: mockforge-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}
+          asset_path: target/${{ matrix.target }}/release/apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}
+          asset_name: apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}
           asset_content_type: application/octet-stream
 
   container:
@@ -132,7 +132,7 @@ jobs:
           file: packaging/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/${{ github.repository_owner }}/mockforge:${{ github.ref_name }}
+          tags: ghcr.io/${{ github.repository_owner }}/apicentric:${{ github.ref_name }}
 
   npm:
     name: Publish npm package

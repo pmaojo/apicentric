@@ -1,6 +1,6 @@
 use chrono::DateTime;
 use handlebars::Handlebars;
-use mockforge::simulator::template::helpers::faker;
+use apicentric::simulator::template::helpers::faker;
 use serde_json::json;
 
 #[test]

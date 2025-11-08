@@ -7,7 +7,7 @@ pub use summarizer::{summarize, LoadError, LoadErrorType, ValidationSummary};
 pub use validators::{validate_service_schema, validate_unique_name};
 
 use super::ServiceDefinition;
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -29,10 +29,10 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
         Self { repository }
     }
 
-    pub fn load_all_services(&self) -> PulseResult<Vec<ServiceDefinition>> {
+    pub fn load_all_services(&self) -> ApicentricResult<Vec<ServiceDefinition>> {
         let result = self.load_all_services_with_summary()?;
         if result.services.is_empty() {
-            return Err(PulseError::config_error(
+            return Err(ApicentricError::config_error(
                 "No valid service definitions found in services directory",
                 Some(
                     "Add YAML files with service definitions to the services directory",
@@ -42,7 +42,7 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
         Ok(result.services)
     }
 
-    pub fn load_all_services_with_summary(&self) -> PulseResult<LoadResult> {
+    pub fn load_all_services_with_summary(&self) -> ApicentricResult<LoadResult> {
         let files = self.repository.list_service_files()?;
         let mut services = Vec::new();
         let mut errors = Vec::new();

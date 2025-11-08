@@ -1,5 +1,5 @@
-use mockforge::simulator::config::ServiceDefinition;
-use mockforge::simulator::openapi::{from_openapi, to_openapi};
+use apicentric::simulator::config::ServiceDefinition;
+use apicentric::simulator::openapi::{from_openapi, to_openapi};
 
 #[test]
 fn import_openapi_to_service() {

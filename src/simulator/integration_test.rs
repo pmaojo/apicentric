@@ -298,7 +298,7 @@ mod tests {
         reqwest::get(format!("{}/users/1", base_url)).await.unwrap();
 
         let logs: Vec<RequestLogEntry> =
-            reqwest::get(format!("{}/__mockforge/logs?limit=10", base_url))
+            reqwest::get(format!("{}/__apicentric/logs?limit=10", base_url))
                 .await
                 .unwrap()
                 .json()

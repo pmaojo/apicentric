@@ -1,7 +1,7 @@
 //! API Simulator Manager - Central coordinator for the simulator functionality
 
 use crate::collab::crdt::{CrdtMessage, ServiceCrdt};
-use crate::errors::{PulseError, PulseResult};
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     config::{ConfigLoader, ServiceDefinition, SimulatorConfig},
     lifecycle::{SimulatorLifecycle, Lifecycle},
@@ -84,7 +84,7 @@ impl ApiSimulatorManager {
     }
 
     /// Update database path for persistent storage
-    pub async fn set_db_path<P: AsRef<std::path::Path>>(&self, path: P) -> PulseResult<()> {
+    pub async fn set_db_path<P: AsRef<std::path::Path>>(&self, path: P) -> ApicentricResult<()> {
         let storage = Arc::new(SqliteStorage::init_db(path)?);
         let mut reg = self.service_registry.write().await;
         reg.set_storage(storage);
@@ -103,19 +103,19 @@ impl ApiSimulatorManager {
     }
 
     /// Start the API simulator
-    pub async fn start(&self) -> PulseResult<()> {
+    pub async fn start(&self) -> ApicentricResult<()> {
         self.lifecycle.start().await
     }
 
     /// Stop the API simulator
-    pub async fn stop(&self) -> PulseResult<()> {
+    pub async fn stop(&self) -> ApicentricResult<()> {
         self.lifecycle.stop().await
     }
 
     /// Reload service configurations
-    pub async fn reload_services(&self) -> PulseResult<()> {
+    pub async fn reload_services(&self) -> ApicentricResult<()> {
         if !*self.is_active.read().await {
-            return Err(PulseError::runtime_error(
+            return Err(ApicentricError::runtime_error(
                 "Cannot reload services: simulator is not running",
                 Some("Start the simulator first"),
             ));
@@ -127,7 +127,7 @@ impl ApiSimulatorManager {
     }
 
     /// Apply a service definition and update CRDT state.
-    pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> PulseResult<()> {
+    pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> ApicentricResult<()> {
         let service_name = service_def.name.clone();
         self.lifecycle.apply_remote_service(service_def.clone()).await?;
         {
@@ -155,9 +155,9 @@ impl ApiSimulatorManager {
     }
 
     /// Apply a YAML service definition string to the running simulator and CRDT.
-    pub async fn apply_service_yaml(&self, yaml: &str) -> PulseResult<()> {
+    pub async fn apply_service_yaml(&self, yaml: &str) -> ApicentricResult<()> {
         let def: ServiceDefinition = serde_yaml::from_str(yaml).map_err(|e| {
-            PulseError::validation_error(
+            ApicentricError::validation_error(
                 format!("Invalid service YAML: {}", e),
                 None::<String>,
                 None::<String>,
@@ -167,7 +167,7 @@ impl ApiSimulatorManager {
     }
 
     /// Set the active scenario for all services
-    pub async fn set_scenario(&self, scenario: Option<String>) -> PulseResult<()> {
+    pub async fn set_scenario(&self, scenario: Option<String>) -> ApicentricResult<()> {
         let registry = self.service_registry.read().await;
         registry.set_scenario_all(scenario).await;
         Ok(())
@@ -204,14 +204,14 @@ impl ApiSimulatorManager {
     }
 
     /// Run a reverse proxy that records requests/responses.
-    pub async fn record(&self, target: &str, output_dir: PathBuf) -> PulseResult<()> {
+    pub async fn record(&self, target: &str, output_dir: PathBuf) -> ApicentricResult<()> {
         self.recorder
             .record(target, output_dir, self.config.port_range.start)
             .await
     }
 
     /// Validate service configurations without starting
-    pub fn validate_configurations(&self) -> PulseResult<Vec<String>> {
+    pub fn validate_configurations(&self) -> ApicentricResult<Vec<String>> {
         let services = self.config_loader.load_all_services()?;
         let service_names: Vec<String> = services.iter().map(|s| s.name.clone()).collect();
 
@@ -227,7 +227,7 @@ impl ApiSimulatorManager {
     }
 
     /// Handle configuration change events (for future hot-reload implementation)
-    pub async fn handle_config_change(&self, change: ConfigChange) -> PulseResult<()> {
+    pub async fn handle_config_change(&self, change: ConfigChange) -> ApicentricResult<()> {
         self.lifecycle.handle_config_change(change).await
     }
 }

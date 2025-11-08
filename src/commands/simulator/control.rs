@@ -1,4 +1,4 @@
-use mockforge::{Context, ExecutionContext, PulseError, PulseResult};
+use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
 
 pub async fn handle_start(
     context: &Context,
@@ -6,7 +6,7 @@ pub async fn handle_start(
     force: bool,
     p2p: bool,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would start API simulator (dir={}, force={})",
@@ -42,16 +42,16 @@ pub async fn handle_start(
                 }
             }
             Err(e) => {
-                return Err(PulseError::runtime_error(
+                return Err(ApicentricError::runtime_error(
                     format!("Failed to start simulator: {}", e),
                     Some("Check service configurations and port availability"),
                 ))
             }
         }
     } else {
-        return Err(PulseError::config_error(
+        return Err(ApicentricError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in mockforge.json"),
+            Some("Enable simulator in apicentric.json"),
         ));
     }
     Ok(())
@@ -61,7 +61,7 @@ pub async fn handle_stop(
     context: &Context,
     force: bool,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!("🏃 Dry run: Would stop API simulator (force={})", force);
         return Ok(());
@@ -75,9 +75,9 @@ pub async fn handle_stop(
             println!("⚠️ API Simulator not running");
         }
     } else {
-        return Err(PulseError::config_error(
+        return Err(ApicentricError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in mockforge.json"),
+            Some("Enable simulator in apicentric.json"),
         ));
     }
     Ok(())
@@ -87,7 +87,7 @@ pub async fn handle_status(
     context: &Context,
     detailed: bool,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would show simulator status (detailed={})",
@@ -123,7 +123,7 @@ pub async fn handle_status(
         }
     } else {
         println!(
-            "   Status: ⚪ Not configured\n   💡 Enable simulator in mockforge.json to see status"
+            "   Status: ⚪ Not configured\n   💡 Enable simulator in apicentric.json to see status"
         );
     }
     Ok(())
@@ -133,7 +133,7 @@ pub async fn handle_set_scenario(
     context: &Context,
     scenario: &str,
     exec_ctx: &ExecutionContext,
-) -> PulseResult<()> {
+) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!("🏃 Dry run: Would set scenario '{}'", scenario);
         return Ok(());
@@ -144,9 +144,9 @@ pub async fn handle_set_scenario(
         println!("✅ Scenario set to '{}'", scenario);
         Ok(())
     } else {
-        Err(PulseError::config_error(
+        Err(ApicentricError::config_error(
             "API simulator is not enabled or configured",
-            Some("Enable simulator in mockforge.json"),
+            Some("Enable simulator in apicentric.json"),
         ))
     }
 }
