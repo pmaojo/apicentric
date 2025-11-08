@@ -1,6 +1,6 @@
 import React from "react";
 import { Routes, Route, Link } from "react-router-dom";
-import Dashboard from "./components/Dashboard";
+import { Dashboard } from "./components/Dashboard";
 import RouteEditor from "./components/route_editor";
 import ServiceManager from "./components/ServiceManager";
 import SimulatorControls from "./components/SimulatorControls";
