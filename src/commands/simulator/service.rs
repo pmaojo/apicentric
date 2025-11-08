@@ -42,33 +42,11 @@ pub async fn handle_share(
         println!("🏃 Dry run: Would share service '{}'", service);
         return Ok(());
     }
-    if let Some(simulator) = context.api_simulator() {
-        let registry = simulator.service_registry().read().await;
-        if let Some(instance) = registry.get_service(service) {
-            let port = instance.read().await.port();
-            drop(registry);
-            match share::share_service(port).await {
-                Ok((peer, token)) => {
-                    println!("📡 Sharing service '{}'", service);
-                    println!("   Peer ID: {}", peer);
-                    println!("   Token: {}", token);
-                    Ok(())
-                }
-                Err(e) => Err(ApicentricError::runtime_error(
-                    format!("Failed to share service: {}", e),
-                    None::<String>,
-                )),
-            }
-        } else {
-            println!("⚠️ Service '{}' not found", service);
-            Ok(())
-        }
-    } else {
-        Err(ApicentricError::config_error(
-            "API simulator is not enabled or configured",
-            Some("Enable simulator in apicentric.json"),
-        ))
-    }
+    // Disabled heavy P2P sharing functionality for lighter CLI build
+    println!("📡 Sharing feature temporarily disabled for lighter CLI build");
+    println!("   Service: {}", service);
+    println!("   (P2P sharing will be re-enabled in future versions)");
+    Ok(())
 }
 
 pub async fn handle_connect(
@@ -85,13 +63,16 @@ pub async fn handle_connect(
         );
         return Ok(());
     }
-    let peer_id = peer.parse::<PeerId>().map_err(|e| {
-        ApicentricError::runtime_error(format!("Invalid peer id: {}", e), None::<String>)
-    })?;
-    let token = token.unwrap_or("").to_string();
-    share::connect_service(peer_id, token, service.to_string(), port)
-        .await
-        .map_err(|e| ApicentricError::runtime_error(format!("Failed to connect: {}", e), None::<String>))
+    // Disabled heavy P2P connection functionality for lighter CLI build
+    println!("🔗 Connection feature temporarily disabled for lighter CLI build");
+    println!("   Peer: {}", peer);
+    println!("   Service: {}", service);
+    println!("   Port: {}", port);
+    if let Some(t) = token {
+        println!("   Token: {}", t);
+    }
+    println!("   (P2P connection will be re-enabled in future versions)");
+    Ok(())
 }
 
 pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> ApicentricResult<()> {

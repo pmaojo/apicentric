@@ -1,6 +1,7 @@
 //! API Simulator Manager - Central coordinator for the simulator functionality
 
-use crate::collab::crdt::{CrdtMessage, ServiceCrdt};
+// Disabled heavy P2P dependencies for lighter CLI build
+// use crate::collab::crdt::{CrdtMessage, ServiceCrdt};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     config::{ConfigLoader, ServiceDefinition, SimulatorConfig},

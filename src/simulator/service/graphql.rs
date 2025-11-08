@@ -1,8 +1,10 @@
+// Disabled heavy GraphQL dependencies for lighter CLI build
+// use async_graphql::Request as GraphQLRequest;
+// use async_graphql_parser::parse_schema;
+
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::GraphQLConfig;
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
-use async_graphql::Request as GraphQLRequest;
-use async_graphql_parser::parse_schema;
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::{Response, StatusCode};

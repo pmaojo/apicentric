@@ -15,9 +15,10 @@ mod commands {
         pub use crate::shared_impl::*;
     }
 }
-mod collab {
-    pub use apicentric::collab::*;
-}
+// Disabled heavy P2P dependencies for lighter CLI build
+// mod collab {
+//     pub use apicentric::collab::*;
+// }
 
 #[derive(Parser)]
 #[command(author, version, about = "apicentric CLI (lightweight)")]
