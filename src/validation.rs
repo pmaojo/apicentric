@@ -183,6 +183,183 @@ impl ValidationUtils {
         }
         Ok(())
     }
+
+    /// Validate port number is in valid range
+    pub fn validate_port(port: u16, field_name: &str) -> Result<(), ValidationError> {
+        if port < 1024 {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Port {} is below 1024 (system port range)", port),
+            )
+            .with_suggestion("Use ports 1024 or higher to avoid conflicts with system services"));
+        }
+        Ok(())
+    }
+
+    /// Validate port range
+    pub fn validate_port_range(
+        start: u16,
+        end: u16,
+        field_name: &str,
+    ) -> Result<(), ValidationError> {
+        if start >= end {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid port range: start ({}) must be less than end ({})", start, end),
+            )
+            .with_suggestion("Ensure start port is less than end port, e.g., 8000-8999"));
+        }
+
+        if start < 1024 {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Port range starts at {} (system port range)", start),
+            )
+            .with_suggestion("Use ports 1024 or higher to avoid conflicts with system services"));
+        }
+
+        let range_size = end - start;
+        if range_size < 10 {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Port range is too small ({} ports)", range_size),
+            )
+            .with_suggestion("Provide at least 10 ports in the range for flexibility"));
+        }
+
+        Ok(())
+    }
+
+    /// Validate HTTP method
+    pub fn validate_http_method(method: &str, field_name: &str) -> Result<(), ValidationError> {
+        let valid_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+        
+        if !valid_methods.contains(&method.to_uppercase().as_str()) {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid HTTP method: {}", method),
+            )
+            .with_suggestion(format!(
+                "Use one of: {}",
+                valid_methods.join(", ")
+            )));
+        }
+        Ok(())
+    }
+
+    /// Validate HTTP status code
+    pub fn validate_status_code(status: u16, field_name: &str) -> Result<(), ValidationError> {
+        if !(100..=599).contains(&status) {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid HTTP status code: {}", status),
+            )
+            .with_suggestion("Use a valid HTTP status code between 100 and 599"));
+        }
+        Ok(())
+    }
+
+    /// Validate content type
+    pub fn validate_content_type(
+        content_type: &str,
+        field_name: &str,
+    ) -> Result<(), ValidationError> {
+        // Basic validation - check for slash
+        if !content_type.contains('/') {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid content type format: {}", content_type),
+            )
+            .with_suggestion("Use format: type/subtype, e.g., 'application/json' or 'text/html'"));
+        }
+
+        let parts: Vec<&str> = content_type.split('/').collect();
+        if parts.len() != 2 || parts[0].is_empty() || parts[1].is_empty() {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid content type format: {}", content_type),
+            )
+            .with_suggestion("Use format: type/subtype, e.g., 'application/json' or 'text/html'"));
+        }
+
+        Ok(())
+    }
+
+    /// Validate JSON string
+    pub fn validate_json_string(json: &str, field_name: &str) -> Result<(), ValidationError> {
+        if let Err(e) = serde_json::from_str::<serde_json::Value>(json) {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid JSON: {}", e),
+            )
+            .with_suggestion("Ensure the JSON is properly formatted with valid syntax"));
+        }
+        Ok(())
+    }
+
+    /// Validate YAML string
+    pub fn validate_yaml_string(yaml: &str, field_name: &str) -> Result<(), ValidationError> {
+        if let Err(e) = serde_yaml::from_str::<serde_yaml::Value>(yaml) {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid YAML: {}", e),
+            )
+            .with_suggestion("Ensure the YAML is properly formatted with correct indentation"));
+        }
+        Ok(())
+    }
+
+    /// Validate service name (alphanumeric, hyphens, underscores only)
+    pub fn validate_service_name(name: &str, field_name: &str) -> Result<(), ValidationError> {
+        if name.is_empty() {
+            return Err(ValidationError::new(field_name, "Service name cannot be empty")
+                .with_suggestion("Provide a descriptive service name"));
+        }
+
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid service name: {}", name),
+            )
+            .with_suggestion(
+                "Use only alphanumeric characters, hyphens, and underscores (e.g., 'user-api', 'auth_service')",
+            ));
+        }
+
+        if name.starts_with('-') || name.starts_with('_') {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Service name cannot start with hyphen or underscore: {}", name),
+            )
+            .with_suggestion("Start the service name with an alphanumeric character"));
+        }
+
+        Ok(())
+    }
+
+    /// Validate timeout value (in milliseconds)
+    pub fn validate_timeout(timeout_ms: u64, field_name: &str) -> Result<(), ValidationError> {
+        if timeout_ms < 100 {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Timeout {} ms is too short", timeout_ms),
+            )
+            .with_suggestion("Use a timeout of at least 100 ms"));
+        }
+
+        if timeout_ms > 300_000 {
+            return Err(ValidationError::new(
+                field_name,
+                format!("Timeout {} ms is too long", timeout_ms),
+            )
+            .with_suggestion("Use a timeout of 300000 ms (5 minutes) or less"));
+        }
+
+        Ok(())
+    }
 }
 
 /// Configuration validation context
@@ -472,5 +649,135 @@ mod tests {
         assert_eq!(errors.len(), 2);
         assert!(errors.iter().any(|e| e.field == "url"));
         assert!(errors.iter().any(|e| e.field == "timeout"));
+    }
+
+    #[test]
+    fn test_validate_port() {
+        assert!(ValidationUtils::validate_port(8080, "port").is_ok());
+        assert!(ValidationUtils::validate_port(1024, "port").is_ok());
+        
+        let result = ValidationUtils::validate_port(80, "port");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("below 1024"));
+        assert!(error.suggestion.as_ref().unwrap().contains("1024 or higher"));
+    }
+
+    #[test]
+    fn test_validate_port_range() {
+        assert!(ValidationUtils::validate_port_range(8000, 8999, "port_range").is_ok());
+        
+        // Invalid: start >= end
+        let result = ValidationUtils::validate_port_range(9000, 8000, "port_range");
+        assert!(result.is_err());
+        
+        // Invalid: too small range
+        let result = ValidationUtils::validate_port_range(8000, 8005, "port_range");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("too small"));
+        
+        // Invalid: system ports
+        let result = ValidationUtils::validate_port_range(80, 100, "port_range");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_http_method() {
+        assert!(ValidationUtils::validate_http_method("GET", "method").is_ok());
+        assert!(ValidationUtils::validate_http_method("post", "method").is_ok());
+        assert!(ValidationUtils::validate_http_method("DELETE", "method").is_ok());
+        
+        let result = ValidationUtils::validate_http_method("INVALID", "method");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("Invalid HTTP method"));
+        assert!(error.suggestion.as_ref().unwrap().contains("GET"));
+    }
+
+    #[test]
+    fn test_validate_status_code() {
+        assert!(ValidationUtils::validate_status_code(200, "status").is_ok());
+        assert!(ValidationUtils::validate_status_code(404, "status").is_ok());
+        assert!(ValidationUtils::validate_status_code(500, "status").is_ok());
+        
+        let result = ValidationUtils::validate_status_code(99, "status");
+        assert!(result.is_err());
+        
+        let result = ValidationUtils::validate_status_code(600, "status");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_content_type() {
+        assert!(ValidationUtils::validate_content_type("application/json", "content_type").is_ok());
+        assert!(ValidationUtils::validate_content_type("text/html", "content_type").is_ok());
+        
+        let result = ValidationUtils::validate_content_type("invalid", "content_type");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("Invalid content type"));
+        
+        let result = ValidationUtils::validate_content_type("application/", "content_type");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_json_string() {
+        assert!(ValidationUtils::validate_json_string(r#"{"key": "value"}"#, "json").is_ok());
+        assert!(ValidationUtils::validate_json_string("[]", "json").is_ok());
+        assert!(ValidationUtils::validate_json_string("null", "json").is_ok());
+        
+        let result = ValidationUtils::validate_json_string("{invalid json}", "json");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("Invalid JSON"));
+    }
+
+    #[test]
+    fn test_validate_yaml_string() {
+        assert!(ValidationUtils::validate_yaml_string("key: value", "yaml").is_ok());
+        assert!(ValidationUtils::validate_yaml_string("- item1\n- item2", "yaml").is_ok());
+        
+        let result = ValidationUtils::validate_yaml_string("invalid: yaml: :", "yaml");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("Invalid YAML"));
+    }
+
+    #[test]
+    fn test_validate_service_name() {
+        assert!(ValidationUtils::validate_service_name("user-api", "name").is_ok());
+        assert!(ValidationUtils::validate_service_name("auth_service", "name").is_ok());
+        assert!(ValidationUtils::validate_service_name("api123", "name").is_ok());
+        
+        let result = ValidationUtils::validate_service_name("", "name");
+        assert!(result.is_err());
+        
+        let result = ValidationUtils::validate_service_name("invalid name", "name");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("Invalid service name"));
+        
+        let result = ValidationUtils::validate_service_name("-invalid", "name");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("cannot start with"));
+    }
+
+    #[test]
+    fn test_validate_timeout() {
+        assert!(ValidationUtils::validate_timeout(1000, "timeout").is_ok());
+        assert!(ValidationUtils::validate_timeout(30000, "timeout").is_ok());
+        
+        let result = ValidationUtils::validate_timeout(50, "timeout");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("too short"));
+        
+        let result = ValidationUtils::validate_timeout(400_000, "timeout");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("too long"));
     }
 }

@@ -241,7 +241,7 @@ mod tests {
         assert!(formatted.contains("💡")); // Should have suggestions
     }
     
-    /// Test mock server manager for testing scenarios
+    /// Test simulator manager for testing scenarios
     #[test]
     fn test_mock_server_manager_scenarios() {
         let mock = MockServerManager::new();

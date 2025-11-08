@@ -25,7 +25,7 @@ graph TD
     C3[Ports] --> C
     
     D1[HTTP Client] --> D
-    D2[Mock Server] --> D
+    D2[Simulator] --> D
     D3[Storage] --> D
     D4[P2P] --> D
 ```
@@ -46,7 +46,7 @@ The CLI layer handles user interaction and command parsing.
 - `mod.rs` - CLI entry point and command definitions
 - `simulator/` - Simulator commands (start, stop, validate, etc.)
 - `contract.rs` - Contract testing commands
-- `tui.rs` - Terminal UI command
+- `tui.rs` - TUI (Terminal User Interface) command
 - `gui.rs` - GUI launcher command
 
 ### Application Layer
@@ -116,7 +116,7 @@ The adapter layer implements ports and integrates with external systems.
 - Request/response handling
 - Error mapping
 
-#### Mock Server (`src/adapters/mock_server.rs`)
+#### Simulator (`src/adapters/mock_server.rs`)
 - HTTP server using `hyper`
 - Request routing
 - Response generation
@@ -216,7 +216,7 @@ cargo install apicentric --features full
 - Faster CI/CD pipelines
 - Users can choose their own trade-offs
 
-### 4. Async Runtime
+### 4. Async Execution
 
 **Decision**: Use Tokio for async operations.
 
@@ -244,7 +244,7 @@ src/
 ├── commands/         # Command implementations
 │   ├── simulator/    # Simulator commands
 │   ├── contract.rs   # Contract testing
-│   ├── tui.rs        # Terminal UI
+│   ├── tui.rs        # TUI (Terminal User Interface)
 │   └── gui.rs        # GUI launcher
 ├── app/              # Application orchestration
 ├── context/          # Execution context
@@ -338,7 +338,7 @@ sequenceDiagram
 - Parallel compilation enabled by default
 - Incremental compilation for development
 
-### Runtime Performance
+### Execution Performance
 
 - Async I/O for concurrency
 - Efficient template rendering
@@ -363,7 +363,7 @@ sequenceDiagram
 
 ### Sandboxing
 
-- Deno runtime for scripts (when enabled)
+- Deno execution environment for scripts (when enabled)
 - No network access from scripts
 - No file system access from scripts
 - Isolated execution environment

@@ -6,14 +6,17 @@ pub fn gui_command() -> ApicentricResult<()> {
     let status = Command::new("cargo")
         .args(["run", "--manifest-path", "gui/Cargo.toml"])
         .status()
-        .map_err(|e| ApicentricError::runtime_error(format!("Failed to launch GUI: {}", e), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            format!("Failed to launch GUI: {}", e),
+            Some("Ensure the GUI component is installed and Cargo is available")
+        ))?;
 
     if status.success() {
         Ok(())
     } else {
         Err(ApicentricError::runtime_error(
             format!("GUI exited with status {}", status),
-            None::<String>,
+            Some("Check the GUI logs for errors or try running 'cargo run --manifest-path gui/Cargo.toml' manually")
         ))
     }
 }

@@ -57,7 +57,7 @@
 **Plugin System:**
 - libloading = "0.8"
 
-**Terminal UI:**
+**TUI (Terminal User Interface):**
 - indicatif = "0.17.7"
 - console = "0.15.7"
 - colored = "2.1.0"
@@ -80,7 +80,7 @@ Based on the design document analysis, the following dependencies are identified
 3. **GraphQL** (NOT in current Cargo-full.toml):
    - async-graphql (7.0) - HEAVY
 
-4. **Terminal UI** (PRESENT):
+4. **TUI** (PRESENT):
    - ratatui = "0.26.0"
    - crossterm = "0.27"
    - indicatif = "0.17.7"

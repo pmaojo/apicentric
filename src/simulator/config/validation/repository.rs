@@ -3,7 +3,7 @@ use crate::errors::{ApicentricError, ApicentricResult};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Port for obtaining service configuration data
+/// Port for obtaining service definition data
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;

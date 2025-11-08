@@ -46,14 +46,17 @@ pub fn tui_command() -> ApicentricResult<()> {
 
     // Set up terminal
     enable_raw_mode().map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to enable raw mode: {}", e), None::<String>)
+        ApicentricError::runtime_error(
+            format!("Failed to enable raw mode: {}", e),
+            Some("Try running in a different terminal or check terminal permissions")
+        )
     })?;
     
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to initialize terminal: {}", e),
-            None::<String>,
+            Some("Ensure your terminal supports alternate screen mode")
         )
     })?;
     
@@ -61,7 +64,7 @@ pub fn tui_command() -> ApicentricResult<()> {
     let mut terminal = Terminal::new(backend).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to create terminal backend: {}", e),
-            None::<String>,
+            Some("Try using a different terminal emulator or check terminal compatibility")
         )
     })?;
 
@@ -70,16 +73,25 @@ pub fn tui_command() -> ApicentricResult<()> {
 
     // Restore terminal
     disable_raw_mode().map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to disable raw mode: {}", e), None::<String>)
+        ApicentricError::runtime_error(
+            format!("Failed to disable raw mode: {}", e),
+            Some("Terminal may be in an inconsistent state. Try closing and reopening your terminal")
+        )
     })?;
     
     let mut stdout = io::stdout();
     execute!(stdout, LeaveAlternateScreen, DisableMouseCapture).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to restore terminal: {}", e), None::<String>)
+        ApicentricError::runtime_error(
+            format!("Failed to restore terminal: {}", e),
+            Some("Terminal may be in an inconsistent state. Try closing and reopening your terminal")
+        )
     })?;
     
     terminal.show_cursor().map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to show cursor: {}", e), None::<String>)
+        ApicentricError::runtime_error(
+            format!("Failed to show cursor: {}", e),
+            Some("Run 'tput cnorm' to restore cursor visibility")
+        )
     })?;
 
     res
@@ -107,7 +119,7 @@ fn run_app(
     let rt = tokio::runtime::Runtime::new().map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to create tokio runtime: {}", e),
-            None::<String>,
+            Some("System resources may be exhausted. Try closing other applications")
         )
     })?;
 
@@ -161,7 +173,10 @@ fn run_app(
                 }
             })
             .map_err(|e| {
-                ApicentricError::runtime_error(format!("Render error: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Render error: {}", e),
+                    Some("Terminal size may be too small. Try resizing your terminal window")
+                )
             })?;
 
         // Poll for new log entries (non-blocking)

@@ -1,5 +1,5 @@
-// Service Spec Loader Adapter - Infrastructure layer implementation
-// Implements ServiceSpecLoader port for loading and parsing YAML specifications
+// Service Definition Loader Adapter - Infrastructure layer implementation
+// Implements ServiceSpecLoader port for loading and parsing YAML service definitions
 
 use crate::domain::contract_testing::*;
 use crate::domain::ports::contract::{EndpointSpec, ResponseSpec, ServiceSpec, ServiceSpecLoader, SpecLoaderError};
@@ -13,7 +13,7 @@ use crate::utils::{FileReader, TokioFileReader};
 use tracing::{debug, info};
 
 /// YAML-based implementation of ServiceSpecLoader
-/// Loads mock service specifications from YAML files
+/// Loads service definitions from YAML files
 pub struct YamlServiceSpecLoader {
     base_path: Option<String>,
     file_reader: Arc<dyn FileReader>,

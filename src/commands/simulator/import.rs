@@ -14,7 +14,10 @@ pub async fn handle_import(
         return Ok(());
     }
     let spec = from_path(input).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to read OpenAPI: {}", e), None::<String>)
+        ApicentricError::runtime_error(
+            format!("Failed to read OpenAPI: {}", e),
+            Some("Ensure the file is a valid OpenAPI 3.0 specification in YAML or JSON format")
+        )
     })?;
     let service = apicentric::simulator::openapi::from_openapi(&spec);
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
@@ -46,7 +49,10 @@ pub async fn handle_import_mockoon(
         return Ok(());
     }
     let service = apicentric::simulator::mockoon::from_path(input).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to read Mockoon: {}", e), None::<String>)
+        ApicentricError::runtime_error(
+            format!("Failed to read Mockoon: {}", e),
+            Some("Ensure the file is a valid Mockoon environment export in JSON format")
+        )
     })?;
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
         ApicentricError::runtime_error(
@@ -77,7 +83,10 @@ pub async fn handle_import_postman(
         return Ok(());
     }
     let service = apicentric::simulator::postman::from_path(input).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to read Postman: {}", e), None::<String>)
+        ApicentricError::runtime_error(
+            format!("Failed to read Postman: {}", e),
+            Some("Ensure the file is a valid Postman Collection v2.1 export in JSON format")
+        )
     })?;
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
         ApicentricError::runtime_error(

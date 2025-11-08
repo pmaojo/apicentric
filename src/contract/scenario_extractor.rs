@@ -1,18 +1,18 @@
 use crate::domain::contract_testing::ValidationScenario;
 use crate::domain::ports::contract::{ServiceSpec, ServiceSpecLoader, SpecLoaderError};
 
-/// Extracts validation scenarios from a service specification using a `ServiceSpecLoader` port.
+/// Extracts validation scenarios from a service definition using a `ServiceSpecLoader` port.
 pub struct ScenarioExtractor<L: ServiceSpecLoader> {
     loader: L,
 }
 
 impl<L: ServiceSpecLoader> ScenarioExtractor<L> {
-    /// Create a new extractor with the given service spec loader.
+    /// Create a new extractor with the given service definition loader.
     pub fn new(loader: L) -> Self {
         Self { loader }
     }
 
-    /// Load a service specification and extract its validation scenarios.
+    /// Load a service definition and extract its validation scenarios.
     pub async fn extract(&self, spec_path: &str) -> Result<Vec<ValidationScenario>, SpecLoaderError> {
         let spec: ServiceSpec = self.loader.load(spec_path).await?;
         self.loader.extract_scenarios(&spec)

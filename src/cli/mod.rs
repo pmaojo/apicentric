@@ -2,7 +2,18 @@ use crate::config::ExecutionMode;
 use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    about = "A powerful CLI tool and API simulator platform for developers",
+    long_about = "Apicentric is a Rust-based CLI tool for mocking APIs, testing contracts, and generating code.\n\n\
+                  Use 'apicentric <COMMAND> --help' for more information about a specific command.\n\n\
+                  Examples:\n  \
+                  apicentric simulator start --services-dir ./services\n  \
+                  apicentric tui\n  \
+                  apicentric simulator validate --path services/my-api.yaml",
+    after_help = "For more information, visit: https://github.com/pmaojo/apicentric"
+)]
 pub struct Cli {
     /// Path to the apicentric.json config file
     #[arg(short, long, default_value = "apicentric.json")]
@@ -48,8 +59,14 @@ impl From<CliExecutionMode> for ExecutionMode {
 #[derive(Subcommand)]
 pub enum SimulatorAction {
     /// Start the API simulator
+    /// 
+    /// Starts the API simulator and loads all service definitions from the specified directory.
+    /// Services will be available on their configured ports.
+    /// 
+    /// Example: apicentric simulator start --services-dir ./services
+    #[command(alias = "s")]
     Start {
-        /// Services directory path
+        /// Path to directory containing service definition YAML files
         #[arg(short, long, default_value = "services")]
         services_dir: String,
 
@@ -63,30 +80,47 @@ pub enum SimulatorAction {
     },
 
     /// Stop the API simulator
+    /// 
+    /// Stops all running services and shuts down the simulator.
+    /// 
+    /// Example: apicentric simulator stop
+    #[command(alias = "x")]
     Stop {
-        /// Force stop all services
+        /// Force stop all services immediately without graceful shutdown
         #[arg(long)]
         force: bool,
     },
 
     /// Show simulator and services status
+    /// 
+    /// Displays the current status of the simulator and all registered services,
+    /// including port numbers, running state, and request counts.
+    /// 
+    /// Example: apicentric simulator status --detailed
+    #[command(alias = "st")]
     Status {
-        /// Show detailed service information
+        /// Show detailed service information including endpoints and configurations
         #[arg(short, long)]
         detailed: bool,
     },
 
     /// Validate service definition files
+    /// 
+    /// Validates YAML service definition files for syntax errors and schema compliance.
+    /// Can validate a single file or all files in a directory.
+    /// 
+    /// Example: apicentric simulator validate --path services/my-api.yaml
+    #[command(alias = "v")]
     Validate {
-        /// Path to service definition file or directory
+        /// Path to service definition YAML file or directory to validate
         #[arg(short, long, default_value = "services")]
         path: String,
 
-        /// Validate all files in directory recursively
+        /// Validate all YAML files in subdirectories recursively
         #[arg(short, long)]
         recursive: bool,
 
-        /// Show detailed validation output
+        /// Show detailed validation output including warnings
         #[arg(long)]
         verbose: bool,
     },
@@ -96,6 +130,7 @@ pub enum SimulatorAction {
         scenario: String,
     },
     /// Show recent request logs for a service
+    #[command(alias = "l")]
     Logs {
         /// Service name
         service: String,
@@ -104,6 +139,7 @@ pub enum SimulatorAction {
         limit: usize,
     },
     /// Monitor simulator status and logs
+    #[command(alias = "m")]
     Monitor {
         /// Service name to monitor
         #[arg(long)]
@@ -156,22 +192,38 @@ pub enum AiAction {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// API Simulator operations for managing service definitions
+    /// Manage API simulator and mock services
+    /// 
+    /// The simulator command provides operations for starting, stopping, and managing
+    /// mock API services defined in YAML files.
+    #[command(alias = "sim")]
     Simulator {
         #[command(subcommand)]
         action: SimulatorAction,
     },
 
-    /// AI-assisted generation
+    /// AI-assisted service generation
+    /// 
+    /// Use AI to generate service definitions from natural language descriptions.
     Ai {
         #[command(subcommand)]
         action: AiAction,
     },
 
     /// Launch the graphical editor for mock services
+    /// 
+    /// Opens a GUI application for visually editing service definitions.
+    /// Requires the GUI component to be installed.
+    /// 
+    /// Example: apicentric gui
     Gui,
 
     /// Launch the terminal dashboard
+    /// 
+    /// Opens an interactive terminal UI for managing services, viewing logs,
+    /// and monitoring the simulator in real-time.
+    /// 
+    /// Example: apicentric tui
     Tui,
 }
 
