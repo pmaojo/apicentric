@@ -146,6 +146,18 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                     }
                     println!("🚀 Starting API Simulator (blocking)…");
                     sim.start().await?;
+                    let status = sim.get_status().await;
+                    println!(
+                        "✅ API Simulator started ({} services, {} active)",
+                        status.services_count,
+                        status.active_services.len()
+                    );
+                    for svc in &status.active_services {
+                        println!(
+                            "   - {}: http://localhost:{}{}",
+                            svc.name, svc.port, svc.base_path
+                        );
+                    }
                     println!("🔄 Simulator running... Press Ctrl+C to stop");
                     tokio::signal::ctrl_c().await.ok();
                     println!("🛑 Stopping simulator…");
