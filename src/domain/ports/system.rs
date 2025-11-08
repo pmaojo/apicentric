@@ -10,7 +10,7 @@ pub trait ServerControllerPort {
     fn stop(&self) -> ApicentricResult<()>;
 }
 
-/// Manages the lifecycle of a mock API server.
+/// Manages the lifecycle of the simulator.
 pub trait MockApiPort {
     fn start(&self) -> ApicentricResult<()>;
     fn stop(&self) -> ApicentricResult<()>;

@@ -4,7 +4,7 @@ use crate::commands::shared::{find_yaml_files};
 
 #[derive(Subcommand, Debug)]
 pub enum ContractAction {
-    /// Register a new contract from a service specification
+    /// Register a new contract from a service definition
     Register {
         /// Service name
         #[arg(short = 'n', long)]
@@ -108,7 +108,7 @@ pub enum ContractAction {
         /// Compatibility policy
         #[arg(short, long, default_value = "moderate")]
         policy: String,
-        /// Start mock server automatically
+        /// Start simulator automatically
         #[arg(long)]
         auto_start_mock: bool,
         /// Generate detailed HTML report
@@ -170,7 +170,10 @@ async fn do_register<T: apicentric::domain::ports::ContractRepository, S: apicen
 }
 
 async fn do_list<T: apicentric::domain::ports::ContractRepository, S: apicentric::domain::ports::ServiceSpecLoader>(manage: &ManageContractsUseCase<T,S>, detailed: bool, service: &Option<String>) -> ApicentricResult<()> {
-    let mut items = manage.list_contracts().await.map_err(|e| ApicentricError::runtime_error(format!("List error: {}", e), None::<String>))?;
+    let mut items = manage.list_contracts().await.map_err(|e| ApicentricError::runtime_error(
+        format!("List error: {}", e),
+        Some("Check that the contracts directory exists and is readable")
+    ))?;
     if let Some(svc) = service { items = items.into_iter().filter(|c| &c.service_name == svc).collect(); }
     if items.is_empty() { println!("⚠️ No contracts"); return Ok(()); }
     for c in &items { if detailed { println!("🔸 {} {} {} {}", c.id, c.service_name, c.spec_path, c.created_at.format("%Y-%m-%d")); } else { println!("🔸 {} - {}", c.id, c.service_name); } }
@@ -185,14 +188,21 @@ async fn do_validate<T: apicentric::domain::ports::ContractRepository, S: apicen
 
 async fn do_validate_all<T: apicentric::domain::ports::ContractRepository, S: apicentric::domain::ports::ServiceSpecLoader>(manage: &ManageContractsUseCase<T,S>, environment: &str, policy: &str, fail_fast: bool, report: bool) -> ApicentricResult<()> {
     println!("🔍 Validate ALL env={} policy={} fail_fast={} report={}", environment, policy, fail_fast, report);
-    let items = manage.list_contracts().await.map_err(|e| ApicentricError::runtime_error(format!("List error: {}", e), None::<String>))?;
+    let items = manage.list_contracts().await.map_err(|e| ApicentricError::runtime_error(
+        format!("List error: {}", e),
+        Some("Check that the contracts directory exists and is readable")
+    ))?;
     println!("📋 {} contract(s)", items.len());
     Ok(())
 }
 
 async fn do_delete<T: apicentric::domain::ports::ContractRepository, S: apicentric::domain::ports::ServiceSpecLoader>(manage: &ManageContractsUseCase<T,S>, contract_id: &str, yes: bool) -> ApicentricResult<()> {
     use apicentric::domain::contract_testing::ContractId;
-    let id = ContractId::new(contract_id.to_string()).map_err(|e| ApicentricError::validation_error(format!("Invalid contract id: {}", e), None::<String>, None::<String>))?;
+    let id = ContractId::new(contract_id.to_string()).map_err(|e| ApicentricError::validation_error(
+        format!("Invalid contract id: {}", e),
+        Some("contract_id"),
+        Some("Use a valid UUID format for the contract ID")
+    ))?;
     if !yes { println!("🗑️ --yes no especificado (skip confirm interactividad en esta versión)" ); }
     match manage.delete_contract(id).await { Ok(_) => println!("✅ Deleted"), Err(e) => println!("❌ Delete error: {}", e) }
     Ok(())
@@ -200,7 +210,11 @@ async fn do_delete<T: apicentric::domain::ports::ContractRepository, S: apicentr
 
 async fn do_show<T: apicentric::domain::ports::ContractRepository, S: apicentric::domain::ports::ServiceSpecLoader>(manage: &ManageContractsUseCase<T,S>, contract_id: &str, _history: bool) -> ApicentricResult<()> {
     use apicentric::domain::contract_testing::ContractId;
-    let id = ContractId::new(contract_id.to_string()).map_err(|e| ApicentricError::validation_error(format!("Invalid id: {}", e), None::<String>, None::<String>))?;
+    let id = ContractId::new(contract_id.to_string()).map_err(|e| ApicentricError::validation_error(
+        format!("Invalid id: {}", e),
+        Some("contract_id"),
+        Some("Use a valid UUID format for the contract ID")
+    ))?;
     match manage.get_contract(id).await { Ok(Some(c)) => { println!("📋 {} {} {}", c.id, c.service_name, c.spec_path); }, Ok(None) => println!("⚠️ Not found"), Err(e) => println!("❌ Error: {}", e) }
     Ok(())
 }

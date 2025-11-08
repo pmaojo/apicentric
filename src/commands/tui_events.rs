@@ -338,7 +338,7 @@ fn save_logs_to_file(state: &mut TuiAppState) -> ApicentricResult<()> {
     let mut file = File::create(&filename).map_err(|e| {
         apicentric::ApicentricError::runtime_error(
             format!("Failed to create log file: {}", e),
-            None::<String>,
+            Some("Check directory permissions or try a different location")
         )
     })?;
 
@@ -355,7 +355,7 @@ fn save_logs_to_file(state: &mut TuiAppState) -> ApicentricResult<()> {
         .map_err(|e| {
             apicentric::ApicentricError::runtime_error(
                 format!("Failed to write to log file: {}", e),
-                None::<String>,
+                Some("Check disk space and file permissions")
             )
         })?;
     }
@@ -367,10 +367,16 @@ fn save_logs_to_file(state: &mut TuiAppState) -> ApicentricResult<()> {
 /// Poll for keyboard events with timeout
 pub fn poll_events(timeout: Duration) -> ApicentricResult<Option<Event>> {
     if event::poll(timeout).map_err(|e| {
-        apicentric::ApicentricError::runtime_error(format!("Event poll failed: {}", e), None::<String>)
+        apicentric::ApicentricError::runtime_error(
+            format!("Event poll failed: {}", e),
+            Some("Terminal input may be unavailable. Try restarting the TUI")
+        )
     })? {
         let event = event::read().map_err(|e| {
-            apicentric::ApicentricError::runtime_error(format!("Event read failed: {}", e), None::<String>)
+            apicentric::ApicentricError::runtime_error(
+                format!("Event read failed: {}", e),
+                Some("Terminal input may be unavailable. Try restarting the TUI")
+            )
         })?;
         Ok(Some(event))
     } else {

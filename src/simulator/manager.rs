@@ -118,7 +118,7 @@ impl ApiSimulatorManager {
         self.lifecycle.stop().await
     }
 
-    /// Reload service configurations
+    /// Reload service definitions
     pub async fn reload_services(&self) -> ApicentricResult<()> {
         if !*self.is_active.read().await {
             return Err(ApicentricError::runtime_error(
@@ -223,7 +223,7 @@ impl ApiSimulatorManager {
             .await
     }
 
-    /// Validate service configurations without starting
+    /// Validate service definitions without starting
     pub fn validate_configurations(&self) -> ApicentricResult<Vec<String>> {
         let services = self.config_loader.load_all_services()?;
         let service_names: Vec<String> = services.iter().map(|s| s.name.clone()).collect();
@@ -254,7 +254,7 @@ impl ApiSimulatorManager {
             if service.is_running() {
                 return Err(ApicentricError::runtime_error(
                     format!("Service '{}' is already running", service_name),
-                    None::<String>,
+                    Some("Stop the service first or use --force to restart")
                 ));
             }
             
@@ -279,7 +279,7 @@ impl ApiSimulatorManager {
             if !service.is_running() {
                 return Err(ApicentricError::runtime_error(
                     format!("Service '{}' is not running", service_name),
-                    None::<String>,
+                    Some("Start the service first with 'apicentric simulator start'")
                 ));
             }
             

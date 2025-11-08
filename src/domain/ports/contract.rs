@@ -49,7 +49,7 @@ pub trait ContractHttpClient {
     async fn health_check(&self, base_url: &ApiUrl) -> Result<bool, HttpClientError>;
 }
 
-/// Port for managing mock API servers.
+/// Port for managing the simulator.
 #[async_trait]
 pub trait ContractMockApiRunner {
     async fn start(&self, service_spec_path: &str) -> Result<MockApiHandle, MockApiError>;
@@ -66,7 +66,7 @@ pub trait ContractMockApiRunner {
     ) -> Result<ApiResponse, MockApiError>;
 }
 
-/// Port for loading and parsing service specifications (YAML files).
+/// Port for loading and parsing service definitions (YAML files).
 #[async_trait]
 pub trait ServiceSpecLoader {
     async fn load(&self, path: &str) -> Result<ServiceSpec, SpecLoaderError>;

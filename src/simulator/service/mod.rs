@@ -1600,7 +1600,7 @@ impl ServiceInstance {
         self.definition.server.cors.as_ref()
     }
 
-    /// Validate that the service configuration is consistent
+    /// Validate that the service definition is consistent
     pub fn validate_consistency(&self) -> ApicentricResult<()> {
         // Check for duplicate endpoint paths with same method
         let mut seen_endpoints = std::collections::HashSet::new();

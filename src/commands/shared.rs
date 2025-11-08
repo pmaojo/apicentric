@@ -91,21 +91,33 @@ fn find_yaml_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Apicentric
 pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
     let name = Text::new("Service name:")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
 
     let description = Text::new("Description (optional):")
         .prompt_skippable()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
 
     let base_path = Text::new("Base path:")
         .with_default("/api")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
 
     let port_str = Text::new("Port:")
         .with_default("9000")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
     let port: u16 = port_str.parse().unwrap_or(9000);
 
     let mut endpoints = Vec::new();
@@ -115,7 +127,10 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
         let add_more = Confirm::new("Add another endpoint?")
             .with_default(false)
             .prompt()
-            .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+            .map_err(|e| ApicentricError::runtime_error(
+                e.to_string(),
+                Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+            ))?;
         if !add_more {
             break;
         }
@@ -145,32 +160,50 @@ pub fn scaffold_endpoint_definition() -> ApicentricResult<EndpointDefinition> {
     let methods = vec!["GET", "POST", "PUT", "DELETE"];
     let method = Select::new("HTTP method:", methods)
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?
         .to_string();
 
     let path = Text::new("Path:")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
 
     let description = Text::new("Description (optional):")
         .prompt_skippable()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
 
     let status_str = Text::new("Response status code:")
         .with_default("200")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
     let status: u16 = status_str.parse().unwrap_or(200);
 
     let content_type = Text::new("Content type:")
         .with_default("application/json")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
 
     let body = Text::new("Response body:")
         .with_default("{\"message\":\"ok\"}")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
 
     let mut responses = HashMap::new();
     responses.insert(
