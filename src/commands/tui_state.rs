@@ -128,7 +128,7 @@ impl ServiceListState {
     /// Preserves request statistics for existing services
     pub fn update_from_service_info(&mut self, services: Vec<ServiceInfo>) {
         // Create a map of existing services to preserve their statistics
-        let existing_stats: std::collections::HashMap<String, (usize, Option<DateTime<Utc>>)> = 
+        let existing_stats: HashMap<String, (usize, Option<DateTime<Utc>>)> =
             self.items
                 .iter()
                 .map(|s| (s.name.clone(), (s.request_count, s.last_request)))
@@ -462,6 +462,7 @@ mod tests {
         let entry = RequestLogEntry {
             timestamp: Utc::now(),
             service: "test-service".to_string(),
+            endpoint: None,
             method: "GET".to_string(),
             path: "/api/test".to_string(),
             status: 200,
@@ -472,6 +473,7 @@ mod tests {
         let entry_post = RequestLogEntry {
             timestamp: Utc::now(),
             service: "test-service".to_string(),
+            endpoint: None,
             method: "POST".to_string(),
             path: "/api/test".to_string(),
             status: 200,
@@ -488,6 +490,7 @@ mod tests {
         let entry = RequestLogEntry {
             timestamp: Utc::now(),
             service: "test-service".to_string(),
+            endpoint: None,
             method: "GET".to_string(),
             path: "/api/test".to_string(),
             status: 200,
@@ -498,6 +501,7 @@ mod tests {
         let entry_404 = RequestLogEntry {
             timestamp: Utc::now(),
             service: "test-service".to_string(),
+            endpoint: None,
             method: "GET".to_string(),
             path: "/api/test".to_string(),
             status: 404,
@@ -514,6 +518,7 @@ mod tests {
         let entry = RequestLogEntry {
             timestamp: Utc::now(),
             service: "api-service".to_string(),
+            endpoint: None,
             method: "GET".to_string(),
             path: "/api/test".to_string(),
             status: 200,
@@ -524,6 +529,7 @@ mod tests {
         let entry_other = RequestLogEntry {
             timestamp: Utc::now(),
             service: "other-service".to_string(),
+            endpoint: None,
             method: "GET".to_string(),
             path: "/api/test".to_string(),
             status: 200,
@@ -542,6 +548,7 @@ mod tests {
         let entry_match = RequestLogEntry {
             timestamp: Utc::now(),
             service: "user-service".to_string(),
+            endpoint: None,
             method: "POST".to_string(),
             path: "/api/users".to_string(),
             status: 201,
@@ -552,6 +559,7 @@ mod tests {
         let entry_wrong_method = RequestLogEntry {
             timestamp: Utc::now(),
             service: "user-service".to_string(),
+            endpoint: None,
             method: "GET".to_string(),
             path: "/api/users".to_string(),
             status: 201,
@@ -601,6 +609,7 @@ mod tests {
         log_view.add_entry(RequestLogEntry {
             timestamp: Utc::now(),
             service: "api".to_string(),
+            endpoint: None,
             method: "GET".to_string(),
             path: "/users".to_string(),
             status: 200,
@@ -609,6 +618,7 @@ mod tests {
         log_view.add_entry(RequestLogEntry {
             timestamp: Utc::now(),
             service: "api".to_string(),
+            endpoint: None,
             method: "POST".to_string(),
             path: "/users".to_string(),
             status: 201,
@@ -617,6 +627,7 @@ mod tests {
         log_view.add_entry(RequestLogEntry {
             timestamp: Utc::now(),
             service: "auth".to_string(),
+            endpoint: None,
             method: "GET".to_string(),
             path: "/login".to_string(),
             status: 200,

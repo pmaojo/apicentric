@@ -4,11 +4,6 @@
 
 #![cfg(feature = "tui")]
 
-use apicentric::simulator::log::RequestLogEntry;
-use apicentric::simulator::ServiceInfo;
-use chrono::Utc;
-use std::collections::HashMap;
-
 // Import TUI state types
 // Note: These are in the binary crate, so we test the public API behavior
 
