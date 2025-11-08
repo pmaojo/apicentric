@@ -13,7 +13,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      upload_url: ${{ steps.create_release.outputs.upload_url || steps.check_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +21,32 @@ jobs:
       - name: Get version from tag
         id: get_version
         run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Check existing release
+        id: check_release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            try {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag,
+              });
+
+              core.setOutput('exists', 'true');
+              core.setOutput('upload_url', release.data.upload_url);
+              core.setOutput('release_id', release.data.id.toString());
+            } catch (error) {
+              if (error.status === 404) {
+                core.setOutput('exists', 'false');
+                core.setOutput('upload_url', '');
+                core.setOutput('release_id', '');
+              } else {
+                throw error;
+              }
+            }
 
       - name: Generate release notes
         id: release_notes
@@ -98,7 +124,31 @@ jobs:
           # Output for next step
           echo "notes_file=release_notes.md" >> $GITHUB_OUTPUT
 
+      - name: Update existing release
+        if: steps.check_release.outputs.exists == 'true'
+        id: update_release
+        uses: actions/github-script@v7
+        env:
+          NOTES_FILE: ${{ steps.release_notes.outputs.notes_file }}
+          VERSION: ${{ steps.get_version.outputs.version }}
+          RELEASE_ID: ${{ steps.check_release.outputs.release_id }}
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync(process.env.NOTES_FILE, 'utf8');
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: Number(process.env.RELEASE_ID),
+              name: `Release ${process.env.VERSION}`,
+              body,
+              draft: false,
+              prerelease: false,
+              tag_name: context.ref.replace('refs/tags/', ''),
+            });
+
       - name: Create Release
+        if: steps.check_release.outputs.exists != 'true'
         id: create_release
         uses: actions/create-release@v1
         env:
