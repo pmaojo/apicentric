@@ -1,3 +1,5 @@
+use std::io::ErrorKind;
+use std::path::PathBuf;
 use std::process::Command;
 
 use apicentric::simulator::config::ServiceDefinition;
@@ -48,8 +50,14 @@ fn generated_view_compiles_and_composes_with_hooks() {
 
     // compile
     let root_dir = std::env::current_dir().unwrap();
-    let tsc_path = root_dir.join("node_modules/.bin/tsc");
-    let status = Command::new(tsc_path)
+    let local_tsc = root_dir.join("node_modules/.bin/tsc");
+    let mut command = if local_tsc.exists() {
+        Command::new(local_tsc)
+    } else {
+        Command::new(PathBuf::from("tsc"))
+    };
+
+    let status = command
         .args([
             hooks_path.to_str().unwrap(),
             view_path.to_str().unwrap(),
@@ -59,9 +67,20 @@ fn generated_view_compiles_and_composes_with_hooks() {
             "commonjs",
         ])
         .current_dir(dir.path())
-        .status()
-        .expect("tsc failed");
-    assert!(status.success());
+        .status();
+
+    match status {
+        Ok(status) => {
+            if !status.success() {
+                panic!("tsc exited with status {:?}", status.code());
+            }
+        }
+        Err(err) if err.kind() == ErrorKind::NotFound => {
+            eprintln!("Skipping react view generation test: TypeScript compiler not available ({err})");
+            return;
+        }
+        Err(err) => panic!("failed to run tsc: {err}"),
+    }
 
     // run component to ensure hooks execute
     let script = r#"

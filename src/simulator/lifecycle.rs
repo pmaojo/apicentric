@@ -1,3 +1,4 @@
+#[cfg(feature = "p2p")]
 use std::collections::HashMap;
 use std::sync::Arc;
 

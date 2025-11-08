@@ -14,6 +14,7 @@ use crate::simulator::{
     ConfigChange, SimulatorStatus,
 };
 use crate::storage::sqlite::SqliteStorage;
+#[cfg(feature = "p2p")]
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;

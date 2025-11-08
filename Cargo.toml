@@ -16,6 +16,8 @@ default = ["simulator", "contract-testing", "tui", "mock-data", "database", "fil
 # Core features
 simulator = []
 contract-testing = ["reqwest", "async-trait"]
+p2p = []
+graphql = ["dep:async-graphql", "dep:async-graphql-parser"]
 
 # Optional heavy features
 tui = ["ratatui", "crossterm", "indicatif", "console", "inquire"]
@@ -67,6 +69,10 @@ tokio-tungstenite = { version = "0.21", optional = true }
 
 # JavaScript runtime for scripting (optional, heavy)
 deno_core = { version = "0.272.0", optional = true }
+
+# GraphQL support (optional)
+async-graphql = { version = "7.0", optional = true }
+async-graphql-parser = { version = "7.0", optional = true }
 
 # Logging
 tracing = "0.1"

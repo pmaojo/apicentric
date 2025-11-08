@@ -9,5 +9,5 @@ crate-type = ["cdylib"]
 [dependencies]
 async-trait = "0.1"
 log = "0.4"
-http = "0.2"
+http = "1"
 apicentric = { path = "../../../" }
