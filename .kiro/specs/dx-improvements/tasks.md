@@ -1,26 +1,26 @@
 # Implementation Plan
 
-- [x] 1. Dependency Optimization and Feature Flags
+- [ ] 1. Dependency Optimization and Feature Flags
   - Analyze current dependencies and measure baseline build times
   - Create Cargo feature flags for optional heavy dependencies
   - Update code with conditional compilation attributes
   - Document feature flags and build options
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [x] 1.1 Measure baseline build performance
+- [ ] 1.1 Measure baseline build performance
   - Run `cargo clean && time cargo build --release` and record time
   - Use `cargo tree` to analyze dependency graph
   - Identify which dependencies contribute most to build time
   - Document findings in a build-performance.md file
   - _Requirements: 1.1_
 
-- [x] 1.2 Create Cargo feature flags structure
+- [ ] 1.2 Create Cargo feature flags structure
   - Update Cargo.toml with feature definitions (minimal, default, tui, p2p, graphql, scripting, ai, full, cli-tools)
   - Make heavy dependencies optional (libp2p, deno_core, async-graphql, automerge, tokio-tungstenite)
   - Keep core dependencies always available (tokio, serde, clap, hyper, anyhow, thiserror)
   - _Requirements: 1.3, 1.4_
 
-- [x] 1.3 Add conditional compilation to P2P code
+- [ ] 1.3 Add conditional compilation to P2P code
   - Wrap src/collab/p2p.rs with `#[cfg(feature = "p2p")]`
   - Wrap src/collab/share.rs with `#[cfg(feature = "p2p")]`
   - Wrap src/collab/crdt.rs with `#[cfg(feature = "p2p")]`
@@ -28,7 +28,7 @@
   - Update CLI commands to show P2P availability based on feature
   - _Requirements: 1.3_
 
-- [x] 1.4 Add conditional compilation to GraphQL code
+- [ ] 1.4 Add conditional compilation to GraphQL code
   - Wrap src/simulator/service/graphql.rs with `#[cfg(feature = "graphql")]`
   - Update ServiceDefinition to conditionally include graphql field
   - Update CLI to show GraphQL availability
@@ -153,7 +153,8 @@
   - Handle Ctrl+C gracefully
   - _Requirements: 3.1, 3.5_
 
-- [ ] 3. Documentation Improvements
+- [x] 3. Compilation fix an dDocumentation Improvements
+  - fix compiling errors, make the hard p2p, graphql and websocket totally optional on build, and keep annotated that there will be releases with 3 setups.
   - Write new English README.md with clear project description
   - Create CONTRIBUTING.md with setup and guidelines
   - Create CODE_OF_CONDUCT.md
@@ -203,7 +204,7 @@
   - Add sections for description, motivation, testing
   - _Requirements: 8.3_
 
-- [ ] 3.6 Write ARCHITECTURE.md
+- [x] 3.6 Write ARCHITECTURE.md
   - Document layered architecture (CLI, Application, Domain, Adapter)
   - Explain key design decisions
   - Describe module organization
@@ -235,7 +236,7 @@
   - Provide usage examples
   - _Requirements: 2.4_
 
-- [ ] 4. Installation System
+- [-] 4. Installation System
   - Create installation scripts for Unix and Windows
   - Set up Homebrew tap and formula
   - Generate checksums for release binaries
@@ -243,7 +244,7 @@
   - Document installation methods
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
 
-- [ ] 4.1 Create Unix installation script
+- [x] 4.1 Create Unix installation script
   - Write scripts/install.sh with platform detection
   - Implement architecture detection (x64, arm64)
   - Add download logic using curl
@@ -253,7 +254,7 @@
   - Make script idempotent
   - _Requirements: 6.2, 6.3, 6.7_
 
-- [ ] 4.2 Create Windows installation script
+- [x] 4.2 Create Windows installation script
   - Write scripts/install.ps1 with platform detection
   - Implement download logic using Invoke-WebRequest
   - Add checksum verification
@@ -261,7 +262,7 @@
   - Include error handling and user feedback
   - _Requirements: 6.2, 6.3, 6.7_
 
-- [ ] 4.3 Create Homebrew tap repository
+- [x] 4.3 Create Homebrew tap repository
   - Create pmaojo/homebrew-tap repository
   - Write Formula/apicentric.rb formula
   - Implement platform-specific URLs (macOS x64, macOS ARM64, Linux x64)
@@ -277,52 +278,38 @@
   - Test checksum verification
   - _Requirements: 6.2, 6.3, 6.6_
 
-- [ ] 4.5 Test installation on macOS
-  - Test install.sh on macOS x64
-  - Test install.sh on macOS ARM64
-  - Test Homebrew installation
-  - Test Cargo install with different features
-  - Verify binary works after installation
-  - _Requirements: 6.2, 6.3, 6.4, 6.6_
 
-- [ ] 4.6 Test installation on Windows
-  - Test install.ps1 on Windows 11
-  - Test Cargo install with different features
-  - Verify binary works after installation
-  - Test checksum verification
-  - _Requirements: 6.2, 6.3, 6.6_
-
-- [ ] 4.7 Update README with installation instructions
+- [x] 4.7 Update README with installation instructions
   - Document all installation methods
   - Provide platform-specific examples
   - Include verification steps
   - Add troubleshooting section
   - _Requirements: 6.5_
 
-- [ ] 5. CI/CD Pipeline Implementation
+- [x] 5. CI/CD Pipeline Implementation
   - Create GitHub Actions workflow for CI checks
-  - Create GitHub Actions workflow for releases
+  - Create GitHub Actions workflow for releases. THE MAIN RELEASE MUST BE THE FULL FEATURED!
   - Set up dependency caching
   - Configure security audits
   - Set up code coverage reporting
   - Test workflows end-to-end
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 7.10_
 
-- [ ] 5.1 Create CI workflow for format checking
+- [x] 5.1 Create CI workflow for format checking
   - Create .github/workflows/ci.yml
   - Add format job with cargo fmt --check
   - Use dtolnay/rust-toolchain@stable with rustfmt component
   - Run on push to main/develop and on pull requests
   - _Requirements: 7.2, 7.4_
 
-- [ ] 5.2 Create CI workflow for linting
+- [x] 5.2 Create CI workflow for linting
   - Add lint job to ci.yml
   - Run cargo clippy with -D warnings flag
   - Use Swatinem/rust-cache for dependency caching
   - Test all targets and all features
   - _Requirements: 7.3, 7.4, 7.7_
 
-- [ ] 5.3 Create CI workflow for testing
+- [x] 5.3 Create CI workflow for testing
   - Add test job to ci.yml with matrix strategy
   - Test on ubuntu-latest, macos-latest, windows-latest
   - Test with minimal, default, and full feature sets
@@ -330,21 +317,21 @@
   - Run cargo test for each configuration
   - _Requirements: 7.1, 7.4, 7.7_
 
-- [ ] 5.4 Create CI workflow for security audit
+- [x] 5.4 Create CI workflow for security audit
   - Add audit job to ci.yml
   - Use rustsec/audit-check action
   - Run on every pull request
   - Fail build if vulnerabilities found
   - _Requirements: 7.9_
 
-- [ ] 5.5 Create CI workflow for code coverage
+- [x] 5.5 Create CI workflow for code coverage
   - Add coverage job to ci.yml
   - Install and run cargo-tarpaulin
   - Generate XML coverage report
   - Upload to codecov using codecov/codecov-action
   - _Requirements: 7.10_
 
-- [ ] 5.6 Create release workflow
+- [x] 5.6 Create release workflow
   - Create .github/workflows/release.yml
   - Trigger on tags matching v*.*.*
   - Create release job to initialize GitHub release
@@ -356,28 +343,28 @@
   - Use Swatinem/rust-cache with target-specific keys
   - _Requirements: 7.5, 7.7_
 
-- [ ] 5.8 Add packaging and checksum generation to release workflow
+- [x] 5.8 Add packaging and checksum generation to release workflow
   - Package Unix binaries as .tar.gz
   - Package Windows binaries as .zip
   - Generate SHA256 checksums for all artifacts
   - Upload artifacts to GitHub Actions
   - _Requirements: 7.6_
 
-- [ ] 5.9 Add asset upload to release workflow
+- [x] 5.9 Add asset upload to release workflow
   - Download all build artifacts
   - Create consolidated checksums.txt file
   - Upload all binaries and checksums to GitHub release
   - Generate release notes automatically
   - _Requirements: 7.6_
 
-- [ ] 5.10 Test CI workflow with pull request
+- [-] 5.10 Test CI workflow with pull request
   - Create test branch and PR
   - Verify all CI jobs run successfully
   - Check that caching works correctly
   - Verify build times are under 10 minutes
   - _Requirements: 7.4, 7.7, 7.8_
 
-- [ ] 5.11 Test release workflow with test tag
+- [x] 5.11 Test release workflow with test tag
   - Create test tag (e.g., v0.1.2-test)
   - Verify release workflow triggers
   - Check that all platform binaries build

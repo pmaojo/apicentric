@@ -1,0 +1,86 @@
+TUI Filter Dialog Visual Demo
+=============================
+
+Normal View (before pressing 'f'):
+┌─ Services ────────┬─ Request Logs ──────────────────┬─ Actions ─────┐
+│ ● api-service     │ 10:23:45 GET    /api/users → 200│ q: Quit       │
+│   :9001 (15)      │ 10:23:46 POST   /api/login → 201│ ↑↓: Navigate  │
+│                   │ 10:23:47 GET    /api/profile → 200│ ⏎: Start/Stop│
+│ ● user-service    │ 10:23:48 DELETE /api/users → 404│ f: Filter     │
+│   :9002 (8)       │ 10:23:49 GET    /api/data → 500 │ r: Refresh    │
+│                   │                                  │ c: Clear      │
+│ ○ auth-service    │ [Scroll: 1-5 of 23]             │ s: Save       │
+│   :9003 (stopped) │                                  │ /: Search     │
+│                   │                                  │ ?: Help       │
+└───────────────────┴─────────────────────────────────┴───────────────┘
+
+After pressing 'f' (Filter Dialog Opens):
+┌─ Services ────────┬─ Request Logs ──────────────────┬─ Actions ─────┐
+│ ● api-service     │ 10:23:45 GET    /api/users → 200│ q: Quit       │
+│   :9001 (15)      │ 10:23:46 POST   /api/login → 201│ ↑↓: Navigate  │
+│                   │ ┌──────── Filter Logs ────────┐ │ ⏎: Start/Stop│
+│ ● user-service    │ │                              │ │ f: Filter     │
+│   :9002 (8)       │ │ Format: method:GET,          │ │ r: Refresh    │
+│                   │ │         status:200,          │ │ c: Clear      │
+│ ○ auth-service    │ │         service:api          │ │ s: Save       │
+│   :9003 (stopped) │ │                              │ │ /: Search     │
+│                   │ │ > method:GET, status:200_    │ │ ?: Help       │
+│                   │ │                              │ │               │
+│                   │ │ Enter to apply, Esc to cancel│ │               │
+│                   │ └──────────────────────────────┘ │               │
+└───────────────────┴─────────────────────────────────┴───────────────┘
+
+After applying filter (Enter):
+┌─ Services ────────┬─ Request Logs ──────────────────┬─ Actions ─────┐
+│ ● api-service     │ 10:23:45 GET    /api/users → 200│ q: Quit       │
+│   :9001 (15)      │ 10:23:47 GET    /api/profile → 200│ ↑↓: Navigate│
+│                   │                                  │ ⏎: Start/Stop │
+│ ● user-service    │ [Scroll: 1-2 of 2]              │ f: Filter     │
+│   :9002 (8)       │                                  │ r: Refresh    │
+│                   │                                  │ c: Clear      │
+│ ○ auth-service    │                                  │ s: Save       │
+│   :9003 (stopped) │                                  │ /: Search     │
+│                   │                                  │ ?: Help       │
+│                   │                                  │               │
+│                   │                                  │ Filter:       │
+│                   │                                  │ Method: GET,  │
+│                   │                                  │ Status: 200   │
+│                   │                                  │               │
+│                   │                                  │ ✓ Filter      │
+│                   │                                  │   applied     │
+└───────────────────┴─────────────────────────────────┴───────────────┘
+
+Filter Examples:
+================
+
+1. Filter by method only:
+   Input: method:GET
+   Result: Shows only GET requests
+
+2. Filter by status only:
+   Input: status:404
+   Result: Shows only 404 responses
+
+3. Filter by service only:
+   Input: service:api
+   Result: Shows only requests to "api" service
+
+4. Combined filters:
+   Input: method:POST, status:201
+   Result: Shows only POST requests with 201 status
+
+5. All filters:
+   Input: method:GET, status:200, service:auth
+   Result: Shows only GET requests to "auth" service with 200 status
+
+Key Features:
+=============
+
+✓ Case-insensitive matching for method and service
+✓ Comma-separated filter criteria
+✓ Real-time filter status display in actions panel
+✓ Filtered log count updates automatically
+✓ Scroll resets to top when filter changes
+✓ Clear all filters with Esc key
+✓ Visual feedback with status messages
+✓ Yellow border indicates active dialog

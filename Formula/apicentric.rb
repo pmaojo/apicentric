@@ -1,18 +1,22 @@
 class Apicentric < Formula
-  desc "API mocking and simulation toolkit"
+  desc "CLI tool and API simulator platform for developers"
   homepage "https://github.com/pmaojo/apicentric"
-  version "0.1.0"
+  version "0.1.1"
+  license "MIT"
 
   on_macos do
-    on_arm do
+    if Hardware::CPU.arm?
       url "https://github.com/pmaojo/apicentric/releases/download/v#{version}/apicentric-macos-arm64.tar.gz"
-      sha256 :no_check
+      sha256 "PLACEHOLDER_SHA256_MACOS_ARM64"
+    else
+      url "https://github.com/pmaojo/apicentric/releases/download/v#{version}/apicentric-macos-x64.tar.gz"
+      sha256 "PLACEHOLDER_SHA256_MACOS_X64"
     end
+  end
 
-    on_intel do
-      url "https://github.com/pmaojo/apicentric/releases/download/v#{version}/apicentric-macos-x86_64.tar.gz"
-      sha256 :no_check
-    end
+  on_linux do
+    url "https://github.com/pmaojo/apicentric/releases/download/v#{version}/apicentric-linux-x64.tar.gz"
+    sha256 "PLACEHOLDER_SHA256_LINUX_X64"
   end
 
   def install
@@ -20,6 +24,6 @@ class Apicentric < Formula
   end
 
   test do
-    system "#{bin}/apicentric", "--version"
+    assert_match "apicentric", shell_output("#{bin}/apicentric --version")
   end
 end

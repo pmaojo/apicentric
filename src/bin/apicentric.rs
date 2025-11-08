@@ -12,6 +12,15 @@ mod simulator_cmd;
 #[cfg(feature = "tui")]
 #[path = "../commands/tui.rs"]
 mod tui_cmd;
+#[cfg(feature = "tui")]
+#[path = "../commands/tui_state.rs"]
+mod tui_state;
+#[cfg(feature = "tui")]
+#[path = "../commands/tui_events.rs"]
+mod tui_events;
+#[cfg(feature = "tui")]
+#[path = "../commands/tui_render.rs"]
+mod tui_render;
 
 mod commands {
     pub mod shared {

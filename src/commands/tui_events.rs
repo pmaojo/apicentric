@@ -6,10 +6,10 @@ use std::time::Duration;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use tokio::sync::broadcast;
 
-use crate::simulator::{log::RequestLogEntry, manager::ApiSimulatorManager};
-use crate::ApicentricResult;
+use apicentric::simulator::{log::RequestLogEntry, manager::ApiSimulatorManager};
+use apicentric::ApicentricResult;
 
-use super::tui_state::{TuiAppState, ViewMode};
+use super::tui_state::{TuiAppState, ViewMode, FocusedPanel};
 
 /// Action to take after handling an event
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,31 +70,68 @@ async fn handle_normal_mode_key(
         KeyCode::Char('q') => Ok(Action::Quit),
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Ok(Action::Quit),
 
-        // Navigation
+        // Navigation - context-aware based on focused panel
         KeyCode::Up => {
-            state.services.select_previous();
+            match state.focused_panel {
+                FocusedPanel::Services => {
+                    state.services.select_previous();
+                }
+                FocusedPanel::Logs => {
+                    state.logs.scroll_up(1);
+                }
+            }
             state.clear_messages();
             Ok(Action::Continue)
         }
         KeyCode::Down => {
-            state.services.select_next();
+            match state.focused_panel {
+                FocusedPanel::Services => {
+                    state.services.select_next();
+                }
+                FocusedPanel::Logs => {
+                    let max = state.logs.filtered_entries().len();
+                    state.logs.scroll_down(1, max);
+                }
+            }
             state.clear_messages();
             Ok(Action::Continue)
         }
 
-        // Service control
+        // Service control - toggle start/stop
         KeyCode::Enter => {
             if let Some(service) = state.services.selected_service() {
                 let service_name = service.name.clone();
                 let is_running = service.is_running;
 
-                // Note: The current ApiSimulatorManager doesn't have individual service
-                // start/stop methods, so we'll show a message for now
-                if is_running {
-                    state.set_status(format!("Service '{}' is running", service_name));
+                // Show loading indicator
+                state.set_loading(true);
+                state.clear_messages();
+
+                // Toggle service state
+                let result = if is_running {
+                    manager.stop_service(&service_name).await
                 } else {
-                    state.set_status(format!("Service '{}' is stopped", service_name));
+                    manager.start_service(&service_name).await
+                };
+
+                // Clear loading indicator
+                state.set_loading(false);
+
+                // Handle result
+                match result {
+                    Ok(_) => {
+                        // Update service status immediately
+                        update_service_status(state, manager).await?;
+                        
+                        let action = if is_running { "stopped" } else { "started" };
+                        state.set_status(format!("Service '{}' {}", service_name, action));
+                    }
+                    Err(e) => {
+                        state.set_error(format!("Failed to toggle service '{}': {}", service_name, e));
+                    }
                 }
+            } else {
+                state.set_error("No service selected".to_string());
             }
             Ok(Action::Continue)
         }
@@ -153,6 +190,13 @@ async fn handle_normal_mode_key(
         KeyCode::PageDown => {
             let max = state.logs.filtered_entries().len();
             state.logs.scroll_down(10, max);
+            Ok(Action::Continue)
+        }
+
+        // Switch focus between panels
+        KeyCode::Tab => {
+            state.next_panel();
+            state.clear_messages();
             Ok(Action::Continue)
         }
 
@@ -292,7 +336,7 @@ fn save_logs_to_file(state: &mut TuiAppState) -> ApicentricResult<()> {
     let filename = format!("apicentric_logs_{}.txt", timestamp);
 
     let mut file = File::create(&filename).map_err(|e| {
-        crate::ApicentricError::runtime_error(
+        apicentric::ApicentricError::runtime_error(
             format!("Failed to create log file: {}", e),
             None::<String>,
         )
@@ -309,7 +353,7 @@ fn save_logs_to_file(state: &mut TuiAppState) -> ApicentricResult<()> {
             entry.status
         )
         .map_err(|e| {
-            crate::ApicentricError::runtime_error(
+            apicentric::ApicentricError::runtime_error(
                 format!("Failed to write to log file: {}", e),
                 None::<String>,
             )
@@ -323,10 +367,10 @@ fn save_logs_to_file(state: &mut TuiAppState) -> ApicentricResult<()> {
 /// Poll for keyboard events with timeout
 pub fn poll_events(timeout: Duration) -> ApicentricResult<Option<Event>> {
     if event::poll(timeout).map_err(|e| {
-        crate::ApicentricError::runtime_error(format!("Event poll failed: {}", e), None::<String>)
+        apicentric::ApicentricError::runtime_error(format!("Event poll failed: {}", e), None::<String>)
     })? {
         let event = event::read().map_err(|e| {
-            crate::ApicentricError::runtime_error(format!("Event read failed: {}", e), None::<String>)
+            apicentric::ApicentricError::runtime_error(format!("Event read failed: {}", e), None::<String>)
         })?;
         Ok(Some(event))
     } else {

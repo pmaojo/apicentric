@@ -1,0 +1,7 @@
+# Temporary files
+*.tar.gz
+*.zip
+*.bak
+
+# macOS
+.DS_Store

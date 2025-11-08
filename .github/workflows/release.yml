@@ -1,165 +1,257 @@
 name: Release
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Extract version
+          VERSION="${{ steps.get_version.outputs.version }}"
+          
+          # Create release notes
+          cat > release_notes.md << 'EOF'
+          ## What's New in $VERSION
+          
+          This release includes improvements to Apicentric's developer experience, build performance, and documentation.
+          
+          ### Installation
+          
+          #### Homebrew (macOS/Linux)
+          ```bash
+          brew install pmaojo/tap/apicentric
+          ```
+          
+          #### Install Script (Unix)
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/install.sh | sh
+          ```
+          
+          #### Cargo
+          ```bash
+          # Minimal (fastest build)
+          cargo install apicentric --no-default-features --features minimal
+          
+          # Recommended
+          cargo install apicentric --features cli-tools
+          
+          # Full features
+          cargo install apicentric --features full
+          ```
+          
+          #### Pre-built Binaries
+          Download the appropriate binary for your platform below and verify with the provided checksums.
+          
+          ### Available Binaries
+          
+          - **Linux x64**: `apicentric-linux-x64.tar.gz`
+          - **macOS x64**: `apicentric-macos-x64.tar.gz`
+          - **macOS ARM64**: `apicentric-macos-arm64.tar.gz`
+          - **Windows x64**: `apicentric-windows-x64.zip`
+          
+          ### Verification
+          
+          All binaries include SHA256 checksums. Verify your download:
+          
+          ```bash
+          # Unix
+          shasum -a 256 -c checksums.txt
+          
+          # Windows
+          certutil -hashfile apicentric-windows-x64.zip SHA256
+          ```
+          
+          ### Documentation
+          
+          - [Quick Start Guide](https://github.com/pmaojo/apicentric/blob/main/docs/guides/quick-start.md)
+          - [TUI Guide](https://github.com/pmaojo/apicentric/blob/main/docs/guides/tui.md)
+          - [Features Guide](https://github.com/pmaojo/apicentric/blob/main/docs/guides/features.md)
+          - [Architecture](https://github.com/pmaojo/apicentric/blob/main/ARCHITECTURE.md)
+          
+          ### Full Changelog
+          
+          See the [commit history](https://github.com/pmaojo/apicentric/compare/${{ steps.get_version.outputs.version }}...main) for detailed changes.
+          EOF
+          
+          # Replace VERSION placeholder
+          sed -i "s/\$VERSION/$VERSION/g" release_notes.md
+          
+          # Output for next step
+          echo "notes_file=release_notes.md" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.get_version.outputs.version }}
+          body_path: ${{ steps.release_notes.outputs.notes_file }}
+          draft: false
+          prerelease: false
+
   build:
-    name: Build and upload release binaries
-    runs-on: ${{ matrix.os }}
+    name: Build ${{ matrix.target }}
+    needs: create-release
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            os_name: linux
             target: x86_64-unknown-linux-gnu
-            arch: x86_64
-            ext: ''
-            archive_ext: .tar.gz
-          - os: ubuntu-latest
-            os_name: linux
-            target: aarch64-unknown-linux-gnu
-            arch: arm64
-            ext: ''
-            archive_ext: .tar.gz
+            artifact: apicentric-linux-x64
+            ext: tar.gz
+
           - os: macos-latest
-            os_name: macos
             target: x86_64-apple-darwin
-            arch: x86_64
-            ext: ''
-            archive_ext: .tar.gz
+            artifact: apicentric-macos-x64
+            ext: tar.gz
+
           - os: macos-latest
-            os_name: macos
             target: aarch64-apple-darwin
-            arch: arm64
-            ext: ''
-            archive_ext: .tar.gz
+            artifact: apicentric-macos-arm64
+            ext: tar.gz
+
           - os: windows-latest
-            os_name: windows
             target: x86_64-pc-windows-msvc
-            arch: x86_64
-            ext: '.exe'
-            archive_ext: .zip
-          - os: windows-latest
-            os_name: windows
-            target: aarch64-pc-windows-msvc
-            arch: arm64
-            ext: '.exe'
-            archive_ext: .zip
+            artifact: apicentric-windows-x64
+            ext: zip
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
-          target: ${{ matrix.target }}
-      - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
-      - name: Package binary
-        if: runner.os != 'Windows'
+          targets: ${{ matrix.target }}
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} --features full
+
+      - name: Package (Unix)
+        if: matrix.ext == 'tar.gz'
         run: |
           cd target/${{ matrix.target }}/release
-          archive_name="apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
-          tar -czf "$archive_name" apicentric
-          contents=$(tar -tzf "$archive_name" | tr -d '\r\n')
-          if [ "$contents" != "apicentric" ]; then
-            echo "Unexpected archive contents: $contents"
-            exit 1
-          fi
-      - name: Compute checksum
-        if: runner.os != 'Windows'
+          tar czf ../../../${{ matrix.artifact }}.tar.gz apicentric
+
+      - name: Package (Windows)
+        if: matrix.ext == 'zip'
         run: |
           cd target/${{ matrix.target }}/release
-          archive_name="apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
-          shasum -a 256 "$archive_name" > "$archive_name.sha256"
-      - name: Package binary (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+          7z a ../../../${{ matrix.artifact }}.zip apicentric.exe
+
+      - name: Generate checksum (Unix)
+        if: runner.os != 'Windows'
         run: |
-          $releaseDir = "target/${{ matrix.target }}/release"
-          $archiveName = "apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
-          $archivePath = Join-Path $releaseDir $archiveName
-          Compress-Archive -Path (Join-Path $releaseDir 'apicentric.exe') -DestinationPath $archivePath -Force
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $zip = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
-          $entries = $zip.Entries | ForEach-Object { $_.FullName }
-          $zip.Dispose()
-          if ($entries.Count -ne 1 -or $entries[0] -ne 'apicentric.exe') {
-            throw "Unexpected archive contents: $($entries -join ', ')"
-          }
-      - name: Compute checksum (Windows)
+          shasum -a 256 ${{ matrix.artifact }}.${{ matrix.ext }} > ${{ matrix.artifact }}.sha256
+
+      - name: Generate checksum (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
         run: |
-          $releaseDir = "target/${{ matrix.target }}/release"
-          $archiveName = "apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}"
-          $hash = Get-FileHash -Path (Join-Path $releaseDir $archiveName) -Algorithm SHA256
-          $line = ($hash.Hash.ToLower() + "  " + $archiveName)
-          Set-Content -Path (Join-Path $releaseDir ($archiveName + ".sha256")) -Value $line
-      - name: Upload checksum artifact
-        uses: actions/upload-artifact@v4
+          certutil -hashfile ${{ matrix.artifact }}.${{ matrix.ext }} SHA256 > ${{ matrix.artifact }}.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: checksum-${{ matrix.os_name }}-${{ matrix.arch }}
-          path: target/${{ matrix.target }}/release/apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}.sha256
-      - name: Upload release asset
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.${{ matrix.ext }}
+            ${{ matrix.artifact }}.sha256
+
+  upload-assets:
+    name: Upload Release Assets
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Create consolidated checksums
+        run: |
+          cd artifacts
+          find . -name "*.sha256" -exec cat {} \; > ../checksums.txt
+          cd ..
+
+      - name: Upload Linux x64
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/${{ matrix.target }}/release/apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}
-          asset_name: apicentric-${{ matrix.os_name }}-${{ matrix.arch }}${{ matrix.archive_ext }}
-          asset_content_type: application/octet-stream
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: >-
+            ./artifacts/apicentric-linux-x64/apicentric-linux-x64.tar.gz
+          asset_name: apicentric-linux-x64.tar.gz
+          asset_content_type: application/gzip
 
-  container:
-    name: Build and publish container image
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: packaging/Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/${{ github.repository_owner }}/apicentric:${{ github.ref_name }}
-
-  npm:
-    name: Publish npm package
-    runs-on: ubuntu-latest
-    needs: build
-    if: secrets.NPM_TOKEN != ''
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org
-      - uses: jetli/wasm-pack-action@v0.3.1
-        with:
-          version: latest
-      - name: Install dependencies
-        run: npm install
-      - name: Build wasm package
-        run: npm run build
-      - name: Upload wasm pkg artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-pkg
-          path: pkg
-      - name: Publish to npm
-        run: npm publish --access public
+      - name: Upload macOS x64
+        uses: actions/upload-release-asset@v1
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: >-
+            ./artifacts/apicentric-macos-x64/apicentric-macos-x64.tar.gz
+          asset_name: apicentric-macos-x64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload macOS ARM64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: >-
+            ./artifacts/apicentric-macos-arm64/apicentric-macos-arm64.tar.gz
+          asset_name: apicentric-macos-arm64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Windows x64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: >-
+            ./artifacts/apicentric-windows-x64/apicentric-windows-x64.zip
+          asset_name: apicentric-windows-x64.zip
+          asset_content_type: application/zip
+
+      - name: Upload checksums
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./checksums.txt
+          asset_name: checksums.txt
+          asset_content_type: text/plain

@@ -1,7 +1,7 @@
 //! API Simulator Manager - Central coordinator for the simulator functionality
 
-// Disabled heavy P2P dependencies for lighter CLI build
-// use crate::collab::crdt::{CrdtMessage, ServiceCrdt};
+#[cfg(feature = "p2p")]
+use crate::collab::crdt::{CrdtMessage, ServiceCrdt};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     config::{ConfigLoader, ServiceDefinition, SimulatorConfig},
@@ -28,6 +28,7 @@ pub struct ApiSimulatorManager {
     is_active: Arc<RwLock<bool>>,
     p2p_enabled: Arc<RwLock<bool>>,
     collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
+    #[cfg(feature = "p2p")]
     crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
     log_sender: broadcast::Sender<RequestLogEntry>,
     lifecycle: SimulatorLifecycle<RequestRouter>,
@@ -53,6 +54,7 @@ impl ApiSimulatorManager {
         let config_watcher: Arc<RwLock<Option<ConfigWatcher>>> = Arc::new(RwLock::new(None));
         let p2p_enabled = Arc::new(RwLock::new(false));
         let collab_sender = Arc::new(RwLock::new(None));
+        #[cfg(feature = "p2p")]
         let crdts = Arc::new(RwLock::new(HashMap::new()));
 
         let lifecycle = SimulatorLifecycle::new(
@@ -64,6 +66,7 @@ impl ApiSimulatorManager {
             config_watcher.clone(),
             p2p_enabled.clone(),
             collab_sender.clone(),
+            #[cfg(feature = "p2p")]
             crdts.clone(),
             log_sender.clone(),
         );
@@ -77,6 +80,7 @@ impl ApiSimulatorManager {
             is_active,
             p2p_enabled,
             collab_sender,
+            #[cfg(feature = "p2p")]
             crdts,
             log_sender,
             lifecycle,
@@ -128,6 +132,7 @@ impl ApiSimulatorManager {
     }
 
     /// Apply a service definition and update CRDT state.
+    #[cfg(feature = "p2p")]
     pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> ApicentricResult<()> {
         let service_name = service_def.name.clone();
         self.lifecycle.apply_remote_service(service_def.clone()).await?;
@@ -153,6 +158,12 @@ impl ApiSimulatorManager {
             }
         }
         Ok(())
+    }
+
+    /// Apply a service definition (P2P feature disabled)
+    #[cfg(not(feature = "p2p"))]
+    pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> ApicentricResult<()> {
+        self.lifecycle.apply_remote_service(service_def).await
     }
 
     /// Apply a YAML service definition string to the running simulator and CRDT.
@@ -230,6 +241,56 @@ impl ApiSimulatorManager {
     /// Handle configuration change events (for future hot-reload implementation)
     pub async fn handle_config_change(&self, change: ConfigChange) -> ApicentricResult<()> {
         self.lifecycle.handle_config_change(change).await
+    }
+
+    /// Start a specific service by name
+    pub async fn start_service(&self, service_name: &str) -> ApicentricResult<()> {
+        let registry = self.service_registry.read().await;
+        
+        if let Some(service_arc) = registry.get_service(service_name) {
+            let mut service = service_arc.write().await;
+            
+            if service.is_running() {
+                return Err(ApicentricError::runtime_error(
+                    format!("Service '{}' is already running", service_name),
+                    None::<String>,
+                ));
+            }
+            
+            service.start().await?;
+            log::info!("Started service '{}'", service_name);
+            Ok(())
+        } else {
+            Err(ApicentricError::runtime_error(
+                format!("Service '{}' not found", service_name),
+                Some("Check that the service is registered"),
+            ))
+        }
+    }
+
+    /// Stop a specific service by name
+    pub async fn stop_service(&self, service_name: &str) -> ApicentricResult<()> {
+        let registry = self.service_registry.read().await;
+        
+        if let Some(service_arc) = registry.get_service(service_name) {
+            let mut service = service_arc.write().await;
+            
+            if !service.is_running() {
+                return Err(ApicentricError::runtime_error(
+                    format!("Service '{}' is not running", service_name),
+                    None::<String>,
+                ));
+            }
+            
+            service.stop().await?;
+            log::info!("Stopped service '{}'", service_name);
+            Ok(())
+        } else {
+            Err(ApicentricError::runtime_error(
+                format!("Service '{}' not found", service_name),
+                Some("Check that the service is registered"),
+            ))
+        }
     }
 }
 

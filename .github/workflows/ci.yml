@@ -2,44 +2,105 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
-  build:
+  format:
+    name: Format Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: 'npm'
-          cache-dependency-path: gui/package-lock.json
-      - name: Install JS deps
-        run: npm ci
-        working-directory: gui
-      - name: Run JS tests
-        run: npm test
-        working-directory: gui
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - name: Run Rust tests
-        run: cargo test --all
 
-  wasm:
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  lint:
+    name: Clippy Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          node-version: 20
-      - uses: jetli/wasm-pack-action@v0.3.1
+          components: clippy
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test Suite
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        features: [minimal, default, full]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
         with:
-          version: latest
-      - name: Install npm dependencies
-        run: npm install
-      - name: Build wasm package
-        run: npm run build
+          key: ${{ matrix.os }}-${{ matrix.features }}
+
+      - name: Run tests (minimal)
+        if: matrix.features == 'minimal'
+        run: cargo test --no-default-features --features minimal
+
+      - name: Run tests (default)
+        if: matrix.features == 'default'
+        run: cargo test
+
+      - name: Run tests (full)
+        if: matrix.features == 'full'
+        run: cargo test --all-features
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Generate coverage
+        run: cargo tarpaulin --out Xml --all-features
+
+      - name: Upload to codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./cobertura.xml

@@ -7,8 +7,8 @@
 use chrono::{DateTime, Utc};
 use std::collections::{HashMap, VecDeque};
 
-use crate::simulator::log::RequestLogEntry;
-use crate::simulator::ServiceInfo;
+use apicentric::simulator::log::RequestLogEntry;
+use apicentric::simulator::ServiceInfo;
 
 /// Main application state for the TUI
 #[derive(Debug)]
@@ -25,6 +25,10 @@ pub struct TuiAppState {
     pub status_message: Option<String>,
     /// Error message to display
     pub error_message: Option<String>,
+    /// Loading indicator for async operations
+    pub is_loading: bool,
+    /// Currently focused panel
+    pub focused_panel: FocusedPanel,
 }
 
 impl TuiAppState {
@@ -37,6 +41,8 @@ impl TuiAppState {
             input: InputState::new(),
             status_message: None,
             error_message: None,
+            is_loading: false,
+            focused_panel: FocusedPanel::Services,
         }
     }
 
@@ -57,6 +63,19 @@ impl TuiAppState {
         self.status_message = None;
         self.error_message = None;
     }
+
+    /// Set loading state
+    pub fn set_loading(&mut self, loading: bool) {
+        self.is_loading = loading;
+    }
+
+    /// Switch to the next panel
+    pub fn next_panel(&mut self) {
+        self.focused_panel = match self.focused_panel {
+            FocusedPanel::Services => FocusedPanel::Logs,
+            FocusedPanel::Logs => FocusedPanel::Services,
+        };
+    }
 }
 
 impl Default for TuiAppState {
@@ -76,6 +95,15 @@ pub enum ViewMode {
     SearchDialog,
     /// Help dialog is open
     HelpDialog,
+}
+
+/// Which panel is currently focused
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FocusedPanel {
+    /// Services panel is focused
+    Services,
+    /// Logs panel is focused
+    Logs,
 }
 
 /// State for the service list panel
@@ -417,5 +445,204 @@ impl InputState {
 impl Default for InputState {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use apicentric::simulator::log::RequestLogEntry;
+
+    #[test]
+    fn test_log_filter_matches_method() {
+        let mut filter = LogFilter::new();
+        filter.method = Some("GET".to_string());
+
+        let entry = RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "test-service".to_string(),
+            method: "GET".to_string(),
+            path: "/api/test".to_string(),
+            status: 200,
+        };
+
+        assert!(filter.matches(&entry));
+
+        let entry_post = RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "test-service".to_string(),
+            method: "POST".to_string(),
+            path: "/api/test".to_string(),
+            status: 200,
+        };
+
+        assert!(!filter.matches(&entry_post));
+    }
+
+    #[test]
+    fn test_log_filter_matches_status() {
+        let mut filter = LogFilter::new();
+        filter.status = Some(200);
+
+        let entry = RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "test-service".to_string(),
+            method: "GET".to_string(),
+            path: "/api/test".to_string(),
+            status: 200,
+        };
+
+        assert!(filter.matches(&entry));
+
+        let entry_404 = RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "test-service".to_string(),
+            method: "GET".to_string(),
+            path: "/api/test".to_string(),
+            status: 404,
+        };
+
+        assert!(!filter.matches(&entry_404));
+    }
+
+    #[test]
+    fn test_log_filter_matches_service() {
+        let mut filter = LogFilter::new();
+        filter.service = Some("api-service".to_string());
+
+        let entry = RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "api-service".to_string(),
+            method: "GET".to_string(),
+            path: "/api/test".to_string(),
+            status: 200,
+        };
+
+        assert!(filter.matches(&entry));
+
+        let entry_other = RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "other-service".to_string(),
+            method: "GET".to_string(),
+            path: "/api/test".to_string(),
+            status: 200,
+        };
+
+        assert!(!filter.matches(&entry_other));
+    }
+
+    #[test]
+    fn test_log_filter_matches_combined() {
+        let mut filter = LogFilter::new();
+        filter.method = Some("POST".to_string());
+        filter.status = Some(201);
+        filter.service = Some("user-service".to_string());
+
+        let entry_match = RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "user-service".to_string(),
+            method: "POST".to_string(),
+            path: "/api/users".to_string(),
+            status: 201,
+        };
+
+        assert!(filter.matches(&entry_match));
+
+        let entry_wrong_method = RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "user-service".to_string(),
+            method: "GET".to_string(),
+            path: "/api/users".to_string(),
+            status: 201,
+        };
+
+        assert!(!filter.matches(&entry_wrong_method));
+    }
+
+    #[test]
+    fn test_log_filter_is_active() {
+        let mut filter = LogFilter::new();
+        assert!(!filter.is_active());
+
+        filter.method = Some("GET".to_string());
+        assert!(filter.is_active());
+
+        filter.clear();
+        assert!(!filter.is_active());
+
+        filter.status = Some(200);
+        assert!(filter.is_active());
+    }
+
+    #[test]
+    fn test_log_filter_description() {
+        let mut filter = LogFilter::new();
+        assert_eq!(filter.description(), "No filters");
+
+        filter.method = Some("GET".to_string());
+        assert_eq!(filter.description(), "Method: GET");
+
+        filter.status = Some(200);
+        assert_eq!(filter.description(), "Method: GET, Status: 200");
+
+        filter.service = Some("api".to_string());
+        assert_eq!(filter.description(), "Method: GET, Status: 200, Service: api");
+
+        filter.clear();
+        assert_eq!(filter.description(), "No filters");
+    }
+
+    #[test]
+    fn test_log_view_filtered_entries() {
+        let mut log_view = LogViewState::new();
+
+        // Add some test entries
+        log_view.add_entry(RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "api".to_string(),
+            method: "GET".to_string(),
+            path: "/users".to_string(),
+            status: 200,
+        });
+
+        log_view.add_entry(RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "api".to_string(),
+            method: "POST".to_string(),
+            path: "/users".to_string(),
+            status: 201,
+        });
+
+        log_view.add_entry(RequestLogEntry {
+            timestamp: Utc::now(),
+            service: "auth".to_string(),
+            method: "GET".to_string(),
+            path: "/login".to_string(),
+            status: 200,
+        });
+
+        // No filter - should return all entries
+        assert_eq!(log_view.filtered_entries().len(), 3);
+
+        // Filter by method
+        log_view.filter.method = Some("GET".to_string());
+        assert_eq!(log_view.filtered_entries().len(), 2);
+
+        // Filter by service
+        log_view.filter.clear();
+        log_view.filter.service = Some("api".to_string());
+        assert_eq!(log_view.filtered_entries().len(), 2);
+
+        // Filter by status
+        log_view.filter.clear();
+        log_view.filter.status = Some(201);
+        assert_eq!(log_view.filtered_entries().len(), 1);
+
+        // Combined filter
+        log_view.filter.clear();
+        log_view.filter.method = Some("GET".to_string());
+        log_view.filter.service = Some("api".to_string());
+        assert_eq!(log_view.filtered_entries().len(), 1);
     }
 }

@@ -1,6 +1,7 @@
-// Disabled heavy GraphQL dependencies for lighter CLI build
-// use async_graphql::Request as GraphQLRequest;
-// use async_graphql_parser::parse_schema;
+#[cfg(feature = "graphql")]
+use async_graphql::Request as GraphQLRequest;
+#[cfg(feature = "graphql")]
+use async_graphql_parser::parse_schema;
 
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::GraphQLConfig;
@@ -25,6 +26,7 @@ pub struct GraphQLMocks {
 }
 
 /// Load GraphQL schema and mock templates from configuration
+#[cfg(feature = "graphql")]
 pub fn load_graphql_mocks(gql_cfg: &GraphQLConfig) -> ApicentricResult<GraphQLMocks> {
     let schema = fs::read_to_string(&gql_cfg.schema_path).map_err(|e| {
         ApicentricError::config_error(
@@ -54,7 +56,17 @@ pub fn load_graphql_mocks(gql_cfg: &GraphQLConfig) -> ApicentricResult<GraphQLMo
     Ok(GraphQLMocks { schema, mocks })
 }
 
+/// Load GraphQL schema and mock templates from configuration (GraphQL feature disabled)
+#[cfg(not(feature = "graphql"))]
+pub fn load_graphql_mocks(_gql_cfg: &GraphQLConfig) -> ApicentricResult<GraphQLMocks> {
+    Err(ApicentricError::config_error(
+        "GraphQL support is not enabled",
+        Some("Rebuild with --features graphql to enable GraphQL support"),
+    ))
+}
+
 /// Handle a GraphQL request if applicable
+#[cfg(feature = "graphql")]
 pub async fn handle_graphql_request(
     gql: &GraphQLMocks,
     method: &str,
@@ -154,5 +166,22 @@ pub async fn handle_graphql_request(
         }
     }
 
+    None
+}
+
+/// Handle a GraphQL request if applicable (GraphQL feature disabled)
+#[cfg(not(feature = "graphql"))]
+pub async fn handle_graphql_request(
+    _gql: &GraphQLMocks,
+    _method: &str,
+    _relative_path: &str,
+    _body_bytes: &[u8],
+    _query_params: &HashMap<String, String>,
+    _headers: &HashMap<String, String>,
+    _template_engine: &TemplateEngine,
+    _state: &Arc<RwLock<ServiceState>>,
+    _service_name: &str,
+    _path: &str,
+) -> Option<(Response<Full<Bytes>>, u16)> {
     None
 }

@@ -4,8 +4,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::{broadcast, mpsc, RwLock};
 
-// Disabled heavy P2P dependencies for lighter CLI build
-// use crate::collab::{crdt::{ServiceCrdt, CrdtMessage}, p2p};
+#[cfg(feature = "p2p")]
+use crate::collab::{crdt::{ServiceCrdt, CrdtMessage}, p2p};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     config::{ConfigLoader, SimulatorConfig, ServiceDefinition},
@@ -33,6 +33,7 @@ pub struct SimulatorLifecycle<R: RouteRegistry + Send + Sync> {
     pub(crate) config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
     pub(crate) p2p_enabled: Arc<RwLock<bool>>,
     pub(crate) collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
+    #[cfg(feature = "p2p")]
     pub(crate) crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
     pub(crate) log_sender: broadcast::Sender<RequestLogEntry>,
 }
@@ -47,6 +48,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
         p2p_enabled: Arc<RwLock<bool>>,
         collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
+        #[cfg(feature = "p2p")]
         crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
         log_sender: broadcast::Sender<RequestLogEntry>,
     ) -> Self {
@@ -59,6 +61,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
             config_watcher,
             p2p_enabled,
             collab_sender,
+            #[cfg(feature = "p2p")]
             crdts,
             log_sender,
         }
@@ -96,6 +99,8 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         // Register and start services
         let mut registry = self.service_registry.write().await;
         let mut router = self.route_registry.write().await;
+        
+        #[cfg(feature = "p2p")]
         let mut crdts_map = self.crdts.write().await;
 
         for service_def in services {
@@ -104,8 +109,12 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
             registry.register_service(service_def.clone()).await?;
             router.register_service(&service_name, &base_path);
+            
+            #[cfg(feature = "p2p")]
             crdts_map.insert(service_name, ServiceCrdt::new(service_def));
         }
+        
+        #[cfg(feature = "p2p")]
         drop(crdts_map);
 
         registry.start_all_services().await?;
@@ -143,6 +152,7 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         });
 
         // Start peer-to-peer collaboration if enabled.
+        #[cfg(feature = "p2p")]
         if *self.p2p_enabled.read().await {
             match p2p::spawn().await {
                 Ok((tx, mut rx_net)) => {
@@ -225,6 +235,7 @@ impl<R: RouteRegistry + Send + Sync> Clone for SimulatorLifecycle<R> {
             config_watcher: self.config_watcher.clone(),
             p2p_enabled: self.p2p_enabled.clone(),
             collab_sender: self.collab_sender.clone(),
+            #[cfg(feature = "p2p")]
             crdts: self.crdts.clone(),
             log_sender: self.log_sender.clone(),
         }
@@ -269,16 +280,22 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         registry.clear_all_services().await?;
         router.clear_all();
 
-        let mut crdts_map = self.crdts.write().await;
-        crdts_map.clear();
+        #[cfg(feature = "p2p")]
+        {
+            let mut crdts_map = self.crdts.write().await;
+            crdts_map.clear();
+            for service_def in services.clone() {
+                let service_name = service_def.name.clone();
+                crdts_map.insert(service_name, ServiceCrdt::new(service_def));
+            }
+        }
+        
         for service_def in services {
             let service_name = service_def.name.clone();
             let base_path = service_def.server.base_path.clone();
             registry.register_service(service_def.clone()).await?;
             router.register_service(&service_name, &base_path);
-            crdts_map.insert(service_name, ServiceCrdt::new(service_def));
         }
-        drop(crdts_map);
 
         registry.start_all_services().await?;
         Ok(())

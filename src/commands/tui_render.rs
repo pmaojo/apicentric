@@ -8,14 +8,14 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
 
-use super::tui_state::{ServiceListState, TuiAppState};
+use super::tui_state::{ServiceListState, TuiAppState, FocusedPanel};
 
 /// Render the service list panel
-pub fn render_service_list(f: &mut Frame, area: Rect, state: &ServiceListState) {
+pub fn render_service_list(f: &mut Frame, area: Rect, state: &ServiceListState, is_focused: bool) {
     let items: Vec<ListItem> = state
         .items
         .iter()
@@ -71,9 +71,10 @@ pub fn render_service_list(f: &mut Frame, area: Rect, state: &ServiceListState) 
         })
         .collect();
 
-    // Create title with count
+    // Create title with count and focus indicator
     let title = format!(
-        " Services ({}/{}) ",
+        "{} Services ({}/{}) ",
+        if is_focused { "▶" } else { " " },
         if state.items.is_empty() {
             0
         } else {
@@ -82,18 +83,24 @@ pub fn render_service_list(f: &mut Frame, area: Rect, state: &ServiceListState) 
         state.items.len()
     );
 
+    let border_color = if is_focused {
+        Color::Yellow
+    } else {
+        Color::White
+    };
+
     let list = List::new(items).block(
         Block::default()
             .title(title)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::White)),
+            .border_style(Style::default().fg(border_color)),
     );
 
     f.render_widget(list, area);
 }
 
 /// Render the log view panel
-pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
+pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState, is_focused: bool) {
     let filtered = state.logs.filtered_entries();
     let total_count = filtered.len();
 
@@ -142,26 +149,204 @@ pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
         })
         .collect();
 
-    // Create title with scroll indicator
+    // Create title with scroll indicator and focus indicator
     let title = if total_count > 0 {
         format!(
-            " Request Logs ({}-{} of {}) ",
+            "{} Request Logs ({}-{} of {}) ",
+            if is_focused { "▶" } else { " " },
             scroll + 1,
             (scroll + visible_height).min(total_count),
             total_count
         )
     } else {
-        " Request Logs (0) ".to_string()
+        format!("{} Request Logs (0) ", if is_focused { "▶" } else { " " })
+    };
+
+    let border_color = if is_focused {
+        Color::Yellow
+    } else {
+        Color::White
     };
 
     let list = List::new(items).block(
         Block::default()
             .title(title)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::White)),
+            .border_style(Style::default().fg(border_color)),
     );
 
     f.render_widget(list, area);
+}
+
+/// Render the filter dialog
+pub fn render_filter_dialog(f: &mut Frame, state: &TuiAppState) {
+    use ratatui::{
+        layout::{Alignment, Constraint, Direction, Layout},
+        widgets::{Clear},
+    };
+
+    // Calculate centered area for dialog
+    let area = f.size();
+    let dialog_width = 60.min(area.width.saturating_sub(4));
+    let dialog_height = 7;
+    
+    let dialog_area = Rect {
+        x: (area.width.saturating_sub(dialog_width)) / 2,
+        y: (area.height.saturating_sub(dialog_height)) / 2,
+        width: dialog_width,
+        height: dialog_height,
+    };
+
+    // Clear the area behind the dialog
+    f.render_widget(Clear, dialog_area);
+
+    // Create dialog content
+    let lines = vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::raw("Format: "),
+            Span::styled("method:GET", Style::default().fg(Color::Cyan)),
+            Span::raw(", "),
+            Span::styled("status:200", Style::default().fg(Color::Cyan)),
+            Span::raw(", "),
+            Span::styled("service:api", Style::default().fg(Color::Cyan)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("> ", Style::default().fg(Color::Yellow)),
+            Span::raw(state.input.value()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Enter", Style::default().fg(Color::Green)),
+            Span::raw(" to apply, "),
+            Span::styled("Esc", Style::default().fg(Color::Red)),
+            Span::raw(" to cancel"),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .title(" Filter Logs ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        )
+        .alignment(Alignment::Left);
+
+    f.render_widget(paragraph, dialog_area);
+}
+
+/// Render the search dialog
+pub fn render_search_dialog(f: &mut Frame, state: &TuiAppState) {
+    use ratatui::{
+        layout::{Alignment, Constraint, Direction, Layout},
+        widgets::{Clear},
+    };
+
+    // Calculate centered area for dialog
+    let area = f.size();
+    let dialog_width = 50.min(area.width.saturating_sub(4));
+    let dialog_height = 6;
+    
+    let dialog_area = Rect {
+        x: (area.width.saturating_sub(dialog_width)) / 2,
+        y: (area.height.saturating_sub(dialog_height)) / 2,
+        width: dialog_width,
+        height: dialog_height,
+    };
+
+    // Clear the area behind the dialog
+    f.render_widget(Clear, dialog_area);
+
+    // Create dialog content
+    let lines = vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("> ", Style::default().fg(Color::Yellow)),
+            Span::raw(state.input.value()),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Enter", Style::default().fg(Color::Green)),
+            Span::raw(" to search, "),
+            Span::styled("Esc", Style::default().fg(Color::Red)),
+            Span::raw(" to cancel"),
+        ]),
+    ];
+
+    let paragraph = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .title(" Search Logs ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        )
+        .alignment(Alignment::Left);
+
+    f.render_widget(paragraph, dialog_area);
+}
+
+/// Render the help dialog
+pub fn render_help_dialog(f: &mut Frame) {
+    use ratatui::{
+        layout::{Alignment, Constraint, Direction, Layout},
+        widgets::{Clear},
+    };
+
+    // Calculate centered area for dialog
+    let area = f.size();
+    let dialog_width = 60.min(area.width.saturating_sub(4));
+    let dialog_height = 18;
+    
+    let dialog_area = Rect {
+        x: (area.width.saturating_sub(dialog_width)) / 2,
+        y: (area.height.saturating_sub(dialog_height)) / 2,
+        width: dialog_width,
+        height: dialog_height,
+    };
+
+    // Clear the area behind the dialog
+    f.render_widget(Clear, dialog_area);
+
+    // Create help content
+    let lines = vec![
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Navigation", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from("  ↑/↓       Navigate focused panel"),
+        Line::from("  PgUp/PgDn Scroll logs"),
+        Line::from("  Tab       Switch panel focus"),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Actions", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from("  Enter     Start/Stop service"),
+        Line::from("  f         Open filter dialog"),
+        Line::from("  r         Refresh status"),
+        Line::from("  c         Clear logs"),
+        Line::from("  s         Save logs to file"),
+        Line::from("  /         Search logs"),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Other", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from("  ?         Show this help"),
+        Line::from("  q         Quit"),
+        Line::from(""),
+    ];
+
+    let paragraph = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .title(" Help ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        )
+        .alignment(Alignment::Left);
+
+    f.render_widget(paragraph, dialog_area);
 }
 
 /// Render the actions panel
@@ -220,6 +405,14 @@ pub fn render_actions_panel(f: &mut Frame, area: Rect, state: &TuiAppState) {
             ),
         ]));
         lines.push(Line::from(""));
+    }
+
+    // Show loading indicator if active
+    if state.is_loading {
+        lines.push(Line::from(vec![
+            Span::styled("⟳ ", Style::default().fg(Color::Yellow)),
+            Span::styled("Loading...", Style::default().fg(Color::Yellow)),
+        ]));
     }
 
     // Show status message if present

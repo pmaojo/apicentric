@@ -27,8 +27,8 @@ use apicentric::{ApicentricError, ApicentricResult};
 use apicentric::simulator::{manager::ApiSimulatorManager, config::SimulatorConfig};
 
 use super::tui_events::{poll_events, handle_key_event, update_service_status, poll_log_entries, Action};
-use super::tui_render::{render_service_list, render_log_view, render_actions_panel};
-use super::tui_state::TuiAppState;
+use super::tui_render::{render_service_list, render_log_view, render_actions_panel, render_filter_dialog, render_search_dialog, render_help_dialog};
+use super::tui_state::{TuiAppState, ViewMode};
 
 /// Launch the enhanced terminal dashboard with service list, logs and actions panes.
 ///
@@ -137,10 +137,28 @@ fn run_app(
                     ])
                     .split(size);
 
-                // Render panels
-                render_service_list(f, chunks[0], &state.services);
-                render_log_view(f, chunks[1], &state);
+                // Render panels with focus indication
+                render_service_list(
+                    f, 
+                    chunks[0], 
+                    &state.services, 
+                    state.focused_panel == super::tui_state::FocusedPanel::Services
+                );
+                render_log_view(
+                    f, 
+                    chunks[1], 
+                    &state, 
+                    state.focused_panel == super::tui_state::FocusedPanel::Logs
+                );
                 render_actions_panel(f, chunks[2], &state);
+
+                // Render dialogs on top if active
+                match state.mode {
+                    ViewMode::FilterDialog => render_filter_dialog(f, &state),
+                    ViewMode::SearchDialog => render_search_dialog(f, &state),
+                    ViewMode::HelpDialog => render_help_dialog(f),
+                    ViewMode::Normal => {},
+                }
             })
             .map_err(|e| {
                 ApicentricError::runtime_error(format!("Render error: {}", e), None::<String>)
