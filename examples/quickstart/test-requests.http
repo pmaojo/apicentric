@@ -1,0 +1,58 @@
+### GET - List all tasks
+GET http://localhost:9001/api/v1/tasks
+Accept: application/json
+
+### GET - List completed tasks only
+GET http://localhost:9001/api/v1/tasks?completed=true
+Accept: application/json
+
+### GET - Get specific task
+GET http://localhost:9001/api/v1/tasks/1
+Accept: application/json
+
+### GET - Get non-existent task (should return 404)
+GET http://localhost:9001/api/v1/tasks/999
+Accept: application/json
+
+### POST - Create new task
+POST http://localhost:9001/api/v1/tasks
+Content-Type: application/json
+
+{
+  "title": "Test new task",
+  "description": "Created via HTTP client",
+  "completed": false
+}
+
+### POST - Create task without title (should return 400)
+POST http://localhost:9001/api/v1/tasks
+Content-Type: application/json
+
+{
+  "description": "Task without title - should fail"
+}
+
+### PUT - Update existing task
+PUT http://localhost:9001/api/v1/tasks/1
+Content-Type: application/json
+
+{
+  "title": "Updated task title",
+  "description": "Updated description",
+  "completed": true
+}
+
+### PUT - Update non-existent task (should return 404)
+PUT http://localhost:9001/api/v1/tasks/999
+Content-Type: application/json
+
+{
+  "title": "This will fail",
+  "completed": true
+}
+
+### DELETE - Delete task
+DELETE http://localhost:9001/api/v1/tasks/2
+
+### DELETE - Delete non-existent task (should return 404)
+DELETE http://localhost:9001/api/v1/tasks/999

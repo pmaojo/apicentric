@@ -1,194 +1,216 @@
-🎯 MISIÓN: Simulación y mock de APIs para desarrollo rápido 
-🔧 MOTOR:  Rust + servicios YAML                              
-📊 MÉTRICAS: Monitorización en tiempo real (Prometheus, Sentry y Allure)  
-🚀 VELOCIDAD: Conversión y grabación automáticas           
+┌─ APICENTRIC ─────────────────────────────────────────────────────────────────────────┐
+│                                                                                      │
+│  🎯 MISIÓN: Simulador de APIs y testing de contratos desde línea de comandos        │
+│  🔧 MOTOR:  Rust + configuración YAML para servicios mock                           │
+│  � CLI:    Comandos para simulación, validación, generación y AI                   │
+│  � P2P:    Colaboración distribuida y compartir servicios                          │
+│                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────## � Instalación
 
-## 🛠️ Instalación
-
-Para instalar la versión más reciente de `apicentric`, ejecuta uno de los scripts de instalación incluidos:
-
-- **Linux/macOS**: `./scripts/install.sh`
-- **Windows (PowerShell)**: `./scripts/install.ps1`
-
-Cada script detecta automáticamente tu sistema operativo y arquitectura, descarga el binario adecuado desde las últimas releases y lo coloca en una ubicación habitual (`/usr/local/bin` o `%UserProfile%\bin`) desde `https://github.com/pmaojo/apicentric/releases`.
-
-## 📦 Instalación
-
-### Homebrew (macOS)
+### Releases de GitHub
 
 ```bash
-brew tap pmaojo/apicentric
-brew install apicentric
+# Linux x64
+curl -L https://github.com/pmaojo/apicentric/releases/latest/download/apicentric-linux-x64.tar.gz \
+  | tar -xz && sudo mv apicentric /usr/local/bin
+
+# macOS x64/ARM64
+curl -L https://github.com/pmaojo/apicentric/releases/latest/download/apicentric-macos.tar.gz \
+  | tar -xz && sudo mv apicentric /usr/local/bin
+
+# Windows x64 (PowerShell)
+Invoke-WebRequest -Uri "https://github.com/pmaojo/apicentric/releases/latest/download/apicentric-windows-x64.zip" -OutFile "apicentric.zip"
+Expand-Archive -Path "apicentric.zip" -DestinationPath "."
 ```
 
-### Windows (winget)
+### Gestores de paquetes
 
-```powershell
+```bash
+# Homebrew (macOS/Linux)
+brew tap pmaojo/apicentric
+brew install apicentric
+
+# Winget (Windows)
 winget install --id pmaojo.apicentric
 ```
 
-## Installation
+### Compilación desde código fuente
 
-- **Linux**
+```bash
+git clone https://github.com/pmaojo/apicentric.git
+cd apicentric
+cargo build --release
+sudo cp target/release/apicentric /usr/local/bin/
+```
 
-  ```bash
-  curl -L https://github.com/pmaojo/apicentric/releases/latest/download/apicentric-linux-x64.tar.gz \
-    | tar -xz && sudo mv apicentric /usr/local/bin
-  ```
-
-- **macOS**
-
-  ```bash
-  brew install pmaojo/apicentric/apicentric
-  ```
-
-- **Windows**
-  1. Download `apicentric-windows-x64.zip` from `https://github.com/pmaojo/apicentric/releases/latest/download`.
-  2. Extract `apicentric.exe` and add its folder to your `PATH`.
+Verifica la instalación:
 
 ```bash
 apicentric --version
 ```
 
-## Container Image
+## 🚀 Comandos disponibles
 
-Las releases publican una imagen de contenedor mínima en el GitHub Container Registry.
-Descárgala y ejecútala sin instalar dependencias locales:
-
-```bash
-docker pull ghcr.io/pmaojo/apicentric:latest
-docker run --rm ghcr.io/pmaojo/apicentric:latest --help
-```
-
-Para lanzar el simulador con tus servicios locales:
+Apicentric es una herramienta CLI para simulación de APIs, testing de contratos y generación de código:
 
 ```bash
-docker run --rm -v $(pwd)/services:/services ghcr.io/pmaojo/apicentric:latest \
-  simulator start --services-dir /services
+# ============= SIMULADOR DE APIs =============
+apicentric simulator start --services-dir mock_services --p2p   # Iniciar simulador con P2P
+apicentric simulator validate --path mock_services --recursive  # Validar servicios YAML
+apicentric simulator status --detailed                          # Estado de servicios activos
+apicentric simulator logs my-service --limit 50                 # Ver logs de peticiones
+
+# ============= IMPORTACIÓN/EXPORTACIÓN =============
+apicentric simulator import-mockoon --input mockoon.json --output services/api.yaml
+apicentric simulator import-postman --input collection.json --output services/api.yaml
+apicentric simulator export-types --input services/api.yaml --output types.ts
+apicentric simulator export-query --input services/api.yaml --output hooks.ts
+
+# ============= GENERACIÓN ASISTIDA =============
+apicentric ai generate "API de usuarios con GET /users y POST /users"
+
+# ============= INTERFAZ TERMINAL =============
+apicentric tui    # Dashboard interactivo en terminal
 ```
 
-## ✨ Guía Rápida
+## 📋 Características principales
 
 ```
-╭──────────────────────────────────────────────────────────────────────────────╮
-│ 1) Configura apicentric.json                                                       │
-│ 2) Integra scripts npm (apicentric setup-npm)                                      │
-│ 3) Arranca el simulador y gestiona servicios mock                             │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
+╭─ SIMULADOR DE APIS ─────────────────────────────────────────────────────────────────╮
+│                                                                                      │
+│  🔧 SERVICIOS YAML      │ Definición declarativa de endpoints y respuestas         │
+│  🚀 ARRANQUE RÁPIDO     │ Inicia múltiples servicios mock con un comando           │
+│  📡 PROXY GRABACIÓN     │ Captura tráfico real y genera servicios automáticamente  │
+│  🎛️  ESCENARIOS         │ Respuestas dinámicas según estado o condiciones          │
+│                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ GENERACIÓN DE CÓDIGO ──────────────────────────────────────────────────────────────╮
+│                                                                                      │
+│  🎭 TIPOS TYPESCRIPT   │ Interfaces desde especificaciones YAML/OpenAPI            │
+│  ⚛️  REACT QUERY       │ Hooks listos para usar con TanStack Query                 │
+│  📮 POSTMAN/INSOMNIA   │ Collections para testing manual                           │
+│  🔄 IMPORTACIÓN        │ Desde Mockoon, Postman, OpenAPI hacia YAML               │
+│                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ TESTING DE CONTRATOS ──────────────────────────────────────────────────────────────╮
+│                                                                                      │
+│  📝 REGISTRO           │ Gestiona contratos desde especificaciones de servicios    │
+│  ✅ VALIDACIÓN         │ Compara mocks vs APIs reales para compatibilidad         │
+│  📊 REPORTES           │ HTML con diferencias detectadas                           │
+│  🎯 ESCENARIOS         │ Testing de casos específicos y edge cases                │
+│                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─ COLABORACIÓN P2P ──────────────────────────────────────────────────────────────────╮
+│                                                                                      │
+│  🌐 LIBP2P             │ Compartir servicios entre equipos sin servidor central   │
+│  🔗 CONEXIÓN REMOTA    │ Acceder a mocks de otros desarrolladores                 │
+│  📡 EDICIÓN DISTRIBUTIVA│ Sincronización automática de cambios (CRDT)             │
+│  🎨 TERMINAL DASHBOARD │ TUI para gestión visual desde consola                    │
+│                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+
+## 🎯 Flujo de trabajo típico
+
+### 1. Crear servicios mock
 
 ```bash
-# Inicializa config por defecto (si aún no tienes apicentric.json)
-apicentric init
+# Crear un nuevo servicio desde cero
+apicentric simulator new --output services/
 
-# Ajusta rutas y directorios de servicios en apicentric.json
-
-# Añade scripts npm automáticamente
-apicentric setup-npm
-
-# Inicia el simulador con tus servicios mock
-npm run apicentric:sim -- simulator start --services-dir mock_services
-
-# Especifica una ruta de base de datos SQLite para almacenar servicios y logs
-npm run apicentric:sim -- simulator start --services-dir mock_services --db-path apicentric.db
-
-# Habilita la edición colaborativa distribuida entre pares
-npm run apicentric:sim -- simulator start --services-dir mock_services --p2p
-
-# Convierte un archivo Mockoon a YAML
-apicentric import-mockoon --input mockoon.json --output services/mockoon.yaml
-
-# Graba tráfico de una API real
-apicentric record --output services/ --url http://localhost:3000
-
-# Exporta interfaces TypeScript
-apicentric export-types --input services/petstore.yaml --output types.ts
-
-# Genera un componente React preconfigurado
-apicentric export-view --input services/petstore.yaml --output view.tsx
+# O importar desde herramientas existentes
+apicentric simulator import-mockoon --input mockoon.json --output services/api.yaml
+apicentric simulator import-postman --input collection.json --output services/api.yaml
 ```
 
-## Instalación y uso en Node.js
+### 2. Arrancar el simulador
 
 ```bash
-npm install apicentric
+# Iniciar todos los servicios en el directorio
+apicentric simulator start --services-dir services/
+
+# Con colaboración P2P habilitada
+apicentric simulator start --services-dir services/ --p2p
+
+# Validar antes de arrancar
+apicentric simulator validate --path services/ --recursive --verbose
 ```
 
-```javascript
-const { greet } = require('apicentric');
-console.log(greet('World'));
-```
-
-### Edición colaborativa P2P
-
-Arranca el simulador con la bandera `--p2p` para descubrir automáticamente a otros
-peers en la red local (mDNS) y compartir cambios de los servicios mediante CRDTs.
-Las modificaciones en los archivos YAML se fusionan y propagan sin necesidad de
-un servidor central.
-
-### Compartir servicios via libp2p
-
-Pulsa permite exponer un servicio en ejecución para que otros peers consuman el
-mock de forma remota.
+### 3. Generar código para frontend
 
 ```bash
-# En el host que tiene el simulador corriendo
-apicentric simulator share my-service
-# Muestra Peer ID y token de acceso
+# Tipos TypeScript
+apicentric simulator export-types --input services/api.yaml --output src/types.ts
 
-# En otro equipo
-apicentric simulator connect <peer-id> --service my-service --port 8080 --token <token>
-# Abre un proxy local en http://localhost:8080
+# Hooks React Query
+apicentric simulator export-query --input services/api.yaml --output src/api.ts
+
+# Componente React de ejemplo
+apicentric simulator export-view --input services/api.yaml --output src/ApiView.tsx
 ```
 
-> **Seguridad:** El token se debe compartir solo con colaboradores de
-confianza. Actualmente cualquier peer con el token puede conectarse; para un
-control más fino pueden implementarse listas de peers permitidos.
+### 4. Testing de contratos
+
+```bash
+# Registrar contrato desde spec
+apicentric contract register -n mi-api -s services/api.yaml
+
+# Ejecutar validación completa
+apicentric contract demo --contract-id <id> --with-simulator --html-report
+```
 
 
-### Generación asistida por IA
+## 🔧 Configuración inicial
 
-Configura un proveedor en `apicentric.json` para generar servicios desde prompts en
-lenguaje natural. Ejemplo con un modelo local:
+### 1. Inicializar proyecto
 
-```json
+```bash
+# Crear estructura básica de directorios
+mkdir -p services .apicentric/contracts
+
+# Archivo de configuración mínimo (apicentric.json)
+cat > apicentric.json << 'EOF'
 {
-  "ai": { "provider": "local", "model_path": "models/llama.bin" }
+  "services_dir": "services",
+  "simulator": {
+    "enabled": true,
+    "port_range": { "start": 9000, "end": 9099 }
+  },
+  "ai": {
+    "provider": "local"
+  }
 }
+EOF
 ```
 
-O utilizando la API de OpenAI:
-
-```json
-{
-  "ai": { "provider": "openai", "api_key": "sk-…", "model": "gpt-3.5-turbo" }
-}
-```
-
-Para generar un servicio YAML y aplicarlo al proyecto activo:
+### 2. Verificar instalación
 
 ```bash
-apicentric ai generate "Servicio de usuarios con GET /users"
+# Comprobar versión y comandos disponibles
+apicentric --version
+apicentric --help
+
+# Validar configuración
+apicentric --dry-run simulator validate --path services/ --verbose
 ```
 
-Usar el proveedor local mantiene todos los datos en tu máquina. Con OpenAI, el
-prompt y el resultado se envían al servicio externo.
-
-### Generación de vistas React
-
-El subcomando `export-view` crea un componente React mínimo que invoca los hooks
-de TanStack Query generados para cada endpoint. Siguiendo principios SOLID, la
-función generadora tiene una única responsabilidad y permanece abierta a
-extensiones sin modificar su núcleo. Dentro de la arquitectura Hexagonal, este
-componente actúa como un adaptador de la capa de presentación y mantiene el
-dominio aislado.
+### 3. Primer servicio mock
 
 ```bash
-apicentric export-view --input services/petstore.yaml --output view.tsx
-```
+# Crear servicio básico interactivamente
+apicentric simulator new --output services/
 
-El TSX generado puede personalizarse libremente para ajustar estilos o lógica
-de interacción según las necesidades del proyecto.
+# O copiar ejemplo incluido
+cp examples/user-api.yaml services/my-api.yaml
+
+# Validar antes de usar
+apicentric simulator validate --path services/ --recursive --verbose
+
+# Iniciar simulador
+apicentric simulator start --services-dir services/
+```
 
 ## 🚀 Ejemplo de uso
 
@@ -1095,65 +1117,97 @@ apicentric gui
 Desde la interfaz podrás iniciar y detener el simulador, editar archivos de
 servicio y guardar los cambios directamente en YAML.
 
-## Desarrollo
+## ✅ Testing y calidad
 
-### Compilación
+### Suite de tests integrada
+
+Apicentric incluye tests comprehensivos para garantizar la estabilidad:
 
 ```bash
+# Tests del simulador de APIs
+cargo test --test simulator_integration
+
+# Tests del sistema de plugins
+cargo test --test plugin_system  
+
+# Tests de carga de especificaciones YAML
+cargo test --test service_spec_loader
+
+# Tests de comandos CLI y contexto
+cargo test --test cli_commands
+
+# Ejecutar todos los tests
+cargo test --all
+```
+
+### Validación de servicios
+
+```bash
+# Validar servicio específico con detalles
+apicentric simulator validate --path services/api.yaml --verbose
+
+# Validar directorio completo recursivamente  
+apicentric simulator validate --path services/ --recursive --verbose
+
+# Modo dry-run para ver qué se ejecutaría
+apicentric --dry-run simulator validate --path services/
+```
+
+### Performance de compilación
+
+```bash
+# Build rápido para desarrollo
 cargo build
+
+# Build optimizado para producción
+cargo build --release
+
+# Verificación sin compilar (muy rápido)
+cargo check
 ```
 
-### Pruebas
+### Ejemplos funcionales
+
+Encuentra ejemplos completos en `examples/`:
+- `user-api.yaml` - API básica de usuarios con CRUD
+- `ecommerce-api.yaml` - API de e-commerce con productos y órdenes  
+- `quickstart/` - Tutorial completo paso a paso
 
 ```bash
-# Unit tests
-cargo test
+# Probar ejemplo de usuario
+cp examples/user-api.yaml services/
+apicentric simulator start --services-dir services/
 
-# Integration tests
-cargo test --test integration_tests
-
-# Cobertura (si está configurada)
-# cargo test --coverage
+# En otra terminal
+curl http://localhost:9001/api/v1/users
 ```
 
-### Helpers de plantillas
-
-Las plantillas Handlebars del simulador permiten generar datos de ejemplo y
-consultar variables de entorno:
-
-```hbs
-{{faker "internet.email"}}   {{!-- correo electrónico realista --}}
-{{env.MY_VARIABLE}}           {{!-- valor desde el entorno --}}
-```
-
-### Escenarios y rotación de respuestas
-
-Cada endpoint puede definir múltiples escenarios dentro de la clave `scenarios`.
-Cuando un escenario no posee `name` ni `conditions`, puede emplearse para
-rotar respuestas automáticamente.
-
-```yaml
-scenarios:
-  - strategy: sequential # también "random"
-    response:
-      status: 200
-      body: "ok"
-  - response:
-      status: 500
-      body: "error"
-```
-
-Con la estrategia `sequential` las respuestas se devuelven en orden y vuelven al
-inicio al llegar al final. Con `random` se elige una respuesta aleatoriamente en
-cada petición.
+## 🧭 Desarrollo
 
 ### Contribuir
 
-1. Haz fork del repositorio
-2. Crea una rama de feature
-3. Añade tests para la nueva funcionalidad
-4. Asegúrate de que todo pasa en CI
-5. Abre un Pull Request
+1. Fork del repositorio
+2. Crear rama de feature: `git checkout -b feature/nueva-funcionalidad`
+3. Commit cambios: `git commit -am 'Añadir nueva funcionalidad'`
+4. Push a la rama: `git push origin feature/nueva-funcionalidad`  
+5. Crear Pull Request
+
+### Compilación desde fuente
+
+```bash
+# Clonar repositorio
+git clone https://github.com/pmaojo/apicentric.git
+cd apicentric
+
+# Instalar dependencias y compilar
+cargo build --release
+
+# Ejecutar tests
+cargo test
+
+# Instalar binario
+cargo install --path .
+```
 
 ## Licencia
 

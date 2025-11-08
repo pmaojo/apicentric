@@ -1,0 +1,110 @@
+name: E-commerce API
+version: "2.1"
+description: Sample e-commerce API with products and orders
+server:
+  port: 9002
+  base_path: /api/v2
+  
+fixtures:
+  products:
+    - id: 101
+      name: "Laptop Pro"
+      price: 1299.99
+      category: "electronics"
+      stock: 15
+    - id: 102  
+      name: "Coffee Mug"
+      price: 12.50
+      category: "home"
+      stock: 50
+
+endpoints:
+  - method: GET
+    path: /products
+    description: List products with optional filtering
+    parameters:
+      - name: category
+        in: query
+        required: false
+        type: string
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "products": [
+              {{#each fixtures.products}}
+              {
+                "id": {{id}},
+                "name": "{{name}}",
+                "price": {{price}},
+                "category": "{{category}}",
+                "stock": {{stock}}
+              }{{#unless @last}},{{/unless}}
+              {{/each}}
+            ],
+            "total": {{fixtures.products.length}},
+            "filter": "{{query.category}}"
+          }
+
+  - method: POST
+    path: /orders
+    description: Create a new order
+    request_body:
+      content_type: application/json
+      schema: |
+        {
+          "customer_id": "number",
+          "items": [{"product_id": "number", "quantity": "number"}]
+        }
+    responses:
+      201:
+        content_type: application/json  
+        body: |
+          {
+            "order_id": {{faker "datatype.number" min=1000 max=9999}},
+            "customer_id": {{request.body.customer_id}},
+            "items": {{json request.body.items}},
+            "total": {{faker "commerce.price"}},
+            "status": "pending",
+            "created_at": "{{now}}"
+          }
+      422:
+        condition: "{{not request.body.customer_id}}"
+        content_type: application/json
+        body: |
+          {
+            "error": "Invalid order",
+            "details": ["Customer ID is required"]
+          }
+
+  - method: GET
+    path: /orders/{id}/status
+    description: Get order status
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "order_id": {{params.id}},
+            "status": "{{#random}}pending,processing,shipped,delivered{{/random}}",
+            "updated_at": "{{now}}"
+          }
+
+scenarios:
+  - name: "holiday_traffic"
+    description: "Simulate high traffic during holidays"
+    delay_ms: 1500
+    response_rate: 0.8
+    
+  - name: "maintenance_mode"  
+    description: "Service under maintenance"
+    response:
+      status: 503
+      headers:
+        Retry-After: "3600"
+      body: |
+        {
+          "error": "Service under maintenance",
+          "retry_after": "1 hour"
+        }

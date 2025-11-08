@@ -1,0 +1,198 @@
+name: Tasks API
+version: "1.0"
+description: Simple task management API for demonstration
+port: 9001
+server:
+  port: 9001
+  base_path: /api/v1
+  cors:
+    enabled: true
+    origins: ["*"]
+
+fixtures:
+  tasks:
+    - id: 1
+      title: "Setup development environment"
+      description: "Install dependencies and configure tools"
+      completed: false
+      created_at: "2024-01-15T10:00:00Z"
+    - id: 2
+      title: "Write unit tests"
+      description: "Add comprehensive test coverage"
+      completed: true
+      created_at: "2024-01-14T15:30:00Z"
+    - id: 3
+      title: "Deploy to staging"
+      description: "Push latest changes to staging environment"
+      completed: false
+      created_at: "2024-01-16T09:15:00Z"
+
+endpoints:
+  - method: GET
+    path: /tasks
+    description: Get all tasks with optional filtering
+    parameters:
+      - name: completed
+        in: query
+        required: false
+        type: boolean
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "tasks": [
+              {{#each fixtures.tasks}}
+              {
+                "id": {{id}},
+                "title": "{{title}}",
+                "description": "{{description}}",
+                "completed": {{completed}},
+                "created_at": "{{created_at}}"
+              }{{#unless @last}},{{/unless}}
+              {{/each}}
+            ],
+            "total": {{fixtures.tasks.length}},
+            "filtered": {{#if query.completed}}"{{query.completed}}"{{else}}null{{/if}}
+          }
+
+  - method: GET
+    path: /tasks/{id}
+    description: Get a specific task by ID
+    responses:
+      200:
+        condition: "{{eq params.id '1'}}"
+        content_type: application/json
+        body: |
+          {
+            "id": 1,
+            "title": "Setup development environment",
+            "description": "Install dependencies and configure tools",
+            "completed": false,
+            "created_at": "2024-01-15T10:00:00Z"
+          }
+      200:
+        condition: "{{eq params.id '2'}}"
+        content_type: application/json
+        body: |
+          {
+            "id": 2,
+            "title": "Write unit tests",
+            "description": "Add comprehensive test coverage",
+            "completed": true,
+            "created_at": "2024-01-14T15:30:00Z"
+          }
+      404:
+        condition: "{{not (or (eq params.id '1') (eq params.id '2') (eq params.id '3'))}}"
+        content_type: application/json
+        body: |
+          {
+            "error": "Task not found",
+            "message": "No task with ID {{params.id}}",
+            "code": "TASK_NOT_FOUND"
+          }
+
+  - method: POST
+    path: /tasks
+    description: Create a new task
+    request_body:
+      content_type: application/json
+      required: true
+    responses:
+      201:
+        condition: "{{request.body.title}}"
+        content_type: application/json
+        body: |
+          {
+            "id": {{faker "datatype.number" min=100 max=999}},
+            "title": "{{request.body.title}}",
+            "description": "{{request.body.description}}",
+            "completed": {{#if request.body.completed}}{{request.body.completed}}{{else}}false{{/if}},
+            "created_at": "{{now}}"
+          }
+      400:
+        condition: "{{not request.body.title}}"
+        content_type: application/json
+        body: |
+          {
+            "error": "Validation failed",
+            "message": "Title is required",
+            "code": "VALIDATION_ERROR",
+            "details": ["title field cannot be empty"]
+          }
+
+  - method: PUT
+    path: /tasks/{id}
+    description: Update an existing task
+    request_body:
+      content_type: application/json
+      required: true
+    responses:
+      200:
+        condition: "{{and params.id request.body.title}}"
+        content_type: application/json
+        body: |
+          {
+            "id": {{params.id}},
+            "title": "{{request.body.title}}",
+            "description": "{{request.body.description}}",
+            "completed": {{#if request.body.completed}}{{request.body.completed}}{{else}}false{{/if}},
+            "updated_at": "{{now}}"
+          }
+      404:
+        condition: "{{gt params.id '100'}}"
+        content_type: application/json
+        body: |
+          {
+            "error": "Task not found",
+            "code": "TASK_NOT_FOUND"
+          }
+
+  - method: DELETE
+    path: /tasks/{id}
+    description: Delete a task
+    responses:
+      204:
+        condition: "{{le params.id '100'}}"
+        content_type: text/plain
+        body: ""
+      404:
+        condition: "{{gt params.id '100'}}"
+        content_type: application/json
+        body: |
+          {
+            "error": "Task not found",
+            "code": "TASK_NOT_FOUND"
+          }
+
+scenarios:
+  - name: "slow_api"
+    description: "Simulate slow API responses for performance testing"
+    delay_ms: 3000
+    endpoints: ["GET /tasks", "GET /tasks/{id}"]
+    
+  - name: "high_load"
+    description: "Simulate server under high load"
+    delay_ms: 1000
+    response_rate: 0.7
+    endpoints: ["POST /tasks", "PUT /tasks/{id}"]
+    
+  - name: "maintenance_mode"
+    description: "API in maintenance mode"
+    response:
+      status: 503
+      headers:
+        Retry-After: "1800"
+      body: |
+        {
+          "error": "Service unavailable",
+          "message": "API is currently under maintenance",
+          "retry_after": "30 minutes"
+        }
+
+behavior:
+  request_logging: true
+  response_delays:
+    min_ms: 100
+    max_ms: 300
+  cors_enabled: true
