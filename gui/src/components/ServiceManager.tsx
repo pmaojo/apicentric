@@ -1,7 +1,5 @@
-import React, { useState } from "react";
-import { useServicePort } from "../ports/ServicePort";
-import { invoke } from "@tauri-apps/api/tauri";
-import { load as loadYaml, dump as dumpYaml } from "js-yaml";
+import React, { useState, useEffect } from "react";
+import * as api from "../api/client";
 import Sidebar from "./Sidebar";
 
 interface ServiceInfo {
@@ -10,93 +8,104 @@ interface ServiceInfo {
   is_running: boolean;
 }
 
-interface ServicePort {
-  load(path: string): Promise<any>;
-  save(path: string, data: any): Promise<void>;
-  list(): Promise<ServiceInfo[]>;
-}
-
-
 const ServiceManager: React.FC = () => {
-  const [path, setPath] = useState("");
-  const [name, setName] = useState("");
-  const [port, setPort] = useState("");
-  const [endpoints, setEndpoints] = useState<any[]>([]);
-  const [types, setTypes] = useState("");
+  const [services, setServices] = useState<ServiceInfo[]>([]);
+  const [selectedServicePath, setSelectedServicePath] = useState<string>("");
+  const [yamlContent, setYamlContent] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [tsTypes, setTsTypes] = useState<string>("");
 
-  const port = useServicePort();
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const serviceList = await api.listServices();
+        setServices(serviceList);
+      } catch (err: any) {
+        setError(err.message);
+      }
+    };
+    fetchServices();
+  }, []);
 
-  const load = async () => {
-    const content = await port.loadService(path);
-    setYaml(content);
+  const handleLoad = async () => {
+    if (!selectedServicePath) {
+      setError("Please select a service path.");
+      return;
+    }
+    try {
+      setError(null);
+      const content = await api.loadService(selectedServicePath);
+      setYamlContent(content);
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
-  const save = async () => {
-    await port.saveService(path, yaml);
-
+  const handleSave = async () => {
+    if (!selectedServicePath) {
+      setError("Please select a service path.");
+      return;
+    }
+    try {
+      setError(null);
+      await api.saveService(selectedServicePath, yamlContent);
+      alert("Service saved successfully!");
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
-  const exportTypes = async () => {
-    const t = await port.exportTypes(path);
-    setTypes(t);
+  // This function needs to be implemented in the backend first
+  const handleExportTypes = async () => {
+     alert("Exporting types is not yet implemented in the cloud backend.");
+     // try {
+     //   const types = await api.exportTypes(selectedServicePath);
+     //   setTsTypes(types);
+     // } catch (err: any) {
+     //   setError(err.message);
+     // }
   };
-
-  const addEndpoint = () =>
-    setEndpoints([
-      ...endpoints,
-      {
-        method: "",
-        path: "",
-        headers: {},
-        payload: "",
-        responses: { strategy: "sequential", list: [] },
-      },
-    ]);
 
   return (
     <div>
+      {error && <div style={{ color: "red", marginBottom: "10px" }}>Error: {error}</div>}
       <div>
         <input
-          placeholder="service.yaml"
-          value={path}
-          onChange={(e) => setPath(e.target.value)}
+          placeholder="path/to/service.yaml"
+          value={selectedServicePath}
+          onChange={(e) => setSelectedServicePath(e.target.value)}
         />
-        <button onClick={load}>Load</button>
-        <button onClick={save}>Save</button>
-        <button onClick={exportTypes}>Export TS Types</button>
+        <button onClick={handleLoad}>Load</button>
+        <button onClick={handleSave}>Save</button>
+        <button onClick={handleExportTypes}>Export TS Types</button>
       </div>
-      <div>
-        <label htmlFor="name">Name:</label>
-        <input
-          id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        {errors.name && (
-          <span style={{ color: "red", marginLeft: 4 }}>{errors.name}</span>
-        )}
-      </div>
-      <div>
-        <label htmlFor="port">Port:</label>
-        <input
-          id="port"
-          type="number"
-          value={port}
-          onChange={(e) => setPort(e.target.value)}
-        />
-        {errors.port && (
-          <span style={{ color: "red", marginLeft: 4 }}>{errors.port}</span>
-        )}
-      </div>
-      <Sidebar
-        servicePath={path}
-        endpoints={endpoints.map((e) => ({
-          method: e.method,
-          path: e.path,
-        }))}
-        onAdd={addEndpoint}
+      
+      <textarea
+        value={yamlContent}
+        onChange={(e) => setYamlContent(e.target.value)}
+        rows={20}
+        cols={80}
+        placeholder="YAML content will be loaded here..."
+        style={{ fontFamily: "monospace", marginTop: "10px" }}
       />
-      <pre>{types}</pre>
+
+      <div style={{ marginTop: "20px" }}>
+        <h3>Loaded Services</h3>
+        <ul>
+          {services.map((service) => (
+            <li key={service.name}>
+              {service.name} (Port: {service.port}) - {service.is_running ? "Running" : "Stopped"}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {tsTypes && (
+        <div style={{ marginTop: "20px" }}>
+          <h3>Generated TypeScript Types</h3>
+          <pre>{tsTypes}</pre>
+        </div>
+      )}
     </div>
   );
 };
