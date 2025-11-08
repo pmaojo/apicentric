@@ -43,6 +43,34 @@ cargo build --release
 sudo cp target/release/apicentric /usr/local/bin/
 ```
 
+#### Opciones de Instalación con Cargo
+
+Apicentric soporta diferentes configuraciones de características para optimizar el tamaño y tiempo de compilación:
+
+```bash
+# Instalación completa (recomendado)
+cargo install apicentric
+
+# CLI tools (simulador + testing de contratos + TUI)
+cargo install apicentric --features cli-tools
+
+# Solo simulador (más rápido)
+cargo install apicentric --no-default-features --features simulator
+```
+
+**Características disponibles:**
+- `simulator` - Motor de simulación de APIs (core)
+- `tui` - Interfaz de usuario en terminal interactiva
+- `contract-testing` - Testing de contratos con APIs reales
+- `mock-data` - Generación de datos falsos con Faker
+- `database` - Almacenamiento SQLite para estado persistente
+- `file-watch` - Recarga automática al cambiar archivos
+
+**Bundles de conveniencia:**
+- `cli-tools` - Herramientas CLI esenciales (simulator + contract-testing + tui)
+- `full` - Todas las características
+- `minimal` - Solo el simulador (compilación más rápida)
+
 Verifica la instalación:
 
 ```bash

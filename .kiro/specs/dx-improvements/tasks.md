@@ -1,26 +1,26 @@
 # Implementation Plan
 
-- [ ] 1. Dependency Optimization and Feature Flags
+- [x] 1. Dependency Optimization and Feature Flags
   - Analyze current dependencies and measure baseline build times
   - Create Cargo feature flags for optional heavy dependencies
   - Update code with conditional compilation attributes
   - Document feature flags and build options
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 1.1 Measure baseline build performance
+- [x] 1.1 Measure baseline build performance
   - Run `cargo clean && time cargo build --release` and record time
   - Use `cargo tree` to analyze dependency graph
   - Identify which dependencies contribute most to build time
   - Document findings in a build-performance.md file
   - _Requirements: 1.1_
 
-- [ ] 1.2 Create Cargo feature flags structure
+- [x] 1.2 Create Cargo feature flags structure
   - Update Cargo.toml with feature definitions (minimal, default, tui, p2p, graphql, scripting, ai, full, cli-tools)
   - Make heavy dependencies optional (libp2p, deno_core, async-graphql, automerge, tokio-tungstenite)
   - Keep core dependencies always available (tokio, serde, clap, hyper, anyhow, thiserror)
   - _Requirements: 1.3, 1.4_
 
-- [ ] 1.3 Add conditional compilation to P2P code
+- [x] 1.3 Add conditional compilation to P2P code
   - Wrap src/collab/p2p.rs with `#[cfg(feature = "p2p")]`
   - Wrap src/collab/share.rs with `#[cfg(feature = "p2p")]`
   - Wrap src/collab/crdt.rs with `#[cfg(feature = "p2p")]`
@@ -28,25 +28,25 @@
   - Update CLI commands to show P2P availability based on feature
   - _Requirements: 1.3_
 
-- [ ] 1.4 Add conditional compilation to GraphQL code
+- [x] 1.4 Add conditional compilation to GraphQL code
   - Wrap src/simulator/service/graphql.rs with `#[cfg(feature = "graphql")]`
   - Update ServiceDefinition to conditionally include graphql field
   - Update CLI to show GraphQL availability
   - _Requirements: 1.3_
 
-- [ ] 1.5 Add conditional compilation to scripting code
+- [x] 1.5 Add conditional compilation to scripting code
   - Wrap deno_core usage in src/simulator/service/mod.rs with `#[cfg(feature = "scripting")]`
   - Make script execution conditional on feature flag
   - Update documentation to explain scripting feature
   - _Requirements: 1.3_
 
-- [ ] 1.6 Add conditional compilation to TUI code
+- [x] 1.6 Add conditional compilation to TUI code
   - Wrap src/commands/tui.rs with `#[cfg(feature = "tui")]`
   - Wrap TUI dependencies (ratatui, crossterm, indicatif, console, colored, inquire) as optional
   - Update CLI to conditionally show tui command
   - _Requirements: 1.3_
 
-- [ ] 1.7 Test builds with different feature combinations
+- [x] 1.7 Test builds with different feature combinations
   - Test `cargo build --no-default-features --features minimal`
   - Test `cargo build` (default features)
   - Test `cargo build --features cli-tools`
@@ -55,14 +55,14 @@
   - Measure and document build times for each configuration
   - _Requirements: 1.1, 1.5_
 
-- [ ] 1.8 Document feature flags in README
+- [x] 1.8 Document feature flags in README
   - Add "Installation Options" section explaining feature flags
   - Document what each feature includes
   - Provide cargo install examples for each feature set
   - Add build time estimates for each configuration
   - _Requirements: 1.5_
 
-- [ ] 2. Enhanced Terminal User Interface
+- [x] 2. Enhanced Terminal User Interface
   - Design and implement TUI state management
   - Create three-panel layout (services, logs, actions)
   - Implement real-time service status updates
@@ -70,7 +70,7 @@
   - Implement keyboard shortcuts and navigation
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 2.1 Design TUI state management structures
+- [x] 2.1 Design TUI state management structures
   - Create TuiAppState struct with mode, services, logs, input fields
   - Create ServiceStatus struct with name, port, is_running, request_count, last_request
   - Create LogViewState with entries, filter, scroll, max_entries
@@ -78,7 +78,7 @@
   - Define ViewMode enum (Normal, FilterDialog, SearchDialog, HelpDialog)
   - _Requirements: 3.1, 3.5_
 
-- [ ] 2.2 Implement service list panel
+- [x] 2.2 Implement service list panel
   - Create render_service_list function using ratatui List widget
   - Display service name, port, and running status with indicators (● for running, ○ for stopped)
   - Implement selection highlighting
@@ -86,7 +86,7 @@
   - Show service count and selected index
   - _Requirements: 3.1, 3.6_
 
-- [ ] 2.3 Implement log view panel
+- [x] 2.3 Implement log view panel
   - Create render_log_view function using ratatui List widget
   - Display request logs with timestamp, method, path, and status
   - Implement scrolling with page up/down
@@ -95,7 +95,7 @@
   - Format logs with color coding by status (green for 2xx, yellow for 3xx, red for 4xx/5xx)
   - _Requirements: 3.1, 3.3_
 
-- [ ] 2.4 Implement actions panel
+- [x] 2.4 Implement actions panel
   - Create render_actions_panel function using ratatui Paragraph widget
   - Display keyboard shortcuts (q, ↑↓, Enter, f, r, c, s, /, Tab, ?)
   - Show current filter status if active
@@ -103,14 +103,14 @@
   - Add help text for current mode
   - _Requirements: 3.4, 3.6_
 
-- [ ] 2.5 Implement real-time service status updates
+- [x] 2.5 Implement real-time service status updates
   - Subscribe to ApiSimulatorManager status updates
   - Poll manager.get_status() every 1 second
   - Update TuiState.services with latest status
   - Handle service additions and removals
   - _Requirements: 3.1, 3.5_
 
-- [ ] 2.6 Implement log streaming from simulator
+- [-] 2.6 Implement log streaming from simulator
   - Subscribe to log events using manager.subscribe_logs()
   - Receive RequestLogEntry events in non-blocking manner
   - Add new logs to TuiState.logs VecDeque
@@ -118,7 +118,7 @@
   - Apply active filters to displayed logs
   - _Requirements: 3.1, 3.3, 3.5_
 
-- [ ] 2.7 Implement log filtering functionality
+- [x] 2.7 Implement log filtering functionality
   - Create filter dialog UI with method, status, service inputs
   - Parse user input for filter criteria
   - Apply filters to log display
@@ -127,7 +127,7 @@
   - Add 'Esc' to close dialog and clear filter
   - _Requirements: 3.3, 3.4_
 
-- [ ] 2.8 Implement service control actions
+- [x] 2.8 Implement service control actions
   - Add Enter key handler to toggle service start/stop
   - Call manager.start_service() or manager.stop_service() based on current state
   - Show loading indicator during state transitions
@@ -135,7 +135,7 @@
   - Update service list immediately after state change
   - _Requirements: 3.2, 3.4_
 
-- [ ] 2.9 Implement additional keyboard shortcuts
+- [x] 2.9 Implement additional keyboard shortcuts
   - Add 'r' key to manually refresh status
   - Add 'c' key to clear log buffer
   - Add 's' key to save logs to file with timestamp
@@ -144,7 +144,7 @@
   - Add '?' key to show help dialog with all shortcuts
   - _Requirements: 3.4, 3.6_
 
-- [ ] 2.10 Implement TUI main event loop
+- [x] 2.10 Implement TUI main event loop
   - Initialize terminal with crossterm backend
   - Set up event polling with 250ms timeout
   - Handle keyboard events and dispatch to handlers

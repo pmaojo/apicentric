@@ -8,8 +8,11 @@ mod ai_cmd;
 mod shared_impl;
 #[path = "../commands/simulator/mod.rs"]
 mod simulator_cmd;
+
+#[cfg(feature = "tui")]
 #[path = "../commands/tui.rs"]
 mod tui_cmd;
+
 mod commands {
     pub mod shared {
         pub use crate::shared_impl::*;
@@ -76,7 +79,8 @@ enum Commands {
         #[command(subcommand)]
         action: ai_cmd::AiAction,
     },
-    /// Launch the terminal dashboard
+    /// Launch the terminal dashboard (requires 'tui' feature)
+    #[cfg(feature = "tui")]
     Tui,
 }
 
@@ -145,6 +149,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
             _ => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
         },
         Commands::Ai { action } => ai_cmd::ai_command(&action, &context, &exec_ctx).await,
+        #[cfg(feature = "tui")]
         Commands::Tui => tui_cmd::tui_command(),
     }
 }
