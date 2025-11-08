@@ -2,7 +2,7 @@
 name = "apicentric"
 version = "0.1.1"
 edition = "2021"
-description = "Toolkit for building, recording, and sharing mock APIs"
+description = "Toolkit for building, recording, and sharing mock APIs (minimal build)"
 repository = "https://github.com/pmaojo/apicentric"
 license = "MIT"
 
@@ -10,65 +10,18 @@ license = "MIT"
 crate-type = ["rlib"]
 
 [dependencies]
-wasm-bindgen = "0.2" # retained for potential future wasm utilities; harmless for CLI
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-# Core CLI dependencies
+# Minimal CLI dependencies only
 anyhow = "1.0.99"
 clap = { version = "4.4.8", features = ["derive"] }
-glob = "0.3.3"
-lazy_static = "1.5.0"
-log = "0.4.20"
-env_logger = "0.10"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
 serde_yaml = "0.9.34"
 thiserror = "1.0.69"
-url = "2.5.4"
-regex = "1.11.1"
-chrono = { version = "0.4.31", features = ["serde"] }
-uuid = { version = "1.11.0", features = ["v4"] }
-tempfile = "3.8.0"
-
-# Minimal async runtime
-tokio = { version = "1.47.1", features = ["rt-multi-thread", "fs", "process", "net"] }
-
-# File operations and watching
-notify = "8.2.0"
-
-# Template engine (lightweight)
+tokio = { version = "1.47.1", features = ["rt", "fs", "process"] }
 handlebars = "6.2.0"
-
-# Mock data generation
-fake = "4.4.0"
-rand = "0.8"
-
-# OpenAPI support
-openapi = "0.1.5"
-
-# HTTP client for contract testing
-reqwest = { version = "0.11", features = ["json"] }
-async-trait = "0.1.74"
-
-# Database (system SQLite for faster builds)
-rusqlite = { version = "0.31", features = ["bundled"] }
-
-# Plugin system (basic)
-libloading = "0.8"
-
-# Terminal UI dependencies
-indicatif = "0.17.7"
-console = "0.15.7"
 colored = "2.1.0"
-inquire = "0.6"
-ratatui = "0.26.0"
-crossterm = "0.27"
-
-[dev-dependencies]
+glob = "0.3.3"
 
 [[bin]]
 name = "apicentric"
-path = "src/bin/apicentric.rs"
-
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = false
+path = "src/bin/apicentric-minimal.rs"
