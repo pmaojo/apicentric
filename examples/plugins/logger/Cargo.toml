@@ -10,4 +10,4 @@ crate-type = ["cdylib"]
 async-trait = "0.1"
 log = "0.4"
 http = "0.2"
-mockforge = { path = "../../../" }
+apicentric = { path = "../../../" }

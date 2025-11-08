@@ -7,7 +7,7 @@
     "devPath": "http://localhost:5173"
   },
   "package": {
-    "productName": "Pulse GUI",
+    "productName": "Apicentric GUI",
     "version": "0.1.0"
   },
   "tauri": {
@@ -15,10 +15,10 @@
       "shell": { "open": true }
     },
     "windows": [
-      { "title": "Pulse GUI", "width": 800, "height": 600 }
+      { "title": "Apicentric GUI", "width": 800, "height": 600 }
     ],
     "bundle": {
-      "identifier": "com.pulse.gui",
+      "identifier": "com.apicentric.gui",
       "icon": []
     }
   }

@@ -1,19 +1,19 @@
-PackageIdentifier: pmaojo.mockforge
+PackageIdentifier: pmaojo.apicentric
 PackageVersion: 0.1.0
-PackageName: mockforge
+PackageName: apicentric
 Publisher: pmaojo
 License: MIT
 ShortDescription: API mocking and simulation toolkit
 Installers:
   - Architecture: x64
     InstallerType: zip
-    InstallerUrl: https://github.com/pmaojo/mockforge/releases/download/v0.1.0/mockforge-windows-x86_64.zip
+    InstallerUrl: https://github.com/pmaojo/apicentric/releases/download/v0.1.0/apicentric-windows-x86_64.zip
     InstallerSha256: REPLACE_WITH_SHA256
     Commands:
-      - mockforge
+      - apicentric
   - Architecture: arm64
     InstallerType: zip
-    InstallerUrl: https://github.com/pmaojo/mockforge/releases/download/v0.1.0/mockforge-windows-arm64.zip
+    InstallerUrl: https://github.com/pmaojo/apicentric/releases/download/v0.1.0/apicentric-windows-arm64.zip
     InstallerSha256: REPLACE_WITH_SHA256
     Commands:
-      - mockforge
+      - apicentric

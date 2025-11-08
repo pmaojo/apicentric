@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use http::{Request, Response};
 use log::info;
-use mockforge::domain::ports::plugin::Plugin;
+use apicentric::domain::ports::plugin::Plugin;
 
 struct LoggerPlugin;
 

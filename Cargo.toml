@@ -1,9 +1,9 @@
 [package]
-name = "mockforge"
+name = "apicentric"
 version = "0.1.1"
 edition = "2021"
 description = "Toolkit for building, recording, and sharing mock APIs"
-repository = "https://github.com/pmaojo/mockforge"
+repository = "https://github.com/pmaojo/apicentric"
 license = "MIT"
 
 [lib]
@@ -20,12 +20,16 @@ hyper = { version = "1.7.0", features = ["full"] }
 hyper-util = { version = "0.1.16", features = ["full"] }
 lazy_static = "1.5.0"
 log = "0.4.20"
+env_logger = "0.10"
 notify = "8.2.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
 serde_yaml = "0.9.34"
 thiserror = "1.0.69"
 tokio = { version = "1.47.1", features = ["full"] }
+axum = { version = "0.7", features = ["macros"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.5", features = ["cors", "fs"] }
 handlebars = "6.2.0"
 url = "2.5.4"
 regex = "1.11.1"
@@ -65,8 +69,12 @@ libp2p = { version = "0.56", features = ["gossipsub", "mdns", "tokio", "quic", "
 [dev-dependencies]
 
 [[bin]]
-name = "mockforge"
-path = "src/bin/mockforge.rs"
+name = "apicentric"
+path = "src/bin/apicentric.rs"
+
+[[bin]]
+name = "apicentric-cloud"
+path = "src/bin/apicentric-cloud.rs"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

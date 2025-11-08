@@ -20,6 +20,8 @@ pub mod collab;
 pub mod storage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ai;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod cloud;
 
 // Domain layer (core business logic)
 #[cfg(not(target_arch = "wasm32"))]

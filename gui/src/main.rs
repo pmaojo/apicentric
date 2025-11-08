@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 use tauri::{Manager, State};
-use mockforge::simulator::{ApiSimulatorManager, SimulatorConfig, ServiceInfo, ServiceDefinition};
-use mockforge::simulator::log::RequestLogEntry;
-use mockforge::collab::share;
+use apicentric::simulator::{ApiSimulatorManager, SimulatorConfig, ServiceInfo, ServiceDefinition};
+use apicentric::simulator::log::RequestLogEntry;
+use apicentric::collab::share;
 use libp2p::PeerId;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -45,7 +45,7 @@ fn save_service(path: String, yaml: String) -> Result<(), String> {
 fn export_types(path: String) -> Result<String, String> {
     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let def: ServiceDefinition = serde_yaml::from_reader(file).map_err(|e| e.to_string())?;
-    mockforge::simulator::typescript::to_typescript(&def).map_err(|e| e.to_string())
+    apicentric::simulator::typescript::to_typescript(&def).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -127,5 +127,5 @@ fn main() {
             connect_service
         ])
         .run(tauri::generate_context!())
-        .expect("error while running MockForge GUI");
+        .expect("error while running Apicentric GUI");
 }
