@@ -11,8 +11,7 @@ crate-type = ["rlib"]
 
 [features]
 # Default includes all features currently used by the code
-# TODO: Make features truly optional by adding conditional compilation throughout codebase
-default = ["simulator", "contract-testing", "tui", "mock-data", "database", "file-watch"]
+default = ["simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting"]
 
 # Core features
 simulator = []
@@ -23,11 +22,13 @@ tui = ["ratatui", "crossterm", "indicatif", "console", "inquire"]
 mock-data = ["fake", "rand"]
 database = ["rusqlite"]
 file-watch = ["notify"]
+websockets = ["tokio-tungstenite", "futures-util/sink"]
+scripting = ["deno_core"]
 
 # Convenience bundles
 cli-tools = ["simulator", "contract-testing", "tui"]
 minimal = ["simulator"]
-full = ["simulator", "contract-testing", "tui", "mock-data", "database", "file-watch"]
+full = ["simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting"]
 
 [dependencies]
 
@@ -58,8 +59,14 @@ hyper-util = { version = "0.1", features = ["full"] }
 http = "1.0"
 http-body-util = "0.1"
 bytes = "1.0"
-futures-util = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
+
+# WebSocket support (optional)
+tokio-tungstenite = { version = "0.21", optional = true }
+
+# JavaScript runtime for scripting (optional, heavy)
+deno_core = { version = "0.272.0", optional = true }
 
 # Logging
 tracing = "0.1"

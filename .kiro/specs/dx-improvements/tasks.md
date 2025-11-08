@@ -110,7 +110,7 @@
   - Handle service additions and removals
   - _Requirements: 3.1, 3.5_
 
-- [-] 2.6 Implement log streaming from simulator
+- [x] 2.6 Implement log streaming from simulator
   - Subscribe to log events using manager.subscribe_logs()
   - Receive RequestLogEntry events in non-blocking manner
   - Add new logs to TuiState.logs VecDeque
