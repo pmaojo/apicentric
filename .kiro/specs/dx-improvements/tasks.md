@@ -364,7 +364,7 @@
   - Verify build times are under 10 minutes
   - _Requirements: 7.4, 7.7, 7.8_
 
-- [-] 5.11 Test release workflow with test tag
+- [ ] 5.11 Test release workflow with test tag
   - Create test tag (e.g., v0.1.2-test)
   - Verify release workflow triggers
   - Check that all platform binaries build
@@ -373,7 +373,7 @@
   - Delete test tag and release after verification
   - _Requirements: 7.5, 7.6_
 
-- [ ] 6. Open Source Readiness
+- [-] 6. Open Source Readiness
   - Add MIT LICENSE file
   - Ensure all community files are in place
   - Add comprehensive tests
@@ -381,13 +381,13 @@
   - Prepare for public release
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
-- [ ] 6.1 Add MIT LICENSE file
+- [x] 6.1 Add MIT LICENSE file
   - Create LICENSE file in repository root
   - Use standard MIT license text
   - Add copyright notice with year and author
   - _Requirements: 8.1_
 
-- [ ] 6.2 Verify all community files are present
+- [-] 6.2 Verify all community files are present
   - Confirm README.md is complete and clear
   - Confirm CONTRIBUTING.md exists
   - Confirm CODE_OF_CONDUCT.md exists
