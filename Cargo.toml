@@ -10,15 +10,12 @@ license = "MIT"
 crate-type = ["rlib"]
 
 [dependencies]
-# Minimal CLI dependencies only
+# Ultra-minimal CLI dependencies only
 anyhow = "1.0.99"
 clap = { version = "4.4.8", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.143"
+serde_json = "1.0.143" 
 serde_yaml = "0.9.34"
-thiserror = "1.0.69"
-tokio = { version = "1.47.1", features = ["rt", "fs", "process"] }
-handlebars = "6.2.0"
 colored = "2.1.0"
 glob = "0.3.3"
 
