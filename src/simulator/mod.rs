@@ -3,6 +3,7 @@
 //! This module provides a comprehensive service simulation system that enables offline development
 //! by serving locally-defined APIs through YAML configuration files.
 
+pub mod admin_server;
 pub mod config;
 pub mod log;
 pub mod manager;

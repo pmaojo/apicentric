@@ -4,6 +4,7 @@
 use crate::collab::crdt::{CrdtMessage, ServiceCrdt};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
+    admin_server::AdminServer,
     config::{ConfigLoader, ServiceDefinition, SimulatorConfig},
     lifecycle::{SimulatorLifecycle, Lifecycle},
     log::RequestLogEntry,
@@ -34,6 +35,7 @@ pub struct ApiSimulatorManager {
     log_sender: broadcast::Sender<RequestLogEntry>,
     lifecycle: SimulatorLifecycle<RequestRouter>,
     recorder: ProxyRecorder,
+    admin_server: Arc<RwLock<AdminServer>>,
 }
 
 impl ApiSimulatorManager {
@@ -72,6 +74,7 @@ impl ApiSimulatorManager {
             log_sender.clone(),
         );
         let recorder = ProxyRecorder;
+        let admin_server = Arc::new(RwLock::new(AdminServer::new(service_registry.clone())));
 
         Self {
             config,
@@ -86,6 +89,7 @@ impl ApiSimulatorManager {
             log_sender,
             lifecycle,
             recorder,
+            admin_server,
         }
     }
 
@@ -110,11 +114,19 @@ impl ApiSimulatorManager {
 
     /// Start the API simulator
     pub async fn start(&self) -> ApicentricResult<()> {
+        if let Some(port) = self.config.admin_port {
+            let mut admin_server = self.admin_server.write().await;
+            admin_server.start(port).await;
+        }
         self.lifecycle.start().await
     }
 
     /// Stop the API simulator
     pub async fn stop(&self) -> ApicentricResult<()> {
+        if self.config.admin_port.is_some() {
+            let mut admin_server = self.admin_server.write().await;
+            admin_server.stop().await;
+        }
         self.lifecycle.stop().await
     }
 

@@ -30,6 +30,8 @@ pub struct SimulatorConfig {
     /// Path to SQLite database for persistent storage
     #[serde(default = "default_db_path")]
     pub db_path: PathBuf,
+    /// Port for the admin API server
+    pub admin_port: Option<u16>,
     /// Global behavior settings
     #[serde(default)]
     pub global_behavior: Option<BehaviorConfig>,
@@ -43,6 +45,7 @@ impl SimulatorConfig {
             services_dir,
             port_range,
             db_path: default_db_path(),
+            admin_port: None,
             global_behavior: None,
         }
     }
@@ -54,6 +57,7 @@ impl SimulatorConfig {
             services_dir: PathBuf::from("services"),
             port_range: PortRange { start: 8000, end: 8999 },
             db_path: default_db_path(),
+            admin_port: None,
             global_behavior: None,
         }
     }
@@ -93,6 +97,7 @@ impl Default for SimulatorConfig {
             services_dir: PathBuf::from("services"),
             port_range: PortRange { start: 8000, end: 8999 },
             db_path: default_db_path(),
+            admin_port: None,
             global_behavior: None,
         }
     }
