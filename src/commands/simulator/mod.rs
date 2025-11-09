@@ -1,5 +1,5 @@
+use apicentric::{ApicentricResult, Context, ExecutionContext};
 use clap::Subcommand;
-use apicentric::{Context, ExecutionContext, ApicentricResult};
 
 mod control;
 mod dockerize;
@@ -95,6 +95,16 @@ pub enum SimulatorAction {
     /// Import a service from a Mockoon export
     ImportMockoon {
         /// Path to Mockoon JSON export
+        #[arg(short, long)]
+        input: String,
+        /// Output path for service YAML definition
+        #[arg(short, long)]
+        output: String,
+    },
+    /// Import a service from WireMock stub mappings
+    #[command(name = "import-wiremock")]
+    ImportWiremock {
+        /// Path to WireMock stub mapping JSON
         #[arg(short, long)]
         input: String,
         /// Output path for service YAML definition
@@ -263,6 +273,9 @@ pub async fn simulator_command(
         }
         SimulatorAction::ImportMockoon { input, output } => {
             import::handle_import_mockoon(input, output, exec_ctx).await
+        }
+        SimulatorAction::ImportWiremock { input, output } => {
+            import::handle_import_wiremock(input, output, exec_ctx).await
         }
         SimulatorAction::ImportPostman { input, output } => {
             import::handle_import_postman(input, output, exec_ctx).await

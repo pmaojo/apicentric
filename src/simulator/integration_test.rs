@@ -501,6 +501,7 @@ mod tests {
                 end: 9200,
             },
             db_path: temp_dir.path().join("test.db"),
+            admin_port: None,
             global_behavior: None,
         };
 

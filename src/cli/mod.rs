@@ -67,10 +67,10 @@ impl From<CliExecutionMode> for ExecutionMode {
 #[derive(Subcommand)]
 pub enum SimulatorAction {
     /// Starts the API simulator.
-    /// 
+    ///
     /// Starts the API simulator and loads all service definitions from the specified directory.
     /// Services will be available on their configured ports.
-    /// 
+    ///
     /// Example: apicentric simulator start --services-dir ./services
     #[command(alias = "s")]
     Start {
@@ -88,9 +88,9 @@ pub enum SimulatorAction {
     },
 
     /// Stops the API simulator.
-    /// 
+    ///
     /// Stops all running services and shuts down the simulator.
-    /// 
+    ///
     /// Example: apicentric simulator stop
     #[command(alias = "x")]
     Stop {
@@ -100,10 +100,10 @@ pub enum SimulatorAction {
     },
 
     /// Shows the simulator and services status.
-    /// 
+    ///
     /// Displays the current status of the simulator and all registered services,
     /// including port numbers, running state, and request counts.
-    /// 
+    ///
     /// Example: apicentric simulator status --detailed
     #[command(alias = "st")]
     Status {
@@ -113,10 +113,10 @@ pub enum SimulatorAction {
     },
 
     /// Validates service definition files.
-    /// 
+    ///
     /// Validates YAML service definition files for syntax errors and schema compliance.
     /// Can validate a single file or all files in a directory.
-    /// 
+    ///
     /// Example: apicentric simulator validate --path services/my-api.yaml
     #[command(alias = "v")]
     Validate {
@@ -173,6 +173,16 @@ pub enum SimulatorAction {
         /// The service name to expose.
         service: String,
     },
+    /// Imports WireMock stub mappings into a service definition.
+    #[command(name = "import-wiremock")]
+    ImportWiremock {
+        /// The path to the WireMock mapping JSON file or directory export.
+        #[arg(short, long)]
+        input: String,
+        /// The output path for the generated service YAML definition.
+        #[arg(short, long)]
+        output: String,
+    },
     /// Connects to a shared service and proxy locally.
     Connect {
         /// The remote peer ID.
@@ -203,7 +213,7 @@ pub enum AiAction {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Manages the API simulator and mock services.
-    /// 
+    ///
     /// The simulator command provides operations for starting, stopping, and managing
     /// mock API services defined in YAML files.
     #[command(alias = "sim")]
@@ -213,7 +223,7 @@ pub enum Commands {
     },
 
     /// AI-assisted service generation.
-    /// 
+    ///
     /// Use AI to generate service definitions from natural language descriptions.
     Ai {
         #[command(subcommand)]
@@ -221,18 +231,18 @@ pub enum Commands {
     },
 
     /// Launches the graphical editor for mock services.
-    /// 
+    ///
     /// Opens a GUI application for visually editing service definitions.
     /// Requires the GUI component to be installed.
-    /// 
+    ///
     /// Example: apicentric gui
     Gui,
 
     /// Launches the terminal dashboard.
-    /// 
+    ///
     /// Opens an interactive terminal UI for managing services, viewing logs,
     /// and monitoring the simulator in real-time.
-    /// 
+    ///
     /// Example: apicentric tui
     Tui,
 }

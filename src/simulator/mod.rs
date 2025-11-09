@@ -5,6 +5,7 @@
 
 pub mod admin_server;
 pub mod config;
+pub mod lifecycle;
 pub mod log;
 pub mod manager;
 pub mod mockoon;
@@ -12,15 +13,15 @@ pub mod openapi;
 pub mod postman;
 pub mod react_query;
 pub mod react_view;
+pub mod recording_proxy;
 pub mod registry;
 pub mod route_registry;
-pub mod lifecycle;
-pub mod recording_proxy;
 pub mod router;
 pub mod service;
 pub mod template;
 pub mod typescript;
 pub mod watcher;
+pub mod wiremock;
 
 #[cfg(test)]
 mod integration_test;

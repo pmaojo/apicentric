@@ -76,6 +76,43 @@ pub async fn handle_import_mockoon(
     Ok(())
 }
 
+pub async fn handle_import_wiremock(
+    input: &str,
+    output: &str,
+    exec_ctx: &ExecutionContext,
+) -> ApicentricResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would import WireMock '{}' into service '{}'",
+            input, output
+        );
+        return Ok(());
+    }
+    let service = apicentric::simulator::wiremock::from_path(input).map_err(|e| {
+        ApicentricError::runtime_error(
+            format!("Failed to read WireMock: {}", e),
+            Some(
+                "Ensure the file is a WireMock stub mapping export in JSON format (mappings.json or a single stub)"
+                    .into(),
+            ),
+        )
+    })?;
+    let yaml = serde_yaml::to_string(&service).map_err(|e| {
+        ApicentricError::runtime_error(
+            format!("Failed to serialize service: {}", e),
+            None::<String>,
+        )
+    })?;
+    std::fs::write(output, yaml).map_err(|e| {
+        ApicentricError::runtime_error(
+            format!("Failed to write service file: {}", e),
+            None::<String>,
+        )
+    })?;
+    println!("✅ Imported service to {}", output);
+    Ok(())
+}
+
 pub async fn handle_import_postman(
     input: &str,
     output: &str,
