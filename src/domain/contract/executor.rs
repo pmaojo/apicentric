@@ -2,9 +2,9 @@ use std::time::SystemTime;
 
 use super::ContractUseCaseError;
 use crate::domain::contract_testing::{
-    ComplianceIssue, ComplianceIssueType, ComplianceSeverity, Contract, ContractEvent,
-    ContractValidationResult, RealApiConfig, ValidationScenario, CompatibilityPolicy,
-    ScenarioValidationResult,
+    ApiResponse, CompatibilityPolicy, ComplianceIssue, ComplianceIssueType, ComplianceSeverity,
+    Contract, ContractEvent, ContractValidationResult, RealApiConfig, ResponseBody,
+    ScenarioValidationResult, ValidationScenario,
 };
 use crate::domain::ports::contract::{
     ContractEventPublisher, ContractHttpClient, ContractMetricsCollector, ContractMockApiRunner,
@@ -59,24 +59,43 @@ where
         let start_time = std::time::Instant::now();
         self.metrics.record_validation_started(&contract.id);
 
-        let mock_handle = self
-            .mock_api
-            .start(&contract.spec_path)
-            .await
-            .map_err(|e| ContractUseCaseError::MockApiError(e.to_string()))?;
+        let requires_mock = scenarios
+            .iter()
+            .any(|scenario| scenario.expected_status.is_none() || scenario.expected_body.is_none());
+
+        let mock_handle = if requires_mock {
+            Some(
+                self.mock_api
+                    .start(&contract.spec_path)
+                    .await
+                    .map_err(|e| ContractUseCaseError::MockApiError(e.to_string()))?,
+            )
+        } else {
+            None
+        };
 
         let validation_result = match self
-            .validate_scenarios(contract, real_api_config, &mock_handle, scenarios, policy)
+            .validate_scenarios(
+                contract,
+                real_api_config,
+                mock_handle.as_ref(),
+                scenarios,
+                policy,
+            )
             .await
         {
             Ok(result) => result,
             Err(e) => {
-                let _ = self.mock_api.stop(mock_handle).await;
+                if let Some(handle) = mock_handle {
+                    let _ = self.mock_api.stop(handle).await;
+                }
                 return Err(e);
             }
         };
 
-        let _ = self.mock_api.stop(mock_handle).await;
+        if let Some(handle) = mock_handle {
+            let _ = self.mock_api.stop(handle).await;
+        }
 
         let duration = start_time.elapsed();
         self.metrics.record_validation_completed(
@@ -112,7 +131,7 @@ where
         &self,
         contract: &Contract,
         real_api_config: &RealApiConfig,
-        mock_handle: &MockApiHandle,
+        mock_handle: Option<&MockApiHandle>,
         scenarios: &[ValidationScenario],
         policy: &CompatibilityPolicy,
     ) -> Result<ContractValidationResult, ContractUseCaseError> {
@@ -155,6 +174,7 @@ where
                         scenario_id: scenario.id.clone(),
                         mock_response: None,
                         real_response: None,
+                        expected_response: None,
                         compliance_issue: Some(issue),
                         duration_ms: 0,
                     });
@@ -180,17 +200,37 @@ where
         &self,
         contract: &Contract,
         real_api_config: &RealApiConfig,
-        mock_handle: &MockApiHandle,
+        mock_handle: Option<&MockApiHandle>,
         scenario: &ValidationScenario,
         policy: &CompatibilityPolicy,
     ) -> Result<ScenarioValidationResult, ContractUseCaseError> {
         let start_time = std::time::Instant::now();
+        let mut scenario_expected = scenario.expected_status.map(|status| {
+            ApiResponse::new(
+                status,
+                scenario.expected_headers.clone(),
+                scenario
+                    .expected_body
+                    .clone()
+                    .unwrap_or_else(|| ResponseBody::Text(String::new())),
+                0,
+            )
+        });
 
-        let mock_response = self
-            .mock_api
-            .execute_request(mock_handle, scenario)
-            .await
-            .map_err(|e| ContractUseCaseError::MockApiError(e.to_string()))?;
+        let mock_response = if let Some(handle) = mock_handle {
+            let response = self
+                .mock_api
+                .execute_request(handle, scenario)
+                .await
+                .map_err(|e| ContractUseCaseError::MockApiError(e.to_string()))?;
+
+            if scenario_expected.is_none() {
+                scenario_expected = Some(response.clone());
+            }
+            Some(response)
+        } else {
+            None
+        };
 
         let real_response = self
             .http_client
@@ -204,15 +244,25 @@ where
             real_response.status_code,
         );
 
-        let compliance_issue =
-            contract.validate_response_compatibility(&mock_response, &real_response, policy);
+        let compliance_issue = scenario_expected
+            .as_ref()
+            .and_then(|expected| {
+                contract.validate_response_compatibility(expected, &real_response, policy)
+            })
+            .map(|mut issue| {
+                issue.scenario_path = scenario.path.clone();
+                issue
+            });
 
         let duration = start_time.elapsed();
 
+        let expected_response = scenario_expected;
+
         Ok(ScenarioValidationResult {
             scenario_id: scenario.id.clone(),
-            mock_response: Some(mock_response),
-            real_response: Some(real_response),
+            mock_response,
+            real_response: Some(real_response.clone()),
+            expected_response,
             compliance_issue,
             duration_ms: duration.as_millis() as u64,
         })

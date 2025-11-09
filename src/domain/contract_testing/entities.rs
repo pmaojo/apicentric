@@ -18,6 +18,9 @@ pub struct ValidationScenario {
     pub headers: HashMap<String, String>,
     pub request_body: Option<RequestBody>,
     pub query_params: HashMap<String, String>,
+    pub expected_status: Option<u16>,
+    pub expected_headers: HashMap<String, String>,
+    pub expected_body: Option<ResponseBody>,
 }
 
 impl ValidationScenario {
@@ -29,6 +32,9 @@ impl ValidationScenario {
             headers: HashMap::new(),
             request_body: None,
             query_params: HashMap::new(),
+            expected_status: None,
+            expected_headers: HashMap::new(),
+            expected_body: None,
         }
     }
 
@@ -56,6 +62,30 @@ impl ValidationScenario {
 
     pub fn request_body(&self) -> Option<&RequestBody> {
         self.request_body.as_ref()
+    }
+
+    pub fn expected_status(&self) -> Option<u16> {
+        self.expected_status
+    }
+
+    pub fn expected_headers(&self) -> &HashMap<String, String> {
+        &self.expected_headers
+    }
+
+    pub fn expected_body(&self) -> Option<&ResponseBody> {
+        self.expected_body.as_ref()
+    }
+
+    pub fn with_expected_response(
+        mut self,
+        status: u16,
+        headers: HashMap<String, String>,
+        body: ResponseBody,
+    ) -> Self {
+        self.expected_status = Some(status);
+        self.expected_headers = headers;
+        self.expected_body = Some(body);
+        self
     }
 }
 
@@ -116,6 +146,7 @@ pub struct ScenarioValidationResult {
     pub scenario_id: String,
     pub mock_response: Option<ApiResponse>,
     pub real_response: Option<ApiResponse>,
+    pub expected_response: Option<ApiResponse>,
     pub compliance_issue: Option<ComplianceIssue>,
     pub duration_ms: u64,
 }
@@ -267,13 +298,12 @@ impl Contract {
     /// Validate response compatibility between mock and real API
     pub fn validate_response_compatibility(
         &self,
-        mock_response: &ApiResponse,
+        expected_response: &ApiResponse,
         real_response: &ApiResponse,
         policy: &CompatibilityPolicy,
     ) -> Option<ComplianceIssue> {
-        // Check status code compatibility
-        if policy.strict_status_codes && mock_response.status() != real_response.status() {
-            let severity = if mock_response.status() / 100 != real_response.status() / 100 {
+        if policy.strict_status_codes && expected_response.status() != real_response.status() {
+            let severity = if expected_response.status() / 100 != real_response.status() / 100 {
                 ComplianceSeverity::High
             } else {
                 ComplianceSeverity::Medium
@@ -283,38 +313,166 @@ impl Contract {
                 issue_type: ComplianceIssueType::StatusCodeMismatch,
                 severity,
                 description: format!(
-                    "Status code mismatch: mock returned {}, real API returned {}",
-                    mock_response.status(),
+                    "Status code mismatch: expected {} but real API returned {}",
+                    expected_response.status(),
                     real_response.status()
                 ),
-                scenario_path: "".to_string(), // Will be filled by caller
+                scenario_path: String::new(),
                 details: Some(serde_json::json!({
-                    "mock_status": mock_response.status(),
+                    "expected_status": expected_response.status(),
                     "real_status": real_response.status()
                 })),
             });
         }
 
-        // Check response body compatibility (basic JSON structure comparison)
-        if let (ResponseBody::Json(mock_json), ResponseBody::Json(real_json)) =
-            (mock_response.body(), real_response.body())
-        {
-            if !self.json_structures_compatible(mock_json, real_json, policy) {
-                return Some(ComplianceIssue {
-                    issue_type: ComplianceIssueType::ResponseSchemaMismatch,
-                    severity: ComplianceSeverity::Medium,
-                    description: "Response JSON structure differs between mock and real API"
-                        .to_string(),
-                    scenario_path: "".to_string(),
-                    details: Some(serde_json::json!({
-                        "mock_structure": self.json_structure_summary(mock_json),
-                        "real_structure": self.json_structure_summary(real_json)
-                    })),
-                });
+        if policy.validate_headers {
+            if let Some(issue) = self.compare_headers(expected_response, real_response, policy) {
+                return Some(issue);
+            }
+        }
+
+        if policy.compare_body {
+            match (expected_response.body(), real_response.body()) {
+                (ResponseBody::Json(expected_json), ResponseBody::Json(real_json)) => {
+                    if !self.json_structures_compatible(expected_json, real_json, policy) {
+                        return Some(ComplianceIssue {
+                            issue_type: ComplianceIssueType::ResponseSchemaMismatch,
+                            severity: ComplianceSeverity::Medium,
+                            description:
+                                "Response JSON structure differs between expected and real API"
+                                    .to_string(),
+                            scenario_path: String::new(),
+                            details: Some(serde_json::json!({
+                                "expected_structure": self.json_structure_summary(expected_json),
+                                "real_structure": self.json_structure_summary(real_json)
+                            })),
+                        });
+                    }
+                }
+                (ResponseBody::Text(expected_text), ResponseBody::Text(real_text)) => {
+                    if expected_text != real_text {
+                        return Some(ComplianceIssue {
+                            issue_type: ComplianceIssueType::BodyMismatch,
+                            severity: ComplianceSeverity::Medium,
+                            description: "Response body text differs between expected and real API"
+                                .to_string(),
+                            scenario_path: String::new(),
+                            details: Some(serde_json::json!({
+                                "expected": expected_text,
+                                "actual": real_text,
+                                "diff": Self::format_text_diff(expected_text, real_text)
+                            })),
+                        });
+                    }
+                }
+                (expected_body, real_body) => {
+                    return Some(ComplianceIssue {
+                        issue_type: ComplianceIssueType::BodyMismatch,
+                        severity: ComplianceSeverity::High,
+                        description: format!(
+                            "Response body types differ: expected {}, got {}",
+                            Self::response_body_type(expected_body),
+                            Self::response_body_type(real_body)
+                        ),
+                        scenario_path: String::new(),
+                        details: Some(serde_json::json!({
+                            "expected_type": Self::response_body_type(expected_body),
+                            "actual_type": Self::response_body_type(real_body)
+                        })),
+                    });
+                }
             }
         }
 
         None
+    }
+
+    fn compare_headers(
+        &self,
+        expected: &ApiResponse,
+        actual: &ApiResponse,
+        policy: &CompatibilityPolicy,
+    ) -> Option<ComplianceIssue> {
+        use serde_json::json;
+
+        let expected_headers = Self::normalize_headers(expected.headers());
+        let actual_headers = Self::normalize_headers(actual.headers());
+
+        let mut missing = Vec::new();
+        let mut mismatched = Vec::new();
+
+        for (key, expected_value) in &expected_headers {
+            match actual_headers.get(key) {
+                Some(actual_value) => {
+                    if !Self::header_values_match(expected_value, actual_value) {
+                        mismatched.push(json!({
+                            "header": key,
+                            "expected": expected_value,
+                            "actual": actual_value
+                        }));
+                    }
+                }
+                None => missing.push(key.clone()),
+            }
+        }
+
+        let mut extra = Vec::new();
+        if !policy.ignore_additional_headers {
+            for key in actual_headers.keys() {
+                if !expected_headers.contains_key(key) {
+                    extra.push(key.clone());
+                }
+            }
+        }
+
+        if missing.is_empty() && mismatched.is_empty() && extra.is_empty() {
+            return None;
+        }
+
+        let severity = if !missing.is_empty() || !mismatched.is_empty() {
+            ComplianceSeverity::Medium
+        } else {
+            ComplianceSeverity::Low
+        };
+
+        Some(ComplianceIssue {
+            issue_type: ComplianceIssueType::HeaderMismatch,
+            severity,
+            description: "Response headers differ between expected and real API".to_string(),
+            scenario_path: String::new(),
+            details: Some(json!({
+                "missing": missing,
+                "mismatched_values": mismatched,
+                "extra": extra,
+            })),
+        })
+    }
+
+    fn normalize_headers(headers: &HashMap<String, String>) -> HashMap<String, String> {
+        headers
+            .iter()
+            .map(|(key, value)| (key.to_lowercase(), value.trim().to_string()))
+            .collect()
+    }
+
+    fn header_values_match(expected: &str, actual: &str) -> bool {
+        expected.trim().eq_ignore_ascii_case(actual.trim())
+    }
+
+    fn response_body_type(body: &ResponseBody) -> &'static str {
+        match body {
+            ResponseBody::Json(_) => "json",
+            ResponseBody::Text(_) => "text",
+        }
+    }
+
+    fn format_text_diff(expected: &str, actual: &str) -> String {
+        let mut diff = String::new();
+        diff.push_str("expected: ");
+        diff.push_str(expected);
+        diff.push_str(" | actual: ");
+        diff.push_str(actual);
+        diff
     }
 
     fn json_structures_compatible(
@@ -399,5 +557,96 @@ impl Contract {
             Value::Array(_) => "array",
             Value::Object(_) => "object",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_contract() -> Contract {
+        Contract::new(
+            ContractId::new("contract".into()).unwrap(),
+            "svc".into(),
+            "spec.yml".into(),
+            None,
+        )
+        .unwrap()
+    }
+
+    fn build_response(status: u16, headers: &[(&str, &str)], body: ResponseBody) -> ApiResponse {
+        let mut map = HashMap::new();
+        for (k, v) in headers {
+            map.insert(k.to_string(), v.to_string());
+        }
+        ApiResponse::new(status, map, body, 5)
+    }
+
+    #[test]
+    fn detects_header_mismatches_with_details() {
+        let contract = sample_contract();
+        let policy = CompatibilityPolicy::strict();
+
+        let expected = build_response(
+            200,
+            &[("Content-Type", "application/json"), ("X-Trace", "abc")],
+            ResponseBody::Json(serde_json::json!({"ok": true})),
+        );
+        let real = build_response(
+            200,
+            &[("Content-Type", "application/json"), ("X-Trace", "def")],
+            ResponseBody::Json(serde_json::json!({"ok": true})),
+        );
+
+        let issue = contract
+            .validate_response_compatibility(&expected, &real, &policy)
+            .expect("mismatch");
+
+        assert_eq!(issue.issue_type, ComplianceIssueType::HeaderMismatch);
+        assert_eq!(issue.severity, ComplianceSeverity::Medium);
+        let details = issue.details.unwrap();
+        assert!(details["mismatched_values"].is_array());
+    }
+
+    #[test]
+    fn ignores_additional_headers_when_policy_allows() {
+        let contract = sample_contract();
+        let mut policy = CompatibilityPolicy::moderate();
+        policy.validate_headers = true;
+
+        let expected = build_response(
+            200,
+            &[("Content-Type", "application/json")],
+            ResponseBody::Json(serde_json::json!({"ok": true})),
+        );
+        let real = build_response(
+            200,
+            &[("Content-Type", "application/json"), ("X-Extra", "1")],
+            ResponseBody::Json(serde_json::json!({"ok": true})),
+        );
+
+        assert!(contract
+            .validate_response_compatibility(&expected, &real, &policy)
+            .is_none());
+    }
+
+    #[test]
+    fn detects_text_body_mismatch() {
+        let contract = sample_contract();
+        let policy = CompatibilityPolicy::strict();
+
+        let expected = build_response(200, &[], ResponseBody::Text("ok".into()));
+        let real = build_response(200, &[], ResponseBody::Text("error".into()));
+
+        let issue = contract
+            .validate_response_compatibility(&expected, &real, &policy)
+            .expect("body mismatch");
+
+        assert_eq!(issue.issue_type, ComplianceIssueType::BodyMismatch);
+        assert_eq!(issue.severity, ComplianceSeverity::Medium);
+        assert!(issue.details.unwrap()["diff"]
+            .as_str()
+            .unwrap()
+            .contains("ok"));
     }
 }

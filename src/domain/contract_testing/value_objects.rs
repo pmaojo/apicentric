@@ -164,6 +164,7 @@ pub enum ComplianceSeverity {
 pub enum ComplianceIssueType {
     StatusCodeMismatch,
     ResponseSchemaMismatch,
+    BodyMismatch,
     HeaderMismatch,
     TimeoutExceeded,
     ValidationError,

@@ -91,10 +91,9 @@ pub async fn handle_import_wiremock(
     let service = apicentric::simulator::wiremock::from_path(input).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to read WireMock: {}", e),
-            Some(
-                "Ensure the file is a WireMock stub mapping export in JSON format (mappings.json or a single stub)"
-                    .into(),
-            ),
+            Some(String::from(
+                "Ensure the file is a WireMock stub mapping export in JSON format (mappings.json or a single stub)",
+            )),
         )
     })?;
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
