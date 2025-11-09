@@ -1,3 +1,9 @@
+//! A mock server for testing and development.
+//!
+//! This module provides a mock server that can be used to simulate a real API.
+//! The server is configured using a `MockApiSpec` struct, which defines the
+//! endpoints, responses, and other behavior of the mock API.
+
 use crate::{ApicentricError, ApicentricResult};
 use bytes::Bytes;
 use http_body_util::{combinators::BoxBody, BodyExt, Full};
@@ -7,27 +13,39 @@ use serde::Deserialize;
 use std::{collections::HashMap, net::SocketAddr, path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
+/// A specification for a mock API.
 #[derive(Debug, Deserialize, Clone)]
 pub struct MockApiSpec {
+    /// The name of the mock API.
     pub name: Option<String>,
+    /// The port that the mock server should listen on.
     #[serde(default)]
     pub port: Option<u16>,
+    /// The base path for all endpoints in the mock API.
     #[serde(default)]
     pub base_path: Option<String>,
+    /// The endpoints that the mock API should expose.
     #[serde(default)]
     pub endpoints: Vec<MockEndpoint>,
 }
 
+/// A mock endpoint.
 #[derive(Debug, Deserialize, Clone)]
 pub struct MockEndpoint {
+    /// The HTTP method of the endpoint.
     pub method: String,
+    /// The path of the endpoint.
     pub path: String,
+    /// The HTTP status code to return.
     #[serde(default)]
     pub status: u16,
+    /// The delay to wait before sending the response.
     #[serde(default)]
     pub delay_ms: Option<u64>,
+    /// The headers to include in the response.
     #[serde(default)]
     pub headers: HashMap<String, String>,
+    /// The response body.
     #[serde(default)]
     pub response: serde_yaml::Value,
 }
@@ -45,6 +63,7 @@ impl Default for MockEndpoint {
     }
 }
 
+/// The state of the mock server.
 pub struct MockServerState {
     endpoints: Vec<CompiledEndpoint>,
 }
@@ -72,16 +91,24 @@ impl MockServerState {
     }
 }
 
+/// A builder for creating a `MockServerState`.
 pub struct MockServerBuilder {
     spec: MockApiSpec,
 }
+
 impl MockServerBuilder {
+    /// Creates a new `MockServerBuilder`.
+    ///
+    /// # Arguments
+    ///
+    /// * `spec` - The specification for the mock API.
     pub fn new(spec: MockApiSpec) -> Self {
         Self { spec }
     }
 }
 
 impl MockServerBuilder {
+    /// Builds a `MockServerState` from the specification.
     pub fn build(self) -> ApicentricResult<MockServerState> {
         let mut compiled = Vec::new();
         for ep in self.spec.endpoints {
@@ -124,6 +151,11 @@ impl MockServerBuilder {
     }
 }
 
+/// Loads a mock API specification from a YAML file.
+///
+/// # Arguments
+///
+/// * `path` - The path to the YAML file.
 pub async fn load_spec(path: &Path) -> ApicentricResult<MockApiSpec> {
     let content = std::fs::read_to_string(path).map_err(|e| {
         ApicentricError::fs_error(
@@ -140,6 +172,11 @@ pub async fn load_spec(path: &Path) -> ApicentricResult<MockApiSpec> {
     Ok(spec)
 }
 
+/// Runs a mock server.
+///
+/// # Arguments
+///
+/// * `spec` - The specification for the mock API.
 pub async fn run_mock_server(spec: MockApiSpec) -> ApicentricResult<()> {
     let port = spec.port.unwrap_or(7070);
     let state = Arc::new(RwLock::new(MockServerBuilder::new(spec).build()?));

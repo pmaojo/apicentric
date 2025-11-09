@@ -1,10 +1,15 @@
+//! An AI provider that uses the OpenAI API to generate YAML from a prompt.
+//!
+//! This module provides an `OpenAiProvider` that can be used to generate YAML
+//! from a prompt using the OpenAI API.
+
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
 use crate::errors::{ApicentricError, ApicentricResult};
 use super::AiProvider;
 
-/// OpenAI based provider used when remote generation is desired.
+/// An AI provider that uses the OpenAI API.
 pub struct OpenAiProvider {
     client: Client,
     api_key: String,
@@ -12,6 +17,12 @@ pub struct OpenAiProvider {
 }
 
 impl OpenAiProvider {
+    /// Creates a new `OpenAiProvider`.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_key` - The OpenAI API key.
+    /// * `model` - The name of the model to use.
     pub fn new(api_key: String, model: String) -> Self {
         Self { client: Client::new(), api_key, model }
     }
@@ -34,6 +45,15 @@ struct ChatCompletionResponse {
 
 #[async_trait]
 impl AiProvider for OpenAiProvider {
+    /// Generates YAML from a prompt using the OpenAI API.
+    ///
+    /// # Arguments
+    ///
+    /// * `prompt` - The prompt to use for generating the YAML.
+    ///
+    /// # Returns
+    ///
+    /// The generated YAML.
     async fn generate_yaml(&self, prompt: &str) -> ApicentricResult<String> {
         let body = serde_json::json!({
             "model": self.model,

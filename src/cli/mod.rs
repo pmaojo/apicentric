@@ -1,6 +1,12 @@
+//! The command-line interface for `apicentric`.
+//!
+//! This module provides the command-line interface for `apicentric`, including
+//! the main `Cli` struct and the `Commands` enum.
+
 use crate::config::ExecutionMode;
 use clap::{Parser, Subcommand, ValueEnum};
 
+/// The command-line interface for `apicentric`.
 #[derive(Parser)]
 #[command(
     author,
@@ -15,23 +21,23 @@ use clap::{Parser, Subcommand, ValueEnum};
     after_help = "For more information, visit: https://github.com/pmaojo/apicentric"
 )]
 pub struct Cli {
-    /// Path to the apicentric.json config file
+    /// The path to the `apicentric.json` config file.
     #[arg(short, long, default_value = "apicentric.json")]
     pub config: String,
 
-    /// Execution mode (overrides config)
+    /// The execution mode (overrides config).
     #[arg(long, value_enum)]
     pub mode: Option<CliExecutionMode>,
 
-    /// Enable dry-run mode (show what would be executed)
+    /// Enables dry-run mode (shows what would be executed).
     #[arg(long)]
     pub dry_run: bool,
 
-    /// Enable verbose output
+    /// Enables verbose output.
     #[arg(short, long)]
     pub verbose: bool,
 
-    /// Path to SQLite database for simulator storage
+    /// The path to the SQLite database for simulator storage.
     #[arg(long, default_value = "apicentric.db")]
     pub db_path: String,
 
@@ -39,6 +45,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
+/// The execution mode for the CLI.
 #[derive(Clone, ValueEnum)]
 pub enum CliExecutionMode {
     CI,
@@ -56,9 +63,10 @@ impl From<CliExecutionMode> for ExecutionMode {
     }
 }
 
+/// The actions available for the simulator.
 #[derive(Subcommand)]
 pub enum SimulatorAction {
-    /// Start the API simulator
+    /// Starts the API simulator.
     /// 
     /// Starts the API simulator and loads all service definitions from the specified directory.
     /// Services will be available on their configured ports.
@@ -66,32 +74,32 @@ pub enum SimulatorAction {
     /// Example: apicentric simulator start --services-dir ./services
     #[command(alias = "s")]
     Start {
-        /// Path to directory containing service definition YAML files
+        /// The path to the directory containing service definition YAML files.
         #[arg(short, long, default_value = "services")]
         services_dir: String,
 
-        /// Force start even if services are already running
+        /// Forces the simulator to start even if services are already running.
         #[arg(long)]
         force: bool,
 
-        /// Enable peer-to-peer collaboration for service editing
+        /// Enables peer-to-peer collaboration for service editing.
         #[arg(long)]
         p2p: bool,
     },
 
-    /// Stop the API simulator
+    /// Stops the API simulator.
     /// 
     /// Stops all running services and shuts down the simulator.
     /// 
     /// Example: apicentric simulator stop
     #[command(alias = "x")]
     Stop {
-        /// Force stop all services immediately without graceful shutdown
+        /// Force stops all services immediately without graceful shutdown.
         #[arg(long)]
         force: bool,
     },
 
-    /// Show simulator and services status
+    /// Shows the simulator and services status.
     /// 
     /// Displays the current status of the simulator and all registered services,
     /// including port numbers, running state, and request counts.
@@ -99,12 +107,12 @@ pub enum SimulatorAction {
     /// Example: apicentric simulator status --detailed
     #[command(alias = "st")]
     Status {
-        /// Show detailed service information including endpoints and configurations
+        /// Shows detailed service information including endpoints and configurations.
         #[arg(short, long)]
         detailed: bool,
     },
 
-    /// Validate service definition files
+    /// Validates service definition files.
     /// 
     /// Validates YAML service definition files for syntax errors and schema compliance.
     /// Can validate a single file or all files in a directory.
@@ -112,87 +120,89 @@ pub enum SimulatorAction {
     /// Example: apicentric simulator validate --path services/my-api.yaml
     #[command(alias = "v")]
     Validate {
-        /// Path to service definition YAML file or directory to validate
+        /// The path to the service definition YAML file or directory to validate.
         #[arg(short, long, default_value = "services")]
         path: String,
 
-        /// Validate all YAML files in subdirectories recursively
+        /// Validates all YAML files in subdirectories recursively.
         #[arg(short, long)]
         recursive: bool,
 
-        /// Show detailed validation output including warnings
+        /// Shows detailed validation output including warnings.
         #[arg(long)]
         verbose: bool,
     },
-    /// Set default scenario for all services
+    /// Sets the default scenario for all services.
     SetScenario {
-        /// Scenario name to activate
+        /// The scenario name to activate.
         scenario: String,
     },
-    /// Show recent request logs for a service
+    /// Shows recent request logs for a service.
     #[command(alias = "l")]
     Logs {
-        /// Service name
+        /// The service name.
         service: String,
-        /// Number of log entries to display
+        /// The number of log entries to display.
         #[arg(short, long, default_value_t = 20)]
         limit: usize,
     },
-    /// Monitor simulator status and logs
+    /// Monitors the simulator status and logs.
     #[command(alias = "m")]
     Monitor {
-        /// Service name to monitor
+        /// The service name to monitor.
         #[arg(long)]
         service: Option<String>,
-        /// Output in JSON format for scripting
+        /// The output in JSON format for scripting.
         #[arg(long)]
         json: bool,
-        /// Refresh interval in seconds for continuous monitoring
+        /// The refresh interval in seconds for continuous monitoring.
         #[arg(long)]
         interval: Option<u64>,
     },
-    /// Record live API traffic into service definitions
+    /// Records live API traffic into service definitions.
     Record {
-        /// Output directory for generated services
+        /// The output directory for generated services.
         #[arg(short, long, default_value = "services")]
         output: String,
-        /// Target URL to proxy requests to (defaults to base_url in config)
+        /// The target URL to proxy requests to (defaults to base_url in config).
         #[arg(long)]
         url: Option<String>,
     },
-    /// Share a running service over libp2p
+    /// Shares a running service over libp2p.
     Share {
-        /// Service name to expose
+        /// The service name to expose.
         service: String,
     },
-    /// Connect to a shared service and proxy locally
+    /// Connects to a shared service and proxy locally.
     Connect {
-        /// Remote peer ID
+        /// The remote peer ID.
         peer: String,
-        /// Service name to access
+        /// The service name to access.
         #[arg(long)]
         service: String,
-        /// Local port to listen on
+        /// The local port to listen on.
         #[arg(long)]
         port: u16,
-        /// Authentication token issued by the peer
+        /// The authentication token issued by the peer.
         #[arg(long)]
         token: Option<String>,
     },
 }
 
+/// The actions available for the AI.
 #[derive(Subcommand)]
 pub enum AiAction {
-    /// Generate YAML from a natural language prompt
+    /// Generates YAML from a natural language prompt.
     Generate {
-        /// The prompt to send to the AI provider
+        /// The prompt to send to the AI provider.
         prompt: String,
     },
 }
 
+/// The commands available in the `apicentric` CLI.
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Manage API simulator and mock services
+    /// Manages the API simulator and mock services.
     /// 
     /// The simulator command provides operations for starting, stopping, and managing
     /// mock API services defined in YAML files.
@@ -202,7 +212,7 @@ pub enum Commands {
         action: SimulatorAction,
     },
 
-    /// AI-assisted service generation
+    /// AI-assisted service generation.
     /// 
     /// Use AI to generate service definitions from natural language descriptions.
     Ai {
@@ -210,7 +220,7 @@ pub enum Commands {
         action: AiAction,
     },
 
-    /// Launch the graphical editor for mock services
+    /// Launches the graphical editor for mock services.
     /// 
     /// Opens a GUI application for visually editing service definitions.
     /// Requires the GUI component to be installed.
@@ -218,7 +228,7 @@ pub enum Commands {
     /// Example: apicentric gui
     Gui,
 
-    /// Launch the terminal dashboard
+    /// Launches the terminal dashboard.
     /// 
     /// Opens an interactive terminal UI for managing services, viewing logs,
     /// and monitoring the simulator in real-time.
@@ -227,7 +237,7 @@ pub enum Commands {
     Tui,
 }
 
-/// Parse command line arguments into a [`Cli`] instance.
+/// Parses the command-line arguments into a `Cli` instance.
 pub fn parse() -> Cli {
     Cli::parse()
 }

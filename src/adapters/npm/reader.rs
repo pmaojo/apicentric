@@ -1,3 +1,9 @@
+//! Handles reading and detection logic for NPM integration.
+//!
+//! This module provides the `NpmReader` struct, which is responsible for
+//! reading and parsing the `package.json` file, resolving the path to the
+//! `apicentric` binary, and detecting the current NPM script setup status.
+
 use crate::errors::{ApicentricError, ApicentricResult};
 use serde_json::Value;
 use std::fs;
@@ -6,14 +12,21 @@ use std::process::Command;
 
 use super::{NpmScriptTemplate, NpmSetupStatus};
 
-/// Handles reading and detection logic for npm integration
+/// Handles reading and detection logic for npm integration.
 #[derive(Debug, Clone)]
 pub struct NpmReader {
+    /// The root directory of the project.
     pub project_root: PathBuf,
+    /// The path to the `package.json` file.
     pub package_json_path: PathBuf,
 }
 
 impl NpmReader {
+    /// Creates a new `NpmReader`.
+    ///
+    /// # Arguments
+    ///
+    /// * `project_root` - The root directory of the project.
     pub fn new(project_root: &Path) -> Self {
         Self {
             project_root: project_root.to_path_buf(),
@@ -21,7 +34,7 @@ impl NpmReader {
         }
     }
 
-    /// Read and parse package.json
+    /// Reads and parses the `package.json` file.
     pub fn read_package_json(&self) -> ApicentricResult<Value> {
         let content = fs::read_to_string(&self.package_json_path).map_err(|e| {
             ApicentricError::fs_error(
@@ -38,7 +51,7 @@ impl NpmReader {
         })
     }
 
-    /// Resolve the path to the apicentric binary for npm scripts
+    /// Resolves the path to the `apicentric` binary for NPM scripts.
     pub fn resolve_apicentric_binary_path(&self) -> ApicentricResult<String> {
         // Strategy 1: workspace with utils/apicentric
         let cargo_manifest = self.project_root.join("utils/apicentric/Cargo.toml");
@@ -78,7 +91,11 @@ impl NpmReader {
         Ok("cargo run --manifest-path utils/apicentric/Cargo.toml --".to_string())
     }
 
-    /// Generate npm script templates based on the binary path
+    /// Generates NPM script templates based on the binary path.
+    ///
+    /// # Arguments
+    ///
+    /// * `binary_path` - The path to the `apicentric` binary.
     pub fn generate_script_templates(&self, binary_path: &str) -> Vec<NpmScriptTemplate> {
         vec![
             NpmScriptTemplate {
@@ -94,7 +111,13 @@ impl NpmReader {
         ]
     }
 
-    /// Generate setup instructions based on current state
+    /// Generates setup instructions based on the current state.
+    ///
+    /// # Arguments
+    ///
+    /// * `apicentric_script_exists` - Whether the `apicentric` script exists.
+    /// * `apicentric_watch_script_exists` - Whether the `apicentric:watch` script exists.
+    /// * `templates` - The recommended script templates.
     pub fn generate_setup_instructions(
         &self,
         apicentric_script_exists: bool,
@@ -127,7 +150,7 @@ impl NpmReader {
         instructions
     }
 
-    /// Detect current npm script setup status
+    /// Detects the current NPM script setup status.
     pub fn detect_setup_status(&self) -> ApicentricResult<NpmSetupStatus> {
         let package_json_exists = self.package_json_path.exists();
         let mut apicentric_script_exists = false;

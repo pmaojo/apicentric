@@ -1,32 +1,49 @@
+//! Defines the error types and error handling utilities for the Apicentric application.
+//!
+//! This module includes the main `ApicentricError` enum, which represents all possible
+//! errors that can occur within the application. It also provides a custom `Result`
+//! type alias, `ApicentricResult`, and an `ErrorFormatter` for creating user-friendly
+//! error messages.
+
 use thiserror::Error;
 
-/// Main error type for Apicentric operations
+/// The main error type for all Apicentric operations.
+///
+/// This enum consolidates all possible errors that can occur within the application,
+/// including configuration errors, server errors, file system issues, and more.
+/// It uses `thiserror` to derive the `Error` trait and provide descriptive error
+/// messages.
 #[derive(Debug, Error)]
 pub enum ApicentricError {
+    /// An error related to application configuration.
     #[error("Configuration error: {message}")]
     Configuration {
         message: String,
         suggestion: Option<String>,
     },
 
+    /// An error that occurred within the server.
     #[error("Server error: {message}")]
     Server {
         message: String,
         suggestion: Option<String>,
     },
 
+    /// An error that occurred during test execution.
     #[error("Test execution error: {message}")]
     TestExecution {
         message: String,
         suggestion: Option<String>,
     },
 
+    /// An error related to file system operations.
     #[error("File system error: {message}")]
     FileSystem {
         message: String,
         suggestion: Option<String>,
     },
 
+    /// An error that occurred during data validation.
     #[error("Validation error: {message}")]
     Validation {
         message: String,
@@ -34,30 +51,45 @@ pub enum ApicentricError {
         suggestion: Option<String>,
     },
 
+    /// A general-purpose runtime error.
     #[error("Runtime error: {message}")]
     Runtime {
         message: String,
         suggestion: Option<String>,
     },
 
+    /// An I/O error.
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// An error that occurred during JSON serialization or deserialization.
     #[error("JSON parsing error: {0}")]
     Json(#[from] serde_json::Error),
 
+    /// An error related to glob pattern matching.
     #[error("Glob pattern error: {0}")]
     Glob(#[from] glob::GlobError),
 
+    /// An error in a glob pattern.
     #[error("Pattern error: {0}")]
     Pattern(#[from] glob::PatternError),
 
+    /// An error from the `anyhow` crate.
     #[error("Anyhow error: {0}")]
     Anyhow(#[from] anyhow::Error),
 }
 
 impl ApicentricError {
-    /// Create a configuration error with a suggestion
+    /// Creates a new configuration error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
     pub fn config_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::Configuration {
             message: message.into(),
@@ -65,7 +97,17 @@ impl ApicentricError {
         }
     }
 
-    /// Create a validation error with field and suggestion
+    /// Creates a new validation error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `field` - The name of the field that failed validation.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
     pub fn validation_error(
         message: impl Into<String>,
         field: Option<impl Into<String>>,
@@ -78,7 +120,16 @@ impl ApicentricError {
         }
     }
 
-    /// Create a file system error with suggestion
+    /// Creates a new file system error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
     pub fn fs_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::FileSystem {
             message: message.into(),
@@ -86,7 +137,16 @@ impl ApicentricError {
         }
     }
 
-    /// Create a server error with suggestion
+    /// Creates a new server error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
     pub fn server_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::Server {
             message: message.into(),
@@ -94,7 +154,16 @@ impl ApicentricError {
         }
     }
 
-    /// Create a test execution error with suggestion
+    /// Creates a new test execution error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
     pub fn test_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::TestExecution {
             message: message.into(),
@@ -102,7 +171,16 @@ impl ApicentricError {
         }
     }
 
-    /// Create a runtime error with suggestion
+    /// Creates a new runtime error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
     pub fn runtime_error(
         message: impl Into<String>,
         suggestion: Option<impl Into<String>>,
@@ -113,7 +191,12 @@ impl ApicentricError {
         }
     }
 
-    /// Get the suggestion for this error, if any
+    /// Returns the suggestion for this error, if any.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the suggestion string, or `None` if there is no
+    /// suggestion.
     pub fn suggestion(&self) -> Option<&str> {
         match self {
             Self::Configuration { suggestion, .. }
@@ -126,7 +209,12 @@ impl ApicentricError {
         }
     }
 
-    /// Get the field name for validation errors
+    /// Returns the field name for validation errors, if any.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the field name, or `None` if the error is not a
+    /// validation error.
     pub fn field(&self) -> Option<&str> {
         match self {
             Self::Validation { field, .. } => field.as_deref(),
@@ -135,18 +223,32 @@ impl ApicentricError {
     }
 }
 
-/// Result type alias for Apicentric operations
+/// A `Result` type alias for Apicentric operations.
 pub type ApicentricResult<T> = Result<T, ApicentricError>;
 
-/// Validation error details
+/// Represents a validation error with details about the field, message, and an
+/// optional suggestion.
 #[derive(Debug, Clone)]
 pub struct ValidationError {
+    /// The name of the field that failed validation.
     pub field: String,
+    /// The error message.
     pub message: String,
+    /// An optional suggestion for how to fix the error.
     pub suggestion: Option<String>,
 }
 
 impl ValidationError {
+    /// Creates a new validation error.
+    ///
+    /// # Arguments
+    ///
+    /// * `field` - The name of the field that failed validation.
+    /// * `message` - The error message.
+    ///
+    /// # Returns
+    ///
+    /// A new `ValidationError` instance.
     pub fn new(field: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             field: field.into(),
@@ -155,17 +257,34 @@ impl ValidationError {
         }
     }
 
+    /// Adds a suggestion to the validation error.
+    ///
+    /// # Arguments
+    ///
+    /// * `suggestion` - The suggestion to add.
+    ///
+    /// # Returns
+    ///
+    /// The `ValidationError` instance with the added suggestion.
     pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
         self.suggestion = Some(suggestion.into());
         self
     }
 }
 
-/// Error formatter for user-friendly error messages
+/// A utility for formatting errors for user-friendly display.
 pub struct ErrorFormatter;
 
 impl ErrorFormatter {
-    /// Format an error for user display with context and suggestions
+    /// Formats an error for user display with context and suggestions.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - The error to format.
+    ///
+    /// # Returns
+    ///
+    /// A string containing the formatted error message.
     pub fn format_for_user(error: &ApicentricError) -> String {
         let mut output = format!("❌ {}", error);
 
@@ -180,7 +299,15 @@ impl ErrorFormatter {
         output
     }
 
-    /// Format multiple validation errors
+    /// Formats a slice of validation errors into a single string.
+    ///
+    /// # Arguments
+    ///
+    /// * `errors` - The validation errors to format.
+    ///
+    /// # Returns
+    ///
+    /// A string containing the formatted validation errors.
     pub fn format_validation_errors(errors: &[ValidationError]) -> String {
         let mut output = String::from("❌ Configuration validation failed:\n");
 

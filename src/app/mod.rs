@@ -1,3 +1,8 @@
+//! Manages dynamically loaded plugins and executes their hooks.
+//!
+//! This module provides a `PluginManager` that can be used to load plugins
+//! from a directory, register them, and execute their hooks.
+
 pub mod mock_api_service;
 pub mod setup_npm;
 
@@ -14,7 +19,7 @@ pub struct PluginManager {
 }
 
 impl PluginManager {
-    /// Create an empty manager with no plugins loaded.
+    /// Creates an empty `PluginManager` with no plugins loaded.
     pub fn new() -> Self {
         Self {
             plugins: Vec::new(),
@@ -22,7 +27,11 @@ impl PluginManager {
         }
     }
 
-    /// Load all plugins from the specified directory.
+    /// Loads all plugins from the specified directory.
+    ///
+    /// # Arguments
+    ///
+    /// * `dir` - The directory to load plugins from.
     pub fn load_from_directory<P: AsRef<Path>>(dir: P) -> ApicentricResult<Self> {
         let dir_path = dir.as_ref();
         let entries = fs::read_dir(dir_path).map_err(|err| {
@@ -124,24 +133,36 @@ impl PluginManager {
         Ok((constructor(), library))
     }
 
-    /// Register a plugin instance manually.
+    /// Registers a plugin instance manually.
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin` - The plugin to register.
     pub fn register_plugin(&mut self, plugin: Box<dyn Plugin>) {
         self.plugins.push(plugin);
     }
 
-    /// Number of loaded plugins.
+    /// Returns the number of loaded plugins.
     pub fn plugin_count(&self) -> usize {
         self.plugins.len()
     }
 
-    /// Execute request hooks for all plugins.
+    /// Executes the `on_request` hook for all plugins.
+    ///
+    /// # Arguments
+    ///
+    /// * `req` - The HTTP request.
     pub async fn on_request(&self, req: &mut Request<Vec<u8>>) {
         for plugin in &self.plugins {
             plugin.on_request(req).await;
         }
     }
 
-    /// Execute response hooks for all plugins.
+    /// Executes the `on_response` hook for all plugins.
+    ///
+    /// # Arguments
+    ///
+    /// * `res` - The HTTP response.
     pub async fn on_response(&self, res: &mut Response<Vec<u8>>) {
         for plugin in &self.plugins {
             plugin.on_response(res).await;

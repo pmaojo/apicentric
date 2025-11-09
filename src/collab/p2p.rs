@@ -1,3 +1,8 @@
+//! A peer-to-peer network layer for collaboration.
+//!
+//! This module provides a `spawn` function that creates a new libp2p node for
+//! collaboration.
+
 use std::error::Error;
 
 use libp2p::{
@@ -8,18 +13,21 @@ use libp2p::{
 };
 use tokio::sync::mpsc;
 
-/// Combined network behaviour for collaboration: gossipsub + mDNS.
+/// The combined network behaviour for collaboration, consisting of gossipsub
+/// and mDNS.
 #[derive(NetworkBehaviour)]
 struct CollabBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::tokio::Behaviour,
 }
 
-/// Spawn a libp2p node that publishes and receives raw CRDT operations.
+/// Spawns a libp2p node that publishes and receives raw CRDT operations.
 ///
-/// Returns a sender for local messages and a receiver for messages coming from
-/// peers. Messages are plain byte vectors that higher layers interpret as
-/// [`crate::collab::crdt::CrdtMessage`].
+/// # Returns
+///
+/// A `Result` containing a sender for local messages and a receiver for
+/// messages coming from peers. Messages are plain byte vectors that higher
+/// layers interpret as [`crate::collab::crdt::CrdtMessage`].
 pub async fn spawn()
     -> Result<(mpsc::UnboundedSender<Vec<u8>>, mpsc::UnboundedReceiver<Vec<u8>>), Box<dyn Error>>
 {

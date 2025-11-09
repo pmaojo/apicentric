@@ -1,18 +1,43 @@
+//! Provides validation utilities for configuration objects and common data types.
+//!
+//! This module includes a `ConfigValidator` trait for validating configuration
+//! objects, and a `ValidationUtils` struct with a collection of static methods
+//! for common validation tasks, such as checking if a path exists, validating
+//! a URL, or ensuring a string is not empty.
+
 use crate::errors::ValidationError;
 use std::fs;
 use std::path::{Path, PathBuf};
 use url::Url;
 
-/// Trait for validating configuration objects
+/// A trait for validating configuration objects.
+///
+/// This trait provides a common interface for validating configuration objects.
+/// It is implemented by configuration structs to provide custom validation logic.
 pub trait ConfigValidator {
+    /// Validates the configuration object.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful. If the
+    /// validation fails, it returns a `Vec` of `ValidationError`s.
     fn validate(&self) -> Result<(), Vec<ValidationError>>;
 }
 
-/// Validation utilities for common configuration patterns
+/// A collection of utility functions for common validation tasks.
 pub struct ValidationUtils;
 
 impl ValidationUtils {
-    /// Validate that a path exists and is accessible
+    /// Validates that a path exists and is accessible.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_path_exists(path: &Path, field_name: &str) -> Result<(), ValidationError> {
         if !path.exists() {
             return Err(ValidationError::new(
@@ -24,7 +49,17 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate that a directory exists. Optionally create it if missing.
+    /// Validates that a directory exists. Optionally creates it if it is missing.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the directory.
+    /// * `field_name` - The name of the field being validated.
+    /// * `create_if_missing` - Whether to create the directory if it is missing.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_directory(
         path: &Path,
         field_name: &str,
@@ -57,7 +92,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate that a file exists and is readable
+    /// Validates that a file exists and is readable.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the file.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_file_exists(path: &Path, field_name: &str) -> Result<(), ValidationError> {
         if !path.exists() {
             return Err(ValidationError::new(
@@ -86,7 +130,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate URL format
+    /// Validates that a string is a valid URL.
+    ///
+    /// # Arguments
+    ///
+    /// * `url_str` - The string to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_url(url_str: &str, field_name: &str) -> Result<(), ValidationError> {
         match Url::parse(url_str) {
             Ok(url) => {
@@ -106,7 +159,16 @@ impl ValidationUtils {
         }
     }
 
-    /// Validate glob pattern
+    /// Validates that a string is a valid glob pattern.
+    ///
+    /// # Arguments
+    ///
+    /// * `pattern` - The string to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_glob_pattern(pattern: &str, field_name: &str) -> Result<(), ValidationError> {
         match glob::Pattern::new(pattern) {
             Ok(_) => Ok(()),
@@ -117,7 +179,18 @@ impl ValidationUtils {
         }
     }
 
-    /// Validate that a numeric value is within a reasonable range
+    /// Validates that a numeric value is within a given range.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to validate.
+    /// * `min` - The minimum allowed value.
+    /// * `max` - The maximum allowed value.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_numeric_range<T>(
         value: T,
         min: T,
@@ -137,7 +210,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate that a string is not empty
+    /// Validates that a string is not empty.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The string to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_non_empty_string(value: &str, field_name: &str) -> Result<(), ValidationError> {
         if value.trim().is_empty() {
             return Err(ValidationError::new(field_name, "Value cannot be empty")
@@ -146,7 +228,17 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate file extension
+    /// Validates that a file has a specific extension.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the file.
+    /// * `expected_ext` - The expected file extension.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_file_extension(
         path: &Path,
         expected_ext: &str,
@@ -167,7 +259,16 @@ impl ValidationUtils {
         }
     }
 
-    /// Validate that parent directory exists for a file path
+    /// Validates that the parent directory of a file path exists.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the file.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_parent_directory(path: &Path, field_name: &str) -> Result<(), ValidationError> {
         if let Some(parent) = path.parent() {
             if !parent.exists() {
@@ -184,7 +285,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate port number is in valid range
+    /// Validates that a port number is in the valid range.
+    ///
+    /// # Arguments
+    ///
+    /// * `port` - The port number to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_port(port: u16, field_name: &str) -> Result<(), ValidationError> {
         if port < 1024 {
             return Err(ValidationError::new(
@@ -196,7 +306,17 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate port range
+    /// Validates that a port range is valid.
+    ///
+    /// # Arguments
+    ///
+    /// * `start` - The start of the port range.
+    /// * `end` - The end of the port range.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_port_range(
         start: u16,
         end: u16,
@@ -230,7 +350,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate HTTP method
+    /// Validates that a string is a valid HTTP method.
+    ///
+    /// # Arguments
+    ///
+    /// * `method` - The string to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_http_method(method: &str, field_name: &str) -> Result<(), ValidationError> {
         let valid_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
         
@@ -247,7 +376,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate HTTP status code
+    /// Validates that a number is a valid HTTP status code.
+    ///
+    /// # Arguments
+    ///
+    /// * `status` - The number to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_status_code(status: u16, field_name: &str) -> Result<(), ValidationError> {
         if !(100..=599).contains(&status) {
             return Err(ValidationError::new(
@@ -259,7 +397,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate content type
+    /// Validates that a string is a valid content type.
+    ///
+    /// # Arguments
+    ///
+    /// * `content_type` - The string to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_content_type(
         content_type: &str,
         field_name: &str,
@@ -285,7 +432,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate JSON string
+    /// Validates that a string is a valid JSON string.
+    ///
+    /// # Arguments
+    ///
+    /// * `json` - The string to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_json_string(json: &str, field_name: &str) -> Result<(), ValidationError> {
         if let Err(e) = serde_json::from_str::<serde_json::Value>(json) {
             return Err(ValidationError::new(
@@ -297,7 +453,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate YAML string
+    /// Validates that a string is a valid YAML string.
+    ///
+    /// # Arguments
+    ///
+    /// * `yaml` - The string to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_yaml_string(yaml: &str, field_name: &str) -> Result<(), ValidationError> {
         if let Err(e) = serde_yaml::from_str::<serde_yaml::Value>(yaml) {
             return Err(ValidationError::new(
@@ -309,7 +474,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate service name (alphanumeric, hyphens, underscores only)
+    /// Validates that a string is a valid service name.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The string to validate.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_service_name(name: &str, field_name: &str) -> Result<(), ValidationError> {
         if name.is_empty() {
             return Err(ValidationError::new(field_name, "Service name cannot be empty")
@@ -340,7 +514,16 @@ impl ValidationUtils {
         Ok(())
     }
 
-    /// Validate timeout value (in milliseconds)
+    /// Validates that a timeout value is within a reasonable range.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout_ms` - The timeout value in milliseconds.
+    /// * `field_name` - The name of the field being validated.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating whether the validation was successful.
     pub fn validate_timeout(timeout_ms: u64, field_name: &str) -> Result<(), ValidationError> {
         if timeout_ms < 100 {
             return Err(ValidationError::new(
@@ -362,13 +545,24 @@ impl ValidationUtils {
     }
 }
 
-/// Configuration validation context
+/// The context for a validation operation.
 pub struct ValidationContext {
+    /// The base path for resolving relative paths.
     pub base_path: PathBuf,
+    /// Whether to use strict mode for validation.
     pub strict_mode: bool,
 }
 
 impl ValidationContext {
+    /// Creates a new validation context.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_path` - The base path for resolving relative paths.
+    ///
+    /// # Returns
+    ///
+    /// A new `ValidationContext` instance.
     pub fn new(base_path: PathBuf) -> Self {
         Self {
             base_path,
@@ -376,12 +570,29 @@ impl ValidationContext {
         }
     }
 
+    /// Sets the strict mode for the validation context.
+    ///
+    /// # Arguments
+    ///
+    /// * `strict` - Whether to use strict mode.
+    ///
+    /// # Returns
+    ///
+    /// The `ValidationContext` instance with the strict mode set.
     pub fn with_strict_mode(mut self, strict: bool) -> Self {
         self.strict_mode = strict;
         self
     }
 
-    /// Resolve a path relative to the base path
+    /// Resolves a path relative to the base path.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to resolve.
+    ///
+    /// # Returns
+    ///
+    /// The resolved path.
     pub fn resolve_path(&self, path: &Path) -> PathBuf {
         if path.is_absolute() {
             path.to_path_buf()

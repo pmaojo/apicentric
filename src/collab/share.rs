@@ -1,3 +1,9 @@
+//! A service for sharing and synchronizing service definitions.
+//!
+//! This module provides a `share_service` function that can be used to share a
+//! service over libp2p, and a `connect_service` function that can be used to
+//! connect to a remote peer and proxy requests locally.
+
 use std::{collections::HashMap, error::Error, sync::Arc};
 
 use bytes::Bytes;
@@ -20,7 +26,7 @@ use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use std::convert::Infallible;
 
-/// Message representing an HTTP request sent over libp2p.
+/// A message representing an HTTP request sent over libp2p.
 #[derive(Debug, Serialize, Deserialize)]
 struct HttpRequestMsg {
     token: String,
@@ -30,7 +36,7 @@ struct HttpRequestMsg {
     body: Vec<u8>,
 }
 
-/// Message representing an HTTP response sent over libp2p.
+/// A message representing an HTTP response sent over libp2p.
 #[derive(Debug, Serialize, Deserialize)]
 struct HttpResponseMsg {
     status: u16,
@@ -108,7 +114,15 @@ struct ShareBehaviour {
     mdns: mdns::tokio::Behaviour,
 }
 
-/// Start hosting a service over libp2p. Returns the peer ID and auth token.
+/// Starts hosting a service over libp2p.
+///
+/// # Arguments
+///
+/// * `port` - The port of the service to share.
+///
+/// # Returns
+///
+/// A `Result` containing the peer ID and auth token.
 pub async fn share_service(port: u16) -> Result<(PeerId, String), Box<dyn Error>> {
     let local_key = identity::Keypair::generate_ed25519();
     let peer_id = PeerId::from(local_key.public());
@@ -218,7 +232,14 @@ pub async fn share_service(port: u16) -> Result<(PeerId, String), Box<dyn Error>
     Ok((peer_id, token))
 }
 
-/// Connect to a remote peer and proxy requests locally.
+/// Connects to a remote peer and proxies requests locally.
+///
+/// # Arguments
+///
+/// * `peer_id` - The ID of the peer to connect to.
+/// * `token` - The authentication token for the peer.
+/// * `service` - The name of the service to connect to.
+/// * `port` - The local port to listen on.
 pub async fn connect_service(
     peer_id: PeerId,
     token: String,

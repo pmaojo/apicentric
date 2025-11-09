@@ -1,5 +1,11 @@
-// Contract Repository Adapter - Infrastructure layer implementation
-// Implements ContractRepository port for persisting contracts
+//! Implements the `ContractRepository` port for persisting contracts.
+//!
+//! This module provides two implementations of the `ContractRepository` trait:
+//!
+//! - `FileSystemContractRepository`: A file-based implementation that stores
+//!   contracts as JSON files in a specified directory.
+//! - `InMemoryContractRepository`: An in-memory implementation for testing and
+//!   development.
 
 use crate::domain::contract_testing::*;
 use crate::domain::ports::contract::{ContractRepository, RepositoryError};
@@ -10,8 +16,10 @@ use tokio::fs;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-/// File-based implementation of ContractRepository
-/// Stores contracts as JSON files in a specified directory
+/// A file-based implementation of the `ContractRepository` trait.
+///
+/// This repository stores contracts as JSON files in a specified directory.
+/// It also maintains an in-memory cache for better performance.
 pub struct FileSystemContractRepository {
     storage_path: PathBuf,
     // In-memory cache for better performance
@@ -19,6 +27,17 @@ pub struct FileSystemContractRepository {
 }
 
 impl FileSystemContractRepository {
+    /// Creates a new `FileSystemContractRepository`.
+    ///
+
+    /// # Arguments
+    ///
+    /// * `storage_path` - The path to the directory where contracts will be
+    ///   stored.
+    ///
+    /// # Returns
+    ///
+    /// A new `FileSystemContractRepository` instance.
     pub async fn new<P: AsRef<Path>>(storage_path: P) -> Result<Self, RepositoryError> {
         let storage_path = storage_path.as_ref().to_path_buf();
 
@@ -127,6 +146,11 @@ impl FileSystemContractRepository {
 
 #[async_trait]
 impl ContractRepository for FileSystemContractRepository {
+    /// Saves a contract to the repository.
+    ///
+    /// # Arguments
+    ///
+    /// * `contract` - The contract to save.
     async fn save(&self, contract: &Contract) -> Result<(), RepositoryError> {
         debug!("Saving contract: {}", contract.id);
 
@@ -141,6 +165,16 @@ impl ContractRepository for FileSystemContractRepository {
         Ok(())
     }
 
+    /// Gets a contract from the repository by its ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the contract to get.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the contract if it was found, or `None` if it was
+    /// not.
     async fn get(&self, id: &ContractId) -> Result<Option<Contract>, RepositoryError> {
         debug!("Retrieving contract: {}", id);
 
@@ -177,6 +211,11 @@ impl ContractRepository for FileSystemContractRepository {
         }
     }
 
+    /// Lists all contracts in the repository.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec` of all contracts in the repository.
     async fn list(&self) -> Result<Vec<Contract>, RepositoryError> {
         debug!("Listing all contracts");
 
@@ -187,6 +226,11 @@ impl ContractRepository for FileSystemContractRepository {
         Ok(contracts)
     }
 
+    /// Deletes a contract from the repository by its ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the contract to delete.
     async fn delete(&self, id: &ContractId) -> Result<(), RepositoryError> {
         debug!("Deleting contract: {}", id);
 
@@ -206,6 +250,15 @@ impl ContractRepository for FileSystemContractRepository {
         Ok(())
     }
 
+    /// Finds all contracts for a given service.
+    ///
+    /// # Arguments
+    ///
+    /// * `service_name` - The name of the service to find contracts for.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec` of all contracts for the given service.
     async fn find_by_service(&self, service_name: &str) -> Result<Vec<Contract>, RepositoryError> {
         debug!("Finding contracts for service: {}", service_name);
 
@@ -225,23 +278,27 @@ impl ContractRepository for FileSystemContractRepository {
     }
 }
 
-/// In-memory implementation for testing and development
+/// An in-memory implementation of the `ContractRepository` trait for testing
+/// and development.
 pub struct InMemoryContractRepository {
     contracts: RwLock<HashMap<String, Contract>>,
 }
 
 impl InMemoryContractRepository {
+    /// Creates a new `InMemoryContractRepository`.
     pub fn new() -> Self {
         Self {
             contracts: RwLock::new(HashMap::new()),
         }
     }
 
+    /// Clears all contracts from the repository.
     pub async fn clear(&self) {
         let mut contracts = self.contracts.write().await;
         contracts.clear();
     }
 
+    /// Returns the number of contracts in the repository.
     pub async fn count(&self) -> usize {
         let contracts = self.contracts.read().await;
         contracts.len()
@@ -250,6 +307,11 @@ impl InMemoryContractRepository {
 
 #[async_trait]
 impl ContractRepository for InMemoryContractRepository {
+    /// Saves a contract to the repository.
+    ///
+    /// # Arguments
+    ///
+    /// * `contract` - The contract to save.
     async fn save(&self, contract: &Contract) -> Result<(), RepositoryError> {
         debug!("Saving contract to memory: {}", contract.id);
 
@@ -260,6 +322,16 @@ impl ContractRepository for InMemoryContractRepository {
         Ok(())
     }
 
+    /// Gets a contract from the repository by its ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the contract to get.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the contract if it was found, or `None` if it was
+    /// not.
     async fn get(&self, id: &ContractId) -> Result<Option<Contract>, RepositoryError> {
         debug!("Retrieving contract from memory: {}", id);
 
@@ -275,6 +347,11 @@ impl ContractRepository for InMemoryContractRepository {
         Ok(contract)
     }
 
+    /// Lists all contracts in the repository.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec` of all contracts in the repository.
     async fn list(&self) -> Result<Vec<Contract>, RepositoryError> {
         debug!("Listing all contracts from memory");
 
@@ -285,6 +362,11 @@ impl ContractRepository for InMemoryContractRepository {
         Ok(contract_list)
     }
 
+    /// Deletes a contract from the repository by its ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the contract to delete.
     async fn delete(&self, id: &ContractId) -> Result<(), RepositoryError> {
         debug!("Deleting contract from memory: {}", id);
 
@@ -299,6 +381,15 @@ impl ContractRepository for InMemoryContractRepository {
         Ok(())
     }
 
+    /// Finds all contracts for a given service.
+    ///
+    /// # Arguments
+    ///
+    /// * `service_name` - The name of the service to find contracts for.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec` of all contracts for the given service.
     async fn find_by_service(&self, service_name: &str) -> Result<Vec<Contract>, RepositoryError> {
         debug!("Finding contracts for service in memory: {}", service_name);
 

@@ -1,22 +1,39 @@
+//! Provides an integration with the Node Package Manager (NPM).
+//!
+//! This module provides a way to detect the status of the NPM setup in a
+//! project, and to set up the necessary scripts for running `apicentric`
+//! commands.
+
 use crate::errors::{ApicentricError, ApicentricResult};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// A template for an NPM script.
 #[derive(Debug, Clone)]
 pub struct NpmScriptTemplate {
+    /// The name of the script.
     pub name: String,
+    /// The command that the script should run.
     pub command: String,
+    /// A description of the script.
     pub description: String,
 }
 
+/// The status of the NPM setup in a project.
 #[derive(Debug, Clone)]
 pub struct NpmSetupStatus {
+    /// Whether a `package.json` file exists in the project.
     pub package_json_exists: bool,
+    /// Whether an `apicentric` script exists in the `package.json` file.
     pub apicentric_script_exists: bool,
+    /// Whether an `apicentric:watch` script exists in the `package.json` file.
     pub apicentric_watch_script_exists: bool,
+    /// The path to the `apicentric` binary.
     pub apicentric_binary_path: Option<String>,
+    /// The recommended scripts to add to the `package.json` file.
     pub recommended_scripts: Vec<NpmScriptTemplate>,
+    /// The instructions for setting up the scripts manually.
     pub setup_instructions: Vec<String>,
 }
 
@@ -26,19 +43,30 @@ pub mod writer;
 pub use reader::NpmReader;
 pub use writer::NpmWriter;
 
-/// Trait defining npm integration capabilities
+/// A trait for integrating with NPM.
 pub trait NpmIntegrator {
+    /// Detects the status of the NPM setup in a project.
     fn detect_setup_status(&self) -> ApicentricResult<NpmSetupStatus>;
+    /// Sets up the necessary scripts for running `apicentric` commands.
+    ///
+    /// # Arguments
+    ///
+    /// * `force` - Whether to overwrite existing scripts.
     fn setup_scripts(&self, force: bool) -> ApicentricResult<()>;
 }
 
-/// Concrete npm integration that delegates to reader and writer components
+/// An integration with NPM that delegates to reader and writer components.
 #[derive(Debug, Clone)]
 pub struct NpmIntegration {
     project_root: PathBuf,
 }
 
 impl NpmIntegration {
+    /// Creates a new `NpmIntegration`.
+    ///
+    /// # Arguments
+    ///
+    /// * `project_root` - The root directory of the project.
     pub fn new(project_root: &Path) -> Self {
         Self {
             project_root: project_root.to_path_buf(),
@@ -53,22 +81,26 @@ impl NpmIntegration {
         NpmWriter::new(&self.project_root)
     }
 
-    /// Detect current npm setup status
+    /// Detects the current NPM setup status.
     pub fn detect_setup_status(&self) -> ApicentricResult<NpmSetupStatus> {
         self.reader().detect_setup_status()
     }
 
-    /// Automatically setup npm scripts
+    /// Automatically sets up the NPM scripts.
+    ///
+    /// # Arguments
+    ///
+    /// * `force` - Whether to overwrite existing scripts.
     pub fn setup_scripts(&self, force: bool) -> ApicentricResult<()> {
         self.writer().setup_scripts(force)
     }
 
-    /// Read package.json
+    /// Reads the `package.json` file.
     pub fn read_package_json(&self) -> ApicentricResult<Value> {
         self.reader().read_package_json()
     }
 
-    /// Validate npm setup
+    /// Validates the NPM setup.
     pub fn validate_npm_setup(&self) -> ApicentricResult<bool> {
         let status = self.detect_setup_status()?;
 
@@ -89,7 +121,7 @@ impl NpmIntegration {
         Ok(true)
     }
 
-    /// Print instructions for manual setup
+    /// Prints the instructions for setting up the scripts manually.
     pub fn print_setup_instructions(&self) -> ApicentricResult<()> {
         let status = self.detect_setup_status()?;
 
@@ -138,7 +170,7 @@ impl NpmIntegration {
         Ok(())
     }
 
-    /// Show usage examples for npm scripts
+    /// Shows usage examples for the NPM scripts.
     pub fn show_usage_examples(&self) -> ApicentricResult<()> {
         println!("📚 apicentric NPM Integration Usage Examples");
         println!("======================================");
@@ -174,7 +206,7 @@ impl NpmIntegration {
         Ok(())
     }
 
-    /// Test npm script execution (dry run)
+    /// Tests the NPM script execution.
     pub fn test_npm_scripts(&self) -> ApicentricResult<()> {
         let status = self.detect_setup_status()?;
         if !status.apicentric_script_exists {
@@ -243,7 +275,7 @@ impl NpmIntegration {
         Ok(())
     }
 
-    /// Resolve binary path using reader
+    /// Resolves the path to the `apicentric` binary.
     pub fn resolve_apicentric_binary_path(&self) -> ApicentricResult<String> {
         self.reader().resolve_apicentric_binary_path()
     }

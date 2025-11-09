@@ -1,3 +1,7 @@
+//! The cloud server.
+//!
+//! This module provides a `CloudServer` that can be used to serve the cloud API.
+
 use std::sync::Arc;
 use axum::{
     http::StatusCode,
@@ -17,6 +21,7 @@ use std::env;
 use crate::auth::jwt::JwtKeys;
 use crate::auth::repository::AuthRepository;
 
+/// The cloud server.
 pub struct CloudServer {
     simulator_manager: Arc<ApiSimulatorManager>,
     auth_state: Arc<AuthState>,
@@ -24,6 +29,11 @@ pub struct CloudServer {
 }
 
 impl CloudServer {
+    /// Creates a new `CloudServer`.
+    ///
+    /// # Arguments
+    ///
+    /// * `simulator_manager` - The API simulator manager.
     pub fn new(simulator_manager: ApiSimulatorManager) -> Self {
         // Initialize auth state (temporary simple sqlite file for users)
         let db_path = env::var("APICENTRIC_AUTH_DB").unwrap_or_else(|_| "data/auth.db".to_string());
@@ -40,6 +50,11 @@ impl CloudServer {
         }
     }
 
+    /// Starts the cloud server.
+    ///
+    /// # Arguments
+    ///
+    /// * `port` - The port to listen on.
     pub async fn start(&self, port: u16) -> Result<(), Box<dyn std::error::Error>> {
         let app = self.create_router();
         
@@ -97,6 +112,7 @@ impl CloudServer {
     }
 }
 
+/// The health check endpoint.
 async fn health_check() -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "status": "healthy",
