@@ -1,0 +1,26 @@
+swagger: "2.0"
+info:
+  title: Example Service
+  version: "1.0"
+basePath: /api
+paths:
+  /status:
+    get:
+      summary: Status
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: should prefer example
+          examples:
+            application/json:
+              status: ok
+              uptime: 42
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              uptime:
+                type: integer
+definitions: {}

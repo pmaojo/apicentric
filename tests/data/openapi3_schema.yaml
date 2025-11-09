@@ -1,0 +1,33 @@
+openapi: "3.0.0"
+info:
+  title: OpenAPI 3 Schema
+  version: "1.0"
+servers:
+  - url: https://example.com/base
+paths:
+  /metrics:
+    get:
+      summary: Metrics
+      responses:
+        "200":
+          description: should build payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Metric'
+components:
+  schemas:
+    Metric:
+      type: object
+      properties:
+        value:
+          type: number
+        count:
+          type: integer
+        labels:
+          type: array
+          items:
+            type: string
+      required:
+        - value
+        - count
