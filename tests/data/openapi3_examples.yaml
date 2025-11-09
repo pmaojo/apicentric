@@ -1,0 +1,20 @@
+openapi: "3.0.0"
+info:
+  title: OpenAPI 3 Example
+  version: "1.0"
+servers:
+  - url: https://example.com/api
+paths:
+  /greet:
+    get:
+      summary: Greeting
+      responses:
+        "200":
+          description: should use example
+          content:
+            application/json:
+              example:
+                message: hello
+                locale: en-US
+components:
+  schemas: {}

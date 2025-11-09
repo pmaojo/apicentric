@@ -1,0 +1,29 @@
+swagger: "2.0"
+info:
+  title: Schema Service
+  version: "1.0"
+basePath: /api
+paths:
+  /items:
+    get:
+      summary: Items
+      responses:
+        "200":
+          description: should fall back to schema
+          schema:
+            $ref: '#/definitions/Item'
+definitions:
+  Item:
+    type: object
+    required:
+      - id
+      - name
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      tags:
+        type: array
+        items:
+          type: string

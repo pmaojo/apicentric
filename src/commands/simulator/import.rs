@@ -1,5 +1,5 @@
-use apicentric::{ExecutionContext, ApicentricError, ApicentricResult};
-use openapi::from_path;
+use apicentric::{ApicentricError, ApicentricResult, ExecutionContext};
+use serde_yaml::Value;
 
 pub async fn handle_import(
     input: &str,
@@ -13,10 +13,16 @@ pub async fn handle_import(
         );
         return Ok(());
     }
-    let spec = from_path(input).map_err(|e| {
+    let content = std::fs::read_to_string(input).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to read OpenAPI: {}", e),
-            Some("Ensure the file is a valid OpenAPI 3.0 specification in YAML or JSON format")
+            Some("Ensure the file is accessible and encoded as UTF-8 YAML or JSON"),
+        )
+    })?;
+    let spec: Value = serde_yaml::from_str(&content).map_err(|e| {
+        ApicentricError::runtime_error(
+            format!("Failed to parse OpenAPI: {}", e),
+            Some("Ensure the document is a valid OpenAPI 2.0 or 3.x specification"),
         )
     })?;
     let service = apicentric::simulator::openapi::from_openapi(&spec);
@@ -51,7 +57,7 @@ pub async fn handle_import_mockoon(
     let service = apicentric::simulator::mockoon::from_path(input).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to read Mockoon: {}", e),
-            Some("Ensure the file is a valid Mockoon environment export in JSON format")
+            Some("Ensure the file is a valid Mockoon environment export in JSON format"),
         )
     })?;
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
@@ -85,7 +91,7 @@ pub async fn handle_import_postman(
     let service = apicentric::simulator::postman::from_path(input).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to read Postman: {}", e),
-            Some("Ensure the file is a valid Postman Collection v2.1 export in JSON format")
+            Some("Ensure the file is a valid Postman Collection v2.1 export in JSON format"),
         )
     })?;
     let yaml = serde_yaml::to_string(&service).map_err(|e| {

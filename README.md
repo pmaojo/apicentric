@@ -385,6 +385,7 @@ Define mock APIs in YAML and serve them locally:
 - Dynamic templates with Handlebars
 - Scenarios for different states
 - Request/response logging
+- Imports OpenAPI 2.0/3.x specs, preferring documented examples and generating JSON bodies from schemas when necessary
 
 ### ✅ Contract Testing
 
