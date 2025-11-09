@@ -1,10 +1,8 @@
 use crate::domain::contract_testing::{
-    ComplianceIssue, ComplianceIssueType, ComplianceSeverity, RealApiConfig,
-    ScenarioValidationResult, ValidationScenario, ApiUrl,
+    ApiUrl, ComplianceIssue, ComplianceIssueType, ComplianceSeverity, RealApiConfig,
+    ScenarioValidationResult, ValidationScenario,
 };
-use crate::domain::ports::contract::{
-    ContractHttpClient, ContractMockApiRunner, MockApiHandle,
-};
+use crate::domain::ports::contract::{ContractHttpClient, ContractMockApiRunner, MockApiHandle};
 
 /// Executes contract validation scenarios against mock and real APIs.
 pub struct ContractExecutor<H, M>
@@ -37,16 +35,16 @@ where
         scenario: &ValidationScenario,
         mock_handle: &MockApiHandle,
     ) -> ScenarioValidationResult {
-        let mock_response =
-            self.mock_runner
-                .execute_request(mock_handle, scenario)
-                .await
-                .ok();
-        let real_response =
-            self.http_client
-                .execute_request(base_url, config, scenario)
-                .await
-                .ok();
+        let mock_response = self
+            .mock_runner
+            .execute_request(mock_handle, scenario)
+            .await
+            .ok();
+        let real_response = self
+            .http_client
+            .execute_request(base_url, config, scenario)
+            .await
+            .ok();
 
         let compliance_issue = match (&mock_response, &real_response) {
             (Some(m), Some(r)) if m.status() != r.status() => Some(ComplianceIssue {
@@ -63,10 +61,13 @@ where
             _ => None,
         };
 
+        let expected_response = mock_response.clone();
+
         ScenarioValidationResult {
             scenario_id: scenario.id.clone(),
             mock_response,
             real_response,
+            expected_response,
             compliance_issue,
             duration_ms: 0,
         }
@@ -80,8 +81,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::domain::contract_testing::{
-        ApiResponse, ResponseBody, HttpMethod,
-        value_objects::RetryAttempts,
+        value_objects::RetryAttempts, ApiResponse, HttpMethod, ResponseBody,
     };
     use crate::domain::ports::contract::{HttpClientError, MockApiError};
 
@@ -172,4 +172,3 @@ mod tests {
         assert!(result.compliance_issue.is_some());
     }
 }
-

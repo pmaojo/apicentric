@@ -4,14 +4,17 @@
 //! service specifications from YAML files.
 
 use crate::domain::contract_testing::*;
-use crate::domain::ports::contract::{EndpointSpec, ResponseSpec, ServiceSpec, ServiceSpecLoader, SpecLoaderError};
+use crate::domain::ports::contract::{
+    EndpointSpec, ResponseSpec, ServiceSpec, ServiceSpecLoader, SpecLoaderError,
+};
+use crate::utils::{FileReader, TokioFileReader};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use serde_yaml;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use crate::utils::{FileReader, TokioFileReader};
 use tracing::{debug, info};
 
 /// A YAML-based implementation of `ServiceSpecLoader`.
@@ -26,7 +29,10 @@ pub struct YamlServiceSpecLoader {
 impl YamlServiceSpecLoader {
     /// Creates a new `YamlServiceSpecLoader`.
     pub fn new() -> Self {
-        Self { base_path: None, file_reader: Arc::new(TokioFileReader) }
+        Self {
+            base_path: None,
+            file_reader: Arc::new(TokioFileReader),
+        }
     }
 
     /// Creates a new `YamlServiceSpecLoader` with a base path.
@@ -47,7 +53,10 @@ impl YamlServiceSpecLoader {
     ///
     /// * `reader` - The file reader to use.
     pub fn with_file_reader(reader: Arc<dyn FileReader>) -> Self {
-        Self { base_path: None, file_reader: reader }
+        Self {
+            base_path: None,
+            file_reader: reader,
+        }
     }
 
     /// Creates a new `YamlServiceSpecLoader` with a base path and a custom file
@@ -57,7 +66,10 @@ impl YamlServiceSpecLoader {
     ///
     /// * `base_path` - The base path to use for resolving relative file paths.
     /// * `reader` - The file reader to use.
-    pub fn with_base_path_and_reader<P: AsRef<Path>>(base_path: P, reader: Arc<dyn FileReader>) -> Self {
+    pub fn with_base_path_and_reader<P: AsRef<Path>>(
+        base_path: P,
+        reader: Arc<dyn FileReader>,
+    ) -> Self {
         Self {
             base_path: Some(base_path.as_ref().to_string_lossy().to_string()),
             file_reader: reader,
@@ -105,22 +117,35 @@ impl YamlServiceSpecLoader {
             }
 
             // Create basic validation scenario
-            let scenario = ValidationScenario {
-                id: scenario_id,
-                path: endpoint.path.clone(),
-                method: endpoint.method.clone(),
-                headers,
-                query_params: HashMap::new(),
-                request_body: None,
-            };
+            let expected_status = endpoint.response.status;
+            let expected_headers = self.normalize_expected_headers(&endpoint.response.headers);
+            let expected_body = self.parse_expected_body(&endpoint.response.body_template)?;
+
+            let scenario = ValidationScenario::new(
+                scenario_id,
+                endpoint.path.clone(),
+                endpoint.method.clone(),
+            )
+            .with_headers(headers)
+            .with_expected_response(
+                expected_status,
+                expected_headers.clone(),
+                expected_body.clone(),
+            );
 
             scenarios.push(scenario);
 
             // Generate additional scenarios based on conditions
             for (condition_index, condition) in endpoint.conditions.iter().enumerate() {
-                if let Ok(additional_scenario) =
-                    self.parse_condition_scenario(spec, endpoint, condition, condition_index)
-                {
+                if let Ok(additional_scenario) = self.parse_condition_scenario(
+                    spec,
+                    endpoint,
+                    condition,
+                    condition_index,
+                    expected_status,
+                    expected_headers.clone(),
+                    expected_body.clone(),
+                ) {
                     scenarios.push(additional_scenario);
                 }
             }
@@ -140,6 +165,9 @@ impl YamlServiceSpecLoader {
         endpoint: &EndpointSpec,
         condition: &str,
         index: usize,
+        expected_status: u16,
+        expected_headers: HashMap<String, String>,
+        expected_body: ResponseBody,
     ) -> Result<ValidationScenario, SpecLoaderError> {
         let scenario_id = format!(
             "{}_{}_condition_{}",
@@ -193,14 +221,20 @@ impl YamlServiceSpecLoader {
         headers.insert("Accept".to_string(), "application/json".to_string());
         headers.insert("Content-Type".to_string(), "application/json".to_string());
 
-        Ok(ValidationScenario {
-            id: scenario_id,
-            path: endpoint.path.clone(),
-            method: endpoint.method.clone(),
-            headers,
-            query_params,
-            request_body,
-        })
+        let mut scenario =
+            ValidationScenario::new(scenario_id, endpoint.path.clone(), endpoint.method.clone())
+                .with_headers(headers)
+                .with_expected_response(expected_status, expected_headers, expected_body);
+
+        if let Some(body) = request_body {
+            scenario = scenario.with_request_body(body);
+        }
+
+        if !query_params.is_empty() {
+            scenario.query_params = query_params;
+        }
+
+        Ok(scenario)
     }
 }
 
@@ -216,9 +250,13 @@ impl ServiceSpecLoader for YamlServiceSpecLoader {
         debug!("Loading service spec from: {}", resolved_path);
 
         // Read YAML file
-        let content = self.file_reader.read_to_string(Path::new(&resolved_path)).await.map_err(|e| {
-            SpecLoaderError::FileNotFound(format!("Failed to read {}: {}", resolved_path, e))
-        })?;
+        let content = self
+            .file_reader
+            .read_to_string(Path::new(&resolved_path))
+            .await
+            .map_err(|e| {
+                SpecLoaderError::FileNotFound(format!("Failed to read {}: {}", resolved_path, e))
+            })?;
 
         // Parse YAML
         let yaml_spec: YamlServiceSpec = serde_yaml::from_str(&content).map_err(|e| {
@@ -374,6 +412,35 @@ impl YamlServiceSpecLoader {
                 method_str
             ))),
         }
+    }
+
+    fn normalize_expected_headers(
+        &self,
+        headers: &HashMap<String, String>,
+    ) -> HashMap<String, String> {
+        headers
+            .iter()
+            .map(|(key, value)| (key.to_lowercase(), value.to_string()))
+            .collect()
+    }
+
+    fn parse_expected_body(&self, template: &str) -> Result<ResponseBody, SpecLoaderError> {
+        let trimmed = template.trim();
+        if trimmed.is_empty() {
+            return Ok(ResponseBody::Text(String::new()));
+        }
+
+        if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(trimmed) {
+            return Ok(ResponseBody::Json(json_value));
+        }
+
+        if let Ok(yaml_value) = serde_yaml::from_str::<serde_yaml::Value>(trimmed) {
+            if let Ok(json_value) = serde_json::to_value(yaml_value) {
+                return Ok(ResponseBody::Json(json_value));
+            }
+        }
+
+        Ok(ResponseBody::Text(trimmed.to_string()))
     }
 }
 

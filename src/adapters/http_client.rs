@@ -478,18 +478,16 @@ mod tests {
             retry_attempts: RetryAttempts::new(2).unwrap(),
         };
 
-        let scenario = ValidationScenario {
-            id: "test-scenario".to_string(),
-            path: "/api/users".to_string(),
-            method: HttpMethod::GET,
-            headers: {
-                let mut headers = HashMap::new();
-                headers.insert("Accept".to_string(), "application/json".to_string());
-                headers
-            },
-            query_params: HashMap::new(),
-            request_body: None,
-        };
+        let scenario = ValidationScenario::new(
+            "test-scenario".to_string(),
+            "/api/users".to_string(),
+            HttpMethod::GET,
+        )
+        .with_headers({
+            let mut headers = HashMap::new();
+            headers.insert("Accept".to_string(), "application/json".to_string());
+            headers
+        });
 
         let request = client.build_request(&base_url, &config, &scenario);
         assert!(request.is_ok());

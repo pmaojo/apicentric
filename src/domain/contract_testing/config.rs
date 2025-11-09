@@ -57,6 +57,9 @@ pub struct CompatibilityPolicy {
     pub name: String,
     pub strict_status_codes: bool,
     pub ignore_additional_fields: bool,
+    pub validate_headers: bool,
+    pub ignore_additional_headers: bool,
+    pub compare_body: bool,
     pub tolerance_threshold: f64,
 }
 
@@ -66,6 +69,9 @@ impl CompatibilityPolicy {
             name: "strict".to_string(),
             strict_status_codes: true,
             ignore_additional_fields: false,
+            validate_headers: true,
+            ignore_additional_headers: false,
+            compare_body: true,
             tolerance_threshold: 0.95,
         }
     }
@@ -75,6 +81,9 @@ impl CompatibilityPolicy {
             name: "moderate".to_string(),
             strict_status_codes: true,
             ignore_additional_fields: true,
+            validate_headers: true,
+            ignore_additional_headers: true,
+            compare_body: true,
             tolerance_threshold: 0.80,
         }
     }
@@ -84,6 +93,9 @@ impl CompatibilityPolicy {
             name: "lenient".to_string(),
             strict_status_codes: false,
             ignore_additional_fields: true,
+            validate_headers: false,
+            ignore_additional_headers: true,
+            compare_body: false,
             tolerance_threshold: 0.60,
         }
     }
