@@ -74,8 +74,7 @@ fn hook_name(ep: &EndpointDefinition, is_query: bool) -> String {
 }
 
 fn path_params(path: &str) -> Vec<String> {
-    path
-        .split('/')
+    path.split('/')
         .filter_map(|seg| {
             if seg.starts_with('{') && seg.ends_with('}') {
                 Some(seg[1..seg.len() - 1].to_string())
@@ -98,7 +97,11 @@ fn format_params(params: &[String]) -> String {
 }
 
 fn build_url(base_path: &str, path: &str, params: &[String]) -> String {
-    let mut full = format!("{}/{}", base_path.trim_end_matches('/'), path.trim_start_matches('/'));
+    let mut full = format!(
+        "{}/{}",
+        base_path.trim_end_matches('/'),
+        path.trim_start_matches('/')
+    );
     for p in params {
         full = full.replace(&format!("{{{}}}", p), &format!("${{{}}}", p));
     }
@@ -124,7 +127,13 @@ mod tests {
             name: "Test".into(),
             version: None,
             description: None,
-            server: ServerConfig { port: None, base_path: "/api".into(), proxy_base_url: None, cors: None },
+            server: ServerConfig {
+                port: None,
+                base_path: "/api".into(),
+                proxy_base_url: None,
+                cors: None,
+                record_unknown: false,
+            },
             models: None,
             fixtures: None,
             bucket: None,
@@ -163,4 +172,3 @@ mod tests {
         assert!(ts.contains("/api/pets"));
     }
 }
-

@@ -32,6 +32,7 @@ fn from_openapi_v2(spec: &Spec, raw: &Value) -> ServiceDefinition {
         base_path: spec.base_path.clone().unwrap_or_else(|| "/".to_string()),
         proxy_base_url: None,
         cors: None,
+        record_unknown: false,
     };
 
     let models = if spec.definitions.is_empty() {
@@ -174,6 +175,7 @@ fn from_openapi_v3(raw: &Value) -> ServiceDefinition {
                 base_path: "/".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                record_unknown: false,
             },
             models: None,
             fixtures: None,
@@ -215,6 +217,7 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
         base_path,
         proxy_base_url: None,
         cors: None,
+        record_unknown: false,
     };
 
     let mut endpoints = Vec::new();

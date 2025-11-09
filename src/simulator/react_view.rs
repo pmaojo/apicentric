@@ -159,6 +159,7 @@ mod tests {
                 base_path: "/api".into(),
                 proxy_base_url: None,
                 cors: None,
+                record_unknown: false,
             },
             models: None,
             fixtures: None,

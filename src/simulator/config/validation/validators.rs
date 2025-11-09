@@ -9,7 +9,10 @@ pub fn validate_service_schema(service: &ServiceDefinition) -> ApicentricResult<
         let error_message =
             crate::errors::ErrorFormatter::format_validation_errors(&validation_errors);
         return Err(ApicentricError::config_error(
-            format!("Service validation failed for '{}':\n{}", service.name, error_message),
+            format!(
+                "Service validation failed for '{}':\n{}",
+                service.name, error_message
+            ),
             Some("Fix the validation errors listed above"),
         ));
     }
@@ -165,7 +168,13 @@ mod tests {
 
     #[test]
     fn duplicate_name_validator_fails() {
-        let server = ServerConfig { port: None, base_path: "/api".into(), proxy_base_url: None, cors: None };
+        let server = ServerConfig {
+            port: None,
+            base_path: "/api".into(),
+            proxy_base_url: None,
+            cors: None,
+            record_unknown: false,
+        };
         let endpoint = EndpointDefinition {
             kind: Default::default(),
             method: "GET".into(),
@@ -178,7 +187,18 @@ mod tests {
             scenarios: None,
             stream: None,
         };
-        let service = ServiceDefinition { name: "svc".into(), version: None, description: None, server, models: None, fixtures: None, bucket: None, endpoints: vec![endpoint], graphql: None, behavior: None };
+        let service = ServiceDefinition {
+            name: "svc".into(),
+            version: None,
+            description: None,
+            server,
+            models: None,
+            fixtures: None,
+            bucket: None,
+            endpoints: vec![endpoint],
+            graphql: None,
+            behavior: None,
+        };
         let mut names = HashSet::new();
         validate_unique_name(&service, &mut names).unwrap();
         let err = validate_unique_name(&service, &mut names).unwrap_err();

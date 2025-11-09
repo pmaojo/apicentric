@@ -1,29 +1,31 @@
 //! Service Instance - Individual service implementation with state management
 
-pub mod routing;
 pub mod graphql;
-pub mod state;
-pub mod scenario;
-pub mod state_service;
-pub mod router;
 pub mod http_server;
+pub mod router;
+pub mod routing;
+pub mod scenario;
+pub mod state;
+pub mod state_service;
 
 pub use graphql::*;
-pub use routing::*;
-pub use state::*;
-pub use scenario::ScenarioService;
-pub use state_service::StateService;
-pub use router::{RequestRouter, DefaultRouter};
 pub use http_server::HttpServer;
+pub use router::{DefaultRouter, RequestRouter};
+pub use routing::*;
+pub use scenario::ScenarioService;
+pub use state::*;
+pub use state_service::StateService;
 
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::{
-    EndpointDefinition, ResponseDefinition, ScenarioDefinition, ScenarioStrategy, ServiceDefinition,
+    EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, ResponseDefinition,
+    ScenarioDefinition, ScenarioStrategy, ServiceDefinition,
 };
 use crate::simulator::log::RequestLogEntry;
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 use crate::storage::Storage;
 use bytes::Bytes;
+use deno_core::{JsRuntime, RuntimeOptions};
 use http_body_util::Full;
 use hyper::header::HOST;
 use hyper::server::conn::http1;
@@ -36,15 +38,14 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock as StdRwLock};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
-use deno_core::{JsRuntime, RuntimeOptions};
 
 /// Individual service instance with HTTP server capabilities
 pub struct ServiceInstance {
-    definition: ServiceDefinition,
+    definition: Arc<StdRwLock<ServiceDefinition>>,
     port: u16,
     state: Arc<RwLock<ServiceState>>,
     template_engine: Arc<TemplateEngine>,
@@ -52,6 +53,7 @@ pub struct ServiceInstance {
     is_running: bool,
     active_scenario: Arc<RwLock<Option<String>>>,
     graphql: Option<Arc<GraphQLMocks>>,
+    storage: Arc<dyn Storage>,
 }
 
 impl ServiceInstance {
@@ -62,26 +64,26 @@ impl ServiceInstance {
         storage: Arc<dyn Storage>,
         log_sender: broadcast::Sender<RequestLogEntry>,
     ) -> ApicentricResult<Self> {
-        // Initialize state with fixtures and bucket from definition
-        let state = ServiceState::new(
-            definition.fixtures.clone(),
-            definition.bucket.clone(),
-            storage.clone(),
-            Some(log_sender),
-        );
+        let fixtures = definition.fixtures.clone();
+        let bucket = definition.bucket.clone();
+        let graphql_cfg = definition.graphql.clone();
 
-        // persist service definition
-        let _ = storage.save_service(&definition);
+        let definition = Arc::new(StdRwLock::new(definition));
+
+        let state = ServiceState::new(fixtures, bucket, Arc::clone(&storage), Some(log_sender));
 
         // Initialize template engine and register bucket helpers
         let mut template_engine = TemplateEngine::new()?;
         template_engine.register_bucket_helpers(state.bucket())?;
 
-        let graphql = if let Some(ref gql_cfg) = definition.graphql {
-            Some(Arc::new(load_graphql_mocks(gql_cfg)?))
+        let graphql = if let Some(gql_cfg) = graphql_cfg {
+            Some(Arc::new(load_graphql_mocks(&gql_cfg)?))
         } else {
             None
         };
+
+        let saved_definition = { definition.read().unwrap().clone() };
+        let _ = storage.save_service(&saved_definition);
 
         Ok(Self {
             definition,
@@ -92,6 +94,7 @@ impl ServiceInstance {
             is_running: false,
             active_scenario: Arc::new(RwLock::new(None)),
             graphql,
+            storage,
         })
     }
 
@@ -99,7 +102,10 @@ impl ServiceInstance {
     pub async fn start(&mut self) -> ApicentricResult<()> {
         if self.is_running {
             return Err(ApicentricError::runtime_error(
-                format!("Service '{}' is already running", self.definition.name),
+                format!(
+                    "Service '{}' is already running",
+                    self.definition.read().unwrap().name
+                ),
                 None::<String>,
             ));
         }
@@ -114,15 +120,16 @@ impl ServiceInstance {
         })?;
 
         // Clone necessary data for the server task
-        let service_name = self.definition.name.clone();
-        let base_path = self.definition.server.base_path.clone();
-        let endpoints = self.definition.endpoints.clone();
+        let (service_name, base_path) = {
+            let def = self.definition.read().unwrap();
+            (def.name.clone(), def.server.base_path.clone())
+        };
+        let definition = Arc::clone(&self.definition);
         let state = Arc::clone(&self.state);
         let template_engine = Arc::clone(&self.template_engine);
-        let cors = self.definition.server.cors.clone();
-        let proxy = self.definition.server.proxy_base_url.clone();
         let active_scenario = Arc::clone(&self.active_scenario);
         let graphql = self.graphql.clone();
+        let storage = Arc::clone(&self.storage);
 
         // Spawn the HTTP server task
         let server_handle = tokio::spawn(async move {
@@ -137,42 +144,34 @@ impl ServiceInstance {
                 match listener.accept().await {
                     Ok((stream, _)) => {
                         let io = TokioIo::new(stream);
-                        let service_name = service_name.clone();
-                        let base_path = base_path.clone();
-                        let endpoints = endpoints.clone();
+                        let service_name_for_request = service_name.clone();
+                        let service_name_for_error = service_name.clone();
+                        let definition = Arc::clone(&definition);
                         let state = Arc::clone(&state);
                         let template_engine = Arc::clone(&template_engine);
-                        let cors_cfg = cors.clone();
-                        let proxy_cfg = proxy.clone();
                         let scenario_cfg_outer = Arc::clone(&active_scenario);
                         let graphql_cfg_outer = graphql.clone();
+                        let storage = Arc::clone(&storage);
 
-                        // Handle each connection
-                        let connection_service_name = service_name.clone();
                         tokio::task::spawn(async move {
                             let service = service_fn(move |req| {
-                                let service_name = service_name.clone();
-                                let base_path = base_path.clone();
-                                let endpoints = endpoints.clone();
+                                let service_name = service_name_for_request.clone();
+                                let definition = Arc::clone(&definition);
                                 let state = Arc::clone(&state);
                                 let template_engine = Arc::clone(&template_engine);
-                                let cors_cfg = cors_cfg.clone();
-                                let proxy_cfg = proxy_cfg.clone();
                                 let scenario_cfg = Arc::clone(&scenario_cfg_outer);
                                 let graphql_cfg = graphql_cfg_outer.clone();
+                                let storage = Arc::clone(&storage);
 
                                 async move {
                                     match Self::handle_request_static(
                                         req,
-                                        service_name.clone(),
-                                        base_path,
-                                        endpoints,
+                                        Arc::clone(&definition),
                                         state,
                                         template_engine,
-                                        cors_cfg,
-                                        proxy_cfg,
                                         scenario_cfg,
                                         graphql_cfg,
+                                        storage,
                                     )
                                     .await
                                     {
@@ -188,8 +187,7 @@ impl ServiceInstance {
                                                 .body(Full::new(Bytes::from(format!(
                                                     r#"{{"error": "{}"}}"#,
                                                     err
-                                                ))))
-                                            {
+                                                )))) {
                                                 Ok(r) => r,
                                                 Err(_) => Response::new(Full::new(Bytes::new())),
                                             };
@@ -204,7 +202,7 @@ impl ServiceInstance {
                             {
                                 eprintln!(
                                     "Error serving connection for service '{}': {:?}",
-                                    connection_service_name, err
+                                    service_name_for_error, err
                                 );
                             }
                         });
@@ -242,7 +240,10 @@ impl ServiceInstance {
 
         self.is_running = false;
 
-        println!("🛑 Stopped service '{}'", self.definition.name);
+        println!(
+            "🛑 Stopped service '{}'",
+            self.definition.read().unwrap().name
+        );
 
         Ok(())
     }
@@ -254,22 +255,22 @@ impl ServiceInstance {
     ) -> ApicentricResult<Response<Full<Bytes>>> {
         if !self.is_running {
             return Err(ApicentricError::runtime_error(
-                format!("Service '{}' is not running", self.definition.name),
+                format!(
+                    "Service '{}' is not running",
+                    self.definition.read().unwrap().name
+                ),
                 Some("Start the service before handling requests"),
             ));
         }
 
         Self::handle_request_static(
             req,
-            self.definition.name.clone(),
-            self.definition.server.base_path.clone(),
-            self.definition.endpoints.clone(),
+            Arc::clone(&self.definition),
             Arc::clone(&self.state),
             Arc::clone(&self.template_engine),
-            self.definition.server.cors.clone(),
-            self.definition.server.proxy_base_url.clone(),
             Arc::clone(&self.active_scenario),
             self.graphql.clone(),
+            Arc::clone(&self.storage),
         )
         .await
     }
@@ -285,28 +286,28 @@ impl ServiceInstance {
     }
 
     /// Get the service base path
-    pub fn base_path(&self) -> &str {
-        &self.definition.server.base_path
+    pub fn base_path(&self) -> String {
+        self.definition.read().unwrap().server.base_path.clone()
     }
 
     /// Get the service name
-    pub fn name(&self) -> &str {
-        &self.definition.name
+    pub fn name(&self) -> String {
+        self.definition.read().unwrap().name.clone()
     }
 
     /// Get the number of endpoints defined for this service
     pub fn endpoints_count(&self) -> usize {
-        self.definition.endpoints.len()
+        self.definition.read().unwrap().endpoints.len()
     }
 
     /// Get all endpoint definitions
-    pub fn endpoints(&self) -> &[EndpointDefinition] {
-        &self.definition.endpoints
+    pub fn endpoints(&self) -> Vec<EndpointDefinition> {
+        self.definition.read().unwrap().endpoints.clone()
     }
 
     /// Get the service definition
-    pub fn definition(&self) -> &ServiceDefinition {
-        &self.definition
+    pub fn definition(&self) -> ServiceDefinition {
+        self.definition.read().unwrap().clone()
     }
 
     /// Set the active scenario for this service
@@ -392,7 +393,11 @@ impl ServiceInstance {
     }
 
     /// Add an item to a fixture array
-    pub async fn add_to_fixture_array(&self, fixture_key: &str, item: Value) -> ApicentricResult<()> {
+    pub async fn add_to_fixture_array(
+        &self,
+        fixture_key: &str,
+        item: Value,
+    ) -> ApicentricResult<()> {
         let mut state = self.state.write().await;
         state.add_to_fixture_array(fixture_key, item)
     }
@@ -491,11 +496,12 @@ impl ServiceInstance {
 
     /// Get service information for status reporting
     pub fn get_info(&self) -> crate::simulator::ServiceInfo {
+        let def = self.definition.read().unwrap();
         crate::simulator::ServiceInfo {
-            name: self.definition.name.clone(),
+            name: def.name.clone(),
             port: self.port,
-            base_path: self.definition.server.base_path.clone(),
-            endpoints_count: self.definition.endpoints.len(),
+            base_path: def.server.base_path.clone(),
+            endpoints_count: def.endpoints.len(),
             is_running: self.is_running,
         }
     }
@@ -507,7 +513,8 @@ impl ServiceInstance {
         path: &str,
         headers: &HashMap<String, String>,
     ) -> Option<RouteMatch> {
-        for (index, endpoint) in self.definition.endpoints.iter().enumerate() {
+        let definition = self.definition.read().unwrap();
+        for (index, endpoint) in definition.endpoints.iter().enumerate() {
             if endpoint.method.to_uppercase() == method.to_uppercase()
                 && Self::headers_match(endpoint, headers)
             {
@@ -529,14 +536,14 @@ impl ServiceInstance {
         method: &str,
         path: &str,
         headers: &HashMap<String, String>,
-    ) -> Option<&EndpointDefinition> {
-        // Use the original logic for backward compatibility
-        for endpoint in &self.definition.endpoints {
+    ) -> Option<EndpointDefinition> {
+        let definition = self.definition.read().unwrap();
+        for endpoint in &definition.endpoints {
             if endpoint.method.to_uppercase() == method.to_uppercase()
                 && Self::headers_match(endpoint, headers)
             {
                 if self.extract_path_parameters(&endpoint.path, path).is_some() {
-                    return Some(endpoint);
+                    return Some(endpoint.clone());
                 }
             }
         }
@@ -601,16 +608,25 @@ impl ServiceInstance {
     /// Static request handler for use in the HTTP server
     async fn handle_request_static(
         req: Request<hyper::body::Incoming>,
-        service_name: String,
-        base_path: String,
-        endpoints: Vec<EndpointDefinition>,
+        definition: Arc<StdRwLock<ServiceDefinition>>,
         state: Arc<RwLock<ServiceState>>,
         template_engine: Arc<TemplateEngine>,
-        cors_cfg: Option<crate::simulator::config::CorsConfig>,
-        proxy_base_url: Option<String>,
         active_scenario: Arc<RwLock<Option<String>>>,
         graphql: Option<Arc<GraphQLMocks>>,
+        storage: Arc<dyn Storage>,
     ) -> ApicentricResult<Response<Full<Bytes>>> {
+        let (service_name, base_path, endpoints, cors_cfg, proxy_base_url, record_unknown) = {
+            let def = definition.read().unwrap();
+            (
+                def.name.clone(),
+                def.server.base_path.clone(),
+                def.endpoints.clone(),
+                def.server.cors.clone(),
+                def.server.proxy_base_url.clone(),
+                def.server.record_unknown,
+            )
+        };
+
         let (parts, body) = req.into_parts();
         let method = parts.method.as_str();
         let path = parts.uri.path();
@@ -1178,14 +1194,12 @@ impl ServiceInstance {
                                     response = response.header(name.as_str(), v);
                                 }
                             }
-                            let final_resp = response
-                                .body(Full::new(bytes))
-                                .map_err(|e| {
-                                    ApicentricError::runtime_error(
-                                        format!("Failed to build proxy response: {}", e),
-                                        None::<String>,
-                                    )
-                                })?;
+                            let final_resp = response.body(Full::new(bytes)).map_err(|e| {
+                                ApicentricError::runtime_error(
+                                    format!("Failed to build proxy response: {}", e),
+                                    None::<String>,
+                                )
+                            })?;
                             Self::record_log(
                                 &state,
                                 &service_name,
@@ -1223,6 +1237,92 @@ impl ServiceInstance {
                             Ok(resp)
                         }
                     }
+                } else if record_unknown {
+                    let (placeholder_endpoint, recorded_path) =
+                        Self::build_recorded_endpoint(method, &relative_path);
+
+                    let saved_definition = {
+                        let mut def = definition.write().unwrap();
+                        def.endpoints.push(placeholder_endpoint);
+                        def.clone()
+                    };
+
+                    if let Err(err) = storage.save_service(&saved_definition) {
+                        log::warn!(
+                            "Failed to persist recorded endpoint for {} {}: {}",
+                            method,
+                            relative_path,
+                            err
+                        );
+                    }
+
+                    let response_body = serde_json::json!({
+                        "error": "Endpoint registrado",
+                        "message": format!(
+                            "Se registró automáticamente {} {} como {}",
+                            method, path, recorded_path
+                        ),
+                        "recorded_path": recorded_path,
+                        "method": method,
+                    })
+                    .to_string();
+
+                    let mut response = Response::builder()
+                        .status(StatusCode::CONFLICT)
+                        .header("content-type", "application/json");
+
+                    if let Some(cfg) = &cors_cfg {
+                        let origin_hdr = headers.get("origin").cloned().unwrap_or_default();
+                        let allow_origin = if cfg.origins.iter().any(|o| o == "*") {
+                            "*".to_string()
+                        } else if cfg
+                            .origins
+                            .iter()
+                            .any(|o| o.eq_ignore_ascii_case(&origin_hdr))
+                        {
+                            origin_hdr.clone()
+                        } else {
+                            "*".to_string()
+                        };
+                        let allow_methods = cfg
+                            .methods
+                            .clone()
+                            .map(|v| v.join(", "))
+                            .unwrap_or_else(|| {
+                                "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string()
+                            });
+                        let allow_headers = cfg
+                            .headers
+                            .clone()
+                            .map(|v| v.join(", "))
+                            .unwrap_or_else(|| "Content-Type, Authorization".to_string());
+
+                        response = response
+                            .header("access-control-allow-origin", &allow_origin)
+                            .header("access-control-allow-methods", &allow_methods)
+                            .header("access-control-allow-headers", &allow_headers);
+                    } else {
+                        response = response.header("access-control-allow-origin", "*");
+                    }
+
+                    let resp = response
+                        .body(Full::new(Bytes::from(response_body)))
+                        .map_err(|e| {
+                            ApicentricError::runtime_error(
+                                format!("Failed to build recorded response: {}", e),
+                                None::<String>,
+                            )
+                        })?;
+                    Self::record_log(
+                        &state,
+                        &service_name,
+                        None,
+                        method,
+                        path,
+                        StatusCode::CONFLICT.as_u16(),
+                    )
+                    .await;
+                    Ok(resp)
                 } else {
                     let resp = Response::builder()
                         .status(StatusCode::NOT_FOUND)
@@ -1313,6 +1413,108 @@ impl ServiceInstance {
         }
     }
 
+    fn build_recorded_endpoint(method: &str, relative_path: &str) -> (EndpointDefinition, String) {
+        let (normalized_path, parameters) = Self::normalize_recorded_path(relative_path);
+
+        let mut responses = HashMap::new();
+        responses.insert(
+            200,
+            ResponseDefinition {
+                condition: None,
+                content_type: "application/json".to_string(),
+                body: serde_json::json!({
+                    "message": "Respuesta placeholder generada automáticamente",
+                    "method": method,
+                    "path": normalized_path,
+                })
+                .to_string(),
+                script: None,
+                headers: None,
+                side_effects: None,
+            },
+        );
+
+        let endpoint = EndpointDefinition {
+            kind: EndpointKind::Http,
+            method: method.to_uppercase(),
+            path: normalized_path.clone(),
+            header_match: None,
+            description: Some("Endpoint generado automáticamente desde tráfico real".to_string()),
+            parameters: if parameters.is_empty() {
+                None
+            } else {
+                Some(parameters)
+            },
+            request_body: None,
+            responses,
+            scenarios: None,
+            stream: None,
+        };
+
+        (endpoint, normalized_path)
+    }
+
+    fn normalize_recorded_path(path: &str) -> (String, Vec<ParameterDefinition>) {
+        let segments: Vec<&str> = path
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect();
+        let mut params = Vec::new();
+        let mut normalized_segments = Vec::new();
+        let mut param_index = 1;
+
+        for segment in segments {
+            if Self::is_dynamic_segment(segment) {
+                let name = format!("param{}", param_index);
+                param_index += 1;
+                normalized_segments.push(format!("{{{}}}", name));
+                params.push(ParameterDefinition {
+                    name: name.clone(),
+                    location: ParameterLocation::Path,
+                    param_type: "string".to_string(),
+                    required: true,
+                    description: Some(format!(
+                        "Valor capturado automáticamente desde '{}'.",
+                        segment
+                    )),
+                });
+            } else {
+                normalized_segments.push(segment.to_string());
+            }
+        }
+
+        let normalized_path = if normalized_segments.is_empty() {
+            "/".to_string()
+        } else {
+            format!("/{}", normalized_segments.join("/"))
+        };
+
+        (normalized_path, params)
+    }
+
+    fn is_dynamic_segment(segment: &str) -> bool {
+        if segment.is_empty() {
+            return false;
+        }
+
+        segment.parse::<i64>().is_ok()
+            || segment.parse::<u64>().is_ok()
+            || Self::looks_like_uuid(segment)
+            || (segment.chars().any(|c| c.is_ascii_digit())
+                && segment.chars().any(|c| c.is_ascii_alphabetic())
+                && segment.len() > 3)
+            || segment
+                .chars()
+                .any(|c| !c.is_ascii_alphanumeric() && c != '_' && c != '-')
+    }
+
+    fn looks_like_uuid(segment: &str) -> bool {
+        let stripped: String = segment.chars().filter(|c| *c != '-').collect();
+        (segment.len() == 36 || segment.len() == 32)
+            && !stripped.is_empty()
+            && stripped.chars().all(|c| c.is_ascii_hexdigit())
+    }
+
     /// Execute a user-provided script with request context
     async fn execute_script(
         script_path: &Path,
@@ -1348,7 +1550,10 @@ impl ServiceInstance {
             runtime
                 .execute_script("<init>", format!("globalThis.ctx = {};", ctx_json))
                 .map_err(|e| {
-                    ApicentricError::runtime_error(format!("Script init error: {}", e), None::<String>)
+                    ApicentricError::runtime_error(
+                        format!("Script init error: {}", e),
+                        None::<String>,
+                    )
                 })?;
             runtime
                 .execute_script(
@@ -1368,10 +1573,16 @@ impl ServiceInstance {
                 runtime.run_event_loop(deno_core::PollEventLoopOptions::default()),
             )
             .map_err(|e| {
-                ApicentricError::runtime_error(format!("Script event loop error: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Script event loop error: {}", e),
+                    None::<String>,
+                )
             })?;
             let value = runtime.execute_script("<result>", "result").map_err(|e| {
-                ApicentricError::runtime_error(format!("Script result error: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Script result error: {}", e),
+                    None::<String>,
+                )
             })?;
             let scope = &mut runtime.handle_scope();
             let result_str = value.open(scope).to_rust_string_lossy(scope);
@@ -1581,13 +1792,15 @@ impl ServiceInstance {
     }
 
     /// Get service behavior configuration
-    pub fn behavior(&self) -> Option<&crate::simulator::config::BehaviorConfig> {
-        self.definition.behavior.as_ref()
+    pub fn behavior(&self) -> Option<crate::simulator::config::BehaviorConfig> {
+        self.definition.read().unwrap().behavior.clone()
     }
 
     /// Check if the service has CORS enabled
     pub fn has_cors(&self) -> bool {
         self.definition
+            .read()
+            .unwrap()
             .server
             .cors
             .as_ref()
@@ -1596,16 +1809,17 @@ impl ServiceInstance {
     }
 
     /// Get CORS configuration
-    pub fn cors_config(&self) -> Option<&crate::simulator::config::CorsConfig> {
-        self.definition.server.cors.as_ref()
+    pub fn cors_config(&self) -> Option<crate::simulator::config::CorsConfig> {
+        self.definition.read().unwrap().server.cors.clone()
     }
 
     /// Validate that the service definition is consistent
     pub fn validate_consistency(&self) -> ApicentricResult<()> {
+        let definition = self.definition.read().unwrap();
         // Check for duplicate endpoint paths with same method
         let mut seen_endpoints = std::collections::HashSet::new();
 
-        for endpoint in &self.definition.endpoints {
+        for endpoint in &definition.endpoints {
             let key = format!("{}:{}", endpoint.method.to_uppercase(), endpoint.path);
             if seen_endpoints.contains(&key) {
                 return Err(ApicentricError::config_error(
@@ -1620,14 +1834,14 @@ impl ServiceInstance {
         }
 
         // Validate that referenced models exist if request body schemas are specified
-        if let Some(ref models) = self.definition.models {
-            for endpoint in &self.definition.endpoints {
+        if let Some(ref models) = definition.models {
+            for endpoint in &definition.endpoints {
                 if let Some(ref request_body) = endpoint.request_body {
                     if let Some(ref schema) = request_body.schema {
                         if !models.contains_key(schema) {
                             return Err(ApicentricError::config_error(
-                                format!("Referenced model '{}' not found in service '{}'", 
-                                    schema, self.definition.name),
+                                format!("Referenced model '{}' not found in service '{}'",
+                                    schema, definition.name),
                                 Some("Define the model in the models section or remove the schema reference")
                             ));
                         }
@@ -1673,6 +1887,7 @@ mod tests {
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                record_unknown: false,
             },
             models: None,
             fixtures: {
@@ -1765,8 +1980,7 @@ mod tests {
         let definition = create_test_service_definition();
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
         let (tx, _) = broadcast::channel(100);
-        let mut service =
-            ServiceInstance::new(definition, 8002, storage, tx).unwrap(); // Use different port to avoid conflicts
+        let mut service = ServiceInstance::new(definition, 8002, storage, tx).unwrap(); // Use different port to avoid conflicts
 
         assert!(!service.is_running());
 
@@ -2141,6 +2355,7 @@ mod tests {
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                record_unknown: false,
             },
             models: None,
             fixtures: {

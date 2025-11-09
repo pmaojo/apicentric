@@ -10,17 +10,54 @@ mod tests {
     use super::super::manager::ApiSimulatorManager;
     use super::super::service::ServiceInstance;
     use bytes::Bytes;
-    use http_body_util::Empty;
-    use hyper::{Method, Request, Uri};
+    use http_body_util::{BodyExt, Empty};
+    use hyper::{Method, Request, StatusCode, Uri};
     use hyper_util::client::legacy::Client;
     use hyper_util::rt::TokioExecutor;
     use std::collections::HashMap;
     use std::fs;
     use std::path::Path;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
     use tempfile::TempDir;
-    use tokio::time::{sleep, Duration};
     use tokio::sync::broadcast;
+    use tokio::time::{sleep, Duration};
+
+    use crate::storage::Storage;
+
+    #[derive(Default, Debug)]
+    struct RecordingStorage {
+        saved: Mutex<Vec<ServiceDefinition>>,
+    }
+
+    impl Storage for RecordingStorage {
+        fn save_service(&self, service: &ServiceDefinition) -> crate::errors::ApicentricResult<()> {
+            let mut guard = self.saved.lock().unwrap();
+            guard.push(service.clone());
+            Ok(())
+        }
+
+        fn load_service(
+            &self,
+            _name: &str,
+        ) -> crate::errors::ApicentricResult<Option<ServiceDefinition>> {
+            Ok(None)
+        }
+
+        fn append_log(&self, _entry: &RequestLogEntry) -> crate::errors::ApicentricResult<()> {
+            Ok(())
+        }
+
+        fn query_logs(
+            &self,
+            _service: Option<&str>,
+            _route: Option<&str>,
+            _method: Option<&str>,
+            _status: Option<u16>,
+            _limit: usize,
+        ) -> crate::errors::ApicentricResult<Vec<RequestLogEntry>> {
+            Ok(Vec::new())
+        }
+    }
 
     fn create_test_service_with_params() -> ServiceDefinition {
         ServiceDefinition {
@@ -32,6 +69,7 @@ mod tests {
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
+                record_unknown: false,
             },
             models: None,
             fixtures: {
@@ -120,6 +158,27 @@ mod tests {
                     stream: None,
                 },
             ],
+            graphql: None,
+            behavior: None,
+        }
+    }
+
+    fn create_recording_service() -> ServiceDefinition {
+        ServiceDefinition {
+            name: "recording-test-service".to_string(),
+            version: Some("1.0.0".to_string()),
+            description: Some("Integration test service".to_string()),
+            server: super::super::config::ServerConfig {
+                port: Some(8200),
+                base_path: "/api".to_string(),
+                proxy_base_url: None,
+                cors: None,
+                record_unknown: false,
+            },
+            models: None,
+            fixtures: None,
+            bucket: None,
+            endpoints: Vec::new(),
             graphql: None,
             behavior: None,
         }
@@ -308,6 +367,111 @@ mod tests {
         assert!(logs.len() >= 2);
         assert_eq!(logs[0].path, format!("{}/users", base_path));
         assert_eq!(logs[1].path, format!("{}/users/1", base_path));
+
+        service.stop().await.unwrap();
+    }
+
+    fn get_free_port() -> u16 {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        port
+    }
+
+    #[tokio::test]
+    async fn test_unknown_route_recording_creates_endpoint() {
+        let mut definition = create_recording_service();
+        definition.server.record_unknown = true;
+
+        let port = get_free_port();
+        let storage = Arc::new(RecordingStorage::default());
+        let (tx, _) = broadcast::channel(10);
+        let mut service = ServiceInstance::new(definition, port, storage.clone(), tx).unwrap();
+
+        service.start().await.unwrap();
+        sleep(Duration::from_millis(100)).await;
+
+        let client = Client::builder(TokioExecutor::new()).build_http();
+        let uri: Uri = format!("http://127.0.0.1:{}/api/orders/42", port)
+            .parse()
+            .unwrap();
+        let request = Request::builder()
+            .method(Method::GET)
+            .uri(uri)
+            .body(Empty::<Bytes>::new())
+            .unwrap();
+
+        let response = client.request(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
+        let body_text = String::from_utf8(body_bytes.to_vec()).unwrap();
+        assert!(body_text.contains("registr"));
+
+        let updated_definition = service.definition();
+        let recorded = updated_definition
+            .endpoints
+            .iter()
+            .find(|ep| ep.path == "/orders/{param1}" && ep.method == "GET");
+        assert!(recorded.is_some(), "expected recorded endpoint in service");
+
+        let saved = storage.saved.lock().unwrap();
+        assert!(
+            saved.iter().any(|service| service
+                .endpoints
+                .iter()
+                .any(|ep| ep.path == "/orders/{param1}" && ep.method == "GET")),
+            "expected persisted definition with recorded endpoint"
+        );
+
+        service.stop().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_unknown_route_reuse_after_recording() {
+        let mut definition = create_recording_service();
+        definition.server.record_unknown = true;
+
+        let port = get_free_port();
+        let storage = Arc::new(RecordingStorage::default());
+        let (tx, _) = broadcast::channel(10);
+        let mut service = ServiceInstance::new(definition, port, storage, tx).unwrap();
+
+        service.start().await.unwrap();
+        sleep(Duration::from_millis(100)).await;
+
+        let client = Client::builder(TokioExecutor::new()).build_http();
+        let uri: Uri = format!("http://127.0.0.1:{}/api/payments/123", port)
+            .parse()
+            .unwrap();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri(uri.clone())
+            .body(Empty::<Bytes>::new())
+            .unwrap();
+
+        let response = client.request(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+
+        let second_request = Request::builder()
+            .method(Method::POST)
+            .uri(uri)
+            .body(Empty::<Bytes>::new())
+            .unwrap();
+
+        let second_response = client.request(second_request).await.unwrap();
+        assert_eq!(second_response.status(), StatusCode::OK);
+        let body_bytes = second_response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+        assert_eq!(json.get("method").and_then(|v| v.as_str()), Some("POST"));
+        assert_eq!(
+            json.get("path").and_then(|v| v.as_str()),
+            Some("/payments/{param1}")
+        );
 
         service.stop().await.unwrap();
     }

@@ -57,6 +57,7 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
         base_path,
         proxy_base_url: None,
         cors: None,
+        record_unknown: false,
     };
 
     let endpoints = env

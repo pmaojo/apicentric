@@ -13,6 +13,8 @@ pub struct ServerConfig {
     pub proxy_base_url: Option<String>,
     #[serde(default)]
     pub cors: Option<CorsConfig>,
+    #[serde(default)]
+    pub record_unknown: bool,
 }
 
 /// CORS configuration
@@ -62,7 +64,9 @@ impl ConfigValidator for ServerConfig {
                 errors.push(ValidationError {
                     field: "server.proxy_base_url".to_string(),
                     message: "Invalid URL for proxy_base_url".to_string(),
-                    suggestion: Some("Provide a valid URL such as 'http://example.com'".to_string()),
+                    suggestion: Some(
+                        "Provide a valid URL such as 'http://example.com'".to_string(),
+                    ),
                 });
             }
         }

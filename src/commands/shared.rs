@@ -1,8 +1,8 @@
 use crate::{ApicentricError, ApicentricResult};
-use inquire::{Confirm, Select, Text};
 use apicentric::simulator::config::{
     EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
 };
+use inquire::{Confirm, Select, Text};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -145,6 +145,7 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
             base_path,
             proxy_base_url: None,
             cors: None,
+            record_unknown: false,
         },
         models: None,
         fixtures: None,
