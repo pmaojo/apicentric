@@ -16,10 +16,27 @@ The API simulator is the core feature of Apicentric.
 - Template rendering with Handlebars
 - Request/response logging
 - Service lifecycle management
+- Importers for OpenAPI, Mockoon, Postman/Insomnia, and WireMock stub mappings
 
 **Dependencies**: Minimal (tokio, serde, hyper)
 
 **Use when**: You want to mock APIs locally
+
+##### WireMock importer
+
+Use the simulator CLI to convert WireMock mapping exports into Apicentric YAML services:
+
+```bash
+apicentric simulator import-wiremock --input ./mappings.json --output ./services/payments.yaml
+```
+
+The importer understands single stub files or `mappings` arrays produced by `__admin/mappings` exports. It maps `responses` arrays to sequential scenarios and preserves simple `equalTo` header matchers and `equalToJson` body patterns for object payloads.
+
+**Limitations**:
+
+- Regex URL matchers (`urlPattern`, `urlPathPattern`) are imported verbatim and may require manual cleanup.
+- Only `equalTo` header matchers and object `equalToJson` body patterns are supported; other pattern types such as `matchesJsonPath`, `binaryEqualTo`, or plain string bodies are ignored.
+- Advanced WireMock features including transformers, proxying, post-serve actions, scenario state transitions, and body files are not imported automatically.
 
 #### `contract-testing`
 

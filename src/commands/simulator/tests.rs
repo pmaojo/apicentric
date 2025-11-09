@@ -77,6 +77,21 @@ async fn import_runs() {
 }
 
 #[tokio::test]
+async fn import_wiremock_runs() {
+    let (ctx, exec) = build();
+    simulator_command(
+        &SimulatorAction::ImportWiremock {
+            input: "mappings.json".into(),
+            output: "service.yaml".into(),
+        },
+        &ctx,
+        &exec,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
 async fn export_runs() {
     let (ctx, exec) = build();
     simulator_command(
