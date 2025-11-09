@@ -1,9 +1,24 @@
+//! Sets up or tests the necessary NPM scripts for Apicentric.
+//!
+//! This module provides a `setup_npm_scripts` function that can be used to
+//! configure a project with the necessary NPM scripts for running `apicentric`
+//! commands.
+
 use std::path::Path;
 
 use crate::adapters::npm::NpmIntegration;
 use crate::errors::ApicentricResult;
 
-/// Configura o prueba los scripts de npm necesarios para Apicentric.
+/// Sets up or tests the necessary NPM scripts for Apicentric.
+///
+/// # Arguments
+///
+/// * `project_root` - The root directory of the project.
+/// * `force` - Whether to overwrite existing scripts.
+/// * `instructions_only` - Whether to only print the instructions for setting
+///   up the scripts manually.
+/// * `test` - Whether to test the NPM script execution.
+/// * `examples` - Whether to show usage examples for the NPM scripts.
 pub fn setup_npm_scripts(
     project_root: &Path,
     force: bool,

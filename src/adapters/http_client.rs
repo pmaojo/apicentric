@@ -1,5 +1,9 @@
-// HTTP Client Implementation for Contract Testing
-// Handles real API communication with retries and error handling
+//! An implementation of the `ContractHttpClient` port that uses the `reqwest`
+//! crate to send HTTP requests.
+//!
+//! This module provides a `ReqwestHttpClientAdapter` that can be used to send
+//! HTTP requests to a real API for contract testing. It supports retries,
+//! timeouts, and custom headers.
 
 use crate::domain::contract_testing::*;
 use crate::domain::ports::contract::*;
@@ -10,6 +14,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tracing::{debug, info, warn};
 
+/// An adapter that uses the `reqwest` crate to send HTTP requests.
 pub struct ReqwestHttpClientAdapter {
     client: Client,
     default_timeout: Duration,
@@ -18,6 +23,7 @@ pub struct ReqwestHttpClientAdapter {
 }
 
 impl ReqwestHttpClientAdapter {
+    /// Creates a new `ReqwestHttpClientAdapter` with default settings.
     pub fn new() -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
@@ -33,6 +39,11 @@ impl ReqwestHttpClientAdapter {
         }
     }
 
+    /// Sets the default timeout for HTTP requests.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The timeout duration.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.default_timeout = timeout;
         self.client = Client::builder()
@@ -43,6 +54,12 @@ impl ReqwestHttpClientAdapter {
         self
     }
 
+    /// Sets the retry policy for HTTP requests.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_retries` - The maximum number of retries.
+    /// * `delay` - The delay between retries.
     pub fn with_retries(mut self, max_retries: u32, delay: Duration) -> Self {
         self.max_retries = max_retries;
         self.retry_delay = delay;
@@ -224,6 +241,18 @@ impl ReqwestHttpClientAdapter {
 
 #[async_trait]
 impl ContractHttpClient for ReqwestHttpClientAdapter {
+    /// Executes an HTTP request and returns an `ApiResponse`.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_url` - The base URL of the API.
+    /// * `config` - The configuration for the real API.
+    /// * `scenario` - The validation scenario to execute.
+    ///
+    /// # Returns
+    ///
+    /// An `ApiResponse` if the request was successful, or an `HttpClientError`
+    /// if it was not.
     async fn execute_request(
         &self,
         base_url: &ApiUrl,
@@ -256,6 +285,15 @@ impl ContractHttpClient for ReqwestHttpClientAdapter {
         Ok(api_response)
     }
 
+    /// Performs a health check on the API.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_url` - The base URL of the API.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the API is healthy, `false` otherwise.
     async fn health_check(&self, base_url: &ApiUrl) -> Result<bool, HttpClientError> {
         debug!("Performing health check for: {}", base_url.as_str());
 
@@ -300,7 +338,7 @@ impl Default for ReqwestHttpClientAdapter {
     }
 }
 
-// Builder pattern for more complex configurations
+/// A builder for creating `ReqwestHttpClientAdapter` instances.
 pub struct HttpClientBuilder {
     timeout: Duration,
     max_retries: u32,
@@ -310,6 +348,7 @@ pub struct HttpClientBuilder {
 }
 
 impl HttpClientBuilder {
+    /// Creates a new `HttpClientBuilder` with default settings.
     pub fn new() -> Self {
         Self {
             timeout: Duration::from_secs(30),
@@ -320,27 +359,50 @@ impl HttpClientBuilder {
         }
     }
 
+    /// Sets the timeout for HTTP requests.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The timeout duration.
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
     }
 
+    /// Sets the retry policy for HTTP requests.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_retries` - The maximum number of retries.
+    /// * `delay` - The delay between retries.
     pub fn retries(mut self, max_retries: u32, delay: Duration) -> Self {
         self.max_retries = max_retries;
         self.retry_delay = delay;
         self
     }
 
+    /// Sets the user agent for HTTP requests.
+    ///
+    /// # Arguments
+    ///
+    /// * `user_agent` - The user agent string.
     pub fn user_agent(mut self, user_agent: String) -> Self {
         self.user_agent = user_agent;
         self
     }
 
+    /// Adds a default header to be sent with every HTTP request.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The header name.
+    /// * `value` - The header value.
     pub fn default_header(mut self, key: String, value: String) -> Self {
         self.default_headers.insert(key, value);
         self
     }
 
+    /// Builds a `ReqwestHttpClientAdapter` with the specified settings.
     pub fn build(self) -> ReqwestHttpClientAdapter {
         let mut client_builder = Client::builder()
             .timeout(self.timeout)

@@ -1,6 +1,12 @@
+//! A minimal build of the `apicentric` CLI.
+//!
+//! This build includes only the most essential commands, and is intended for
+//! use in environments where a smaller binary size is desired.
+
 use clap::{Parser, Subcommand};
 use colored::*;
 
+/// The command-line interface for the minimal build of `apicentric`.
 #[derive(Parser)]
 #[command(author, version, about = "apicentric CLI (minimal build)")]
 struct Cli {
@@ -8,18 +14,20 @@ struct Cli {
     command: Commands,
 }
 
+/// The commands available in the minimal build of `apicentric`.
 #[derive(Subcommand)]
 enum Commands {
-    /// Show version and build info
+    /// Shows the version and build info.
     Version,
-    /// Validate YAML service definitions
+    /// Validates a YAML service definition.
     Validate {
-        /// Path to YAML file
+        /// The path to the YAML file.
         #[arg(short, long)]
         path: String,
     },
 }
 
+/// The entry point for the minimal build of `apicentric`.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 

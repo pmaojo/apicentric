@@ -1,3 +1,8 @@
+//! Handles writing and patching logic for NPM integration.
+//!
+//! This module provides the `NpmWriter` struct, which is responsible for
+//! adding and updating scripts in a `package.json` file.
+
 use crate::errors::{ApicentricError, ApicentricResult};
 use serde_json::{Map, Value};
 use std::fs;
@@ -5,20 +10,29 @@ use std::path::Path;
 
 use super::reader::NpmReader;
 
-/// Handles writing and patching logic for npm integration
+/// Handles writing and patching logic for npm integration.
 #[derive(Debug, Clone)]
 pub struct NpmWriter {
     reader: NpmReader,
 }
 
 impl NpmWriter {
+    /// Creates a new `NpmWriter`.
+    ///
+    /// # Arguments
+    ///
+    /// * `project_root` - The root directory of the project.
     pub fn new(project_root: &Path) -> Self {
         Self {
             reader: NpmReader::new(project_root),
         }
     }
 
-    /// Automatically add apicentric scripts to package.json
+    /// Automatically adds `apicentric` scripts to `package.json`.
+    ///
+    /// # Arguments
+    ///
+    /// * `force` - Whether to overwrite existing scripts.
     pub fn setup_scripts(&self, force: bool) -> ApicentricResult<()> {
         if !self.reader.package_json_path.exists() {
             return Err(ApicentricError::fs_error(
@@ -89,7 +103,11 @@ impl NpmWriter {
         Ok(())
     }
 
-    /// Write package.json with proper formatting
+    /// Writes the `package.json` file with proper formatting.
+    ///
+    /// # Arguments
+    ///
+    /// * `package_json` - The `package.json` data to write.
     pub fn write_package_json(&self, package_json: &Value) -> ApicentricResult<()> {
         let content = serde_json::to_string_pretty(package_json).map_err(|e| {
             ApicentricError::config_error(

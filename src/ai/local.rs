@@ -1,20 +1,32 @@
+//! A local AI provider that uses a small language model running on the user's
+//! machine.
+//!
+//! This module provides a `LocalAiProvider` that can be used to generate YAML
+//! from a prompt.
+
 use async_trait::async_trait;
 use crate::errors::ApicentricResult;
 use super::AiProvider;
 
-/// Local AI provider backed by a small language model running on the user's machine.
+/// A local AI provider backed by a small language model running on the user's
+/// machine.
 ///
 /// In a real implementation this would load a model file (for example using
-/// `llama-rs`) and run inference locally.  To keep the dependency footprint small
-/// and avoid heavy downloads this adapter currently returns a placeholder YAML
-/// document that echoes the provided prompt.
+/// `llama-rs`) and run inference locally. To keep the dependency footprint
+/// small and avoid heavy downloads this adapter currently returns a placeholder
+/// YAML document that echoes the provided prompt.
 pub struct LocalAiProvider {
-    /// Path to the model on disk. Currently unused but kept for future
+    /// The path to the model on disk. Currently unused but kept for future
     /// integration.
     pub model_path: String,
 }
 
 impl LocalAiProvider {
+    /// Creates a new `LocalAiProvider`.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_path` - The path to the model on disk.
     pub fn new(model_path: String) -> Self {
         Self { model_path }
     }
@@ -22,6 +34,15 @@ impl LocalAiProvider {
 
 #[async_trait]
 impl AiProvider for LocalAiProvider {
+    /// Generates YAML from a prompt.
+    ///
+    /// # Arguments
+    ///
+    /// * `prompt` - The prompt to use for generating the YAML.
+    ///
+    /// # Returns
+    ///
+    /// The generated YAML.
     async fn generate_yaml(&self, prompt: &str) -> ApicentricResult<String> {
         // In a full implementation we would load the model and generate the YAML
         // response here.  For now we simply wrap the prompt into a basic YAML

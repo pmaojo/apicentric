@@ -1,3 +1,9 @@
+//! Authentication and authorization.
+//!
+//! This module provides everything needed for authentication and authorization,
+//! including data models, password hashing, JWT handling, a repository for
+//! storing user data, and Axum handlers for handling authentication requests.
+
 pub mod model;
 pub mod password;
 pub mod jwt;

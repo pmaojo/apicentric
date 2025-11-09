@@ -1,3 +1,8 @@
+//! The main entry point for the `apicentric` CLI.
+//!
+//! This module is responsible for parsing command-line arguments, initializing
+//! the application context, and dispatching to the appropriate command handler.
+
 use clap::{Parser, Subcommand, ValueEnum};
 use apicentric::context::init;
 use apicentric::{ContextBuilder, ExecutionContext, ApicentricResult};
@@ -32,26 +37,27 @@ mod commands {
 //     pub use apicentric::collab::*;
 // }
 
+/// The command-line interface for `apicentric`.
 #[derive(Parser)]
 #[command(author, version, about = "apicentric CLI (lightweight)")]
 struct Cli {
-    /// Path to the apicentric.json config file
+    /// The path to the `apicentric.json` config file.
     #[arg(short, long, default_value = "apicentric.json")]
     config: String,
 
-    /// Execution mode (overrides config)
+    /// The execution mode (overrides config).
     #[arg(long, value_enum)]
     mode: Option<CliExecutionMode>,
 
-    /// Enable dry-run mode (show what would be executed)
+    /// Enables dry-run mode (shows what would be executed).
     #[arg(long)]
     dry_run: bool,
 
-    /// Enable verbose output
+    /// Enables verbose output.
     #[arg(short, long)]
     verbose: bool,
 
-    /// Path to SQLite database for simulator storage
+    /// The path to the SQLite database for simulator storage.
     #[arg(long, default_value = "apicentric.db")]
     db_path: String,
 
@@ -59,6 +65,7 @@ struct Cli {
     command: Commands,
 }
 
+/// The execution mode for the CLI.
 #[derive(Clone, ValueEnum)]
 enum CliExecutionMode {
     CI,
@@ -76,23 +83,25 @@ impl From<CliExecutionMode> for apicentric::config::ExecutionMode {
     }
 }
 
+/// The commands available in the `apicentric` CLI.
 #[derive(Subcommand)]
 enum Commands {
-    /// API Simulator operations
+    /// API Simulator operations.
     Simulator {
         #[command(subcommand)]
         action: simulator_cmd::SimulatorAction,
     },
-    /// AI-assisted generation
+    /// AI-assisted generation.
     Ai {
         #[command(subcommand)]
         action: ai_cmd::AiAction,
     },
-    /// Launch the terminal dashboard (requires 'tui' feature)
+    /// Launches the terminal dashboard (requires the 'tui' feature).
     #[cfg(feature = "tui")]
     Tui,
 }
 
+/// The entry point for the `apicentric` CLI.
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -103,6 +112,11 @@ async fn main() {
     }
 }
 
+/// Runs the `apicentric` CLI.
+///
+/// # Arguments
+///
+/// * `cli` - The parsed command-line arguments.
 async fn run(cli: Cli) -> ApicentricResult<()> {
     let config_path = std::path::Path::new(&cli.config);
     let builder = ContextBuilder::new(config_path)?;

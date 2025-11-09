@@ -1,7 +1,21 @@
+//! Utilities for hashing and verifying passwords.
+//!
+//! This module provides functions for hashing and verifying passwords using
+//! the Argon2 password hashing algorithm.
+
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::{SaltString, Error as PasswordError};
 use rand::rngs::OsRng;
 
+/// Hashes a password using the Argon2 password hashing algorithm.
+///
+/// # Arguments
+///
+/// * `plain` - The password to hash.
+///
+/// # Returns
+///
+/// The hashed password.
 pub fn hash_password(plain: &str) -> Result<String, PasswordError> {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
@@ -9,6 +23,16 @@ pub fn hash_password(plain: &str) -> Result<String, PasswordError> {
     Ok(hash.to_string())
 }
 
+/// Verifies a password against a hash.
+///
+/// # Arguments
+///
+/// * `hash` - The hash to verify against.
+/// * `attempt` - The password to verify.
+///
+/// # Returns
+///
+/// `true` if the password is correct, `false` otherwise.
 pub fn verify_password(hash: &str, attempt: &str) -> Result<bool, PasswordError> {
     let parsed = PasswordHash::new(hash)?;
     let argon2 = Argon2::default();

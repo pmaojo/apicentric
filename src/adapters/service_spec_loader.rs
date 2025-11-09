@@ -1,5 +1,7 @@
-// Service Definition Loader Adapter - Infrastructure layer implementation
-// Implements ServiceSpecLoader port for loading and parsing YAML service definitions
+//! A YAML-based implementation of the `ServiceSpecLoader` port.
+//!
+//! This module provides a `YamlServiceSpecLoader` that can be used to load
+//! service specifications from YAML files.
 
 use crate::domain::contract_testing::*;
 use crate::domain::ports::contract::{EndpointSpec, ResponseSpec, ServiceSpec, ServiceSpecLoader, SpecLoaderError};
@@ -12,18 +14,26 @@ use std::sync::Arc;
 use crate::utils::{FileReader, TokioFileReader};
 use tracing::{debug, info};
 
-/// YAML-based implementation of ServiceSpecLoader
-/// Loads service definitions from YAML files
+/// A YAML-based implementation of `ServiceSpecLoader`.
+///
+/// This loader reads service definitions from YAML files and converts them into
+/// `ServiceSpec` objects.
 pub struct YamlServiceSpecLoader {
     base_path: Option<String>,
     file_reader: Arc<dyn FileReader>,
 }
 
 impl YamlServiceSpecLoader {
+    /// Creates a new `YamlServiceSpecLoader`.
     pub fn new() -> Self {
         Self { base_path: None, file_reader: Arc::new(TokioFileReader) }
     }
 
+    /// Creates a new `YamlServiceSpecLoader` with a base path.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_path` - The base path to use for resolving relative file paths.
     pub fn with_base_path<P: AsRef<Path>>(base_path: P) -> Self {
         Self {
             base_path: Some(base_path.as_ref().to_string_lossy().to_string()),
@@ -31,10 +41,22 @@ impl YamlServiceSpecLoader {
         }
     }
 
+    /// Creates a new `YamlServiceSpecLoader` with a custom file reader.
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - The file reader to use.
     pub fn with_file_reader(reader: Arc<dyn FileReader>) -> Self {
         Self { base_path: None, file_reader: reader }
     }
 
+    /// Creates a new `YamlServiceSpecLoader` with a base path and a custom file
+    /// reader.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_path` - The base path to use for resolving relative file paths.
+    /// * `reader` - The file reader to use.
     pub fn with_base_path_and_reader<P: AsRef<Path>>(base_path: P, reader: Arc<dyn FileReader>) -> Self {
         Self {
             base_path: Some(base_path.as_ref().to_string_lossy().to_string()),
@@ -184,6 +206,11 @@ impl YamlServiceSpecLoader {
 
 #[async_trait]
 impl ServiceSpecLoader for YamlServiceSpecLoader {
+    /// Loads a service specification from a YAML file.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the YAML file.
     async fn load(&self, path: &str) -> Result<ServiceSpec, SpecLoaderError> {
         let resolved_path = self.resolve_path(path);
         debug!("Loading service spec from: {}", resolved_path);
@@ -213,6 +240,11 @@ impl ServiceSpecLoader for YamlServiceSpecLoader {
         Ok(service_spec)
     }
 
+    /// Validates a service specification.
+    ///
+    /// # Arguments
+    ///
+    /// * `spec` - The service specification to validate.
     async fn validate(&self, spec: &ServiceSpec) -> Result<(), SpecLoaderError> {
         debug!("Validating service spec: {}", spec.name);
 
@@ -269,6 +301,11 @@ impl ServiceSpecLoader for YamlServiceSpecLoader {
         Ok(())
     }
 
+    /// Extracts validation scenarios from a service specification.
+    ///
+    /// # Arguments
+    ///
+    /// * `spec` - The service specification to extract scenarios from.
     fn extract_scenarios(
         &self,
         spec: &ServiceSpec,
@@ -372,4 +409,3 @@ struct YamlResponse {
     headers: Option<HashMap<String, String>>,
     body: Option<String>,
 }
-

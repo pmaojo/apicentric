@@ -1,3 +1,8 @@
+//! A simple file-based implementation of the `ContractReportSink` port.
+//!
+//! This module provides a `FileReportSink` that writes contract validation
+//! reports to the file system.
+
 use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::fs;
@@ -5,7 +10,7 @@ use tokio::fs;
 use crate::domain::contract_testing::ContractValidationResult;
 use crate::domain::ports::contract::{ContractReportSink, ReportError, ReportFormat};
 
-/// Simple file-based implementation of `ContractReportSink`.
+/// A simple file-based implementation of `ContractReportSink`.
 ///
 /// The adapter writes reports under the provided output directory. For
 /// demonstration purposes only JSON output is fully implemented; other
@@ -16,6 +21,11 @@ pub struct FileReportSink {
 }
 
 impl FileReportSink {
+    /// Creates a new `FileReportSink`.
+    ///
+    /// # Arguments
+    ///
+    /// * `output_dir` - The directory where reports will be written.
     pub fn new(output_dir: PathBuf) -> Self {
         Self { output_dir }
     }
@@ -23,6 +33,12 @@ impl FileReportSink {
 
 #[async_trait]
 impl ContractReportSink for FileReportSink {
+    /// Writes a contract validation report to the file system.
+    ///
+    /// # Arguments
+    ///
+    /// * `format` - The format of the report to write.
+    /// * `result` - The contract validation result to write.
     async fn write_report(
         &self,
         format: ReportFormat,
