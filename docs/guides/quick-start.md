@@ -155,6 +155,12 @@ The TUI provides three panels:
 
 ## Next Steps
 
+### Record Real Traffic
+
+Capture live HTTP interactions and auto-generate mocks by following the
+[request recording guide](./request-recording.md). It walks through both the dedicated recording
+proxy and enabling `record_unknown` on existing services.
+
 ### Add Dynamic Responses
 
 Use Handlebars templates for dynamic responses:
