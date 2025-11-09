@@ -94,7 +94,10 @@ impl ServiceRegistry {
     }
 
     /// Register a new service
-    pub async fn register_service(&mut self, definition: ServiceDefinition) -> ApicentricResult<()> {
+    pub async fn register_service(
+        &mut self,
+        definition: ServiceDefinition,
+    ) -> ApicentricResult<()> {
         let service_name = definition.name.clone();
 
         if self.services.contains_key(&service_name) {
@@ -163,7 +166,7 @@ impl ServiceRegistry {
             services.push(ServiceInfo {
                 name: name.clone(),
                 port: service.port(),
-                base_path: service.base_path().to_string(),
+                base_path: service.base_path(),
                 endpoints_count: service.endpoints_count(),
                 is_running: service.is_running(),
             });
@@ -285,6 +288,7 @@ mod tests {
                 base_path: format!("/api/{}", name),
                 proxy_base_url: None,
                 cors: None,
+                record_unknown: false,
             },
             models: None,
             fixtures: None,
@@ -381,7 +385,10 @@ mod tests {
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
         let (tx, _) = broadcast::channel(100);
         let mut registry = ServiceRegistry::new(
-            PortRange { start: 9000, end: 9999 },
+            PortRange {
+                start: 9000,
+                end: 9999,
+            },
             storage,
             tx,
         );
@@ -399,7 +406,10 @@ mod tests {
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
         let (tx, _) = broadcast::channel(100);
         let mut registry = ServiceRegistry::new(
-            PortRange { start: 9000, end: 9999 },
+            PortRange {
+                start: 9000,
+                end: 9999,
+            },
             storage,
             tx,
         );
@@ -418,7 +428,10 @@ mod tests {
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
         let (tx, _) = broadcast::channel(100);
         let mut registry = ServiceRegistry::new(
-            PortRange { start: 9000, end: 9999 },
+            PortRange {
+                start: 9000,
+                end: 9999,
+            },
             storage,
             tx,
         );
@@ -440,7 +453,10 @@ mod tests {
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
         let (tx, _) = broadcast::channel(100);
         let mut registry = ServiceRegistry::new(
-            PortRange { start: 9000, end: 9999 },
+            PortRange {
+                start: 9000,
+                end: 9999,
+            },
             storage,
             tx,
         );
