@@ -385,6 +385,7 @@ Define mock APIs in YAML and serve them locally:
 - Dynamic templates with Handlebars
 - Scenarios for different states
 - Request/response logging
+- Request recording proxy and auto-generated endpoints via `record_unknown`
 - Imports OpenAPI 2.0/3.x specs, preferring documented examples and generating JSON bodies from schemas when necessary
 
 ### ✅ Contract Testing
@@ -423,6 +424,7 @@ Interactive terminal dashboard for service management:
 ## Documentation
 
 - [Quick Start Guide](docs/guides/quick-start.md)
+- [Request Recording Guide](docs/guides/request-recording.md)
 - [Installation Guide](docs/guides/installation.md)
 - [Simulator Guide](docs/guides/simulator.md)
 - [TUI Guide](docs/guides/tui.md)
