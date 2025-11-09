@@ -10,7 +10,7 @@ use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
-use hyper::{Request, Response, Uri};
+use hyper::{HeaderMap, Request, Response, Uri};
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};
@@ -18,7 +18,10 @@ use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
 use crate::errors::{ApicentricError, ApicentricResult};
-use crate::simulator::config::{EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition};
+use crate::simulator::config::{
+    EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, ResponseDefinition,
+    ServerConfig, ServiceDefinition,
+};
 
 /// Trait for recording traffic through a proxy.
 #[async_trait(?Send)]
@@ -120,29 +123,14 @@ impl RecordingProxy for ProxyRecorder {
                                     .to_string();
                                 {
                                     let mut map = endpoints.lock().await;
-                                    let key = (method.to_string(), path.clone());
-                                    let entry = map.entry(key).or_insert_with(|| EndpointDefinition {
-                                        kind: EndpointKind::Http,
-                                        method: method.to_string(),
-                                        path: path.clone(),
-                                        header_match: None,
-                                        description: None,
-                                        parameters: None,
-                                        request_body: None,
-                                        responses: HashMap::new(),
-                                        scenarios: None,
-                                        stream: None,
-                                    });
-                                    entry.responses.insert(
+                                    upsert_recorded_endpoint(
+                                        &mut map,
+                                        &method,
+                                        &path,
                                         parts.status.as_u16(),
-                                        ResponseDefinition {
-                                            condition: None,
-                                            content_type: content_type.clone(),
-                                            body: String::from_utf8_lossy(&resp_bytes).into(),
-                                            script: None,
-                                            headers: None,
-                                            side_effects: None,
-                                        },
+                                        &content_type,
+                                        String::from_utf8_lossy(&resp_bytes).into(),
+                                        &parts.headers,
                                     );
                                 }
 
@@ -207,3 +195,314 @@ impl RecordingProxy for ProxyRecorder {
     }
 }
 
+const ORIGINAL_PATH_PARAMS_HEADER: &str = "x-apicentric-recorded-path-params";
+
+fn upsert_recorded_endpoint(
+    map: &mut HashMap<(String, String), EndpointDefinition>,
+    method: &hyper::Method,
+    path: &str,
+    status: u16,
+    content_type: &str,
+    body: String,
+    headers: &HeaderMap,
+) {
+    let (normalized_path, parameter_defs, recorded_values) = parameterize_path(path);
+    let key = (method.to_string(), normalized_path.clone());
+    let entry = map.entry(key).or_insert_with(|| EndpointDefinition {
+        kind: EndpointKind::Http,
+        method: method.to_string(),
+        path: normalized_path.clone(),
+        header_match: None,
+        description: None,
+        parameters: if parameter_defs.is_empty() {
+            None
+        } else {
+            Some(parameter_defs.clone())
+        },
+        request_body: None,
+        responses: HashMap::new(),
+        scenarios: None,
+        stream: None,
+    });
+
+    entry.path = normalized_path;
+    if !parameter_defs.is_empty() {
+        entry.parameters = Some(parameter_defs.clone());
+    }
+
+    let mut response_headers = header_map_to_hash_map(headers);
+    if let Some(metadata) = merge_recorded_values(
+        entry
+            .responses
+            .get(&status)
+            .and_then(|resp| resp.headers.as_ref())
+            .and_then(|map| map.get(ORIGINAL_PATH_PARAMS_HEADER)),
+        &recorded_values,
+    ) {
+        response_headers.insert(ORIGINAL_PATH_PARAMS_HEADER.to_string(), metadata);
+    }
+
+    let headers_option = if response_headers.is_empty() {
+        None
+    } else {
+        Some(response_headers)
+    };
+
+    entry.responses.insert(
+        status,
+        ResponseDefinition {
+            condition: None,
+            content_type: content_type.to_string(),
+            body,
+            script: None,
+            headers: headers_option,
+            side_effects: None,
+        },
+    );
+}
+
+fn parameterize_path(path: &str) -> (String, Vec<ParameterDefinition>, Vec<(String, String)>) {
+    if path == "/" {
+        return ("/".to_string(), Vec::new(), Vec::new());
+    }
+
+    let mut normalized_segments = Vec::new();
+    let mut parameters = Vec::new();
+    let mut recorded_values = Vec::new();
+    let mut param_index = 1;
+
+    for segment in path.split('/').filter(|s| !s.is_empty()) {
+        if is_variable_segment(segment) {
+            let param_name = format!("param{}", param_index);
+            param_index += 1;
+            normalized_segments.push(format!("{{{}}}", param_name));
+            parameters.push(ParameterDefinition {
+                name: param_name.clone(),
+                location: ParameterLocation::Path,
+                param_type: "string".to_string(),
+                required: true,
+                description: None,
+            });
+            recorded_values.push((param_name, segment.to_string()));
+        } else {
+            normalized_segments.push(segment.to_string());
+        }
+    }
+
+    let normalized_path = if normalized_segments.is_empty() {
+        "/".to_string()
+    } else {
+        format!("/{}", normalized_segments.join("/"))
+    };
+
+    (normalized_path, parameters, recorded_values)
+}
+
+fn header_map_to_hash_map(headers: &HeaderMap) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for (name, value) in headers.iter() {
+        if let Ok(value_str) = value.to_str() {
+            map.insert(name.to_string(), value_str.to_string());
+        }
+    }
+    map
+}
+
+fn merge_recorded_values(
+    existing: Option<&String>,
+    new_values: &[(String, String)],
+) -> Option<String> {
+    if new_values.is_empty() {
+        return existing.cloned();
+    }
+
+    let mut aggregated: HashMap<String, Vec<String>> = existing
+        .and_then(|raw| serde_json::from_str::<HashMap<String, Vec<String>>>(raw).ok())
+        .or_else(|| {
+            existing
+                .and_then(|raw| serde_json::from_str::<HashMap<String, String>>(raw).ok())
+                .map(|map| {
+                    map.into_iter()
+                        .map(|(k, v)| (k, vec![v]))
+                        .collect::<HashMap<_, _>>()
+                })
+        })
+        .unwrap_or_default();
+
+    for (name, value) in new_values {
+        let entry = aggregated.entry(name.clone()).or_insert_with(Vec::new);
+        if !entry.contains(value) {
+            entry.push(value.clone());
+        }
+    }
+
+    if aggregated.is_empty() {
+        None
+    } else {
+        serde_json::to_string(&aggregated).ok()
+    }
+}
+
+fn is_variable_segment(segment: &str) -> bool {
+    if segment.is_empty() {
+        return false;
+    }
+
+    if segment.chars().all(|c| c.is_ascii_digit()) {
+        return true;
+    }
+
+    if uuid::Uuid::parse_str(segment).is_ok() {
+        return true;
+    }
+
+    if segment.len() >= 16 && segment.chars().all(|c| c.is_ascii_hexdigit()) {
+        return true;
+    }
+
+    let has_digit = segment.chars().any(|c| c.is_ascii_digit());
+    let has_alpha = segment.chars().any(|c| c.is_ascii_alphabetic());
+    let valid_chars = segment
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '~'));
+
+    has_digit && has_alpha && valid_chars && segment.len() >= 4
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::simulator::config::{EndpointDefinition, ServerConfig, ServiceDefinition};
+    use crate::simulator::service::ServiceInstance;
+    use hyper::Method;
+    use std::collections::HashMap as StdHashMap;
+    use std::sync::Arc;
+    use tokio::sync::broadcast;
+
+    #[test]
+    fn parameterize_path_detects_dynamic_segments() {
+        let (templated, params, values) = parameterize_path("/users/123");
+
+        assert_eq!(templated, "/users/{param1}");
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0].name, "param1");
+        assert_eq!(values, vec![("param1".to_string(), "123".to_string())]);
+
+        let (templated_other, _, other_values) = parameterize_path("/users/456");
+        assert_eq!(templated_other, templated);
+        assert_eq!(
+            other_values,
+            vec![("param1".to_string(), "456".to_string())]
+        );
+    }
+
+    #[test]
+    fn upsert_collapses_similar_paths_into_one_endpoint() {
+        let mut map: HashMap<(String, String), EndpointDefinition> = HashMap::new();
+        let method = Method::GET;
+        let headers = HeaderMap::new();
+
+        upsert_recorded_endpoint(
+            &mut map,
+            &method,
+            "/users/123",
+            200,
+            "application/json",
+            "{\"id\":123}".to_string(),
+            &headers,
+        );
+
+        upsert_recorded_endpoint(
+            &mut map,
+            &method,
+            "/users/456",
+            200,
+            "application/json",
+            "{\"id\":456}".to_string(),
+            &headers,
+        );
+
+        assert_eq!(map.len(), 1);
+        let endpoint = map.values().next().unwrap();
+        assert_eq!(endpoint.path, "/users/{param1}");
+        let params = endpoint
+            .parameters
+            .as_ref()
+            .expect("parameters should be recorded");
+        assert_eq!(params[0].name, "param1");
+
+        let response = endpoint
+            .responses
+            .get(&200)
+            .expect("response for status code should exist");
+        let headers_map = response
+            .headers
+            .as_ref()
+            .expect("metadata headers should exist");
+        let metadata = headers_map
+            .get(ORIGINAL_PATH_PARAMS_HEADER)
+            .expect("metadata header should be present");
+        let parsed: HashMap<String, Vec<String>> = serde_json::from_str(metadata).unwrap();
+        assert_eq!(
+            parsed.get("param1"),
+            Some(&vec!["123".to_string(), "456".to_string()])
+        );
+    }
+
+    #[tokio::test]
+    async fn replay_uses_parameterized_template() {
+        let mut map: HashMap<(String, String), EndpointDefinition> = HashMap::new();
+        let method = Method::GET;
+        let headers = HeaderMap::new();
+
+        upsert_recorded_endpoint(
+            &mut map,
+            &method,
+            "/users/123",
+            200,
+            "application/json",
+            "{\"id\":123}".to_string(),
+            &headers,
+        );
+
+        upsert_recorded_endpoint(
+            &mut map,
+            &method,
+            "/users/456",
+            200,
+            "application/json",
+            "{\"id\":456}".to_string(),
+            &headers,
+        );
+
+        let service = ServiceDefinition {
+            name: "test".to_string(),
+            version: None,
+            description: None,
+            server: ServerConfig {
+                port: None,
+                base_path: "/".to_string(),
+                proxy_base_url: None,
+                cors: None,
+            },
+            models: None,
+            fixtures: None,
+            bucket: None,
+            endpoints: map.values().cloned().collect(),
+            graphql: None,
+            behavior: None,
+        };
+
+        let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
+        let (tx, _) = broadcast::channel(1);
+        let instance = ServiceInstance::new(service, 9000, storage, tx).expect("service instance");
+
+        let headers = StdHashMap::new();
+        let route = instance
+            .find_endpoint_with_params("GET", "/users/456", &headers)
+            .expect("route should be found");
+
+        assert_eq!(route.endpoint.path, "/users/{param1}");
+        assert_eq!(route.path_params.get("param1"), Some(&"456".to_string()));
+    }
+}
