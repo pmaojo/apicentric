@@ -361,8 +361,10 @@ impl ValidationUtils {
     ///
     /// A `Result` indicating whether the validation was successful.
     pub fn validate_http_method(method: &str, field_name: &str) -> Result<(), ValidationError> {
-        let valid_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
-        
+        let valid_methods = [
+            "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "CONNECT", "TRACE",
+        ];
+
         if !valid_methods.contains(&method.to_uppercase().as_str()) {
             return Err(ValidationError::new(
                 field_name,
@@ -898,7 +900,9 @@ mod tests {
         assert!(ValidationUtils::validate_http_method("GET", "method").is_ok());
         assert!(ValidationUtils::validate_http_method("post", "method").is_ok());
         assert!(ValidationUtils::validate_http_method("DELETE", "method").is_ok());
-        
+        assert!(ValidationUtils::validate_http_method("CONNECT", "method").is_ok());
+        assert!(ValidationUtils::validate_http_method("trace", "method").is_ok());
+
         let result = ValidationUtils::validate_http_method("INVALID", "method");
         assert!(result.is_err());
         let error = result.unwrap_err();
