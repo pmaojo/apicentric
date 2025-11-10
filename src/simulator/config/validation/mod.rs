@@ -18,8 +18,9 @@ pub struct ConfigLoader<R: ConfigRepository + Clone = repository::ConfigFileLoad
 
 impl ConfigLoader<repository::ConfigFileLoader> {
     pub fn new(root: PathBuf) -> Self {
+        let canonical_root = root.canonicalize().unwrap_or(root);
         Self {
-            repository: repository::ConfigFileLoader::new(root),
+            repository: repository::ConfigFileLoader::new(canonical_root),
         }
     }
 }
