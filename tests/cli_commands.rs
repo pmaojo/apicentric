@@ -26,7 +26,8 @@ fn setup_test_context() -> (Context, ExecutionContext) {
     "#;
     std::fs::write(&config_path, config_json).unwrap();
     
-    let builder = ContextBuilder::new(&config_path).unwrap();
+    let config = apicentric::config::load_config(&config_path).unwrap();
+    let builder = ContextBuilder::new(config);
     let context = builder.build().unwrap();
     let exec_ctx = ExecutionContext::new(context.config()).with_dry_run(true);
     
@@ -87,7 +88,8 @@ async fn dry_run_mode_working() {
     }"#;
     std::fs::write(&config_path, config_json).unwrap();
     
-    let builder = ContextBuilder::new(&config_path).unwrap();
+    let config = apicentric::config::load_config(&config_path).unwrap();
+    let builder = ContextBuilder::new(config);
     let context = builder.build().unwrap();
     let exec_ctx = ExecutionContext::new(context.config()).with_dry_run(true);
     

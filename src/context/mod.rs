@@ -70,12 +70,11 @@ pub struct ContextBuilder {
 }
 
 impl ContextBuilder {
-    pub fn new(config_path: &Path) -> ApicentricResult<Self> {
-        let config = config::load_config(config_path)?;
-        Ok(Self {
+    pub fn new(config: config::ApicentricConfig) -> Self {
+        Self {
             config,
             api_simulator: None,
-        })
+        }
     }
 
     pub fn with_api_simulator(

@@ -119,8 +119,24 @@ async fn main() {
 /// * `cli` - The parsed command-line arguments.
 async fn run(cli: Cli) -> ApicentricResult<()> {
     let config_path = std::path::Path::new(&cli.config);
-    let builder = ContextBuilder::new(config_path)?;
-    let cfg = builder.config().clone();
+    let mut cfg = apicentric::config::load_config(config_path)?;
+
+    // Override config with CLI args
+    if let Commands::Simulator {
+        action:
+            simulator_cmd::SimulatorAction::Start {
+                services_dir,
+                force: _,
+                p2p: _,
+            },
+    } = &cli.command
+    {
+        if let Some(ref mut sim_config) = cfg.simulator {
+            sim_config.services_dir = std::path::PathBuf::from(services_dir);
+        }
+    }
+
+    let builder = ContextBuilder::new(cfg.clone());
 
     // Build simulator from config
     let api_simulator = init::build_api_simulator(&cfg);

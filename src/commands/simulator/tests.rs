@@ -21,9 +21,7 @@ fn build() -> (apicentric::Context, ExecutionContext) {
         .simulator_services_dir(services)
         .build()
         .unwrap();
-    let cfg_path = temp.path().join("apicentric.json");
-    save_config(&config, &cfg_path).unwrap();
-    let builder = ContextBuilder::new(&cfg_path).unwrap();
+    let builder = ContextBuilder::new(config);
     let context = builder.build().unwrap();
     let exec = ExecutionContext::new(context.config()).with_dry_run(true);
     (context, exec)
