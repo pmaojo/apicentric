@@ -27,6 +27,10 @@ mod tui_events;
 #[path = "../commands/tui_render.rs"]
 mod tui_render;
 
+#[cfg(feature = "gui")]
+#[path = "../commands/gui/mod.rs"]
+mod gui_cmd;
+
 mod commands {
     pub mod shared {
         pub use crate::shared_impl::*;
@@ -99,6 +103,9 @@ enum Commands {
     /// Launches the terminal dashboard (requires the 'tui' feature).
     #[cfg(feature = "tui")]
     Tui,
+    /// Launches the graphical user interface (requires the 'gui' feature).
+    #[cfg(feature = "gui")]
+    Gui,
 }
 
 /// The entry point for the `apicentric` CLI.
@@ -202,5 +209,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Ai { action } => ai_cmd::ai_command(&action, &context, &exec_ctx).await,
         #[cfg(feature = "tui")]
         Commands::Tui => tui_cmd::tui_command().await,
+        #[cfg(feature = "gui")]
+        Commands::Gui => gui_cmd::gui_command().await,
     }
 }
