@@ -18,8 +18,8 @@ use crate::simulator::{
 };
 
 /// Trait for managing simulator lifecycle.
-#[async_trait(?Send)]
-pub trait Lifecycle {
+#[async_trait]
+pub trait Lifecycle: Send + Sync {
     async fn start(&self) -> ApicentricResult<()>;
     async fn stop(&self) -> ApicentricResult<()>;
 }
@@ -69,7 +69,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<R> {
     async fn start(&self) -> ApicentricResult<()> {
         if !self.config.enabled {

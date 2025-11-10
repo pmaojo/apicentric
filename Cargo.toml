@@ -21,6 +21,7 @@ graphql = ["dep:async-graphql", "dep:async-graphql-parser"]
 
 # Optional heavy features
 tui = ["ratatui", "crossterm", "indicatif", "console", "inquire"]
+gui = ["eframe", "egui"]
 mock-data = ["fake", "rand"]
 database = ["rusqlite"]
 file-watch = ["notify"]
@@ -109,6 +110,10 @@ rand = { version = "0.8", optional = true }
 
 # File watching (optional)
 notify = { version = "8.2.0", optional = true }
+
+# GUI dependencies (optional)
+eframe = { version = "0.27.2", optional = true }
+egui = { version = "0.27.2", optional = true }
 
 [dev-dependencies]
 assert_cmd = "2.0"

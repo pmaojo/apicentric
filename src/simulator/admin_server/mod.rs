@@ -91,10 +91,17 @@ async fn handle_admin_request(
 
     match (req.method(), req.uri().path()) {
         (&hyper::Method::GET, "/apicentric-admin/logs") => {
-            let services = service_registry.read().await.list_services().await;
+            let services = {
+                let registry = service_registry.read().await;
+                registry.list_services().await
+            };
             let mut all_logs = vec![];
             for service_info in services {
-                if let Some(service) = service_registry.read().await.get_service(&service_info.name) {
+                let service = {
+                    let registry = service_registry.read().await;
+                    registry.get_service(&service_info.name).cloned()
+                };
+                if let Some(service) = service {
                     let logs = service.read().await.get_logs(100).await;
                     all_logs.extend(logs);
                 }
