@@ -42,7 +42,9 @@ pub fn render(ctx: &egui::Context, state: &mut GuiAppState, manager: &Arc<ApiSim
         ui.heading("AI Generation");
         ui.text_edit_multiline(&mut state.ai_prompt);
         if ui.button("Generate").clicked() {
-            // TODO
+            // TODO: Implement AI code generation
+            // For now, just show a placeholder message
+            state.logs.push("[AI] Code generation requested: ".to_string() + &state.ai_prompt);
         }
     });
 

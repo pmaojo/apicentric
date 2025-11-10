@@ -16,12 +16,12 @@ function Run-Check {
         [string]$Name,
         [string]$Command
     )
-    
+
     Write-Host "Running: $Name" -ForegroundColor Yellow
-    
+
     $result = Invoke-Expression $Command
     $exitCode = $LASTEXITCODE
-    
+
     if ($exitCode -eq 0) {
         Write-Host "✓ $Name passed" -ForegroundColor Green
         Write-Host ""
@@ -30,6 +30,35 @@ function Run-Check {
         Write-Host "✗ $Name failed" -ForegroundColor Red
         Write-Host ""
         $script:Failures++
+        return $false
+    }
+}
+
+# Function to verify checksums
+function Verify-Checksums {
+    param(
+        [string]$FilePath,
+        [string]$ExpectedHash
+    )
+
+    if (!(Test-Path $FilePath)) {
+        Write-Host "File not found: $FilePath" -ForegroundColor Red
+        return $false
+    }
+
+    try {
+        $actualHash = Get-FileHash -Path $FilePath -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+        if ($actualHash -eq $ExpectedHash.ToUpper()) {
+            Write-Host "✓ Checksum verified for $FilePath" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "✗ Checksum mismatch for $FilePath" -ForegroundColor Red
+            Write-Host "  Expected: $ExpectedHash" -ForegroundColor Red
+            Write-Host "  Actual:   $actualHash" -ForegroundColor Red
+            return $false
+        }
+    } catch {
+        Write-Host "✗ Error verifying checksum for $FilePath" -ForegroundColor Red
         return $false
     }
 }
@@ -74,8 +103,41 @@ if ($auditInstalled) {
     Write-Host ""
 }
 
-# 6. Documentation Check
-Write-Host "📚 Step 6: Documentation Check" -ForegroundColor Cyan
+# 6. Checksum Verification
+Write-Host "🔐 Step 6: Checksum Verification" -ForegroundColor Cyan
+Write-Host "-------------------------------" -ForegroundColor Cyan
+
+# Verify checksums for downloaded binaries (if any)
+$checksumsValid = $true
+$checksumFiles = Get-ChildItem -Path "." -Filter "*.sha256" -Recurse -ErrorAction SilentlyContinue
+
+foreach ($checksumFile in $checksumFiles) {
+    $checksumContent = Get-Content $checksumFile.FullName -Raw
+    # Parse checksum file format: "hash filename"
+    $lines = $checksumContent -split "`n" | Where-Object { $_ -match '\S' }
+    foreach ($line in $lines) {
+        if ($line -match '^([a-fA-F0-9]{64})\s+(.+)$') {
+            $expectedHash = $matches[1]
+            $fileName = $matches[2].Trim()
+            $filePath = Join-Path $checksumFile.DirectoryName $fileName
+            if (!(Verify-Checksums -FilePath $filePath -ExpectedHash $expectedHash)) {
+                $checksumsValid = $false
+            }
+        }
+    }
+}
+
+if ($checksumsValid) {
+    Write-Host "✓ All checksums verified successfully" -ForegroundColor Green
+    Write-Host ""
+} else {
+    Write-Host "✗ Checksum verification failed" -ForegroundColor Red
+    Write-Host ""
+    $script:Failures++
+}
+
+# 7. Documentation Check
+Write-Host "📚 Step 7: Documentation Check" -ForegroundColor Cyan
 Write-Host "------------------------------" -ForegroundColor Cyan
 
 Run-Check "cargo doc" "cargo doc --all-features --no-deps"

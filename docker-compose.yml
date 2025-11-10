@@ -11,11 +11,14 @@ services:
       - APICENTRIC_ENV=production
       - APICENTRIC_LOG_LEVEL=info
       - RUST_LOG=apicentric=info
+      - APICENTRIC_DB_PATH=/app/data/apicentric.db
     volumes:
       # Mount directory for service definitions
       - ./services:/services:ro
       # Mount directory for logs (optional)
       - ./logs:/app/logs
+      # Mount directory for persistent data
+      - apicentric_data:/app/data
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       timeout: 5s

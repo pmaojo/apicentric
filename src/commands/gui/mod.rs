@@ -24,6 +24,7 @@ struct ApicentricGuiApp {
 impl ApicentricGuiApp {
     fn new(_cc: &eframe::CreationContext<'_>, manager: Arc<ApiSimulatorManager>) -> Self {
         let (tx, rx) = mpsc::channel(1);
+        let log_receiver = manager.subscribe_logs();
 
         let manager_clone = Arc::clone(&manager);
         tokio::spawn(async move {
@@ -37,7 +38,7 @@ impl ApicentricGuiApp {
         });
 
         Self {
-            state: GuiAppState::new(),
+            state: GuiAppState::new(log_receiver),
             manager,
             status_receiver: rx,
         }
@@ -48,7 +49,21 @@ impl eframe::App for ApicentricGuiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if let Ok(status) = self.status_receiver.try_recv() {
             self.state.services = status.active_services.into_iter().map(|s| s.name).collect();
-            // TODO: Get logs from the manager
+        }
+
+        // Update logs from the manager
+        while let Ok(log_entry) = self.state.log_receiver.try_recv() {
+            self.state.logs.push(format!("[{}] {} {} {} - {}ms",
+                log_entry.timestamp.format("%H:%M:%S"),
+                log_entry.method,
+                log_entry.path,
+                log_entry.status,
+                0 // TODO: Add response time tracking
+            ));
+            // Keep only the last 1000 log entries to prevent memory issues
+            if self.state.logs.len() > 1000 {
+                self.state.logs.remove(0);
+            }
         }
 
         ctx.request_repaint_after(Duration::from_millis(500));

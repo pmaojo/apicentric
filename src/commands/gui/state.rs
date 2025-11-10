@@ -4,18 +4,22 @@
 
 #![cfg(feature = "gui")]
 
+use tokio::sync::broadcast;
+
 pub struct GuiAppState {
     pub services: Vec<String>,
     pub logs: Vec<String>,
     pub ai_prompt: String,
+    pub log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
 }
 
 impl GuiAppState {
-    pub fn new() -> Self {
+    pub fn new(log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>) -> Self {
         Self {
             services: Vec::new(),
             logs: Vec::new(),
             ai_prompt: "Generate a new service".to_string(),
+            log_receiver,
         }
     }
 }
