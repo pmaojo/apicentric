@@ -10,37 +10,49 @@ mod render;
 use apicentric::{ApicentricError, ApicentricResult};
 use eframe::egui;
 use state::GuiAppState;
-use apicentric::simulator::{manager::ApiSimulatorManager, config::SimulatorConfig};
+use apicentric::simulator::{manager::ApiSimulatorManager, config::SimulatorConfig, SimulatorStatus};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use tokio::sync::mpsc;
 
 struct ApicentricGuiApp {
     state: GuiAppState,
     manager: Arc<ApiSimulatorManager>,
-    last_update: Instant,
+    status_receiver: mpsc::Receiver<SimulatorStatus>,
 }
 
 impl ApicentricGuiApp {
     fn new(_cc: &eframe::CreationContext<'_>, manager: Arc<ApiSimulatorManager>) -> Self {
+        let (tx, rx) = mpsc::channel(1);
+
+        let manager_clone = Arc::clone(&manager);
+        tokio::spawn(async move {
+            loop {
+                let status = manager_clone.get_status().await;
+                if tx.send(status).await.is_err() {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        });
+
         Self {
             state: GuiAppState::new(),
             manager,
-            last_update: Instant::now(),
+            status_receiver: rx,
         }
     }
 }
 
 impl eframe::App for ApicentricGuiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if self.last_update.elapsed() > Duration::from_secs(1) {
-            let manager = Arc::clone(&self.manager);
-            let status = tokio::runtime::Handle::current().block_on(async {
-                manager.get_status().await
-            });
+        if let Ok(status) = self.status_receiver.try_recv() {
             self.state.services = status.active_services.into_iter().map(|s| s.name).collect();
             // TODO: Get logs from the manager
-            self.last_update = Instant::now();
         }
+
+        ctx.request_repaint_after(Duration::from_millis(500));
+
         render::render(ctx, &mut self.state, &self.manager);
     }
 }
