@@ -11,6 +11,7 @@ pub struct GuiAppState {
     pub logs: Vec<String>,
     pub ai_prompt: String,
     pub log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
+    pub ai_generated_yaml: Option<String>,
 }
 
 impl GuiAppState {
@@ -20,6 +21,7 @@ impl GuiAppState {
             logs: Vec::new(),
             ai_prompt: "Generate a new service".to_string(),
             log_receiver,
+            ai_generated_yaml: None,
         }
     }
 }
