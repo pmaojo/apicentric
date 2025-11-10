@@ -185,6 +185,6 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         },
         Commands::Ai { action } => ai_cmd::ai_command(&action, &context, &exec_ctx).await,
         #[cfg(feature = "tui")]
-        Commands::Tui => tui_cmd::tui_command(),
+        Commands::Tui => tui_cmd::tui_command().await,
     }
 }
