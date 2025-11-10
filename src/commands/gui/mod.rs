@@ -14,33 +14,111 @@ use apicentric::simulator::{manager::ApiSimulatorManager, config::SimulatorConfi
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
+use apicentric::ai::{AiProvider, GeminiAiProvider, LocalAiProvider, OpenAiProvider};
+use apicentric::config::AiProviderKind;
+
+enum GuiMessage {
+    AiGenerate(String),
+    AiApplyYaml(String),
+}
+
+async fn handle_ai_generate(prompt: String, tx: mpsc::Sender<ApicentricResult<String>>) {
+    let result = async {
+        let cfg = apicentric::config::load_config(std::path::Path::new("apicentric.json"))?;
+        let ai_cfg = match &cfg.ai {
+            Some(cfg) => cfg,
+        None => {
+            return Err(ApicentricError::config_error(
+                "AI provider not configured",
+                Some("Add an 'ai' section to apicentric.json"),
+            ))
+        }
+    };
+
+    let provider: Box<dyn AiProvider> = match ai_cfg.provider {
+        AiProviderKind::Local => {
+            let path = ai_cfg
+                .model_path
+                .clone()
+                .unwrap_or_else(|| "model.bin".to_string());
+            Box::new(LocalAiProvider::new(path))
+        }
+        AiProviderKind::Openai => {
+            let key = ai_cfg.api_key.clone().ok_or_else(|| {
+                ApicentricError::config_error(
+                    "OpenAI API key missing",
+                    Some("Set ai.api_key in apicentric.json"),
+                )
+            })?;
+            let model = ai_cfg
+                .model
+                .clone()
+                .unwrap_or_else(|| "gpt-3.5-turbo".to_string());
+            Box::new(OpenAiProvider::new(key, model))
+        }
+        AiProviderKind::Gemini => {
+            let key = std::env::var("GEMINI_API_KEY")
+                .ok()
+                .or_else(|| ai_cfg.api_key.clone())
+                .ok_or_else(|| {
+                    ApicentricError::config_error(
+                        "Gemini API key missing",
+                        Some(
+                            "Set GEMINI_API_KEY environment variable or ai.api_key in apicentric.json",
+                        ),
+                    )
+                })?;
+            let model = ai_cfg
+                .model
+                .clone()
+                .unwrap_or_else(|| "gemini-2.0-flash-exp".to_string());
+            Box::new(GeminiAiProvider::new(key, model))
+        }
+    };
+
+    provider.generate_yaml(&prompt).await
+    }
+    .await;
+    tx.send(result).await.ok();
+}
 
 struct ApicentricGuiApp {
     state: GuiAppState,
     manager: Arc<ApiSimulatorManager>,
     status_receiver: mpsc::Receiver<SimulatorStatus>,
+    message_sender: mpsc::Sender<GuiMessage>,
+    message_receiver: mpsc::Receiver<GuiMessage>,
+    ai_result_sender: mpsc::Sender<ApicentricResult<String>>,
+    ai_result_receiver: mpsc::Receiver<ApicentricResult<String>>,
 }
 
 impl ApicentricGuiApp {
     fn new(_cc: &eframe::CreationContext<'_>, manager: Arc<ApiSimulatorManager>) -> Self {
-        let (tx, rx) = mpsc::channel(1);
+        let (status_tx, status_rx) = mpsc::channel(1);
         let log_receiver = manager.subscribe_logs();
 
         let manager_clone = Arc::clone(&manager);
         tokio::spawn(async move {
             loop {
                 let status = manager_clone.get_status().await;
-                if tx.send(status).await.is_err() {
+                if status_tx.send(status).await.is_err() {
                     break;
                 }
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
         });
 
+        let (message_sender, message_receiver) = mpsc::channel(1);
+        let (ai_result_sender, ai_result_receiver) = mpsc::channel(1);
+
         Self {
             state: GuiAppState::new(log_receiver),
             manager,
-            status_receiver: rx,
+            status_receiver: status_rx,
+            message_sender,
+            message_receiver,
+            ai_result_sender,
+            ai_result_receiver,
         }
     }
 }
@@ -49,6 +127,32 @@ impl eframe::App for ApicentricGuiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if let Ok(status) = self.status_receiver.try_recv() {
             self.state.services = status.active_services.into_iter().map(|s| s.name).collect();
+        }
+
+        while let Ok(message) = self.message_receiver.try_recv() {
+            match message {
+                GuiMessage::AiGenerate(prompt) => {
+                    let tx = self.ai_result_sender.clone();
+                    tokio::spawn(async move {
+                        handle_ai_generate(prompt, tx).await;
+                    });
+                }
+                GuiMessage::AiApplyYaml(yaml) => {
+                    let manager = self.manager.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = manager.apply_service_yaml(&yaml).await {
+                            // Log the error
+                        }
+                    });
+                }
+            }
+        }
+
+        if let Ok(result) = self.ai_result_receiver.try_recv() {
+            match result {
+                Ok(yaml) => self.state.ai_generated_yaml = Some(yaml),
+                Err(e) => self.state.logs.push(format!("AI Error: {}", e)),
+            }
         }
 
         // Update logs from the manager
@@ -68,7 +172,7 @@ impl eframe::App for ApicentricGuiApp {
 
         ctx.request_repaint_after(Duration::from_millis(500));
 
-        render::render(ctx, &mut self.state, &self.manager);
+        render::render(ctx, &mut self.state, &self.manager, &self.message_sender);
     }
 }
 
