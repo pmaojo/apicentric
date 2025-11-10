@@ -205,32 +205,20 @@ where
         policy: &CompatibilityPolicy,
     ) -> Result<ScenarioValidationResult, ContractUseCaseError> {
         let start_time = std::time::Instant::now();
-        let mut scenario_expected = scenario.expected_status.map(|status| {
-            ApiResponse::new(
-                status,
-                scenario.expected_headers.clone(),
-                scenario
-                    .expected_body
-                    .clone()
-                    .unwrap_or_else(|| ResponseBody::Text(String::new())),
-                0,
-            )
-        });
 
         let mock_response = if let Some(handle) = mock_handle {
-            let response = self
-                .mock_api
-                .execute_request(handle, scenario)
-                .await
-                .map_err(|e| ContractUseCaseError::MockApiError(e.to_string()))?;
-
-            if scenario_expected.is_none() {
-                scenario_expected = Some(response.clone());
-            }
-            Some(response)
+            Some(
+                self.mock_api
+                    .execute_request(handle, scenario)
+                    .await
+                    .map_err(|e| ContractUseCaseError::MockApiError(e.to_string()))?,
+            )
         } else {
             None
         };
+
+        let scenario_expected =
+            self.build_expected_response(scenario, mock_response.as_ref(), policy);
 
         let real_response = self
             .http_client
@@ -266,5 +254,32 @@ where
             compliance_issue,
             duration_ms: duration.as_millis() as u64,
         })
+    }
+
+    fn build_expected_response(
+        &self,
+        scenario: &ValidationScenario,
+        mock_response: Option<&ApiResponse>,
+        _policy: &CompatibilityPolicy,
+    ) -> Option<ApiResponse> {
+        let mut expected = mock_response.cloned();
+
+        if let Some(status) = scenario.expected_status {
+            let mut response = expected.unwrap_or_else(|| {
+                ApiResponse::new(status, scenario.expected_headers.clone(), ResponseBody::Text("".into()), 0)
+            });
+            response.status_code = status;
+
+            if !scenario.expected_headers.is_empty() {
+                response.headers = scenario.expected_headers.clone();
+            }
+
+            if let Some(body) = scenario.expected_body.clone() {
+                response.body = body;
+            }
+            expected = Some(response);
+        }
+
+        expected
     }
 }
