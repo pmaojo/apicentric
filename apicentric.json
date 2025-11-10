@@ -26,8 +26,9 @@
     "dev_script": "npm run dev"
   },
   "ai": {
-    "provider": "local",
-    "model_path": "models/llama.bin"
+    "provider": "gemini",
+    "api_key": "AIzaSyCmz2MPCrI78hjAY9nTtPmxb0w_E3EpRU8",
+    "model": "gemini-2.5-flash"
   },
   "testcase": {
     "pattern": "*.cy.ts",
@@ -53,6 +54,7 @@
     "enabled": true,
     "services_dir": "services",
     "port_range": { "start": 9000, "end": 9099 },
+    "db_path": "apicentric.db",
     "global_behavior": {
       "cors_enabled": true,
       "default_delay_ms": 0,

@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use apicentric::ai::{AiProvider, LocalAiProvider, OpenAiProvider};
+use apicentric::ai::{AiProvider, GeminiAiProvider, LocalAiProvider, OpenAiProvider};
 use apicentric::config::AiProviderKind;
 use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
 
@@ -64,6 +64,19 @@ async fn handle_ai_generate(
                 .clone()
                 .unwrap_or_else(|| "gpt-3.5-turbo".to_string());
             Box::new(OpenAiProvider::new(key, model))
+        }
+        AiProviderKind::Gemini => {
+            let key = std::env::var("GEMINI_API_KEY").ok().or_else(|| ai_cfg.api_key.clone()).ok_or_else(|| {
+                ApicentricError::config_error(
+                    "Gemini API key missing",
+                    Some("Set GEMINI_API_KEY environment variable or ai.api_key in apicentric.json"),
+                )
+            })?;
+            let model = ai_cfg
+                .model
+                .clone()
+                .unwrap_or_else(|| "gemini-2.0-flash-exp".to_string());
+            Box::new(GeminiAiProvider::new(key, model))
         }
     };
 

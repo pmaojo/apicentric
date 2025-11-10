@@ -74,9 +74,35 @@ impl eframe::App for ApicentricGuiApp {
 
 /// Launch the graphical user interface.
 pub async fn gui_command() -> ApicentricResult<()> {
-    // Initialize the simulator manager
-    let config = SimulatorConfig::default();
+    // Initialize the simulator manager with proper config
+    let config = SimulatorConfig {
+        enabled: true,
+        services_dir: std::path::PathBuf::from("services"),
+        port_range: apicentric::simulator::config::PortRange { start: 9000, end: 9099 },
+        db_path: std::path::PathBuf::from("apicentric.db"),
+        admin_port: None,
+        global_behavior: None,
+    };
     let manager = Arc::new(ApiSimulatorManager::new(config));
+
+    // Create a dummy service file so the simulator can start
+    std::fs::create_dir_all("services").unwrap_or_default();
+    let dummy_service = r#"
+name: dummy
+version: "1.0"
+description: "Dummy service for GUI"
+server:
+  port: 8080
+  base_path: "/api"
+endpoints:
+  - method: GET
+    path: "/health"
+    responses:
+      200:
+        content_type: "application/json"
+        body: '{"status": "ok"}'
+"#;
+    std::fs::write("services/dummy.yaml", dummy_service).unwrap_or_default();
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(

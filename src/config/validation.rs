@@ -22,6 +22,15 @@ impl ConfigValidator for AiConfig {
                     ));
                 }
             }
+            AiProviderKind::Gemini => {
+                // Gemini can use GEMINI_API_KEY from environment or ai.api_key from config
+                if self.api_key.as_deref().unwrap_or("").is_empty() && std::env::var("GEMINI_API_KEY").is_err() {
+                    errors.push(ValidationError::new(
+                        "ai.api_key",
+                        "api_key is required for gemini provider (or set GEMINI_API_KEY environment variable)",
+                    ));
+                }
+            }
         }
         if errors.is_empty() { Ok(()) } else { Err(errors) }
     }

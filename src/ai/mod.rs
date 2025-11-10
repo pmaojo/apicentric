@@ -6,6 +6,7 @@
 use async_trait::async_trait;
 use crate::errors::ApicentricResult;
 
+pub mod gemini;
 pub mod local;
 pub mod openai;
 
@@ -24,5 +25,6 @@ pub trait AiProvider: Send + Sync {
     async fn generate_yaml(&self, prompt: &str) -> ApicentricResult<String>;
 }
 
+pub use gemini::GeminiAiProvider;
 pub use local::LocalAiProvider;
 pub use openai::OpenAiProvider;

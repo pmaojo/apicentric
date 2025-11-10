@@ -162,6 +162,8 @@ pub enum AiProviderKind {
     Local,
     /// Use the OpenAI API.
     Openai,
+    /// Use the Google Gemini API.
+    Gemini,
 }
 
 /// Legacy test case configuration (for backward compatibility)
