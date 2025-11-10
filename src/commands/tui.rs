@@ -39,7 +39,7 @@ use super::tui_state::{TuiAppState, ViewMode};
 /// - Service start/stop management
 ///
 /// The interface exits gracefully when `Ctrl+C` or `q` is pressed.
-pub fn tui_command() -> ApicentricResult<()> {
+pub async fn tui_command() -> ApicentricResult<()> {
     // Initialize the simulator manager
     let config = SimulatorConfig::default();
     let manager = Arc::new(ApiSimulatorManager::new(config));
@@ -69,7 +69,7 @@ pub fn tui_command() -> ApicentricResult<()> {
     })?;
 
     // Run the application
-    let res = run_app(&mut terminal, manager);
+    let res = run_app(&mut terminal, manager).await;
 
     // Restore terminal
     disable_raw_mode().map_err(|e| {
@@ -105,7 +105,7 @@ pub fn tui_command() -> ApicentricResult<()> {
 /// - Updates TuiState.services with latest information
 /// - Handles service additions and removals automatically
 /// - Preserves request statistics for existing services
-fn run_app(
+async fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     manager: Arc<ApiSimulatorManager>,
 ) -> ApicentricResult<()> {
@@ -114,19 +114,9 @@ fn run_app(
     
     // Subscribe to log events
     let mut log_receiver = manager.subscribe_logs();
-    
-    // Create a tokio runtime for async operations
-    let rt = tokio::runtime::Runtime::new().map_err(|e| {
-        ApicentricError::runtime_error(
-            format!("Failed to create tokio runtime: {}", e),
-            Some("System resources may be exhausted. Try closing other applications")
-        )
-    })?;
 
     // Initial status update
-    rt.block_on(async {
-        update_service_status(&mut state, &manager).await
-    })?;
+    update_service_status(&mut state, &manager).await?;
 
     // Track time for periodic status updates (every 1 second)
     let mut last_status_update = std::time::Instant::now();
@@ -184,18 +174,14 @@ fn run_app(
 
         // Periodic status update (every 1 second)
         if last_status_update.elapsed() >= status_update_interval {
-            rt.block_on(async {
-                let _ = update_service_status(&mut state, &manager).await;
-            });
+            let _ = update_service_status(&mut state, &manager).await;
             last_status_update = std::time::Instant::now();
         }
 
         // Poll for keyboard events with timeout
         if let Some(event) = poll_events(Duration::from_millis(250))? {
             if let Event::Key(key) = event {
-                let action = rt.block_on(async {
-                    handle_key_event(key, &mut state, &manager).await
-                })?;
+                let action = handle_key_event(key, &mut state, &manager).await?;
 
                 if action == Action::Quit {
                     break;
