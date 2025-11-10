@@ -1,0 +1,429 @@
+openapi: 3.0.3
+info:
+  title: Apicentric API
+  description: API for managing services, simulator, recording, contracts and code generation.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+paths:
+  /services:
+    get:
+      summary: List services
+      responses:
+        '200':
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /services/import:
+    post:
+      summary: Import service definitions
+      requestBody:
+        required: true
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Import summary
+          content:
+            application/json:
+              schema:
+                type: object
+  /services/validate:
+    post:
+      summary: Validate service definitions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+                recursive:
+                  type: boolean
+                verbose:
+                  type: boolean
+      responses:
+        '200':
+          description: Validation results
+          content:
+            application/json:
+              schema:
+                type: object
+  /services/export:
+    post:
+      summary: Export service definitions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service:
+                  type: string
+      responses:
+        '200':
+          description: Exported bundle
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+  /services/{service}/endpoints:
+    get:
+      summary: List endpoints of a service
+      parameters:
+        - name: service
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of endpoints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+  /simulator/start:
+    post:
+      summary: Start simulator
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                services_dir:
+                  type: string
+                port:
+                  type: integer
+                base_path:
+                  type: string
+                scenario:
+                  type: string
+                p2p:
+                  type: boolean
+      responses:
+        '200':
+          description: Simulator started
+          content:
+            application/json:
+              schema:
+                type: object
+  /simulator/stop:
+    post:
+      summary: Stop simulator
+      responses:
+        '200':
+          description: Simulator stopped
+          content:
+            application/json:
+              schema:
+                type: object
+  /simulator/status:
+    get:
+      summary: Get simulator status
+      responses:
+        '200':
+          description: Simulator status
+          content:
+            application/json:
+              schema:
+                type: object
+  /simulator/logs:
+    get:
+      summary: Stream simulator logs
+      parameters:
+        - name: follow
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Log stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /record/start:
+    post:
+      summary: Start recording proxy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                upstream_base:
+                  type: string
+                  format: uri
+                record_unknown:
+                  type: boolean
+                redact:
+                  type: object
+                  additionalProperties: {}
+                normalize:
+                  type: object
+                  additionalProperties: {}
+      responses:
+        '200':
+          description: Recording started
+          content:
+            application/json:
+              schema:
+                type: object
+  /record/stop:
+    post:
+      summary: Stop recording proxy
+      responses:
+        '200':
+          description: Recording stopped
+          content:
+            application/json:
+              schema:
+                type: object
+  /record/captures:
+    get:
+      summary: Get capture list
+      responses:
+        '200':
+          description: List of captures
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+  /record/promote:
+    post:
+      summary: Promote capture to template
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                capture_id:
+                  type: string
+                service:
+                  type: string
+      responses:
+        '200':
+          description: Promotion result
+          content:
+            application/json:
+              schema:
+                type: object
+  /openapi/import:
+    post:
+      summary: Import OpenAPI specification
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+          application/x-yaml:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Import result
+          content:
+            application/json:
+              schema:
+                type: object
+  /openapi/export:
+    get:
+      summary: Export service specification
+      responses:
+        '200':
+          description: Exported specification
+          content:
+            application/yaml:
+              schema:
+                type: string
+  /openapi.json:
+    get:
+      summary: OpenAPI specification of this API
+      responses:
+        '200':
+          description: OpenAPI document
+          content:
+            application/json:
+              schema:
+                type: object
+  /contracts/register:
+    post:
+      summary: Register contract definitions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Registration result
+          content:
+            application/json:
+              schema:
+                type: object
+  /contracts/compare:
+    post:
+      summary: Compare contract with upstream service
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service:
+                  type: string
+                endpoint:
+                  type: string
+                upstream:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Comparison results
+          content:
+            application/json:
+              schema:
+                type: object
+  /contracts/report/{jobId}:
+    get:
+      summary: Get contract comparison report
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report document
+          content:
+            application/json:
+              schema:
+                type: object
+  /codegen/ts-types:
+    post:
+      summary: Generate TypeScript types
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service:
+                  type: string
+      responses:
+        '200':
+          description: Generated TypeScript definitions
+          content:
+            text/plain:
+              schema:
+                type: string
+  /codegen/react-query:
+    post:
+      summary: Generate React Query hooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service:
+                  type: string
+      responses:
+        '200':
+          description: Generated React Query hooks
+          content:
+            text/plain:
+              schema:
+                type: string
+  /codegen/postman:
+    post:
+      summary: Generate Postman collection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service:
+                  type: string
+      responses:
+        '200':
+          description: Generated Postman collection
+          content:
+            application/json:
+              schema:
+                type: object
+  /jobs/{kind}:
+    post:
+      summary: Submit a job
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Job created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+  /jobs/{id}:
+    get:
+      summary: Get job status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                type: object
+  /jobs/{id}/stream:
+    get:
+      summary: Stream job logs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job log stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
