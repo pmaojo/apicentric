@@ -191,6 +191,22 @@ This example demonstrates features like:
 - **Request Validation**: Conditional responses based on the request body.
 - **Scenarios**: Simulate different API states like high traffic or maintenance.
 
+### 4. Dockerize the Service
+
+Create a portable Docker image for your service:
+
+```bash
+apicentric simulator dockerize --services ecommerce-api.yaml --output ./ecommerce-docker
+```
+
+This will create a `Dockerfile` and copy the service definition into the `ecommerce-docker` directory. You can then build and run the image:
+
+```bash
+cd ecommerce-docker
+docker build -t ecommerce-api .
+docker run -p 9002:9002 ecommerce-api
+```
+
 ## Installation
 
 Apicentric provides multiple installation methods to suit your workflow. Choose the one that works best for you.
@@ -346,9 +362,23 @@ sudo chmod +x /usr/local/bin/apicentric
 apicentric --version
 ```
 
-### Docker (Coming Soon)
+### Docker
 
-Docker images will be available soon for containerized deployments.
+You can use the `dockerize` command to create a self-contained Docker image for your services.
+
+```bash
+apicentric simulator dockerize --services <service1>.yaml [<service2>.yaml ...] --output ./my-service-docker
+```
+
+This will generate a `Dockerfile` and a `.dockerignore` file in the output directory, along with a `services` directory containing your service definitions.
+
+You can then build and run the image:
+
+```bash
+cd my-service-docker
+docker build -t my-service .
+docker run -p <port>:<port> my-service
+```
 
 ## Verification
 
@@ -520,6 +550,14 @@ Define mock APIs in YAML and serve them locally:
 - Request/response logging
 - Request recording proxy and auto-generated endpoints via `record_unknown`
 - Imports OpenAPI 2.0/3.x specs, preferring documented examples and generating JSON bodies from schemas when necessary
+
+### 🐳 Dockerize Services
+
+Package your mock services into self-contained Docker images for easy deployment and sharing.
+
+- Generate a `Dockerfile` for one or more services.
+- Exposes all service ports automatically.
+- Creates a portable image that can be run anywhere.
 
 ### ✅ Contract Testing
 

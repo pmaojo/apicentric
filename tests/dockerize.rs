@@ -14,13 +14,13 @@ fn test_dockerize_command() {
     let mut cmd = Command::cargo_bin("apicentric").unwrap();
     cmd.arg("simulator")
         .arg("dockerize")
-        .arg("--input")
+        .arg("--services")
         .arg(service_def_path.to_str().unwrap())
         .arg("--output")
         .arg(output_dir.path().to_str().unwrap())
         .assert()
         .success()
-        .stdout(predicate::str::contains("Dockerizing service"));
+        .stdout(predicate::str::contains("Dockerizing services"));
 
     assert!(output_dir.path().join("Dockerfile").exists());
     assert!(output_dir.path().join(".dockerignore").exists());
