@@ -1,4 +1,5 @@
 use apicentric::{Context, ExecutionContext, ContextBuilder};
+use assert_cmd::prelude::*;
 use tempfile::TempDir;
 
 fn setup_test_context() -> (Context, ExecutionContext) {
@@ -95,4 +96,44 @@ async fn dry_run_mode_working() {
     
     // In dry run mode, operations should not affect real state
     assert!(exec_ctx.dry_run);
+}
+
+#[tokio::test]
+async fn simulator_start_respects_services_dir_arg_without_simulator_config() {
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("apicentric.json");
+    let services_dir = temp_dir.path().join("custom_services");
+    std::fs::create_dir_all(&services_dir).unwrap();
+
+    // Create a minimal config *without* a "simulator" object.
+    let config_json = r#"
+    {
+        "cypress_config_path": "cypress.config.ts",
+        "base_url": "http://localhost:3000",
+        "specs_pattern": "**/*.cy.ts",
+        "routes_dir": "services",
+        "specs_dir": "cypress/e2e",
+        "reports_dir": "cypress/reports",
+        "index_cache_path": "route-index.json",
+        "default_timeout": 30000,
+        "execution": {
+            "mode": "development"
+        }
+    }
+    "#;
+    std::fs::write(&config_path, config_json).unwrap();
+
+    let mut cmd = std::process::Command::cargo_bin("apicentric").unwrap();
+    cmd.arg("--config")
+        .arg(&config_path)
+        .arg("--dry-run")
+        .arg("simulator")
+        .arg("start")
+        .arg("--services-dir")
+        .arg(&services_dir);
+
+    // This assertion will fail because the CLI doesn't handle the case where
+    // the --services-dir is provided but the simulator config is missing.
+    // After the fix, this should be changed to .success()
+    cmd.assert().success();
 }
