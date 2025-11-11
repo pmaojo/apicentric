@@ -1,6 +1,6 @@
 
 use egui::{
-    style::{Margin, Strafes, Style, Visuals},
+    style::{Style, Visuals},
     Color32, Stroke,
 };
 
