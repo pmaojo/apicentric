@@ -28,7 +28,9 @@ pub struct ApiSimulatorManager {
     route_registry: Arc<RwLock<RequestRouter>>,
     config_loader: ConfigLoader,
     is_active: Arc<RwLock<bool>>,
+    #[allow(dead_code)]
     p2p_enabled: Arc<RwLock<bool>>,
+    #[allow(dead_code)]
     collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
     #[cfg(feature = "p2p")]
     crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,

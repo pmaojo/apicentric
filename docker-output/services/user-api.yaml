@@ -1,0 +1,105 @@
+name: User API
+version: "1.0"
+description: Basic user management API for examples
+server:
+  port: 9001
+  base_path: /api/v1
+  cors: 
+    enabled: true
+    origins: ["*"]
+
+fixtures:
+  users:
+    - id: 1
+      username: "alice"
+      email: "alice@example.com"
+      role: "admin"
+    - id: 2
+      username: "bob"
+      email: "bob@example.com"
+      role: "user"
+
+endpoints:
+  - method: GET
+    path: /users
+    description: List all users
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {{#each fixtures.users}}
+          {
+            "id": {{id}},
+            "username": "{{username}}",
+            "email": "{{email}}",
+            "role": "{{role}}"
+          }{{#unless @last}},{{/unless}}
+          {{/each}}
+
+  - method: GET
+    path: /users/{id}
+    description: Get user by ID
+    responses:
+      200:
+        condition: "{{eq params.id '1'}}"
+        content_type: application/json
+        body: |
+          {
+            "id": 1,
+            "username": "alice",
+            "email": "alice@example.com",
+            "role": "admin"
+          }
+      404:
+        condition: "{{ne params.id '1'}}"
+        content_type: application/json
+        body: |
+          {
+            "error": "User not found",
+            "message": "No user with ID {{params.id}}"
+          }
+
+  - method: POST
+    path: /users
+    description: Create new user
+    responses:
+      201:
+        content_type: application/json
+        body: |
+          {
+            "id": {{faker "datatype.number"}},
+            "username": "{{request.body.username}}",
+            "email": "{{request.body.email}}",
+            "role": "user",
+            "created_at": "{{now}}"
+          }
+      400:
+        condition: "{{not request.body.email}}"
+        content_type: application/json
+        body: |
+          {
+            "error": "Validation failed",
+            "message": "Email is required"
+          }
+
+scenarios:
+  - name: "slow_response"
+    description: "Simulate slow API responses"
+    delay_ms: 2000
+    endpoints: ["GET /users"]
+    
+  - name: "error_mode"
+    description: "Return errors for testing failure scenarios"
+    endpoints: ["POST /users"]
+    response:
+      status: 503
+      body: |
+        {
+          "error": "Service temporarily unavailable"
+        }
+
+behavior:
+  request_logging: true
+  response_delays: 
+    min_ms: 50
+    max_ms: 200

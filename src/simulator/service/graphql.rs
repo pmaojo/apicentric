@@ -5,17 +5,14 @@ use async_graphql_parser::parse_schema;
 
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::GraphQLConfig;
-use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
+use crate::simulator::template::TemplateEngine;
 use bytes::Bytes;
 use http_body_util::Full;
-use hyper::{Response, StatusCode};
-use serde_json::Value;
+use hyper::Response;
 use std::collections::HashMap;
-use std::fs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use super::routing::PathParameters;
 use super::state::ServiceState;
 
 /// Holds loaded GraphQL schema and mock templates

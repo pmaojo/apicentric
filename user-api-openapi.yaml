@@ -1,0 +1,57 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "User API",
+    "version": "1.0"
+  },
+  "paths": {
+    "/users": {
+      "get": {
+        "summary": "List all users",
+        "description": "List all users",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "{{#each fixtures.users}}\n{\n  \"id\": {{id}},\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"role\": \"{{role}}\"\n}{{#unless @last}},{{/unless}}\n{{/each}}\n"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create new user",
+        "description": "Create new user",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "201": {
+            "description": "{\n  \"id\": {{faker \"datatype.number\"}},\n  \"username\": \"{{request.body.username}}\",\n  \"email\": \"{{request.body.email}}\",\n  \"role\": \"user\",\n  \"created_at\": \"{{now}}\"\n}\n"
+          },
+          "400": {
+            "description": "{\n  \"error\": \"Validation failed\",\n  \"message\": \"Email is required\"\n}\n"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "description": "Get user by ID",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "{\n  \"id\": 1,\n  \"username\": \"alice\",\n  \"email\": \"alice@example.com\",\n  \"role\": \"admin\"\n}\n"
+          },
+          "404": {
+            "description": "{\n  \"error\": \"User not found\",\n  \"message\": \"No user with ID {{params.id}}\"\n}\n"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {},
+  "basePath": "/api/v1"
+}
