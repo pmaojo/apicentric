@@ -24,35 +24,172 @@ Apicentric is built around a few core concepts:
 - **Code Generation**: A feature that allows you to generate client code from your service definitions.
 - **TUI**: A terminal user interface that provides a visual way to manage your services.
 
-## Quick Start
+## Real-World Example: E-commerce API
 
-Get up and running in 5 minutes:
+Let's simulate a realistic e-commerce API with dynamic data, request validation, and multiple scenarios.
 
-```bash
-# Install
-brew install pmaojo/tap/apicentric
+### 1. Create the Service Definition
 
-# Create a service
-cat > my-api.yaml << EOF
-name: my-api
+Create a file named `ecommerce-api.yaml` with the following content:
+
+```yaml
+name: E-commerce API
+version: "2.1"
+description: Sample e-commerce API with products and orders
 server:
-  port: 9000
-  base_path: /api
+  port: 9002
+  base_path: /api/v2
+
+fixtures:
+  products:
+    - id: 101
+      name: "Laptop Pro"
+      price: 1299.99
+      category: "electronics"
+      stock: 15
+    - id: 102
+      name: "Coffee Mug"
+      price: 12.50
+      category: "home"
+      stock: 50
+
 endpoints:
   - method: GET
-    path: /hello
+    path: /products
+    description: List products with optional filtering
+    parameters:
+      - name: category
+        in: query
+        required: false
+        type: string
     responses:
       200:
         content_type: application/json
-        body: '{"message": "Hello, World!"}'
-EOF
+        body: |
+          {
+            "products": [
+              {{#each fixtures.products}}
+              {
+                "id": {{id}},
+                "name": "{{name}}",
+                "price": {{price}},
+                "category": "{{category}}",
+                "stock": {{stock}}
+              }{{#unless @last}},{{/unless}}
+              {{/each}}
+            ],
+            "total": {{fixtures.products.length}},
+            "filter": "{{query.category}}"
+          }
 
-# Start simulator
-apicentric simulator start --services-dir .
+  - method: POST
+    path: /orders
+    description: Create a new order
+    request_body:
+      content_type: application/json
+      schema: |
+        {
+          "customer_id": "number",
+          "items": [{"product_id": "number", "quantity": "number"}]
+        }
+    responses:
+      201:
+        content_type: application/json
+        body: |
+          {
+            "order_id": {{faker "datatype.number" min=1000 max=9999}},
+            "customer_id": {{request.body.customer_id}},
+            "items": {{json request.body.items}},
+            "total": {{faker "commerce.price"}},
+            "status": "pending",
+            "created_at": "{{now}}"
+          }
+      422:
+        condition: "{{not request.body.customer_id}}"
+        content_type: application/json
+        body: |
+          {
+            "error": "Invalid order",
+            "details": ["Customer ID is required"]
+          }
 
-# Test it
-curl http://localhost:9000/api/hello
+  - method: GET
+    path: /orders/{id}/status
+    description: Get order status
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "order_id": {{params.id}},
+            "status": "{{#random}}pending,processing,shipped,delivered{{/random}}",
+            "updated_at": "{{now}}"
+          }
+
+scenarios:
+  - name: "holiday_traffic"
+    description: "Simulate high traffic during holidays"
+    delay_ms: 1500
+    response_rate: 0.8
+
+  - name: "maintenance_mode"
+    description: "Service under maintenance"
+    response:
+      status: 503
+      headers:
+        Retry-After: "3600"
+      body: |
+        {
+          "error": "Service under maintenance",
+          "retry_after": "1 hour"
+        }
 ```
+
+### 2. Start the Simulator
+
+Run the following command in your terminal:
+
+```bash
+apicentric simulator start --services-dir .
+```
+
+Apicentric will start a server on port `9002`.
+
+### 3. Interact with the API
+
+Now you can send requests to your mock API:
+
+**Get all products:**
+
+```bash
+curl http://localhost:9002/api/v2/products
+```
+
+**Create a new order:**
+
+```bash
+curl -X POST http://localhost:9002/api/v2/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": 12345,
+    "items": [
+      {"product_id": 101, "quantity": 1},
+      {"product_id": 102, "quantity": 2}
+    ]
+  }'
+```
+
+**Get order status:**
+
+```bash
+curl http://localhost:9002/api/v2/orders/5678/status
+```
+
+This example demonstrates features like:
+- **Fixtures**: Reusable data for your endpoints.
+- **Dynamic Responses**: Handlebars templating for realistic data.
+- **Request Validation**: Conditional responses based on the request body.
+- **Scenarios**: Simulate different API states like high traffic or maintenance.
 
 ## Installation
 
