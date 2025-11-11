@@ -300,7 +300,7 @@ endpoints:
     eframe::run_native(
         "Apicentric GUI",
         native_options,
-        Box::new(|cc| Box::new(ApicentricGuiApp::new(cc, manager))),
+        Box::new(|cc| Ok(Box::new(ApicentricGuiApp::new(cc, manager)))),
     )
     .map_err(|e| ApicentricError::runtime_error(format!("GUI Error: {}", e), None::<String>))?;
 
