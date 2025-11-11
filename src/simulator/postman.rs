@@ -8,16 +8,21 @@ use crate::simulator::config::{
     EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
 };
 
+/// Parse a Postman or Insomnia collection from a `serde_json::Value` into a [`ServiceDefinition`]
+pub fn from_json(v: &Value) -> Result<ServiceDefinition, Box<dyn std::error::Error>> {
+    if v.get("item").is_some() {
+        Ok(convert_postman(v))
+    } else if v.get("resources").is_some() {
+        Ok(convert_insomnia(v))
+    } else {
+        Err("Unsupported collection format: Not a valid Postman or Insomnia export.".into())
+    }
+}
+
 /// Parse a Postman or Insomnia collection from a string into a [`ServiceDefinition`]
 pub fn from_str(json_str: &str) -> Result<ServiceDefinition, Box<dyn std::error::Error>> {
     let v: Value = serde_json::from_str(json_str)?;
-    if v.get("item").is_some() {
-        Ok(convert_postman(&v))
-    } else if v.get("resources").is_some() {
-        Ok(convert_insomnia(&v))
-    } else {
-        Err("Unsupported collection format".into())
-    }
+    from_json(&v)
 }
 
 /// Load a Postman/Insomnia collection from a file path

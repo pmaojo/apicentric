@@ -549,7 +549,12 @@ Define mock APIs in YAML and serve them locally:
 - Scenarios for different states
 - Request/response logging
 - Request recording proxy and auto-generated endpoints via `record_unknown`
-- Imports OpenAPI 2.0/3.x specs, preferring documented examples and generating JSON bodies from schemas when necessary
+- Import from various formats like OpenAPI, Postman, WireMock, and Mockoon with `apicentric simulator import`.
+
+### GraphQL Mocking
+
+- Define GraphQL mocks with a schema and response templates.
+- Create a new GraphQL service from scratch with `apicentric simulator new-graphql <name>`.
 
 ### 🐳 Dockerize Services
 
@@ -568,14 +573,14 @@ Validate that mocks match real APIs:
 - HTML reports with differences
 - CI/CD integration
 
-### 🔄 Code Generation
+### 🔄 Code Generation & Exporting
 
-Generate client code from service definitions:
+Generate client code from service definitions or export to standard formats:
 
-- TypeScript interfaces
-- React Query hooks
-- OpenAPI specs
-- Postman collections
+- **Generate TypeScript types**: `apicentric simulator generate-types`
+- **Generate React Query hooks**: `apicentric simulator generate-query`
+- **Export to OpenAPI**: `apicentric simulator export --format openapi`
+- **Export to Postman**: `apicentric simulator export --format postman`
 
 ### 🖥️ TUI (Terminal User Interface)
 

@@ -44,6 +44,21 @@ async fn start_runs() {
 }
 
 #[tokio::test]
+async fn new_graphql_runs() {
+    let (ctx, exec) = build();
+    simulator_command(
+        &SimulatorAction::NewGraphql {
+            name: "test-gql".into(),
+            output: "services".into(),
+        },
+        &ctx,
+        &exec,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
 async fn dockerize_runs() {
     let (ctx, _) = build();
     let exec = ExecutionContext::new(ctx.config()).with_dry_run(false);
@@ -103,27 +118,13 @@ async fn import_runs() {
 }
 
 #[tokio::test]
-async fn import_wiremock_runs() {
-    let (ctx, exec) = build();
-    simulator_command(
-        &SimulatorAction::ImportWiremock {
-            input: "mappings.json".into(),
-            output: "service.yaml".into(),
-        },
-        &ctx,
-        &exec,
-    )
-    .await
-    .unwrap();
-}
-
-#[tokio::test]
 async fn export_runs() {
     let (ctx, exec) = build();
     simulator_command(
         &SimulatorAction::Export {
             input: "service.yaml".into(),
             output: "openapi.yaml".into(),
+            format: ExportFormat::Openapi,
         },
         &ctx,
         &exec,

@@ -77,6 +77,12 @@ struct WiremockResponse {
     headers: HashMap<String, String>,
 }
 
+/// Parse a WireMock stub mapping from a `serde_json::Value` into a [`ServiceDefinition`]
+pub fn from_json(value: &Value) -> Result<ServiceDefinition, Box<dyn std::error::Error>> {
+    let json_str = serde_json::to_string(value)?;
+    from_str(&json_str)
+}
+
 /// Parse a WireMock stub mapping into a [`ServiceDefinition`]
 pub fn from_str(json: &str) -> Result<ServiceDefinition, Box<dyn std::error::Error>> {
     let (stubs, meta) = parse_wiremock(json)?;
