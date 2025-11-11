@@ -2,23 +2,126 @@
 name = "apicentric"
 version = "0.1.1"
 edition = "2021"
-description = "Toolkit for building, recording, and sharing mock APIs (minimal build)"
+description = "Toolkit for building, recording, and sharing mock APIs"
 repository = "https://github.com/pmaojo/apicentric"
 license = "MIT"
 
 [lib]
 crate-type = ["rlib"]
 
+[features]
+# Default includes all features currently used by the code
+default = ["simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting"]
+
+# Core features
+simulator = []
+contract-testing = ["reqwest", "async-trait"]
+p2p = []
+graphql = ["dep:async-graphql", "dep:async-graphql-parser"]
+
+# Optional heavy features
+tui = ["ratatui", "crossterm", "indicatif", "console", "inquire"]
+gui = ["eframe", "egui"]
+mock-data = ["fake", "rand"]
+database = ["rusqlite"]
+file-watch = ["notify"]
+websockets = ["tokio-tungstenite", "futures-util/sink"]
+scripting = ["deno_core"]
+
+# Convenience bundles
+cli-tools = ["simulator", "contract-testing", "tui"]
+minimal = ["simulator"]
+full = ["simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting"]
+
 [dependencies]
-# Ultra-minimal CLI dependencies only
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Core CLI dependencies
 anyhow = "1.0.99"
 clap = { version = "4.4.8", features = ["derive"] }
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.143" 
-serde_yaml = "0.9.34"
-colored = "2.1.0"
 glob = "0.3.3"
+lazy_static = "1.5.0"
+log = "0.4.20"
+env_logger = "0.10"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.143"
+serde_yaml = "0.9.34"
+thiserror = "1.0.69"
+url = "2.5.4"
+regex = "1.11.1"
+chrono = { version = "0.4.31", features = ["serde"] }
+uuid = { version = "1.11.0", features = ["v4"] }
+tempfile = "3.8.0"
+
+# Minimal async runtime
+tokio = { version = "1.47.1", features = ["rt-multi-thread", "fs", "process", "net", "sync", "time", "macros"] }
+
+# HTTP server and client
+hyper = { version = "1.0", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+http = "1.0"
+http-body-util = "0.1"
+bytes = "1.0"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+
+# WebSocket support (optional)
+tokio-tungstenite = { version = "0.21", optional = true }
+
+# JavaScript runtime for scripting (optional, heavy)
+deno_core = { version = "0.272.0", optional = true }
+
+# GraphQL support (optional)
+async-graphql = { version = "7.0", optional = true }
+async-graphql-parser = { version = "7.0", optional = true }
+
+# Logging
+tracing = "0.1"
+
+# Template engine (lightweight)
+handlebars = "6.2.0"
+
+# OpenAPI support
+openapi = "0.1.5"
+
+# HTTP client for contract testing (optional)
+reqwest = { version = "0.11", features = ["json"], optional = true }
+async-trait = { version = "0.1.74", optional = true }
+
+# Database (optional)
+rusqlite = { version = "0.31", features = ["bundled"], optional = true }
+
+# Plugin system (basic)
+libloading = "0.8"
+
+# Terminal UI dependencies (optional)
+indicatif = { version = "0.17.7", optional = true }
+console = { version = "0.15.7", optional = true }
+inquire = { version = "0.6", optional = true }
+ratatui = { version = "0.26.0", optional = true }
+crossterm = { version = "0.27", optional = true }
+
+# Colored output (lightweight, always included)
+colored = "2.1.0"
+
+# Mock data generation (optional)
+fake = { version = "4.4.0", optional = true }
+rand = { version = "0.8", optional = true }
+
+# File watching (optional)
+notify = { version = "8.2.0", optional = true }
+
+# GUI dependencies (optional)
+eframe = { version = "0.33.0", optional = true }
+egui = { version = "0.33.0", optional = true }
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.0"
 
 [[bin]]
 name = "apicentric"
-path = "src/bin/apicentric-minimal.rs"
+path = "src/bin/apicentric.rs"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
