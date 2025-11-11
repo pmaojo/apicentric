@@ -106,7 +106,7 @@ async fn validate_runs() {
 async fn import_runs() {
     let (ctx, exec) = build();
     simulator_command(
-        &SimulatorAction::ImportOpenapi {
+        &SimulatorAction::Import {
             input: "api.yaml".into(),
             output: "out.yaml".into(),
         },
@@ -121,7 +121,7 @@ async fn import_runs() {
 async fn export_runs() {
     let (ctx, exec) = build();
     simulator_command(
-        &SimulatorAction::ExportOpenapi {
+        &SimulatorAction::Export {
             input: "service.yaml".into(),
             output: "openapi.yaml".into(),
             format: ExportFormat::Openapi,

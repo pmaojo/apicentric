@@ -8,11 +8,11 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame,
 };
 
-use super::tui_state::{ServiceListState, TuiAppState, FocusedPanel};
+use super::tui_state::{ServiceListState, TuiAppState};
 
 /// Render the service list panel
 pub fn render_service_list(f: &mut Frame, area: Rect, state: &ServiceListState, is_focused: bool) {
@@ -181,7 +181,7 @@ pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState, is_focuse
 /// Render the filter dialog
 pub fn render_filter_dialog(f: &mut Frame, state: &TuiAppState) {
     use ratatui::{
-        layout::{Alignment, Constraint, Direction, Layout},
+        layout::Alignment,
         widgets::{Clear},
     };
 
@@ -240,7 +240,7 @@ pub fn render_filter_dialog(f: &mut Frame, state: &TuiAppState) {
 /// Render the search dialog
 pub fn render_search_dialog(f: &mut Frame, state: &TuiAppState) {
     use ratatui::{
-        layout::{Alignment, Constraint, Direction, Layout},
+        layout::Alignment,
         widgets::{Clear},
     };
 
@@ -290,7 +290,7 @@ pub fn render_search_dialog(f: &mut Frame, state: &TuiAppState) {
 /// Render the help dialog
 pub fn render_help_dialog(f: &mut Frame) {
     use ratatui::{
-        layout::{Alignment, Constraint, Direction, Layout},
+        layout::Alignment,
         widgets::{Clear},
     };
 
