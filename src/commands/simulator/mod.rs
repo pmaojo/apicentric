@@ -213,7 +213,7 @@ pub enum SimulatorAction {
     Dockerize {
         /// Path to service YAML definition
         #[arg(short, long)]
-        input: String,
+        services: Vec<String>,
         /// Output directory for Docker assets
         #[arg(short, long)]
         output: String,
@@ -309,8 +309,8 @@ pub async fn simulator_command(
             port,
             token,
         } => service::handle_connect(peer, service, *port, token.as_deref(), exec_ctx).await,
-        SimulatorAction::Dockerize { input, output } => {
-            dockerize::handle_dockerize(input, output, exec_ctx).await
+        SimulatorAction::Dockerize { services, output } => {
+            dockerize::handle_dockerize(services, output, exec_ctx).await
         }
     }
 }
