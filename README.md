@@ -2,10 +2,6 @@
 
 > A powerful CLI tool and API simulator platform for developers who love the terminal
 
-[![CI](https://github.com/pmaojo/apicentric/workflows/CI/badge.svg)](https://github.com/pmaojo/apicentric/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Crates.io](https://img.shields.io/crates/v/apicentric.svg)](https://crates.io/crates/apicentric)
-
 ## What is Apicentric?
 
 Apicentric is a **Rust-based CLI tool and API simulator platform** that helps developers:
