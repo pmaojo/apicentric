@@ -6,6 +6,7 @@
 
 mod state;
 mod render;
+mod style;
 
 use apicentric::{ApicentricError, ApicentricResult};
 use eframe::egui;
@@ -93,7 +94,8 @@ struct ApicentricGuiApp {
 }
 
 impl ApicentricGuiApp {
-    fn new(_cc: &eframe::CreationContext<'_>, manager: Arc<ApiSimulatorManager>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>, manager: Arc<ApiSimulatorManager>) -> Self {
+        cc.egui_ctx.set_style(style::apicentric_style());
         let (status_tx, status_rx) = mpsc::channel(1);
         let log_receiver = manager.subscribe_logs();
 
