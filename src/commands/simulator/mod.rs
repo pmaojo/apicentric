@@ -1,5 +1,11 @@
 use apicentric::{ApicentricResult, Context, ExecutionContext};
-use clap::Subcommand;
+use clap::{Subcommand, ValueEnum};
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum ExportFormat {
+    Openapi,
+    Postman,
+}
 
 mod control;
 mod dockerize;
@@ -83,57 +89,30 @@ pub enum SimulatorAction {
         /// Scenario name to activate
         scenario: String,
     },
-    /// Import a service from an OpenAPI spec file
-    #[command(name = "import-openapi")]
-    ImportOpenapi {
-        /// Path to OpenAPI (Swagger) spec
+    /// Import a service from a file (OpenAPI, Mockoon, Postman, etc.)
+    Import {
+        /// Path to the input file to import
         #[arg(short, long)]
         input: String,
-        /// Output path for service YAML definition
+        /// Output path for the generated service YAML definition
         #[arg(short, long)]
         output: String,
     },
-    /// Import a service from a Mockoon export
-    ImportMockoon {
-        /// Path to Mockoon JSON export
+    /// Export a service definition to a specified format
+    Export {
+        /// Path to the service YAML definition
         #[arg(short, long)]
         input: String,
-        /// Output path for service YAML definition
+        /// Output path for the exported file
         #[arg(short, long)]
         output: String,
+        /// The format to export to
+        #[arg(short, long, value_enum)]
+        format: ExportFormat,
     },
-    /// Import a service from WireMock stub mappings
-    #[command(name = "import-wiremock")]
-    ImportWiremock {
-        /// Path to WireMock stub mapping JSON
-        #[arg(short, long)]
-        input: String,
-        /// Output path for service YAML definition
-        #[arg(short, long)]
-        output: String,
-    },
-    /// Import a service from a Postman or Insomnia collection
-    #[command(name = "import-postman")]
-    ImportPostman {
-        /// Path to Postman/Insomnia JSON export
-        #[arg(short, long)]
-        input: String,
-        /// Output path for service YAML definition
-        #[arg(short, long)]
-        output: String,
-    },
-    /// Export a service definition to an OpenAPI spec file
-    #[command(name = "export-openapi")]
-    ExportOpenapi {
-        /// Path to service YAML definition
-        #[arg(short, long)]
-        input: String,
-        /// Output path for OpenAPI spec
-        #[arg(short, long)]
-        output: String,
-    },
-    /// Export TypeScript types for a service
-    ExportTypes {
+    /// Generate TypeScript types for a service
+    #[command(name = "generate-types")]
+    GenerateTypes {
         /// Path to service YAML definition
         #[arg(short, long)]
         input: String,
@@ -141,9 +120,9 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
-    /// Export React Query hooks for a service
-    #[command(name = "export-query")]
-    ExportQuery {
+    /// Generate React Query hooks for a service
+    #[command(name = "generate-query")]
+    GenerateQuery {
         /// Path to service YAML definition
         #[arg(short, long)]
         input: String,
@@ -151,23 +130,13 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
-    /// Export a default React view component for a service
-    #[command(name = "export-view")]
-    ExportView {
+    /// Generate a default React view component for a service
+    #[command(name = "generate-view")]
+    GenerateView {
         /// Path to service YAML definition
         #[arg(short, long)]
         input: String,
         /// Output path for generated TSX view
-        #[arg(short, long)]
-        output: String,
-    },
-    /// Export a service definition to a Postman collection
-    #[command(name = "export-postman")]
-    ExportPostman {
-        /// Path to service YAML definition
-        #[arg(short, long)]
-        input: String,
-        /// Output path for Postman collection JSON
         #[arg(short, long)]
         output: String,
     },
@@ -177,18 +146,14 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value = "services")]
         output: String,
     },
-    /// Create a new GraphQL service definition interactively
+    /// Create a new GraphQL service definition
     #[command(name = "new-graphql")]
     NewGraphql {
-        /// Output directory for the service YAML and GraphQL files
+        /// The name of the new GraphQL service
+        name: String,
+        /// Directory to output the new service files
         #[arg(short, long, default_value = "services")]
         output: String,
-        /// The name of the service to create (skips interactive prompt)
-        #[arg(long)]
-        name: Option<String>,
-        /// The port for the service (skips interactive prompt)
-        #[arg(long)]
-        port: Option<u16>,
     },
     /// Edit an existing service definition (add endpoint)
     Edit {
@@ -283,35 +248,25 @@ pub async fn simulator_command(
         SimulatorAction::SetScenario { scenario } => {
             control::handle_set_scenario(context, scenario, exec_ctx).await
         }
-        SimulatorAction::ImportOpenapi { input, output } => {
+        SimulatorAction::Import { input, output } => {
             import::handle_import(input, output, exec_ctx).await
         }
-        SimulatorAction::ImportMockoon { input, output } => {
-            import::handle_import_mockoon(input, output, exec_ctx).await
+        SimulatorAction::Export { input, output, format } => {
+            export::handle_export(input, output, format, exec_ctx).await
         }
-        SimulatorAction::ImportWiremock { input, output } => {
-            import::handle_import_wiremock(input, output, exec_ctx).await
-        }
-        SimulatorAction::ImportPostman { input, output } => {
-            import::handle_import_postman(input, output, exec_ctx).await
-        }
-        SimulatorAction::ExportOpenapi { input, output } => {
-            export::handle_export(input, output, exec_ctx).await
-        }
-        SimulatorAction::ExportTypes { input, output } => {
+        SimulatorAction::GenerateTypes { input, output } => {
             export::handle_export_types(input, output, exec_ctx).await
         }
-        SimulatorAction::ExportQuery { input, output } => {
+        SimulatorAction::GenerateQuery { input, output } => {
             export::handle_export_query(input, output, exec_ctx).await
         }
-        SimulatorAction::ExportView { input, output } => {
+        SimulatorAction::GenerateView { input, output } => {
             export::handle_export_view(input, output, exec_ctx).await
         }
-        SimulatorAction::ExportPostman { input, output } => {
-            export::handle_export_postman(input, output, exec_ctx).await
-        }
         SimulatorAction::New { output } => service::handle_new(output, exec_ctx).await,
-        SimulatorAction::NewGraphql { output, name, port } => service::handle_new_graphql(output, name, port, exec_ctx).await,
+        SimulatorAction::NewGraphql { name, output } => {
+            service::handle_new_graphql(name, output, exec_ctx).await
+        }
         SimulatorAction::Edit { input } => service::handle_edit(input, exec_ctx).await,
         SimulatorAction::Record { output, url } => {
             service::handle_record(context, output, url, exec_ctx).await

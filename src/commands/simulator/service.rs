@@ -1,6 +1,6 @@
 // Disabled heavy P2P dependencies for lighter CLI build  
 // use crate::collab::share;
-use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_definition, scaffold_graphql_service_definition};
+use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_definition};
 // use libp2p::PeerId;
 use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
 
@@ -145,61 +145,51 @@ pub async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> Apicentric
 }
 
 pub async fn handle_new_graphql(
+    name: &str,
     output: &str,
-    name: &Option<String>,
-    port: &Option<u16>,
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
-        println!("🏃 Dry run: Would scaffold new GraphQL service in {}", output);
+        println!("🏃 Dry run: Would create new GraphQL service '{}' in {}", name, output);
         return Ok(());
     }
 
-    let mut service = if let (Some(name), Some(port)) = (name, port) {
-        apicentric::simulator::config::ServiceDefinition {
-            name: name.clone(),
-            version: Some("1.0.0".to_string()),
-            description: Some("A GraphQL service".to_string()),
-            server: apicentric::simulator::config::ServerConfig {
-                port: Some(*port),
-                base_path: "/".to_string(),
-                proxy_base_url: None,
-                cors: None,
-                record_unknown: false,
-            },
-            models: None,
-            fixtures: None,
-            bucket: None,
-            endpoints: Vec::new(),
-            graphql: None,
-            behavior: None,
-        }
-    } else {
-        scaffold_graphql_service_definition()?
+    let service_name = name.to_string();
+    let mut service = apicentric::simulator::config::ServiceDefinition {
+        name: service_name.clone(),
+        version: Some("1.0.0".to_string()),
+        description: Some("A GraphQL service".to_string()),
+        server: apicentric::simulator::config::ServerConfig {
+            port: Some(9001),
+            base_path: "/".to_string(),
+            proxy_base_url: None,
+            cors: None,
+            record_unknown: false,
+        },
+        models: None,
+        fixtures: None,
+        bucket: None,
+        endpoints: Vec::new(),
+        graphql: None,
+        behavior: None,
     };
-    let service_name = service.name.clone();
 
-    // Define GraphQL specific files
     let gql_schema_filename = format!("{}.gql", service_name);
     let example_query_name = "helloQuery".to_string();
     let example_query_filename = format!("{}.json", example_query_name);
 
-    // Create GraphQL config for the YAML file
-    let graphql_config = apicentric::simulator::config::GraphQLConfig {
+    service.graphql = Some(apicentric::simulator::config::GraphQLConfig {
         schema_path: gql_schema_filename.clone(),
         mocks: std::collections::HashMap::from([(
             example_query_name.clone(),
             example_query_filename.clone(),
         )]),
-    };
-    service.graphql = Some(graphql_config);
+    });
 
-    // Create output directory
     std::fs::create_dir_all(output).map_err(|e| {
         ApicentricError::fs_error(format!("Failed to create directory {}: {}", output, e), None::<String>)
     })?;
 
-    // Write main service YAML file
     let yaml_path = std::path::Path::new(output).join(format!("{}.yaml", service_name));
     if yaml_path.exists() {
         return Err(ApicentricError::fs_error(
@@ -207,28 +197,19 @@ pub async fn handle_new_graphql(
             Some("Choose a different service name"),
         ));
     }
-    let yaml = serde_yaml::to_string(&service).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to serialize service: {}", e), None::<String>)
-    })?;
-    std::fs::write(&yaml_path, yaml).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to write service file: {}", e), None::<String>)
-    })?;
+
+    let yaml = serde_yaml::to_string(&service).map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
+    std::fs::write(&yaml_path, yaml)?;
     println!("✅ Created GraphQL service definition at {}", yaml_path.display());
 
-    // Write .gql schema file
     let schema_path = std::path::Path::new(output).join(gql_schema_filename);
     let schema_content = "type Query {\n  hello: String\n}";
-    std::fs::write(&schema_path, schema_content).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to write schema file: {}", e), None::<String>)
-    })?;
+    std::fs::write(&schema_path, schema_content)?;
     println!("✅ Created GraphQL schema at {}", schema_path.display());
 
-    // Write example mock response file
     let mock_path = std::path::Path::new(output).join(example_query_filename);
     let mock_content = "{\n  \"data\": {\n    \"hello\": \"world\"\n  }\n}";
-    std::fs::write(&mock_path, mock_content).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to write mock file: {}", e), None::<String>)
-    })?;
+    std::fs::write(&mock_path, mock_content)?;
     println!("✅ Created example mock response at {}", mock_path.display());
 
     Ok(())
