@@ -1,5 +1,5 @@
 use apicentric::{ExecutionContext, ApicentricError, ApicentricResult};
-use openapi::to_yaml;
+use openapi::to_json;
 
 pub async fn handle_export(
     input: &str,
@@ -21,13 +21,13 @@ pub async fn handle_export(
             ApicentricError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;
     let spec = apicentric::simulator::openapi::to_openapi(&service);
-    let spec_yaml = to_yaml(&spec).map_err(|e| {
+    let spec_json = to_json(&spec).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to serialize OpenAPI: {}", e),
             None::<String>,
         )
     })?;
-    std::fs::write(output, spec_yaml).map_err(|e| {
+    std::fs::write(output, spec_json).map_err(|e| {
         ApicentricError::runtime_error(format!("Failed to write spec file: {}", e), None::<String>)
     })?;
     println!("✅ Exported OpenAPI to {}", output);

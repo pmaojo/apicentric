@@ -84,7 +84,8 @@ pub enum SimulatorAction {
         scenario: String,
     },
     /// Import a service from an OpenAPI spec file
-    Import {
+    #[command(name = "import-openapi")]
+    ImportOpenapi {
         /// Path to OpenAPI (Swagger) spec
         #[arg(short, long)]
         input: String,
@@ -122,7 +123,8 @@ pub enum SimulatorAction {
         output: String,
     },
     /// Export a service definition to an OpenAPI spec file
-    Export {
+    #[command(name = "export-openapi")]
+    ExportOpenapi {
         /// Path to service YAML definition
         #[arg(short, long)]
         input: String,
@@ -268,7 +270,7 @@ pub async fn simulator_command(
         SimulatorAction::SetScenario { scenario } => {
             control::handle_set_scenario(context, scenario, exec_ctx).await
         }
-        SimulatorAction::Import { input, output } => {
+        SimulatorAction::ImportOpenapi { input, output } => {
             import::handle_import(input, output, exec_ctx).await
         }
         SimulatorAction::ImportMockoon { input, output } => {
@@ -280,7 +282,7 @@ pub async fn simulator_command(
         SimulatorAction::ImportPostman { input, output } => {
             import::handle_import_postman(input, output, exec_ctx).await
         }
-        SimulatorAction::Export { input, output } => {
+        SimulatorAction::ExportOpenapi { input, output } => {
             export::handle_export(input, output, exec_ctx).await
         }
         SimulatorAction::ExportTypes { input, output } => {
