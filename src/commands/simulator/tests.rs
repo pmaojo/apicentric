@@ -91,7 +91,7 @@ async fn validate_runs() {
 async fn import_runs() {
     let (ctx, exec) = build();
     simulator_command(
-        &SimulatorAction::Import {
+        &SimulatorAction::ImportOpenapi {
             input: "api.yaml".into(),
             output: "out.yaml".into(),
         },
@@ -121,7 +121,7 @@ async fn import_wiremock_runs() {
 async fn export_runs() {
     let (ctx, exec) = build();
     simulator_command(
-        &SimulatorAction::Export {
+        &SimulatorAction::ExportOpenapi {
             input: "service.yaml".into(),
             output: "openapi.yaml".into(),
         },
