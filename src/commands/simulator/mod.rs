@@ -177,6 +177,19 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value = "services")]
         output: String,
     },
+    /// Create a new GraphQL service definition interactively
+    #[command(name = "new-graphql")]
+    NewGraphql {
+        /// Output directory for the service YAML and GraphQL files
+        #[arg(short, long, default_value = "services")]
+        output: String,
+        /// The name of the service to create (skips interactive prompt)
+        #[arg(long)]
+        name: Option<String>,
+        /// The port for the service (skips interactive prompt)
+        #[arg(long)]
+        port: Option<u16>,
+    },
     /// Edit an existing service definition (add endpoint)
     Edit {
         /// Path to service YAML definition
@@ -298,6 +311,7 @@ pub async fn simulator_command(
             export::handle_export_postman(input, output, exec_ctx).await
         }
         SimulatorAction::New { output } => service::handle_new(output, exec_ctx).await,
+        SimulatorAction::NewGraphql { output, name, port } => service::handle_new_graphql(output, name, port, exec_ctx).await,
         SimulatorAction::Edit { input } => service::handle_edit(input, exec_ctx).await,
         SimulatorAction::Record { output, url } => {
             service::handle_record(context, output, url, exec_ctx).await
