@@ -197,6 +197,16 @@ pub enum SimulatorAction {
         #[arg(long)]
         token: Option<String>,
     },
+
+    /// Creates a Docker image for a service.
+    Dockerize {
+        /// The path to the service definition YAML file(s).
+        #[arg(short, long, required = true)]
+        services: Vec<String>,
+        /// The output directory for the Dockerfile and service files.
+        #[arg(short, long, default_value = ".")]
+        output: String,
+    },
 }
 
 /// The actions available for the AI.

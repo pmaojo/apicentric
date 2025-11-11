@@ -1,4 +1,6 @@
 # Apicentric Cloud ☁️
+[No implementado]
+Plan: 
 
 ## Visión General
 

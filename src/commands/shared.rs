@@ -156,6 +156,60 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
     })
 }
 
+/// Prompt the user to create a new GraphQL [`ServiceDefinition`]
+pub fn scaffold_graphql_service_definition() -> ApicentricResult<ServiceDefinition> {
+    let name = Text::new("Service name:")
+        .prompt()
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
+
+    let description = Text::new("Description (optional):")
+        .prompt_skippable()
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
+
+    let base_path = Text::new("Base path:")
+        .with_default("/")
+        .prompt()
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
+
+    let port_str = Text::new("Port:")
+        .with_default("9001")
+        .prompt()
+        .map_err(|e| ApicentricError::runtime_error(
+            e.to_string(),
+            Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
+        ))?;
+    let port: u16 = port_str.parse().unwrap_or(9001);
+
+    Ok(ServiceDefinition {
+        name,
+        version: None,
+        description: description.filter(|s| !s.is_empty()),
+        server: ServerConfig {
+            port: Some(port),
+            base_path,
+            proxy_base_url: None,
+            cors: None,
+            record_unknown: false,
+        },
+        models: None,
+        fixtures: None,
+        bucket: None,
+        endpoints: Vec::new(),
+        graphql: None,
+        behavior: None,
+    })
+}
+
+
 /// Prompt the user to create a new [`EndpointDefinition`]
 pub fn scaffold_endpoint_definition() -> ApicentricResult<EndpointDefinition> {
     let methods = vec!["GET", "POST", "PUT", "DELETE"];

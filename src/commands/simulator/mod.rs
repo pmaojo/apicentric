@@ -84,7 +84,8 @@ pub enum SimulatorAction {
         scenario: String,
     },
     /// Import a service from an OpenAPI spec file
-    Import {
+    #[command(name = "import-openapi")]
+    ImportOpenapi {
         /// Path to OpenAPI (Swagger) spec
         #[arg(short, long)]
         input: String,
@@ -122,7 +123,8 @@ pub enum SimulatorAction {
         output: String,
     },
     /// Export a service definition to an OpenAPI spec file
-    Export {
+    #[command(name = "export-openapi")]
+    ExportOpenapi {
         /// Path to service YAML definition
         #[arg(short, long)]
         input: String,
@@ -175,6 +177,19 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value = "services")]
         output: String,
     },
+    /// Create a new GraphQL service definition interactively
+    #[command(name = "new-graphql")]
+    NewGraphql {
+        /// Output directory for the service YAML and GraphQL files
+        #[arg(short, long, default_value = "services")]
+        output: String,
+        /// The name of the service to create (skips interactive prompt)
+        #[arg(long)]
+        name: Option<String>,
+        /// The port for the service (skips interactive prompt)
+        #[arg(long)]
+        port: Option<u16>,
+    },
     /// Edit an existing service definition (add endpoint)
     Edit {
         /// Path to service YAML definition
@@ -213,7 +228,7 @@ pub enum SimulatorAction {
     Dockerize {
         /// Path to service YAML definition
         #[arg(short, long)]
-        input: String,
+        services: Vec<String>,
         /// Output directory for Docker assets
         #[arg(short, long)]
         output: String,
@@ -268,7 +283,7 @@ pub async fn simulator_command(
         SimulatorAction::SetScenario { scenario } => {
             control::handle_set_scenario(context, scenario, exec_ctx).await
         }
-        SimulatorAction::Import { input, output } => {
+        SimulatorAction::ImportOpenapi { input, output } => {
             import::handle_import(input, output, exec_ctx).await
         }
         SimulatorAction::ImportMockoon { input, output } => {
@@ -280,7 +295,7 @@ pub async fn simulator_command(
         SimulatorAction::ImportPostman { input, output } => {
             import::handle_import_postman(input, output, exec_ctx).await
         }
-        SimulatorAction::Export { input, output } => {
+        SimulatorAction::ExportOpenapi { input, output } => {
             export::handle_export(input, output, exec_ctx).await
         }
         SimulatorAction::ExportTypes { input, output } => {
@@ -296,6 +311,7 @@ pub async fn simulator_command(
             export::handle_export_postman(input, output, exec_ctx).await
         }
         SimulatorAction::New { output } => service::handle_new(output, exec_ctx).await,
+        SimulatorAction::NewGraphql { output, name, port } => service::handle_new_graphql(output, name, port, exec_ctx).await,
         SimulatorAction::Edit { input } => service::handle_edit(input, exec_ctx).await,
         SimulatorAction::Record { output, url } => {
             service::handle_record(context, output, url, exec_ctx).await
@@ -309,8 +325,8 @@ pub async fn simulator_command(
             port,
             token,
         } => service::handle_connect(peer, service, *port, token.as_deref(), exec_ctx).await,
-        SimulatorAction::Dockerize { input, output } => {
-            dockerize::handle_dockerize(input, output, exec_ctx).await
+        SimulatorAction::Dockerize { services, output } => {
+            dockerize::handle_dockerize(services, output, exec_ctx).await
         }
     }
 }

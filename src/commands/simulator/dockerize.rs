@@ -15,47 +15,56 @@ struct ServerConfig {
 }
 
 pub async fn handle_dockerize(
-    input: &str,
+    inputs: &[String],
     output: &str,
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!(
-            "🏃 Dry run: Would dockerize service '{}' to '{}'",
-            input, output
+            "🏃 Dry run: Would dockerize services '{:?}' to '{}'",
+            inputs, output
         );
         return Ok(());
     }
 
-    println!("🐳 Dockerizing service '{}' to '{}'", input, output);
+    println!("🐳 Dockerizing services '{:?}' to '{}'", inputs, output);
 
     let output_path = Path::new(output);
     if !output_path.exists() {
         fs::create_dir_all(output_path)?;
     }
 
-    // Read the service definition to get the port and name
-    let service_content = fs::read_to_string(input)?;
-    let service_def: ServiceInfo = serde_yaml::from_str(&service_content).map_err(|e| {
-        apicentric::ApicentricError::validation_error(
-            format!("Failed to parse service definition '{}': {}", input, e),
-            None::<String>,
-            Some("Ensure the file is valid YAML and contains 'name' and 'server.port' fields."),
-        )
-    })?;
-    let service_port = service_def.server.port;
-    let service_name = service_def.name;
+    let mut ports = Vec::new();
+    let mut service_names = Vec::new();
 
-    let service_filename = Path::new(input)
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap();
-
-    // Create a 'services' subdirectory in the output path
     let services_dir = output_path.join("services");
     fs::create_dir_all(&services_dir)?;
-    fs::copy(input, services_dir.join(service_filename))?;
+
+    for input in inputs {
+        let service_content = fs::read_to_string(input)?;
+        let service_def: ServiceInfo = serde_yaml::from_str(&service_content).map_err(|e| {
+            apicentric::ApicentricError::validation_error(
+                format!("Failed to parse service definition '{}': {}", input, e),
+                None::<String>,
+                Some("Ensure the file is valid YAML and contains 'name' and 'server.port' fields."),
+            )
+        })?;
+        ports.push(service_def.server.port);
+        service_names.push(service_def.name.clone());
+
+        let service_filename = Path::new(input)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        fs::copy(input, services_dir.join(service_filename))?;
+    }
+
+    let expose_ports = ports
+        .iter()
+        .map(|p| format!("EXPOSE {}", p))
+        .collect::<Vec<String>>()
+        .join("\n");
 
     let dockerfile_content = format!(
         r#"
@@ -77,13 +86,13 @@ COPY --from=builder /usr/local/cargo/bin/apicentric /usr/local/bin/apicentric
 WORKDIR /app
 COPY --chown=root:root services/ ./services/
 
-# Expose the port from the service definition
-EXPOSE {}
+# Expose the ports from the service definitions
+{}
 
 # Run the apicentric simulator, pointing to the services directory
 ENTRYPOINT ["apicentric", "simulator", "start", "--services-dir", "./services"]
 "#,
-        service_port
+        expose_ports
     );
 
     fs::write(output_path.join("Dockerfile"), dockerfile_content)?;
@@ -97,11 +106,18 @@ target
 
     fs::write(output_path.join(".dockerignore"), dockerignore_content)?;
 
-    println!("✅ Dockerized service successfully to '{}'.", output);
+    println!("✅ Dockerized services successfully to '{}'.", output);
     println!("   - Dockerfile and .dockerignore created.");
-    println!("   - Service '{}' copied into 'services/' directory.", service_filename);
+    for input in inputs {
+        let service_filename = Path::new(input)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        println!("   - Service '{}' copied into 'services/' directory.", service_filename);
+    }
     println!("\nTo build the image, run:");
-    println!("   cd {} && docker build -t {}-service .", output, service_name.to_lowercase().replace(' ', "-"));
+    println!("   cd {} && docker build -t {}-service .", output, service_names.join("-").to_lowercase().replace(' ', "-"));
 
 
     Ok(())

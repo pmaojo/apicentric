@@ -52,7 +52,7 @@ Contract testing validates that mocks match real APIs.
 
 **Use when**: You need to verify API contracts
 
-### Optional Features
+### Advanced Features
 
 #### `tui`
 

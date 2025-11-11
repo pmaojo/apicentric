@@ -44,6 +44,34 @@ async fn start_runs() {
 }
 
 #[tokio::test]
+async fn dockerize_runs() {
+    let (ctx, _) = build();
+    let exec = ExecutionContext::new(ctx.config()).with_dry_run(false);
+    let temp = TempDir::new().unwrap();
+    let service_path = temp.path().join("service.yaml");
+    fs::write(
+        &service_path,
+        "name: test-service\nserver:\n  port: 8080",
+    )
+    .unwrap();
+
+    simulator_command(
+        &SimulatorAction::Dockerize {
+            services: vec![service_path.to_str().unwrap().to_string()],
+            output: temp.path().to_str().unwrap().to_string(),
+        },
+        &ctx,
+        &exec,
+    )
+    .await
+    .unwrap();
+
+    assert!(temp.path().join("Dockerfile").exists());
+    assert!(temp.path().join(".dockerignore").exists());
+    assert!(temp.path().join("services/service.yaml").exists());
+}
+
+#[tokio::test]
 async fn validate_runs() {
     let (ctx, exec) = build();
     simulator_command(

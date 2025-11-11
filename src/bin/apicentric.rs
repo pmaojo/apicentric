@@ -138,6 +138,9 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
             },
     } = &cli.command
     {
+        if cfg.simulator.is_none() {
+            cfg.simulator = Some(apicentric::SimulatorConfig::default());
+        }
         if let Some(ref mut sim_config) = cfg.simulator {
             sim_config.services_dir = std::path::PathBuf::from(services_dir);
         }
