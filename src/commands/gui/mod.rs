@@ -6,85 +6,127 @@
 
 mod state;
 mod render;
+mod events;
+mod ai;
 
 use apicentric::{ApicentricError, ApicentricResult};
 use eframe::egui;
-use state::GuiAppState;
+use state::{GuiAppState, RequestLogEntry, LogFilter};
 use apicentric::simulator::{manager::ApiSimulatorManager, config::SimulatorConfig, SimulatorStatus};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use apicentric::ai::{AiProvider, GeminiAiProvider, LocalAiProvider, OpenAiProvider};
-use apicentric::config::AiProviderKind;
+use ai::AiServiceGenerator;
 
-enum GuiMessage {
+// Re-export types for external use
+pub use state::{ServiceInfo, ServiceStatus, EndpointInfo};
+
+/// Messages for GUI event handling
+#[derive(Debug, Clone)]
+pub enum GuiMessage {
+    // AI Generation (existing)
     AiGenerate(String),
     AiApplyYaml(String),
+    AiGenerationComplete(Result<String, String>),
+    
+    // Service Management
+    StartService(String),
+    StopService(String),
+    RefreshServices,
+    ServiceStatusChanged(String, state::ServiceStatus),
+    
+    // Recording Mode
+    StartRecording(String), // target URL
+    StopRecording,
+    CaptureRequest(CapturedRequest),
+    GenerateFromRecording,
+    
+    // Editor
+    LoadServiceInEditor(String), // service name
+    SaveEditorContent,
+    EditorContentChanged(String),
+    
+    // Logs
+    NewRequestLog(RequestLogEntry),
+    ClearLogs,
+    FilterLogsBy(LogFilter),
+    
+    // Import/Export
+    ImportFile(std::path::PathBuf),
+    ExportService(String, ExportFormat), // service name, format
+    BatchImport(Vec<std::path::PathBuf>),
+    
+    // Code Generation
+    GenerateCode(String, CodeGenTarget), // service name, target
+    CopyToClipboard(String),
+    SaveGeneratedCode(std::path::PathBuf, String),
+    
+    // Configuration
+    UpdateConfig(state::GuiConfig),
+    SaveConfig,
+    LoadConfig,
 }
 
+/// Captured request data for recording mode
+#[derive(Debug, Clone)]
+pub struct CapturedRequest {
+    pub method: String,
+    pub path: String,
+    pub headers: std::collections::HashMap<String, String>,
+    pub body: Option<String>,
+    pub response_status: u16,
+    pub response_body: String,
+}
+
+
+
+/// Export format options
+#[derive(Debug, Clone)]
+pub enum ExportFormat {
+    Yaml,
+    Postman,
+    OpenApi,
+    WireMock,
+}
+
+/// Code generation target
+#[derive(Debug, Clone)]
+pub enum CodeGenTarget {
+    TypeScript,
+    ReactQuery,
+    AxiosClient,
+}
+
+/// Handle AI generation asynchronously
+///
+/// This function creates an AI generator from configuration and generates
+/// a service definition from the provided prompt. Results are sent back
+/// through the provided channel.
+///
+/// # Arguments
+///
+/// * `prompt` - The user's prompt describing the desired service
+/// * `tx` - Channel sender for returning the result
 async fn handle_ai_generate(prompt: String, tx: mpsc::Sender<ApicentricResult<String>>) {
     let result = async {
-        let cfg = apicentric::config::load_config(std::path::Path::new("apicentric.json"))?;
-        let ai_cfg = match &cfg.ai {
-            Some(cfg) => cfg,
-        None => {
-            return Err(ApicentricError::config_error(
-                "AI provider not configured",
-                Some("Add an 'ai' section to apicentric.json"),
-            ))
-        }
-    };
+        // Create generator from configuration
+        let generator = AiServiceGenerator::from_config(
+            std::path::Path::new("apicentric.json")
+        )?;
 
-    let provider: Box<dyn AiProvider> = match ai_cfg.provider {
-        AiProviderKind::Local => {
-            let path = ai_cfg
-                .model_path
-                .clone()
-                .unwrap_or_else(|| "model.bin".to_string());
-            Box::new(LocalAiProvider::new(path))
-        }
-        AiProviderKind::Openai => {
-            let key = ai_cfg.api_key.clone().ok_or_else(|| {
-                ApicentricError::config_error(
-                    "OpenAI API key missing",
-                    Some("Set ai.api_key in apicentric.json"),
-                )
-            })?;
-            let model = ai_cfg
-                .model
-                .clone()
-                .unwrap_or_else(|| "gpt-3.5-turbo".to_string());
-            Box::new(OpenAiProvider::new(key, model))
-        }
-        AiProviderKind::Gemini => {
-            let key = std::env::var("GEMINI_API_KEY")
-                .ok()
-                .or_else(|| ai_cfg.api_key.clone())
-                .ok_or_else(|| {
-                    ApicentricError::config_error(
-                        "Gemini API key missing",
-                        Some(
-                            "Set GEMINI_API_KEY environment variable or ai.api_key in apicentric.json",
-                        ),
-                    )
-                })?;
-            let model = ai_cfg
-                .model
-                .clone()
-                .unwrap_or_else(|| "gemini-2.0-flash-exp".to_string());
-            Box::new(GeminiAiProvider::new(key, model))
-        }
-    };
-
-    provider.generate_yaml(&prompt).await
+        // Generate service definition
+        generator.generate_from_prompt(&prompt).await
     }
     .await;
+    
+    // Send result back through channel
     tx.send(result).await.ok();
 }
 
 struct ApicentricGuiApp {
     state: GuiAppState,
     manager: Arc<ApiSimulatorManager>,
+    event_handler: events::EventHandler,
     status_receiver: mpsc::Receiver<SimulatorStatus>,
     message_sender: mpsc::Sender<GuiMessage>,
     message_receiver: mpsc::Receiver<GuiMessage>,
@@ -111,9 +153,12 @@ impl ApicentricGuiApp {
         let (message_sender, message_receiver) = mpsc::channel(1);
         let (ai_result_sender, ai_result_receiver) = mpsc::channel(1);
 
+        let event_handler = events::EventHandler::new(Arc::clone(&manager));
+
         Self {
             state: GuiAppState::new(log_receiver),
             manager,
+            event_handler,
             status_receiver: status_rx,
             message_sender,
             message_receiver,
@@ -126,48 +171,91 @@ impl ApicentricGuiApp {
 impl eframe::App for ApicentricGuiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if let Ok(status) = self.status_receiver.try_recv() {
-            self.state.services = status.active_services.into_iter().map(|s| s.name).collect();
+            // Update services with enhanced ServiceInfo structure
+            self.state.services.clear();
+            for active_service in status.active_services {
+                let service_info = state::ServiceInfo {
+                    name: active_service.name.clone(),
+                    path: std::path::PathBuf::from(format!("services/{}.yaml", active_service.name)),
+                    status: state::ServiceStatus::Running,
+                    port: active_service.port,
+                    endpoints: vec![], // TODO: Extract from service definition
+                };
+                self.state.add_service(service_info);
+            }
         }
 
         while let Ok(message) = self.message_receiver.try_recv() {
+            // Handle AI generation specially since it needs async spawn
+            if let GuiMessage::AiGenerate(prompt) = &message {
+                self.state.start_ai_generation();
+                let tx = self.ai_result_sender.clone();
+                let prompt = prompt.clone();
+                tokio::spawn(async move {
+                    handle_ai_generate(prompt, tx).await;
+                });
+                continue;
+            }
+
+            // Handle other messages using EventHandler
+            // Note: This is a simplified synchronous handling for now
+            // In a production implementation, we'd use a proper async runtime integration
             match message {
-                GuiMessage::AiGenerate(prompt) => {
-                    let tx = self.ai_result_sender.clone();
-                    tokio::spawn(async move {
-                        handle_ai_generate(prompt, tx).await;
-                    });
+                GuiMessage::ClearLogs => {
+                    self.state.clear_logs();
                 }
-                GuiMessage::AiApplyYaml(yaml) => {
-                    let manager = self.manager.clone();
-                    tokio::spawn(async move {
-                        if let Err(e) = manager.apply_service_yaml(&yaml).await {
-                            // Log the error
-                        }
-                    });
+                GuiMessage::EditorContentChanged(content) => {
+                    self.state.editor_state.content = content;
+                    self.state.mark_editor_dirty();
+                }
+                GuiMessage::AiGenerationComplete(result) => {
+                    match result {
+                        Ok(yaml) => self.state.complete_ai_generation(yaml),
+                        Err(e) => self.state.fail_ai_generation(e),
+                    }
+                }
+                GuiMessage::UpdateConfig(config) => {
+                    self.state.config = config;
+                }
+                GuiMessage::ServiceStatusChanged(name, status) => {
+                    self.state.update_service_status(&name, status);
+                }
+                // For messages that need async operations, we'll handle them via EventHandler
+                // in future iterations when we have proper async integration
+                _ => {
+                    // Log that message was received but not yet fully handled
+                    self.state.add_log(format!("Received message: {:?}", message));
                 }
             }
         }
 
         if let Ok(result) = self.ai_result_receiver.try_recv() {
             match result {
-                Ok(yaml) => self.state.ai_generated_yaml = Some(yaml),
-                Err(e) => self.state.logs.push(format!("AI Error: {}", e)),
+                Ok(yaml) => self.state.complete_ai_generation(yaml),
+                Err(e) => {
+                    self.state.fail_ai_generation(format!("AI Error: {}", e));
+                    self.state.add_log(format!("AI Error: {}", e));
+                }
             }
         }
 
-        // Update logs from the manager
-        while let Ok(log_entry) = self.state.log_receiver.try_recv() {
-            self.state.logs.push(format!("[{}] {} {} {} - {}ms",
-                log_entry.timestamp.format("%H:%M:%S"),
-                log_entry.method,
-                log_entry.path,
-                log_entry.status,
-                0 // TODO: Add response time tracking
-            ));
-            // Keep only the last 1000 log entries to prevent memory issues
-            if self.state.logs.len() > 1000 {
-                self.state.logs.remove(0);
-            }
+        // Update logs from the manager - convert simulator logs to GUI logs
+        while let Ok(sim_log) = self.state.log_receiver.try_recv() {
+            // Convert simulator log to GUI log entry
+            let gui_log = RequestLogEntry::from_simulator_log(&sim_log);
+            
+            // Add to structured request logs
+            self.state.add_request_log(gui_log.clone());
+            
+            // Also add to string logs for backward compatibility
+            let log = format!("[{}] {} {} {} - {}ms",
+                sim_log.timestamp.format("%H:%M:%S"),
+                sim_log.method,
+                sim_log.path,
+                sim_log.status,
+                0 // Simulator doesn't track duration yet
+            );
+            self.state.add_log(log);
         }
 
         ctx.request_repaint_after(Duration::from_millis(500));

@@ -26,7 +26,18 @@ pub fn render(
         ui.heading("Services");
         ScrollArea::vertical().show(ui, |ui| {
             for service in &state.services {
-                ui.label(service);
+                ui.horizontal(|ui| {
+                    // Status indicator
+                    let (color, icon) = match &service.status {
+                        super::state::ServiceStatus::Running => (egui::Color32::GREEN, "🟢"),
+                        super::state::ServiceStatus::Stopped => (egui::Color32::GRAY, "⚪"),
+                        super::state::ServiceStatus::Failed(_) => (egui::Color32::RED, "🔴"),
+                        super::state::ServiceStatus::Starting => (egui::Color32::YELLOW, "🟡"),
+                        super::state::ServiceStatus::Stopping => (egui::Color32::YELLOW, "🟡"),
+                    };
+                    ui.colored_label(color, icon);
+                    ui.label(&service.name);
+                });
             }
         });
     });
