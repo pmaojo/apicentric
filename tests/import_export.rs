@@ -50,3 +50,44 @@ fn test_openapi_round_trip() {
     fs::remove_file(service_path).unwrap();
     fs::remove_file(output_path).unwrap();
 }
+
+#[test]
+fn test_new_graphql_command() {
+    let service_name = "test-graphql-service";
+    let output_dir = "tests/fixtures";
+    let service_yaml_path = format!("{}/{}.yaml", output_dir, service_name);
+    let service_gql_path = format!("{}/{}.gql", output_dir, service_name);
+    let service_mock_path = format!("{}/helloQuery.json", output_dir);
+
+    // Execute the command non-interactively
+    let mut cmd = Command::cargo_bin("apicentric").unwrap();
+    cmd.arg("simulator")
+        .arg("new-graphql")
+        .arg("--output")
+        .arg(output_dir)
+        .arg("--name")
+        .arg(service_name)
+        .arg("--port")
+        .arg("8081")
+        .assert()
+        .success();
+
+    // Verify that all three files were created
+    assert!(fs::metadata(&service_yaml_path).is_ok(), "Service YAML file was not created.");
+    assert!(fs::metadata(&service_gql_path).is_ok(), "Service GQL file was not created.");
+    assert!(fs::metadata(&service_mock_path).is_ok(), "Service mock file was not created.");
+
+    // Verify the content of the YAML file
+    let yaml_content = fs::read_to_string(&service_yaml_path).unwrap();
+    let yaml: serde_yaml::Value = serde_yaml::from_str(&yaml_content).unwrap();
+
+    assert_eq!(yaml["name"], service_name);
+    assert!(yaml["graphql"].is_mapping());
+    assert_eq!(yaml["graphql"]["schema_path"], format!("{}.gql", service_name));
+    assert!(yaml["graphql"]["mocks"]["helloQuery"].is_string());
+
+    // Clean up generated files
+    fs::remove_file(&service_yaml_path).unwrap();
+    fs::remove_file(&service_gql_path).unwrap();
+    fs::remove_file(&service_mock_path).unwrap();
+}
