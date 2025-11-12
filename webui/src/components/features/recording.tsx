@@ -55,10 +55,11 @@ export function Recording() {
   const [isSaving, setIsSaving] = React.useState(false);
   const { toast } = useToast();
 
-  // WebSocket connection for real-time captured requests
-  const { isConnected } = useWebSocket({
-    url: WS_URL,
-    enabled: isRecording,
+  // WebSocket connection for real-time captured requests - temporarily disabled
+  // const { isConnected } = useWebSocket({
+  //   url: WS_URL,
+  //   enabled: false, // isRecording,
+  const isConnected = false; // Temporarily disabled
     onMessage: (message: WebSocketMessage) => {
       if (message.type === 'recording_capture' && message.data) {
         const captured = message.data;

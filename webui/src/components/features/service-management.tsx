@@ -91,9 +91,10 @@ export function ServiceManagement({
     ? (window as any).NEXT_PUBLIC_WS_URL
     : 'ws://localhost:8080/ws';
   
-  useWebSocket({
-    url: WS_URL,
-    enabled: true,
+  // WebSocket temporarily disabled due to connection issues
+  // useWebSocket({
+  //   url: WS_URL,
+  //   enabled: false,
     onMessage: (message) => {
       if (message.type === 'service_status' && message.data) {
         const update = message.data as ServiceStatusUpdate;

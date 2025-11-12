@@ -86,9 +86,10 @@ export function LogsViewer({ services }: LogsViewerProps) {
   // WebSocket connection for real-time log streaming
   const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
   
-  useWebSocket({
-    url: wsUrl,
-    enabled: true,
+  // WebSocket temporarily disabled due to connection issues
+  // useWebSocket({
+  //   url: wsUrl,
+  //   enabled: false,
     onMessage: (message: WebSocketMessage) => {
       if (message.type === 'request_log' && message.data) {
         setLogs((prev) => {

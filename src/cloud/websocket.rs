@@ -1,4 +1,3 @@
-//! WebSocket server for real-time updates
 //!
 //! This module provides a WebSocket server that broadcasts real-time updates
 //! to connected clients, including request logs and service status changes.
