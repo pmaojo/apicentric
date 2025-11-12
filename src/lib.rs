@@ -47,7 +47,10 @@ pub mod storage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ai;
 #[cfg(not(target_arch = "wasm32"))]
-// Cloud & auth modules removed for pure CLI focus
+pub mod cloud;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod auth;
+
 
 // Domain layer (core business logic)
 #[cfg(not(target_arch = "wasm32"))]

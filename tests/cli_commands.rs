@@ -1,4 +1,5 @@
 use apicentric::{Context, ExecutionContext, ContextBuilder};
+use apicentric::cli::SimulatorAction;
 use assert_cmd::prelude::*;
 use tempfile::TempDir;
 
@@ -8,6 +9,7 @@ fn setup_test_context() -> (Context, ExecutionContext) {
     
     // Create required directory
     std::fs::create_dir_all(temp_dir.path().join(".apicentric")).unwrap();
+    std::fs::create_dir_all(temp_dir.path().join("services")).unwrap();
     
     // Create minimal valid config JSON with all required fields
     let config_json = r#"
@@ -18,11 +20,8 @@ fn setup_test_context() -> (Context, ExecutionContext) {
         "routes_dir": "services",
         "specs_dir": "cypress/e2e",
         "reports_dir": "cypress/reports",
-        "index_cache_path": "route-index.json",
-        "default_timeout": 30000,
-        "execution": {
-            "mode": "development"
-        }
+        "index_cache_path": ".apicentric/route-index.json",
+        "default_timeout": 30000
     }
     "#;
     std::fs::write(&config_path, config_json).unwrap();
@@ -75,24 +74,8 @@ async fn context_builder_creates_simulator_when_needed() {
 
 #[tokio::test]
 async fn dry_run_mode_working() {
-    let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join("apicentric.json");
-    let config_json = r#"{
-        "cypress_config_path": "cypress.config.ts",
-        "base_url": "http://localhost:3000", 
-        "specs_pattern": "**/*.cy.ts",
-        "routes_dir": "test",
-        "specs_dir": "cypress/e2e",
-        "reports_dir": "cypress/reports",
-        "index_cache_path": "route-index.json",
-        "default_timeout": 30000
-    }"#;
-    std::fs::write(&config_path, config_json).unwrap();
-    
-    let config = apicentric::config::load_config(&config_path).unwrap();
-    let builder = ContextBuilder::new(config);
-    let context = builder.build().unwrap();
-    let exec_ctx = ExecutionContext::new(context.config()).with_dry_run(true);
+    let (ctx, _) = setup_test_context();
+    let exec_ctx = ExecutionContext::new(ctx.config()).with_dry_run(true);
     
     // In dry run mode, operations should not affect real state
     assert!(exec_ctx.dry_run);
@@ -114,7 +97,7 @@ async fn simulator_start_respects_services_dir_arg_without_simulator_config() {
         "routes_dir": "services",
         "specs_dir": "cypress/e2e",
         "reports_dir": "cypress/reports",
-        "index_cache_path": "route-index.json",
+        "index_cache_path": ".apicentric/route-index.json",
         "default_timeout": 30000,
         "execution": {
             "mode": "development"
@@ -123,8 +106,12 @@ async fn simulator_start_respects_services_dir_arg_without_simulator_config() {
     "#;
     std::fs::write(&config_path, config_json).unwrap();
 
-    let mut cmd = std::process::Command::cargo_bin("apicentric").unwrap();
-    cmd.arg("--config")
+    let mut cmd = std::process::Command::new("cargo");
+    cmd.arg("run")
+        .arg("--bin")
+        .arg("apicentric")
+        .arg("--")
+        .arg("--config")
         .arg(&config_path)
         .arg("--dry-run")
         .arg("simulator")
@@ -132,8 +119,10 @@ async fn simulator_start_respects_services_dir_arg_without_simulator_config() {
         .arg("--services-dir")
         .arg(&services_dir);
 
-    // This assertion will fail because the CLI doesn't handle the case where
-    // the --services-dir is provided but the simulator config is missing.
-    // After the fix, this should be changed to .success()
-    cmd.assert().success();
+    let output = cmd.output().unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(output.status.success(), "Command should succeed");
+    assert!(stdout.contains("Dry run: Would start API simulator"));
+    assert!(stdout.contains("services_dir"));
 }

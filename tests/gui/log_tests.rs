@@ -545,7 +545,7 @@ mod tests {
         manager.add(RequestLogEntry::new(
             "api".to_string(),
             "GET".to_string(),
-            "/".to_string(),
+            "/get".to_string(),
             200,
             10,
         ));
@@ -553,7 +553,7 @@ mod tests {
         manager.add(RequestLogEntry::new(
             "api".to_string(),
             "POST".to_string(),
-            "/data".to_string(),
+            "/post1".to_string(),
             201,
             20,
         ));
@@ -561,7 +561,7 @@ mod tests {
         manager.add(RequestLogEntry::new(
             "api".to_string(),
             "POST".to_string(),
-            "/more".to_string(),
+            "/post2".to_string(),
             201,
             25,
         ));

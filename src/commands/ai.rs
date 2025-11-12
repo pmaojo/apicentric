@@ -75,7 +75,7 @@ async fn handle_ai_generate(
             let model = ai_cfg
                 .model
                 .clone()
-                .unwrap_or_else(|| "gemini-2.0-flash-exp".to_string());
+                .unwrap_or_else(|| "gemini-pro".to_string());
             Box::new(GeminiAiProvider::new(key, model))
         }
     };

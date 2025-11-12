@@ -16,7 +16,7 @@ use tower_http::{cors::CorsLayer, services::ServeDir};
 
 use crate::simulator::ApiSimulatorManager;
 use super::handlers;
-use crate::auth::{handlers as auth_handlers, handlers::AuthState, AuthUser};
+use crate::auth::{handlers as auth_handlers, handlers::AuthState};
 use std::env;
 use crate::auth::jwt::JwtKeys;
 use crate::auth::repository::AuthRepository;
@@ -34,7 +34,7 @@ impl CloudServer {
     /// # Arguments
     ///
     /// * `simulator_manager` - The API simulator manager.
-    pub fn new(simulator_manager: ApiSimulatorManager) -> Self {
+    pub fn new(simulator_manager: Arc<ApiSimulatorManager>) -> Self {
         // Initialize auth state (temporary simple sqlite file for users)
         let db_path = env::var("APICENTRIC_AUTH_DB").unwrap_or_else(|_| "data/auth.db".to_string());
         std::fs::create_dir_all("data").ok();
@@ -44,7 +44,7 @@ impl CloudServer {
         let auth_state = AuthState { repo: Arc::new(repo), keys };
         let protect_services = env::var("APICENTRIC_PROTECT_SERVICES").map(|v| v == "true" || v == "1").unwrap_or(false);
         Self {
-            simulator_manager: Arc::new(simulator_manager),
+            simulator_manager,
             auth_state: Arc::new(auth_state),
             protect_services,
         }
@@ -70,30 +70,35 @@ impl CloudServer {
     }
 
     fn create_router(&self) -> Router {
+        let sim_router = Router::new()
+            .route("/start", post(handlers::start_simulator))
+            .route("/stop", post(handlers::stop_simulator))
+            .route("/status", get(handlers::get_status))
+            .route("/validate", post(handlers::validate_services))
+            .route("/set-scenario", post(handlers::set_scenario))
+            .route("/import", post(handlers::import_service))
+            .route("/export", post(handlers::export_service))
+            .route("/new", post(handlers::new_service))
+            .route("/new-graphql", post(handlers::new_graphql_service))
+            .route("/logs", get(handlers::get_logs))
+            .route("/dockerize", post(handlers::dockerize_service));
+
+        let ai_router = Router::new()
+            .route("/generate", post(handlers::ai_generate));
+
         let mut base = Router::new()
-            // Health check endpoint
             .route("/health", get(health_check))
-            // Auth endpoints
             .route("/api/auth/register", post(auth_handlers::register))
             .route("/api/auth/login", post(auth_handlers::login))
             .route("/api/auth/me", get(auth_handlers::me))
-            
-            // API routes
-            .route("/api/services", get(handlers::list_services))
-            .route("/api/services/load", post(handlers::load_service))
-            .route("/api/services/save", post(handlers::save_service))
-            
-            // Serve static files (the React frontend)
+            .nest("/api/simulator", sim_router)
+            .nest("/api/ai", ai_router)
             .nest_service("/", ServeDir::new("gui/dist"))
-            
-            // Middleware
             .layer(
                 ServiceBuilder::new()
-                    .layer(CorsLayer::permissive()) // For development
+                    .layer(CorsLayer::permissive())
                     .into_inner(),
             )
-            
-            // Share the simulator manager state across all handlers
             .with_state(Arc::clone(&self.simulator_manager))
             .layer(axum::Extension(Arc::clone(&self.auth_state)));
 

@@ -9,7 +9,7 @@ fn test_dockerize_command() {
     let output_dir = tempdir().unwrap();
 
     let service_def_path = input_dir.path().join("test-service.yaml");
-    fs::write(&service_def_path, "name: test-service\nserver:\n  port: 8080").unwrap();
+    fs::write(&service_def_path, "name: test-service\nserver:\n  port: 8080\n  base_path: /").unwrap();
 
     let mut cmd = Command::cargo_bin("apicentric").unwrap();
     cmd.arg("simulator")

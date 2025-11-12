@@ -7,7 +7,7 @@ use crate::config::ExecutionMode;
 use clap::{Parser, Subcommand, ValueEnum};
 
 /// The command-line interface for `apicentric`.
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(
     author,
     version,
@@ -17,7 +17,7 @@ use clap::{Parser, Subcommand, ValueEnum};
                   Examples:\n  \
                   apicentric simulator start --services-dir ./services\n  \
                   apicentric tui\n  \
-                  apicentric simulator validate --path services/my-api.yaml",
+                  apicentric contract demo --contract-id my-contract",
     after_help = "For more information, visit: https://github.com/pmaojo/apicentric"
 )]
 pub struct Cli {
@@ -46,7 +46,7 @@ pub struct Cli {
 }
 
 /// The execution mode for the CLI.
-#[derive(Clone, ValueEnum)]
+#[derive(Clone, Debug, ValueEnum)]
 pub enum CliExecutionMode {
     CI,
     Development,
@@ -63,15 +63,67 @@ impl From<CliExecutionMode> for ExecutionMode {
     }
 }
 
+/// The commands available in the `apicentric` CLI.
+#[derive(Subcommand, Debug)]
+pub enum Commands {
+    /// Manages the API simulator and mock services.
+    #[command(alias = "sim")]
+    Simulator {
+        #[command(subcommand)]
+        action: SimulatorAction,
+    },
+
+    /// Manages contract testing.
+    #[command(alias = "c")]
+    Contract {
+        #[command(subcommand)]
+        action: crate::commands::ContractAction,
+    },
+
+    /// AI-assisted service generation.
+    Ai {
+        #[command(subcommand)]
+        action: crate::commands::AiAction,
+    },
+
+    /// Manages the Apicentric REST API server.
+    Api {
+        #[command(subcommand)]
+        action: crate::commands::ApiAction,
+    },
+
+    /// Launches the graphical editor for mock services.
+    #[cfg(feature = "gui")]
+    Gui,
+
+    /// Launches the terminal dashboard.
+    #[cfg(feature = "tui")]
+    Tui,
+
+    /// Sets up NPM scripts for apicentric.
+    SetupNpm {
+        /// Force overwrite of existing scripts.
+        #[arg(long)]
+        force: bool,
+
+        /// Only show instructions, don't write to package.json.
+        #[arg(long)]
+        instructions_only: bool,
+
+        /// Test the NPM integration by running `apicentric --help`.
+        #[arg(long)]
+        test: bool,
+
+        /// Show usage examples for NPM scripts.
+        #[arg(long)]
+        examples: bool,
+    },
+}
+
 /// The actions available for the simulator.
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum SimulatorAction {
     /// Starts the API simulator.
-    ///
-    /// Starts the API simulator and loads all service definitions from the specified directory.
-    /// Services will be available on their configured ports.
-    ///
-    /// Example: apicentric simulator start --services-dir ./services
     #[command(alias = "s")]
     Start {
         /// The path to the directory containing service definition YAML files.
@@ -88,10 +140,6 @@ pub enum SimulatorAction {
     },
 
     /// Stops the API simulator.
-    ///
-    /// Stops all running services and shuts down the simulator.
-    ///
-    /// Example: apicentric simulator stop
     #[command(alias = "x")]
     Stop {
         /// Force stops all services immediately without graceful shutdown.
@@ -100,11 +148,6 @@ pub enum SimulatorAction {
     },
 
     /// Shows the simulator and services status.
-    ///
-    /// Displays the current status of the simulator and all registered services,
-    /// including port numbers, running state, and request counts.
-    ///
-    /// Example: apicentric simulator status --detailed
     #[command(alias = "st")]
     Status {
         /// Shows detailed service information including endpoints and configurations.
@@ -113,11 +156,6 @@ pub enum SimulatorAction {
     },
 
     /// Validates service definition files.
-    ///
-    /// Validates YAML service definition files for syntax errors and schema compliance.
-    /// Can validate a single file or all files in a directory.
-    ///
-    /// Example: apicentric simulator validate --path services/my-api.yaml
     #[command(alias = "v")]
     Validate {
         /// The path to the service definition YAML file or directory to validate.
@@ -145,6 +183,18 @@ pub enum SimulatorAction {
         /// The number of log entries to display.
         #[arg(short, long, default_value_t = 20)]
         limit: usize,
+        /// Filter by HTTP method
+        #[arg(long)]
+        method: Option<String>,
+        /// Filter by route substring
+        #[arg(long)]
+        route: Option<String>,
+        /// Filter by response status code
+        #[arg(long)]
+        status: Option<u16>,
+        /// Output file to write logs as JSON
+        #[arg(long)]
+        output: Option<String>,
     },
     /// Monitors the simulator status and logs.
     #[command(alias = "m")]
@@ -173,13 +223,12 @@ pub enum SimulatorAction {
         /// The service name to expose.
         service: String,
     },
-    /// Imports WireMock stub mappings into a service definition.
-    #[command(name = "import-wiremock")]
-    ImportWiremock {
-        /// The path to the WireMock mapping JSON file or directory export.
+    /// Imports a service from a file (OpenAPI, Mockoon, Postman, etc.).
+    Import {
+        /// Path to the input file to import.
         #[arg(short, long)]
         input: String,
-        /// The output path for the generated service YAML definition.
+        /// Output path for the generated service YAML definition.
         #[arg(short, long)]
         output: String,
     },
@@ -207,54 +256,6 @@ pub enum SimulatorAction {
         #[arg(short, long, default_value = ".")]
         output: String,
     },
-}
-
-/// The actions available for the AI.
-#[derive(Subcommand)]
-pub enum AiAction {
-    /// Generates YAML from a natural language prompt.
-    Generate {
-        /// The prompt to send to the AI provider.
-        prompt: String,
-    },
-}
-
-/// The commands available in the `apicentric` CLI.
-#[derive(Subcommand)]
-pub enum Commands {
-    /// Manages the API simulator and mock services.
-    ///
-    /// The simulator command provides operations for starting, stopping, and managing
-    /// mock API services defined in YAML files.
-    #[command(alias = "sim")]
-    Simulator {
-        #[command(subcommand)]
-        action: SimulatorAction,
-    },
-
-    /// AI-assisted service generation.
-    ///
-    /// Use AI to generate service definitions from natural language descriptions.
-    Ai {
-        #[command(subcommand)]
-        action: AiAction,
-    },
-
-    /// Launches the graphical editor for mock services.
-    ///
-    /// Opens a GUI application for visually editing service definitions.
-    /// Requires the GUI component to be installed.
-    ///
-    /// Example: apicentric gui
-    Gui,
-
-    /// Launches the terminal dashboard.
-    ///
-    /// Opens an interactive terminal UI for managing services, viewing logs,
-    /// and monitoring the simulator in real-time.
-    ///
-    /// Example: apicentric tui
-    Tui,
 }
 
 /// Parses the command-line arguments into a `Cli` instance.

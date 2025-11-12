@@ -3,137 +3,241 @@
 //! This module provides handlers for listing, loading, and saving services.
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::StatusCode,
     response::Json,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
+use crate::ApicentricError;
+use crate::simulator::{ApiSimulatorManager, ServiceInfo};
 
-use crate::simulator::{ApiSimulatorManager, ServiceDefinition, ServiceInfo};
-use crate::simulator::log::RequestLogEntry;
+// --- Generic API Response ---
 
 /// A generic API response.
 #[derive(Serialize)]
 pub struct ApiResponse<T> {
-    /// Whether the request was successful.
     pub success: bool,
-    /// The data returned by the request.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<T>,
-    /// An error message if the request was not successful.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
 impl<T> ApiResponse<T> {
-    /// Creates a new successful `ApiResponse`.
-    ///
-    /// # Arguments
-    ///
-    /// * `data` - The data to include in the response.
-    pub fn success(data: T) -> Self {
-        Self {
-            success: true,
-            data: Some(data),
-            error: None,
-        }
+    pub fn success(data: T) -> Json<Self> {
+        Json(Self { success: true, data: Some(data), error: None })
     }
-
-    /// Creates a new error `ApiResponse`.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    pub fn error(message: String) -> Self {
-        Self {
-            success: false,
-            data: None,
-            error: Some(message),
-        }
+    pub fn error(message: String) -> (StatusCode, Json<Self>) {
+        (StatusCode::BAD_REQUEST, Json(Self { success: false, data: None, error: Some(message) }))
+    }
+    pub fn server_error(message: String) -> (StatusCode, Json<Self>) {
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(Self { success: false, data: None, error: Some(message) }))
     }
 }
 
-/// A request to load a service.
+// --- Request/Response DTOs ---
+
 #[derive(Deserialize)]
-pub struct LoadServiceRequest {
-    /// The path to the service definition file.
-    pub path: String,
+pub struct StartRequest {
+    #[serde(rename = "servicesDir", default)]
+    pub services_dir: Option<String>,
+    #[serde(default)]
+    pub force: bool,
+    #[serde(default)]
+    pub p2p: bool,
 }
 
-/// A request to save a service.
 #[derive(Deserialize)]
-pub struct SaveServiceRequest {
-    /// The path to the service definition file.
-    pub path: String,
-    /// The YAML content of the service definition.
-    pub yaml: String,
+pub struct StopRequest {
+    #[serde(default)]
+    pub force: bool,
 }
 
-/// A query for logs.
+#[derive(Deserialize)]
+pub struct StatusQuery {
+    #[serde(default)]
+    pub detailed: bool,
+}
+
+#[derive(Deserialize)]
+pub struct ValidateRequest {
+    pub path: String,
+    #[serde(default)]
+    pub recursive: bool,
+    #[serde(default)]
+    pub verbose: bool,
+}
+
+#[derive(Deserialize)]
+pub struct SetScenarioRequest {
+    pub scenario: String,
+}
+
+#[derive(Deserialize)]
+pub struct ImportRequest {
+    pub input: String,
+    pub output: String,
+}
+
+#[derive(Deserialize)]
+pub struct ExportRequest {
+    pub input: String,
+    pub output: String,
+    pub format: String,
+}
+
+#[derive(Deserialize)]
+pub struct NewServiceRequest {
+    pub output: String,
+}
+
+#[derive(Deserialize)]
+pub struct NewGraphqlRequest {
+    pub name: String,
+    pub output: String,
+}
+
 #[derive(Deserialize)]
 pub struct LogsQuery {
-    /// The maximum number of logs to return.
-    pub limit: Option<usize>,
+    pub service: String,
+    #[serde(default = "default_limit")]
+    pub limit: usize,
+    pub method: Option<String>,
+    pub route: Option<String>,
+    pub status: Option<u16>,
+    pub output: Option<String>,
+}
+fn default_limit() -> usize { 20 }
+
+#[derive(Deserialize)]
+pub struct DockerizeRequest {
+    pub services: Vec<String>,
+    pub output: String,
 }
 
-/// Lists all active services.
-///
-/// # Arguments
-///
-/// * `simulator` - The API simulator manager.
-#[axum::debug_handler]
-pub async fn list_services(
+#[derive(Deserialize)]
+pub struct AiGenerateRequest {
+    pub prompt: String,
+}
+
+// --- Handlers ---
+
+pub async fn start_simulator(
     State(simulator): State<Arc<ApiSimulatorManager>>,
-) -> Result<Json<ApiResponse<Vec<ServiceInfo>>>, StatusCode> {
+    Json(payload): Json<StartRequest>,
+) -> Result<Json<ApiResponse<ServiceInfo>>, (StatusCode, Json<ApiResponse<()>>)> {
+    if let Some(dir) = payload.services_dir {
+        simulator.config.services_dir = dir.into();
+    }
+    if payload.p2p {
+        simulator.enable_p2p(true).await;
+    }
+    simulator.start().await.map_err(|e| ApiResponse::server_error(e.to_string()))?;
+    Ok(ApiResponse::success(ServiceInfo { name: "Simulator".into(), port: 0, base_path: "".into(), endpoints_count: 0, is_running: true }))
+}
+
+pub async fn stop_simulator(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
+    Json(_payload): Json<StopRequest>,
+) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
+    simulator.stop().await.map_err(|e| ApiResponse::server_error(e.to_string()))?;
+    Ok(ApiResponse::success(()))
+}
+
+pub async fn get_status(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
+    Query(_query): Query<StatusQuery>,
+) -> Result<Json<ApiResponse<crate::simulator::SimulatorStatus>>, (StatusCode, Json<ApiResponse<()>>)> {
     let status = simulator.get_status().await;
-    Ok(Json(ApiResponse::success(status.active_services)))
+    Ok(ApiResponse::success(status))
 }
 
-/// Loads a service definition from a file.
-///
-/// # Arguments
-///
-/// * `request` - The request to load the service.
-#[axum::debug_handler]
-pub async fn load_service(
-    Json(request): Json<LoadServiceRequest>,
-) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match std::fs::File::open(&request.path) {
-        Ok(file) => {
-            match serde_yaml::from_reader::<_, ServiceDefinition>(file) {
-                Ok(def) => {
-                    match serde_yaml::to_string(&def) {
-                        Ok(yaml) => Ok(Json(ApiResponse::success(yaml))),
-                        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-                    }
-                },
-                Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-            }
-        },
-        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-    }
+pub async fn validate_services(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
+    Json(_payload): Json<ValidateRequest>,
+) -> Result<Json<ApiResponse<Vec<String>>>, (StatusCode, Json<ApiResponse<()>>)> {
+    let valid_services = simulator.validate_configurations().map_err(|e| ApiResponse::server_error(e.to_string()))?;
+    Ok(ApiResponse::success(valid_services))
 }
 
-/// Saves a service definition to a file.
-///
-/// # Arguments
-///
-/// * `request` - The request to save the service.
-#[axum::debug_handler]
-pub async fn save_service(
-    Json(request): Json<SaveServiceRequest>,
-) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match serde_yaml::from_str::<ServiceDefinition>(&request.yaml) {
-        Ok(def) => {
-            match std::fs::File::create(&request.path) {
-                Ok(file) => {
-                    match serde_yaml::to_writer(file, &def) {
-                        Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
-                        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-                    }
-                },
-                Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-            }
+pub async fn set_scenario(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
+    Json(payload): Json<SetScenarioRequest>,
+) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
+    simulator.set_scenario(Some(payload.scenario)).await.map_err(|e| ApiResponse::server_error(e.to_string()))?;
+    Ok(ApiResponse::success(()))
+}
+
+pub async fn import_service(
+    Json(_payload): Json<ImportRequest>,
+) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
+    // Placeholder logic
+    Err(ApiResponse::server_error("Not yet implemented".into()))
+}
+
+pub async fn export_service(
+    Json(_payload): Json<ExportRequest>,
+) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
+    // Placeholder logic
+    Err(ApiResponse::server_error("Not yet implemented".into()))
+}
+
+pub async fn new_service(
+    Json(_payload): Json<NewServiceRequest>,
+) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
+    // Placeholder logic
+    Err(ApiResponse::server_error("Not yet implemented".into()))
+}
+
+pub async fn new_graphql_service(
+    Json(_payload): Json<NewGraphqlRequest>,
+) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
+    // Placeholder logic
+    Err(ApiResponse::server_error("Not yet implemented".into()))
+}
+
+pub async fn get_logs(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
+    Query(query): Query<LogsQuery>,
+) -> Result<Json<ApiResponse<Vec<crate::simulator::log::RequestLogEntry>>>, (StatusCode, Json<ApiResponse<()>>)> {
+    let logs = simulator.query_logs(Some(&query.service), query.route.as_deref(), query.method.as_deref(), query.status, query.limit).await;
+    Ok(ApiResponse::success(logs))
+}
+
+pub async fn dockerize_service(
+    Json(_payload): Json<DockerizeRequest>,
+) -> Result<Json<ApiResponse<()>>, (StatusCode, Json<ApiResponse<()>>)> {
+    // Placeholder logic
+    Err(ApiResponse::server_error("Not yet implemented".into()))
+}
+
+pub async fn ai_generate(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
+    Json(payload): Json<AiGenerateRequest>,
+) -> Result<Json<ApiResponse<String>>, (StatusCode, Json<ApiResponse<String>>)> {
+    let cfg = simulator.config.clone();
+     let ai_cfg = match cfg.ai {
+        Some(cfg) => cfg,
+        None => {
+            return Err(ApiResponse::server_error("AI provider not configured".to_string()));
+        }
+    };
+    
+    let provider: Box<dyn crate::ai::AiProvider> = match ai_cfg.provider {
+        crate::config::AiProviderKind::Openai => {
+             let key = ai_cfg.api_key.ok_or_else(|| ApicentricError::config_error("Missing OpenAI key", None::<String>)).map_err(|e| ApiResponse::server_error(e.to_string()))?;
+             let model = ai_cfg.model.unwrap_or_else(|| "gpt-3.5-turbo".into());
+             Box::new(crate::ai::OpenAiProvider::new(key, model))
         },
-        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-    }
+        crate::config::AiProviderKind::Gemini => {
+            let key = ai_cfg.api_key.ok_or_else(|| ApicentricError::config_error("Missing Gemini key", None::<String>)).map_err(|e| ApiResponse::server_error(e.to_string()))?;
+            let model = ai_cfg.model.unwrap_or_else(|| "gemini-pro".into());
+            Box::new(crate::ai::GeminiAiProvider::new(key, model))
+        },
+        _ => return Err(ApiResponse::server_error("Unsupported AI provider".into())),
+    };
+    
+    let yaml = provider.generate_yaml(&payload.prompt).await.map_err(|e| ApiResponse::server_error(e.to_string()))?;
+    Ok(ApiResponse::success(yaml))
 }

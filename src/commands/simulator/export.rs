@@ -23,7 +23,7 @@ pub async fn handle_export(
     let output_content = match format {
         ExportFormat::Openapi => {
             let spec = apicentric::simulator::openapi::to_openapi(&service);
-            openapi::to_json(&spec).map_err(|e| {
+            serde_json::to_string_pretty(&spec).map_err(|e| {
                 ApicentricError::runtime_error(format!("Failed to serialize OpenAPI: {}", e), None::<String>)
             })?
         }
