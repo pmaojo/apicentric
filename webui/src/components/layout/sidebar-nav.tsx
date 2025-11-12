@@ -18,6 +18,7 @@ import {
   Pencil,
   Wrench,
   Asterisk,
+  Settings,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 
@@ -50,6 +51,7 @@ const navItems = [
     { id: 'contract-testing', label: 'Contract Testing', icon: FileCheck },
     { id: 'code-generator', label: 'Code Generator', icon: Code },
     { id: 'logs', label: 'Logs', icon: FileText },
+    { id: 'configuration', label: 'Configuration', icon: Settings },
 ] as const;
 
 

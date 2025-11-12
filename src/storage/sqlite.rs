@@ -189,4 +189,14 @@ impl Storage for SqliteStorage {
         entries.reverse();
         Ok(entries)
     }
+
+    fn clear_logs(&self) -> ApicentricResult<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
+        conn.execute("DELETE FROM logs", [])
+            .map_err(|e| ApicentricError::runtime_error(format!("Failed to clear logs: {}", e), None::<String>))?;
+        Ok(())
+    }
 }

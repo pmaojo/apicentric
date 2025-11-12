@@ -8,7 +8,7 @@
 export type Endpoint = {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   path: string;
-  description: string;
+  description?: string;
 };
 
 /**
@@ -38,6 +38,22 @@ export type Log = {
 };
 
 /**
+ * Represents a request log entry from the backend.
+ */
+export type RequestLogEntry = {
+  timestamp: string;
+  service: string;
+  method: string;
+  path: string;
+  status: number;
+  duration_ms?: number;
+  request_headers?: Record<string, string>;
+  response_headers?: Record<string, string>;
+  request_body?: string;
+  response_body?: string;
+};
+
+/**
  * Represents the active view in the main layout.
  */
 export type View =
@@ -48,7 +64,8 @@ export type View =
   | 'plugin-generator'
   | 'contract-testing'
   | 'code-generator'
-  | 'logs';
+  | 'logs'
+  | 'configuration';
 
 /**
  * Represents a service as fetched from the API.

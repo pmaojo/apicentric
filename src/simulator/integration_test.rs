@@ -57,6 +57,10 @@ mod tests {
         ) -> crate::errors::ApicentricResult<Vec<RequestLogEntry>> {
             Ok(Vec::new())
         }
+
+        fn clear_logs(&self) -> crate::errors::ApicentricResult<()> {
+            Ok(())
+        }
     }
 
     fn create_test_service_with_params() -> ServiceDefinition {

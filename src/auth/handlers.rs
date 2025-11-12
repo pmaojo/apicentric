@@ -10,6 +10,7 @@ use crate::auth::repository::AuthRepository;
 use crate::auth::password::{hash_password, verify_password};
 use crate::auth::jwt::{generate_token, JwtKeys, validate_token};
 use crate::auth::model::{RegisterRequest, LoginRequest, AuthResponse};
+use crate::auth::blacklist::TokenBlacklist;
 
 /// The state for the authentication handlers.
 pub struct AuthState {
@@ -17,6 +18,8 @@ pub struct AuthState {
     pub repo: Arc<AuthRepository>,
     /// The JWT keys.
     pub keys: JwtKeys,
+    /// The token blacklist for logout functionality.
+    pub blacklist: TokenBlacklist,
 }
 
 /// Registers a new user.
@@ -77,6 +80,71 @@ pub async fn login(Extension(state): Extension<Arc<AuthState>>, Json(payload): J
 pub async fn me(Extension(state): Extension<Arc<AuthState>>, headers: HeaderMap) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()).ok_or((StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()))?;
     let token = auth_header.strip_prefix("Bearer ").ok_or((StatusCode::UNAUTHORIZED, "Invalid auth scheme".to_string()))?;
+    
+    // Check if token is blacklisted
+    if state.blacklist.is_blacklisted(token).await {
+        return Err((StatusCode::UNAUTHORIZED, "Token has been revoked".into()));
+    }
+    
     let claims = validate_token(token, &state.keys).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token".into()))?;
     Ok(Json(json!({"username": claims.sub})))
+}
+
+/// Refreshes a JWT token.
+///
+/// # Arguments
+///
+/// * `state` - The authentication state.
+/// * `headers` - The HTTP headers.
+///
+/// # Returns
+///
+/// A `Result` containing a new `AuthResponse` with a refreshed token if the
+/// current token is valid, or a rejection otherwise.
+pub async fn refresh(Extension(state): Extension<Arc<AuthState>>, headers: HeaderMap) -> Result<Json<AuthResponse>, (StatusCode, String)> {
+    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()).ok_or((StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()))?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or((StatusCode::UNAUTHORIZED, "Invalid auth scheme".to_string()))?;
+    
+    // Check if token is blacklisted
+    if state.blacklist.is_blacklisted(token).await {
+        return Err((StatusCode::UNAUTHORIZED, "Token has been revoked".into()));
+    }
+    
+    // Validate the current token
+    let claims = validate_token(token, &state.keys).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token".into()))?;
+    
+    // Generate a new token with the same username
+    let new_token = generate_token(&claims.sub, &state.keys, 24).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    
+    // Optionally blacklist the old token to prevent reuse
+    state.blacklist.add(token).await;
+    
+    Ok(Json(AuthResponse { token: new_token }))
+}
+
+/// Logs out a user by invalidating their JWT token.
+///
+/// # Arguments
+///
+/// * `state` - The authentication state.
+/// * `headers` - The HTTP headers.
+///
+/// # Returns
+///
+/// A `Result` containing a success message if the logout was successful,
+/// or a rejection otherwise.
+pub async fn logout(Extension(state): Extension<Arc<AuthState>>, headers: HeaderMap) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()).ok_or((StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()))?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or((StatusCode::UNAUTHORIZED, "Invalid auth scheme".to_string()))?;
+    
+    // Validate the token before blacklisting (to ensure it's a valid token)
+    validate_token(token, &state.keys).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token".into()))?;
+    
+    // Add token to blacklist
+    state.blacklist.add(token).await;
+    
+    Ok(Json(json!({
+        "message": "Successfully logged out",
+        "success": true
+    })))
 }

@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
 /// The claims in a JWT.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     /// The subject of the token.
     pub sub: String,

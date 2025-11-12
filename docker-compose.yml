@@ -1,33 +1,88 @@
 version: '3.8'
 
 services:
-  apicentric-cloud:
+  # ============================================
+  # Development Configuration
+  # ============================================
+  
+  # Backend service (development)
+  apicentric-backend-dev:
     build:
       context: .
-      dockerfile: packaging/Dockerfile
+      dockerfile: Dockerfile
+      target: backend-builder
     ports:
-      - "8080:8080"
+      - "8000:8000"
     environment:
-      - APICENTRIC_ENV=production
-      - APICENTRIC_LOG_LEVEL=info
-      - RUST_LOG=apicentric=info
+      - APICENTRIC_PORT=8000
+      - APICENTRIC_HOST=0.0.0.0
+      - APICENTRIC_PROTECT_SERVICES=false
+      - APICENTRIC_JWT_SECRET=dev-secret-change-in-production
       - APICENTRIC_DB_PATH=/app/data/apicentric.db
+      - RUST_LOG=debug,apicentric=trace
     volumes:
-      # Mount directory for service definitions
-      - ./services:/services:ro
-      # Mount directory for logs (optional)
-      - ./logs:/app/logs
-      # Mount directory for persistent data
+      - ./services:/app/services
+      - ./data:/app/data
+      - ./src:/app/src:ro
+    command: ["cargo", "run", "--features", "gui,cloud", "--", "cloud", "--port", "8000"]
+    profiles:
+      - dev
+    restart: unless-stopped
+
+  # Frontend service (development)
+  apicentric-frontend-dev:
+    build:
+      context: ./webui
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
+      - NODE_ENV=development
+    volumes:
+      - ./webui/src:/app/src
+      - ./webui/public:/app/public
+      - /app/node_modules
+    depends_on:
+      - apicentric-backend-dev
+    profiles:
+      - dev
+    restart: unless-stopped
+
+  # ============================================
+  # Production Configuration
+  # ============================================
+  
+  # Combined backend + frontend (production)
+  apicentric:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - APICENTRIC_PORT=8000
+      - APICENTRIC_HOST=0.0.0.0
+      - APICENTRIC_PROTECT_SERVICES=${APICENTRIC_PROTECT_SERVICES:-true}
+      - APICENTRIC_JWT_SECRET=${APICENTRIC_JWT_SECRET}
+      - APICENTRIC_DB_PATH=/app/data/apicentric.db
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      - RUST_LOG=info,apicentric=debug
+    volumes:
+      - ./services:/app/services
       - apicentric_data:/app/data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       timeout: 5s
       interval: 30s
       retries: 3
       start_period: 10s
     restart: unless-stopped
+    profiles:
+      - production
 
-  # Optional: Add a reverse proxy like nginx
+  # Nginx reverse proxy (production)
   nginx:
     image: nginx:alpine
     ports:
@@ -35,16 +90,14 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      # For SSL certificates
       - ./ssl:/etc/ssl/certs:ro
     depends_on:
-      - apicentric-cloud
+      - apicentric
     restart: unless-stopped
     profiles:
       - production
 
 volumes:
-  # Persistent storage for application data
   apicentric_data:
     driver: local
 

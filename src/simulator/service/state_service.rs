@@ -70,6 +70,10 @@ mod tests {
         ) -> ApicentricResult<Vec<RequestLogEntry>> {
             Ok(vec![])
         }
+
+        fn clear_logs(&self) -> ApicentricResult<()> {
+            Ok(())
+        }
     }
 
     #[tokio::test]

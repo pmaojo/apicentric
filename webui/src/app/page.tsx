@@ -1,21 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense, useMemo, useCallback, memo } from 'react';
 import type { ApiService, View, Service, SimulatorStatus } from '@/lib/types';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Dashboard } from '@/components/features/dashboard';
-import { ServiceManagement } from '@/components/features/service-management';
-import { LogsViewer } from '@/components/features/logs-viewer';
-import { AiGenerator } from '@/components/features/ai-generator';
-import { PluginGenerator } from '@/components/features/plugin-generator';
-import { CodeGenerator } from '@/components/features/code-generator';
-import { ContractTesting } from '@/components/features/contract-testing';
-import { Recording } from '@/components/features/recording';
 import { QueryClient, QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query';
-import { fetchSimulatorStatus, startSimulator, stopSimulator, createGraphQLService, validateService } from '@/services/api';
+import { fetchSimulatorStatus, startSimulator, stopSimulator } from '@/services/api';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import yaml from 'js-yaml';
+
+// Lazy load heavy components for code splitting
+const ServiceManagement = lazy(() => import('@/components/features/service-management').then(m => ({ default: m.ServiceManagement })));
+const LogsViewer = lazy(() => import('@/components/features/logs-viewer').then(m => ({ default: m.LogsViewer })));
+const AiGenerator = lazy(() => import('@/components/features/ai-generator').then(m => ({ default: m.AiGenerator })));
+const PluginGenerator = lazy(() => import('@/components/features/plugin-generator').then(m => ({ default: m.PluginGenerator })));
+const CodeGenerator = lazy(() => import('@/components/features/code-generator').then(m => ({ default: m.CodeGenerator })));
+const ContractTesting = lazy(() => import('@/components/features/contract-testing').then(m => ({ default: m.ContractTesting })));
+const Recording = lazy(() => import('@/components/features/recording').then(m => ({ default: m.Recording })));
+const Configuration = lazy(() => import('@/components/features/configuration').then(m => ({ default: m.Configuration })));
+
+// Loading fallback component
+const ComponentLoader = () => (
+  <div className="flex items-center justify-center h-full">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 /**
  * @fileoverview The main entry point component for the Apicentric UI.
@@ -42,23 +52,28 @@ function AppContent() {
   const [services, setServices] = useState<Service[]>([]);
   const { toast } = useToast();
 
+  // Memoize the mapped services to avoid unnecessary recalculations
+  const mappedServices = useMemo(() => {
+    if (!simulatorStatus) return [];
+    return simulatorStatus.active_services.map((apiService, index): Service => ({
+      id: apiService.id || `service-${index}-${Date.now()}`,
+      name: apiService.name,
+      status: (apiService.is_running ? 'running' : 'stopped') as 'running' | 'stopped',
+      port: apiService.port,
+      version: apiService.version || '1.0.0',
+      definition: apiService.definition || '',
+      endpoints: apiService.endpoints?.map(ep => ({
+        ...ep,
+        method: ep.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+      })) || [],
+    }));
+  }, [simulatorStatus]);
+
   useEffect(() => {
-    if (simulatorStatus) {
-      const mappedServices = simulatorStatus.active_services.map((apiService, index) => ({
-        id: apiService.id || `service-${index}-${Date.now()}`,
-        name: apiService.name,
-        status: apiService.is_running ? 'running' : 'stopped',
-        port: apiService.port,
-        version: apiService.version || '1.0.0',
-        definition: apiService.definition || '',
-        endpoints: apiService.endpoints?.map(ep => ({
-          ...ep,
-          method: ep.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
-        })) || [],
-      }));
+    if (mappedServices.length > 0) {
       setServices(mappedServices);
     }
-  }, [simulatorStatus]);
+  }, [mappedServices]);
 
   const startMutation = useMutation({
     mutationFn: startSimulator,
@@ -96,19 +111,20 @@ function AppContent() {
     },
   });
 
-  const handleToggleAllServices = () => {
+  // Memoize callbacks to prevent unnecessary re-renders
+  const handleToggleAllServices = useCallback(() => {
     if (simulatorStatus?.is_active) {
       stopMutation.mutate();
     } else {
       startMutation.mutate();
     }
-  };
+  }, [simulatorStatus?.is_active, stopMutation, startMutation]);
   
-  const handleToggleService = (serviceId: string, status: 'running' | 'stopped') => {
+  const handleToggleService = useCallback((serviceId: string, status: 'running' | 'stopped') => {
     // This would ideally be a per-service start/stop endpoint
     // For now, we just toggle the whole simulator
     handleToggleAllServices();
-  };
+  }, [handleToggleAllServices]);
 
   /**
    * Adds a new service to the list after parsing its YAML definition.
@@ -118,7 +134,7 @@ function AppContent() {
    * @param {number} serviceData.port - The port for the service.
    * @param {string} serviceData.definition - The raw YAML definition string.
    */
-  const handleAddService = (serviceData: { name: string, version: string, port: number, definition: string }) => {
+  const handleAddService = useCallback((serviceData: { name: string, version: string, port: number, definition: string }) => {
     try {
       const doc: any = yaml.load(serviceData.definition);
       
@@ -149,13 +165,13 @@ function AppContent() {
         description: 'Could not parse the service definition. Please check the syntax.',
       });
     }
-  };
+  }, [toast]);
 
   /**
    * Updates an existing service in the list.
    * @param {Service} updatedService - The service object with updated information.
    */
-  const handleUpdateService = (updatedService: Service) => {
+  const handleUpdateService = useCallback((updatedService: Service) => {
     try {
       const doc: any = yaml.load(updatedService.definition);
       
@@ -188,13 +204,13 @@ function AppContent() {
         description: 'Could not parse the service definition. Please check the syntax.',
       });
     }
-  };
+  }, [services, toast]);
 
   /**
    * Deletes a service from the list.
    * @param {string} serviceId - The ID of the service to delete.
    */
-  const handleDeleteService = (serviceId: string) => {
+  const handleDeleteService = useCallback((serviceId: string) => {
     const serviceToDelete = services.find(s => s.id === serviceId);
     if (serviceToDelete) {
       setServices(prevServices => prevServices.filter(service => service.id !== serviceId));
@@ -203,13 +219,13 @@ function AppContent() {
         description: `${serviceToDelete.name} has been removed.`,
       });
     }
-  };
+  }, [services, toast]);
 
   /**
    * Renders the component for the currently active view.
    * @returns {React.ReactElement} The component to render.
    */
-  const renderContent = () => {
+  const renderContent = useMemo(() => {
     if (isLoading && !simulatorStatus) {
       return (
         <div className="flex items-center justify-center h-full">
@@ -230,28 +246,62 @@ function AppContent() {
       case 'dashboard':
         return <Dashboard services={services} onToggleService={handleToggleService} />;
       case 'services':
-        return <ServiceManagement 
-                  services={services} 
-                  onAddService={handleAddService} 
-                  onUpdateService={handleUpdateService}
-                  onDeleteService={handleDeleteService}
-                />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <ServiceManagement 
+              services={services} 
+              onAddService={handleAddService} 
+              onUpdateService={handleUpdateService}
+              onDeleteService={handleDeleteService}
+            />
+          </Suspense>
+        );
       case 'logs':
-        return <LogsViewer services={services} />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <LogsViewer services={simulatorStatus?.active_services || []} />
+          </Suspense>
+        );
       case 'ai-generator':
-        return <AiGenerator onAddService={handleAddService} />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <AiGenerator onAddService={handleAddService} />
+          </Suspense>
+        );
       case 'plugin-generator':
-        return <PluginGenerator />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <PluginGenerator />
+          </Suspense>
+        );
       case 'code-generator':
-        return <CodeGenerator services={services} isLoading={isLoading} />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <CodeGenerator services={services} isLoading={isLoading} />
+          </Suspense>
+        );
       case 'contract-testing':
-        return <ContractTesting services={services} />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <ContractTesting services={services} />
+          </Suspense>
+        );
       case 'recording':
-        return <Recording />;
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <Recording />
+          </Suspense>
+        );
+      case 'configuration':
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <Configuration />
+          </Suspense>
+        );
       default:
         return <Dashboard services={services} onToggleService={handleToggleService} />;
     }
-  };
+  }, [activeView, services, handleToggleService, handleAddService, handleUpdateService, handleDeleteService, isLoading]);
 
   /**
    * A map of view names to their corresponding display titles.
@@ -266,6 +316,7 @@ function AppContent() {
     'contract-testing': 'Contract Testing',
     'code-generator': 'Client Code Generator',
     logs: 'Simulator Logs',
+    configuration: 'Configuration',
   };
 
   return (
@@ -276,10 +327,13 @@ function AppContent() {
       isSimulatorRunning={simulatorStatus?.is_active ?? false}
       onToggleAllServices={handleToggleAllServices}
     >
-      {renderContent()}
+      {renderContent}
     </MainLayout>
   );
 }
+
+// Memoize AppContent to prevent unnecessary re-renders
+const MemoizedAppContent = memo(AppContent);
 
 /**
  * The root component of the application.
@@ -289,7 +343,7 @@ function AppContent() {
 export default function Home() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <MemoizedAppContent />
     </QueryClientProvider>
   )
 }

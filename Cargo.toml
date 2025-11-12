@@ -64,6 +64,11 @@ http-body-util = "0.1"
 bytes = "1.0"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
+axum = { version = "0.7", features = ["macros", "ws"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+argon2 = "0.5"
+jsonwebtoken = "9.2"
 
 # WebSocket support (optional)
 tokio-tungstenite = { version = "0.21", optional = true }

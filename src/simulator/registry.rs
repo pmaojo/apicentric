@@ -268,6 +268,11 @@ impl ServiceRegistry {
         log::info!("Cleared all services from registry");
         Ok(())
     }
+
+    /// Get access to the storage backend
+    pub fn storage(&self) -> &Arc<dyn crate::storage::Storage> {
+        &self.storage
+    }
 }
 
 #[cfg(test)]

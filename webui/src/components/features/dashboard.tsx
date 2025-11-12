@@ -11,17 +11,136 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { useWebSocket, type ServiceStatusUpdate } from '@/hooks/use-websocket';
 import type { Service } from '@/lib/types';
-import { CheckCircle, ExternalLink, Play, Power, Square, XCircle } from 'lucide-react';
+import { startService, stopService, reloadServices } from '@/services/api';
+import { CheckCircle, ExternalLink, Play, Power, Square, XCircle, RefreshCw, Loader2 } from 'lucide-react';
 import * as React from 'react';
 
 type DashboardProps = {
   services: Service[];
   onToggleService: (serviceId: string, status: 'running' | 'stopped') => void;
+  onServiceUpdate?: (serviceName: string, updates: Partial<Service>) => void;
 };
 
-export function Dashboard({ services, onToggleService }: DashboardProps) {
+export function Dashboard({ services, onToggleService, onServiceUpdate }: DashboardProps) {
+  const { toast } = useToast();
+  const [loadingServices, setLoadingServices] = React.useState<Set<string>>(new Set());
+  const [reloadingAll, setReloadingAll] = React.useState(false);
+
+  // WebSocket connection for real-time updates
+  // TEMPORARILY DISABLED due to connection leak - needs proper cleanup
+  // const WS_URL = typeof window !== 'undefined' && (window as any).NEXT_PUBLIC_WS_URL
+  //   ? (window as any).NEXT_PUBLIC_WS_URL
+  //   : 'ws://localhost:8080/ws';
+  
+  // useWebSocket({
+  //   url: WS_URL,
+  //   enabled: true,
+  //   onMessage: (message) => {
+  //     if (message.type === 'service_status' && message.data) {
+  //       const update = message.data as ServiceStatusUpdate;
+  //       onServiceUpdate?.(update.service_name, {
+  //         status: update.status as 'running' | 'stopped',
+  //         port: update.port,
+  //       });
+  //       
+  //       // Remove from loading state when status changes
+  //       setLoadingServices((prev: Set<string>) => {
+  //         const next = new Set(prev);
+  //         next.delete(update.service_name);
+  //         return next;
+  //       });
+  //     }
+  //   },
+  //   onError: (error) => {
+  //     // Only log actual errors, not empty reconnection events
+  //     if (error && Object.keys(error).length > 0) {
+  //       console.error('WebSocket connection error:', error);
+  //     }
+  //   },
+  // });
+
+  const handleStartService = async (service: Service) => {
+    setLoadingServices((prev: Set<string>) => new Set(prev).add(service.name));
+    
+    try {
+      await startService(service.name);
+      toast({
+        title: 'Service Starting',
+        description: `${service.name} is starting...`,
+      });
+    } catch (error) {
+      setLoadingServices((prev: Set<string>) => {
+        const next = new Set(prev);
+        next.delete(service.name);
+        return next;
+      });
+      
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Start Service',
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+      });
+    }
+  };
+
+  const handleStopService = async (service: Service) => {
+    setLoadingServices((prev: Set<string>) => new Set(prev).add(service.name));
+    
+    try {
+      await stopService(service.name);
+      toast({
+        title: 'Service Stopping',
+        description: `${service.name} is stopping...`,
+      });
+    } catch (error) {
+      setLoadingServices((prev: Set<string>) => {
+        const next = new Set(prev);
+        next.delete(service.name);
+        return next;
+      });
+      
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Stop Service',
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+      });
+    }
+  };
+
+  const handleReloadAll = async () => {
+    setReloadingAll(true);
+    
+    try {
+      await reloadServices();
+      toast({
+        title: 'Services Reloading',
+        description: 'All services are being reloaded...',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Reload Services',
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+      });
+    } finally {
+      setReloadingAll(false);
+    }
+  };
+
   const runningServices = services.filter(s => s.status === 'running');
   const stoppedServices = services.filter(s => s.status === 'stopped');
   const isSimulatorRunning = runningServices.length > 0;
@@ -29,9 +148,23 @@ export function Dashboard({ services, onToggleService }: DashboardProps) {
   return (
     <div className="flex flex-col gap-8">
       <Card>
-        <CardHeader>
-          <CardTitle>Simulator Status</CardTitle>
-          <CardDescription>Overall status of the Apicentric simulator.</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Simulator Status</CardTitle>
+            <CardDescription>Overall status of the Apicentric simulator.</CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleReloadAll}
+            disabled={reloadingAll}
+          >
+            {reloadingAll ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Reload All
+          </Button>
         </CardHeader>
         <CardContent className="flex items-center gap-4">
           <Power className={`h-8 w-8 ${isSimulatorRunning ? 'text-green-500' : 'text-red-500'}`} />
@@ -51,7 +184,13 @@ export function Dashboard({ services, onToggleService }: DashboardProps) {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {runningServices.length > 0 ? (
             runningServices.map((service) => (
-              <ServiceCard key={service.id} service={service} onToggle={onToggleService} />
+              <ServiceCard
+                key={service.id}
+                service={service}
+                onStart={handleStartService}
+                onStop={handleStopService}
+                isLoading={loadingServices.has(service.name)}
+              />
             ))
           ) : (
             <p className="text-muted-foreground col-span-full">No active services.</p>
@@ -66,7 +205,13 @@ export function Dashboard({ services, onToggleService }: DashboardProps) {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {stoppedServices.length > 0 ? (
             stoppedServices.map((service) => (
-              <ServiceCard key={service.id} service={service} onToggle={onToggleService} />
+              <ServiceCard
+                key={service.id}
+                service={service}
+                onStart={handleStartService}
+                onStop={handleStopService}
+                isLoading={loadingServices.has(service.name)}
+              />
             ))
           ) : (
             <p className="text-muted-foreground col-span-full">No inactive services.</p>
@@ -77,40 +222,107 @@ export function Dashboard({ services, onToggleService }: DashboardProps) {
   );
 }
 
-function ServiceCard({ service, onToggle }: { service: Service; onToggle: (serviceId: string, status: 'running' | 'stopped') => void; }) {
+function ServiceCard({
+  service,
+  onStart,
+  onStop,
+  isLoading,
+}: {
+  service: Service;
+  onStart: (service: Service) => void;
+  onStop: (service: Service) => void;
+  isLoading: boolean;
+}) {
+  const [showStopDialog, setShowStopDialog] = React.useState(false);
+
+  const handleStop = () => {
+    setShowStopDialog(false);
+    onStop(service);
+  };
+
   return (
-    <Card className="flex flex-col">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle>{service.name}</CardTitle>
-            <CardDescription>Version {service.version}</CardDescription>
+    <>
+      <Card className="flex flex-col">
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle>{service.name}</CardTitle>
+              <CardDescription>Version {service.version}</CardDescription>
+            </div>
+            <Badge
+              variant={service.status === 'running' ? 'default' : 'destructive'}
+              className={`${
+                service.status === 'running'
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : 'bg-red-500/20 text-red-400 border-red-500/30'
+              }`}
+            >
+              {isLoading ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : service.status === 'running' ? (
+                <CheckCircle className="mr-1 h-3 w-3" />
+              ) : (
+                <XCircle className="mr-1 h-3 w-3" />
+              )}
+              {isLoading ? 'Loading...' : service.status}
+            </Badge>
           </div>
-          <Badge variant={service.status === 'running' ? 'default' : 'destructive'} className={`${service.status === 'running' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-            {service.status === 'running' ? <CheckCircle className="mr-1 h-3 w-3" /> : <XCircle className="mr-1 h-3 w-3" />}
-            {service.status}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow">
-        <div className="text-sm text-muted-foreground">
-          <p>Port: <span className="font-mono text-foreground">{service.port}</span></p>
-          <p>Endpoints: <span className="font-mono text-foreground">{service.endpoints.length}</span></p>
-        </div>
-      </CardContent>
-      <CardFooter className="grid grid-cols-2 gap-2">
-        <ServiceDetailsDialog service={service} />
-        {service.status === 'running' ? (
-          <Button variant="destructive" onClick={() => onToggle(service.id, 'stopped')}>
-            <Square className="mr-2 h-4 w-4" /> Stop
-          </Button>
-        ) : (
-          <Button onClick={() => onToggle(service.id, 'running')}>
-            <Play className="mr-2 h-4 w-4" /> Start
-          </Button>
-        )}
-      </CardFooter>
-    </Card>
+        </CardHeader>
+        <CardContent className="flex-grow">
+          <div className="text-sm text-muted-foreground">
+            <p>
+              Port: <span className="font-mono text-foreground">{service.port}</span>
+            </p>
+            <p>
+              Endpoints: <span className="font-mono text-foreground">{service.endpoints.length}</span>
+            </p>
+          </div>
+        </CardContent>
+        <CardFooter className="grid grid-cols-2 gap-2">
+          <ServiceDetailsDialog service={service} />
+          {service.status === 'running' ? (
+            <Button
+              variant="destructive"
+              onClick={() => setShowStopDialog(true)}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Square className="mr-2 h-4 w-4" />
+              )}
+              Stop
+            </Button>
+          ) : (
+            <Button onClick={() => onStart(service)} disabled={isLoading}>
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              Start
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+
+      <AlertDialog open={showStopDialog} onOpenChange={setShowStopDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop Service</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to stop {service.name}? This will terminate all active connections.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStop} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Stop Service
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

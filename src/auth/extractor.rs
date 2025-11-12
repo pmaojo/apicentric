@@ -40,6 +40,12 @@ where
         // Read header
         let header = parts.headers.get(axum::http::header::AUTHORIZATION).and_then(|h| h.to_str().ok()).ok_or((StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()))?;
         let token = header.strip_prefix("Bearer ").ok_or((StatusCode::UNAUTHORIZED, "Invalid auth scheme".to_string()))?;
+        
+        // Check if token is blacklisted
+        if auth_state.blacklist.is_blacklisted(token).await {
+            return Err((StatusCode::UNAUTHORIZED, "Token has been revoked".to_string()));
+        }
+        
         let claims = validate_token(token, &auth_state.keys).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token".to_string()))?;
         Ok(AuthUser(claims))
     }
