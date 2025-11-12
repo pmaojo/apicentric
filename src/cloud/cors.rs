@@ -3,7 +3,7 @@
 //! This module provides environment-based CORS configuration with secure
 //! defaults for production deployments.
 
-use tower_http::cors::{CorsLayer, Any};
+use tower_http::cors::CorsLayer;
 use axum::http::{Method, HeaderValue, header};
 use std::env;
 

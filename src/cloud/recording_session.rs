@@ -11,7 +11,7 @@ use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 use crate::errors::{ApicentricError, ApicentricResult};
-use crate::simulator::config::{EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, ResponseDefinition, ServerConfig, ServiceDefinition};
+use crate::simulator::config::{EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, ResponseDefinition};
 use hyper::{HeaderMap, Method};
 
 /// A recording session that captures HTTP traffic.

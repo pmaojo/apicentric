@@ -4,7 +4,6 @@
 //! endpoints with optional authentication based on configuration.
 
 use axum::{
-    body::Body,
     extract::Request,
     http::{StatusCode, header},
     middleware::Next,

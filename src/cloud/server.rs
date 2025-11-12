@@ -51,7 +51,6 @@ impl CloudServer {
         let simulator_manager_arc = Arc::new(simulator_manager);
         let websocket_state = Arc::new(WebSocketState::new(
             Arc::clone(&simulator_manager_arc),
-            Arc::clone(&auth_state),
         ));
         let protect_services = env::var("APICENTRIC_PROTECT_SERVICES").map(|v| v == "true" || v == "1").unwrap_or(false);
         Self {

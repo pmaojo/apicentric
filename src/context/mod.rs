@@ -96,7 +96,7 @@ impl ContextBuilder {
     }
 }
 
-/// Execution context derived from configuration and CLI flags.
+/// Simple execution context for CLI operations.
 #[derive(Debug, Clone)]
 pub struct ExecutionContext {
     pub mode: config::ExecutionMode,
@@ -106,12 +106,12 @@ pub struct ExecutionContext {
 }
 
 impl ExecutionContext {
-    pub fn new(cfg: &config::ApicentricConfig) -> Self {
+    pub fn new() -> Self {
         Self {
-            mode: cfg.execution.mode.clone(),
-            dry_run: cfg.execution.dry_run,
-            verbose: cfg.execution.verbose,
-            continue_on_failure: cfg.execution.continue_on_failure,
+            mode: config::ExecutionMode::Development,
+            dry_run: false,
+            verbose: false,
+            continue_on_failure: false,
         }
     }
 
@@ -144,6 +144,12 @@ impl ExecutionContext {
     }
     pub fn should_log_debug(&self) -> bool {
         self.is_debug_mode() || self.verbose
+    }
+}
+
+impl Default for ExecutionContext {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

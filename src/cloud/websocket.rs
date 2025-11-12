@@ -17,7 +17,6 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
-use crate::auth::handlers::AuthState;
 use crate::simulator::{log::RequestLogEntry, ApiSimulatorManager};
 
 /// WebSocket client connection
@@ -36,17 +35,14 @@ pub struct WebSocketState {
     clients: Arc<RwLock<HashMap<Uuid, WebSocketClient>>>,
     /// Simulator manager for accessing state
     simulator: Arc<ApiSimulatorManager>,
-    /// Auth state for JWT validation
-    auth_state: Arc<AuthState>,
 }
 
 impl WebSocketState {
     /// Create a new WebSocket state
-    pub fn new(simulator: Arc<ApiSimulatorManager>, auth_state: Arc<AuthState>) -> Self {
+    pub fn new(simulator: Arc<ApiSimulatorManager>) -> Self {
         Self {
             clients: Arc::new(RwLock::new(HashMap::new())),
             simulator,
-            auth_state,
         }
     }
 
@@ -87,9 +83,7 @@ enum ServerMessage {
     /// Initial state synchronization
     #[serde(rename = "initial_state")]
     InitialState { data: SimulatorState },
-    /// Error message
-    #[serde(rename = "error")]
-    Error { message: String },
+
 }
 
 /// Service status update

@@ -1,0 +1,14 @@
+name: demo-service
+version: "1.0"
+description: Demo service
+server:
+  port: 9001
+  base_path: /api
+endpoints:
+  - method: GET
+    path: /hello
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {"message": "Hello from demo service!"}

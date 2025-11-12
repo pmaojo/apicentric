@@ -1,69 +1,12 @@
-use apicentric::cloud::handlers::{ApiResponse, UpdateConfigRequest, ValidateConfigResponse};
-use apicentric::config::{ApicentricConfig, AiConfig, AiProviderKind};
-use std::path::PathBuf;
+use apicentric::config::{ApicentricConfig, AiConfig, AiProviderKind, generate_default_config};
+use apicentric::validation::ConfigValidator;
 use tempfile::TempDir;
 
 #[tokio::test]
-async fn test_config_validation_valid() {
-    let temp_dir = TempDir::new().unwrap();
-    
-    // Create required directories
-    std::fs::create_dir_all(temp_dir.path().join("routes")).unwrap();
-    std::fs::create_dir_all(temp_dir.path().join("specs")).unwrap();
-    std::fs::create_dir_all(temp_dir.path().join("services")).unwrap();
-    
-    // Create a valid configuration
-    let config = ApicentricConfig::builder()
-        .base_url("http://localhost:3000")
-        .routes_dir(temp_dir.path().join("routes"))
-        .specs_dir(temp_dir.path().join("specs"))
-        .index_cache_path(temp_dir.path().join("index.json"))
-        .simulator_services_dir(temp_dir.path().join("services"))
-        .build()
-        .unwrap();
-    
-    // Convert to JSON
-    let config_json = serde_json::to_value(&config).unwrap();
-    
-    // Simulate validation request
-    let request = UpdateConfigRequest {
-        config: config_json,
-    };
-    
-    // Parse and validate
-    let parsed_config: ApicentricConfig = serde_json::from_value(request.config).unwrap();
-    let validation_result = apicentric::validation::ConfigValidator::validate(&parsed_config);
-    
-    assert!(validation_result.is_ok(), "Valid configuration should pass validation");
-}
-
-#[tokio::test]
-async fn test_config_validation_invalid_url() {
-    let temp_dir = TempDir::new().unwrap();
-    
-    // Create required directories
-    std::fs::create_dir_all(temp_dir.path().join("routes")).unwrap();
-    std::fs::create_dir_all(temp_dir.path().join("specs")).unwrap();
-    std::fs::create_dir_all(temp_dir.path().join("services")).unwrap();
-    
-    // Create a configuration with invalid URL
-    let mut config = ApicentricConfig::builder()
-        .routes_dir(temp_dir.path().join("routes"))
-        .specs_dir(temp_dir.path().join("specs"))
-        .index_cache_path(temp_dir.path().join("index.json"))
-        .simulator_services_dir(temp_dir.path().join("services"))
-        .build()
-        .unwrap();
-    
-    // Set invalid URL
-    config.base_url = "not-a-valid-url".to_string();
-    
-    // Validate
-    let validation_result = apicentric::validation::ConfigValidator::validate(&config);
-    
-    assert!(validation_result.is_err(), "Invalid URL should fail validation");
-    let errors = validation_result.unwrap_err();
-    assert!(errors.iter().any(|e| e.field == "base_url"));
+async fn test_default_config_validation() {
+    let config = ApicentricConfig::default();
+    let validation_result = config.validate();
+    assert!(validation_result.is_ok(), "Default configuration should be valid");
 }
 
 #[tokio::test]
@@ -71,21 +14,8 @@ async fn test_config_save_and_load() {
     let temp_dir = TempDir::new().unwrap();
     let config_path = temp_dir.path().join("test-config.json");
     
-    // Create required directories
-    std::fs::create_dir_all(temp_dir.path().join("routes")).unwrap();
-    std::fs::create_dir_all(temp_dir.path().join("specs")).unwrap();
-    std::fs::create_dir_all(temp_dir.path().join("services")).unwrap();
-    
     // Create a configuration
-    let config = ApicentricConfig::builder()
-        .base_url("http://localhost:5000")
-        .default_timeout(60000)
-        .routes_dir(temp_dir.path().join("routes"))
-        .specs_dir(temp_dir.path().join("specs"))
-        .index_cache_path(temp_dir.path().join("index.json"))
-        .simulator_services_dir(temp_dir.path().join("services"))
-        .build()
-        .unwrap();
+    let config = generate_default_config();
     
     // Save the configuration
     apicentric::config::save_config(&config, &config_path).unwrap();
@@ -93,28 +23,14 @@ async fn test_config_save_and_load() {
     // Load the configuration
     let loaded_config = apicentric::config::load_config(&config_path).unwrap();
     
-    // Verify the loaded configuration matches
-    assert_eq!(loaded_config.base_url, "http://localhost:5000");
-    assert_eq!(loaded_config.default_timeout, 60000);
+    // Verify the loaded configuration has expected structure
+    assert!(loaded_config.ai.is_some());
+    assert!(loaded_config.simulator.is_some());
 }
 
 #[tokio::test]
 async fn test_config_with_ai_settings() {
-    let temp_dir = TempDir::new().unwrap();
-    
-    // Create required directories
-    std::fs::create_dir_all(temp_dir.path().join("routes")).unwrap();
-    std::fs::create_dir_all(temp_dir.path().join("specs")).unwrap();
-    std::fs::create_dir_all(temp_dir.path().join("services")).unwrap();
-    
-    // Create a configuration with AI settings
-    let mut config = ApicentricConfig::builder()
-        .routes_dir(temp_dir.path().join("routes"))
-        .specs_dir(temp_dir.path().join("specs"))
-        .index_cache_path(temp_dir.path().join("index.json"))
-        .simulator_services_dir(temp_dir.path().join("services"))
-        .build()
-        .unwrap();
+    let mut config = ApicentricConfig::default();
     
     config.ai = Some(AiConfig {
         provider: AiProviderKind::Openai,
@@ -124,7 +40,7 @@ async fn test_config_with_ai_settings() {
     });
     
     // Validate
-    let validation_result = apicentric::validation::ConfigValidator::validate(&config);
+    let validation_result = config.validate();
     assert!(validation_result.is_ok(), "Configuration with AI settings should be valid");
     
     // Convert to JSON and back
@@ -135,4 +51,23 @@ async fn test_config_with_ai_settings() {
     let ai_config = parsed_config.ai.unwrap();
     assert_eq!(ai_config.api_key, Some("test-key".to_string()));
     assert_eq!(ai_config.model, Some("gpt-4".to_string()));
+}
+
+#[tokio::test]
+async fn test_ai_config_validation_missing_key() {
+    let mut config = ApicentricConfig::default();
+    
+    config.ai = Some(AiConfig {
+        provider: AiProviderKind::Openai,
+        model_path: None,
+        api_key: None, // Missing API key
+        model: Some("gpt-4".to_string()),
+    });
+    
+    // Validate
+    let validation_result = config.validate();
+    assert!(validation_result.is_err(), "Configuration with missing API key should fail validation");
+    
+    let errors = validation_result.unwrap_err();
+    assert!(errors.iter().any(|e| e.field == "ai.api_key"));
 }
