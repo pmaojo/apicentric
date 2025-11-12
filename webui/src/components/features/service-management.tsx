@@ -51,7 +51,7 @@ import { CreateGraphQLServiceDialog } from './create-graphql-service-dialog';
 import { EditServiceDialog } from './edit-service-dialog';
 import type { Service } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useWebSocket, type ServiceStatusUpdate } from '@/hooks/use-websocket';
+// import { useWebSocket, type ServiceStatusUpdate } from '@/hooks/use-websocket';
 import { validateService, startService, stopService, deleteService } from '@/services/api';
 
 /**

@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { useWebSocket, type ServiceStatusUpdate } from '@/hooks/use-websocket';
+// import { useWebSocket, type ServiceStatusUpdate } from '@/hooks/use-websocket';
 import type { Service } from '@/lib/types';
 import { startService, stopService, reloadServices } from '@/services/api';
 import { CheckCircle, ExternalLink, Play, Power, Square, XCircle, RefreshCw, Loader2 } from 'lucide-react';

@@ -25,7 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Search, Download, Trash2, Eye, Calendar, X } from 'lucide-react';
 import { ApiService } from '@/lib/types';
-import { useWebSocket, type WebSocketMessage } from '@/hooks/use-websocket';
+// import { useWebSocket, type WebSocketMessage } from '@/hooks/use-websocket';
 import { queryLogs, clearLogs, exportLogs, type RequestLogEntry } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import {

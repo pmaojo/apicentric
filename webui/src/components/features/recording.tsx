@@ -8,7 +8,7 @@ import * as React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useWebSocket, type WebSocketMessage } from '@/hooks/use-websocket';
+// import { useWebSocket, type WebSocketMessage } from '@/hooks/use-websocket';
 import * as api from '@/services/api';
 import {
   Dialog,
