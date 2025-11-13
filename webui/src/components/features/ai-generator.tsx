@@ -272,7 +272,7 @@ export function AiGenerator({ onAddService }: AiGeneratorProps) {
                 
                 <Button 
                   type="submit" 
-                  disabled={isLoading || !aiConfig?.configured}
+                  disabled={isLoading || !aiConfig?.is_configured}
                 >
                   {isLoading ? (
                     <>

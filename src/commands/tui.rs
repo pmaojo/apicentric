@@ -27,7 +27,7 @@ use apicentric::{ApicentricError, ApicentricResult};
 use apicentric::simulator::{manager::ApiSimulatorManager, config::SimulatorConfig};
 
 use super::tui_events::{poll_events, handle_key_event, update_service_status, poll_log_entries, Action};
-use super::tui_render::{render_service_list, render_log_view, render_actions_panel, render_filter_dialog, render_search_dialog, render_help_dialog};
+use super::tui_render::{render_service_list, render_log_view, render_actions_panel, render_actions_panel_with_metrics, render_filter_dialog, render_search_dialog, render_help_dialog};
 use super::tui_state::{TuiAppState, ViewMode};
 
 /// Launch the enhanced terminal dashboard with service list, logs and actions panes.
@@ -122,13 +122,20 @@ async fn run_app(
     let mut last_status_update = std::time::Instant::now();
     let status_update_interval = Duration::from_secs(1);
 
+    // Performance profiling variables
+    let mut input_latencies = Vec::new();
+    let mut max_input_latency = Duration::ZERO;
+
     // Main event loop
     loop {
+        let loop_start = std::time::Instant::now();
+
         // Render UI
+        let render_start = std::time::Instant::now();
         terminal
             .draw(|f| {
                 let size = f.size();
-                
+
                 // Create three-panel layout
                 let chunks = Layout::default()
                     .direction(Direction::Horizontal)
@@ -141,18 +148,32 @@ async fn run_app(
 
                 // Render panels with focus indication
                 render_service_list(
-                    f, 
-                    chunks[0], 
-                    &state.services, 
+                    f,
+                    chunks[0],
+                    &state.services,
                     state.focused_panel == super::tui_state::FocusedPanel::Services
                 );
                 render_log_view(
-                    f, 
-                    chunks[1], 
-                    &state, 
+                    f,
+                    chunks[1],
+                    &state,
                     state.focused_panel == super::tui_state::FocusedPanel::Logs
                 );
-                render_actions_panel(f, chunks[2], &state);
+                // Calculate average input latency for display
+                let avg_input_latency = if !input_latencies.is_empty() {
+                    let sum: Duration = input_latencies.iter().sum();
+                    sum / input_latencies.len() as u32
+                } else {
+                    Duration::ZERO
+                };
+
+                render_actions_panel_with_metrics(
+                    f,
+                    chunks[2],
+                    &state,
+                    if avg_input_latency > Duration::ZERO { Some(avg_input_latency) } else { None },
+                    if max_input_latency > Duration::ZERO { Some(max_input_latency) } else { None },
+                );
 
                 // Render dialogs on top if active
                 match state.mode {
@@ -168,25 +189,57 @@ async fn run_app(
                     Some("Terminal size may be too small. Try resizing your terminal window")
                 )
             })?;
+        let render_time = render_start.elapsed();
 
         // Poll for new log entries (non-blocking)
+        let poll_start = std::time::Instant::now();
         poll_log_entries(&mut state, &mut log_receiver);
+        let poll_time = poll_start.elapsed();
 
         // Periodic status update (every 1 second)
-        if last_status_update.elapsed() >= status_update_interval {
+        let status_update_time = if last_status_update.elapsed() >= status_update_interval {
+            let update_start = std::time::Instant::now();
             let _ = update_service_status(&mut state, &manager).await;
             last_status_update = std::time::Instant::now();
-        }
+            update_start.elapsed()
+        } else {
+            Duration::ZERO
+        };
 
-        // Poll for keyboard events with timeout
-        if let Some(event) = poll_events(Duration::from_millis(250))? {
+        // Poll for keyboard events with optimized timeout (50ms for <100ms response)
+        let event_start = std::time::Instant::now();
+        let event_timeout = Duration::from_millis(50); // Reduced from 250ms for better responsiveness
+        let mut input_detected = false;
+        if let Some(event) = poll_events(event_timeout)? {
             if let Event::Key(key) = event {
+                input_detected = true;
+                let key_press_time = event_start.elapsed();
+
+                // Track input latency (time from event detection to processing)
+                input_latencies.push(key_press_time);
+                if key_press_time > max_input_latency {
+                    max_input_latency = key_press_time;
+                }
+
                 let action = handle_key_event(key, &mut state, &manager).await?;
 
                 if action == Action::Quit {
                     break;
                 }
             }
+        }
+        let event_time = event_start.elapsed();
+
+        // Maintain latency history (keep last 100 measurements)
+        if input_latencies.len() > 100 {
+            input_latencies.remove(0);
+        }
+
+        // Log performance metrics if loop takes >50ms (for debugging)
+        let total_loop_time = loop_start.elapsed();
+        if total_loop_time > Duration::from_millis(50) {
+            // Optional: could add debug logging here if needed
+            // For now, just track internally
         }
     }
 

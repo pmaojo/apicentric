@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-// import { useWebSocket, type ServiceStatusUpdate } from '@/hooks/use-websocket';
+import { useWebSocketSubscription, type ServiceStatusUpdate } from '@/providers/websocket-provider';
+import { SystemMetrics } from './system-metrics';
 import type { Service } from '@/lib/types';
 import { startService, stopService, reloadServices } from '@/services/api';
 import { CheckCircle, ExternalLink, Play, Power, Square, XCircle, RefreshCw, Loader2 } from 'lucide-react';
@@ -40,38 +41,27 @@ export function Dashboard({ services, onToggleService, onServiceUpdate }: Dashbo
   const [loadingServices, setLoadingServices] = React.useState<Set<string>>(new Set());
   const [reloadingAll, setReloadingAll] = React.useState(false);
 
-  // WebSocket connection for real-time updates
-  // TEMPORARILY DISABLED due to connection leak - needs proper cleanup
-  // const WS_URL = typeof window !== 'undefined' && (window as any).NEXT_PUBLIC_WS_URL
-  //   ? (window as any).NEXT_PUBLIC_WS_URL
-  //   : 'ws://localhost:8080/ws';
-  
-  // useWebSocket({
-  //   url: WS_URL,
-  //   enabled: true,
-  //   onMessage: (message) => {
-  //     if (message.type === 'service_status' && message.data) {
-  //       const update = message.data as ServiceStatusUpdate;
-  //       onServiceUpdate?.(update.service_name, {
-  //         status: update.status as 'running' | 'stopped',
-  //         port: update.port,
-  //       });
-  //       
-  //       // Remove from loading state when status changes
-  //       setLoadingServices((prev: Set<string>) => {
-  //         const next = new Set(prev);
-  //         next.delete(update.service_name);
-  //         return next;
-  //       });
-  //     }
-  //   },
-  //   onError: (error) => {
-  //     // Only log actual errors, not empty reconnection events
-  //     if (error && Object.keys(error).length > 0) {
-  //       console.error('WebSocket connection error:', error);
-  //     }
-  //   },
-  // });
+  // Subscribe to service status updates via WebSocket
+  useWebSocketSubscription('service_status', (update: ServiceStatusUpdate) => {
+    onServiceUpdate?.(update.service_name, {
+      status: update.status as 'running' | 'stopped',
+      port: update.port,
+    });
+    
+    // Remove from loading state when status changes
+    setLoadingServices((prev: Set<string>) => {
+      const next = new Set(prev);
+      next.delete(update.service_name);
+      return next;
+    });
+
+    // Show toast notification for status changes
+    toast({
+      title: `Service ${update.status === 'running' ? 'Started' : 'Stopped'}`,
+      description: `${update.service_name} is now ${update.status}`,
+      variant: update.status === 'running' ? 'default' : 'destructive',
+    });
+  }, [onServiceUpdate, toast]);
 
   const handleStartService = async (service: Service) => {
     setLoadingServices((prev: Set<string>) => new Set(prev).add(service.name));
@@ -180,6 +170,13 @@ export function Dashboard({ services, onToggleService, onServiceUpdate }: Dashbo
       </Card>
 
       <div className="space-y-4">
+        <h2 className="text-2xl font-bold tracking-tight">System Metrics</h2>
+        <SystemMetrics />
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
         <h2 className="text-2xl font-bold tracking-tight">Active Services</h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {runningServices.length > 0 ? (
@@ -242,7 +239,7 @@ function ServiceCard({
 
   return (
     <>
-      <Card className="flex flex-col">
+      <Card className="flex flex-col" data-testid={`service-card`} data-service-name={service.name}>
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -256,6 +253,7 @@ function ServiceCard({
                   ? 'bg-green-500/20 text-green-400 border-green-500/30'
                   : 'bg-red-500/20 text-red-400 border-red-500/30'
               }`}
+              data-testid="service-status"
             >
               {isLoading ? (
                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />
@@ -285,6 +283,7 @@ function ServiceCard({
               variant="destructive"
               onClick={() => setShowStopDialog(true)}
               disabled={isLoading}
+              data-testid="stop-service-button"
             >
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -294,7 +293,7 @@ function ServiceCard({
               Stop
             </Button>
           ) : (
-            <Button onClick={() => onStart(service)} disabled={isLoading}>
+            <Button onClick={() => onStart(service)} disabled={isLoading} data-testid="start-service-button">
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

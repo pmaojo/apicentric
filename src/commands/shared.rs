@@ -1,4 +1,4 @@
-use crate::{ApicentricError, ApicentricResult};
+dduse crate::{ApicentricError, ApicentricResult};
 use apicentric::simulator::config::{
     EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
 };
@@ -6,6 +6,14 @@ use inquire::{Confirm, Select, Text};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+/// Finds YAML files in the specified directory.
+///
+/// # Arguments
+/// * `dir` - The directory path to search in
+/// * `recursive` - Whether to search recursively in subdirectories
+///
+/// # Returns
+/// A vector of paths to YAML files found
 pub fn find_yaml_files(dir: &Path, recursive: bool) -> ApicentricResult<Vec<PathBuf>> {
     let mut files = Vec::new();
     if recursive {
@@ -16,6 +24,10 @@ pub fn find_yaml_files(dir: &Path, recursive: bool) -> ApicentricResult<Vec<Path
     Ok(files)
 }
 
+/// Validates that a file contains valid YAML syntax.
+///
+/// # Arguments
+/// * `file_path` - The path to the YAML file to validate
 pub fn validate_yaml_file(file_path: &Path) -> ApicentricResult<()> {
     let content = std::fs::read_to_string(file_path).map_err(|e| {
         ApicentricError::fs_error(

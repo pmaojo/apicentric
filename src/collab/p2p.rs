@@ -2,15 +2,19 @@
 //!
 //! This module provides a `spawn` function that creates a new libp2p node for
 //! collaboration.
+//!
+//! This module is only available when the `p2p` feature flag is enabled.
 
 use std::error::Error;
 
 use libp2p::{
     futures::StreamExt,
     gossipsub::{self, IdentTopic, MessageAuthenticity, ValidationMode},
-    identity, mdns, swarm::{NetworkBehaviour, SwarmEvent},
+    identity, mdns,
+    swarm::SwarmEvent,
     PeerId, SwarmBuilder,
 };
+use libp2p::swarm::NetworkBehaviour;
 use tokio::sync::mpsc;
 
 /// The combined network behaviour for collaboration, consisting of gossipsub
@@ -29,7 +33,7 @@ struct CollabBehaviour {
 /// messages coming from peers. Messages are plain byte vectors that higher
 /// layers interpret as [`crate::collab::crdt::CrdtMessage`].
 pub async fn spawn()
-    -> Result<(mpsc::UnboundedSender<Vec<u8>>, mpsc::UnboundedReceiver<Vec<u8>>), Box<dyn Error>>
+    -> Result<(mpsc::UnboundedSender<Vec<u8>>, mpsc::UnboundedReceiver<Vec<u8>>), Box<dyn Error + Send + Sync>>
 {
     // Generate a random peer id based on an Ed25519 key pair.
     let local_key = identity::Keypair::generate_ed25519();

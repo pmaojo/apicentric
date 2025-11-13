@@ -1,0 +1,22 @@
+{
+  "simulator": {
+    "enabled": true,
+    "services_dir": "services",
+    "port_range": {
+      "start": 9000,
+      "end": 9099
+    },
+    "db_path": "apicentric.db",
+    "admin_port": 8080,
+    "global_behavior": {
+      "latency": null,
+      "error_simulation": null,
+      "rate_limiting": null
+    }
+  },
+  "ai": {
+    "provider": "gemini",
+    "api_key": "AIzaSyB5QMNZYtzzlCiMPMymvwTp9dolMj1nLPE",
+    "model": "gemini-2.5-flash"
+  }
+}

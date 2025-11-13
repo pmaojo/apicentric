@@ -80,6 +80,7 @@ export function SidebarNav({ activeView, setActiveView }: SidebarNavProps) {
             onClick={() => handleNavigation(item.id)}
             isActive={activeView === item.id}
             tooltip={{children: item.label}}
+            data-testid={`sidebar-${item.id}`}
           >
             <item.icon />
             <span>{item.label}</span>

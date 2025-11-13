@@ -8,7 +8,6 @@ import { QueryClient, QueryClientProvider, useQuery, useMutation } from '@tansta
 import { fetchSimulatorStatus, startSimulator, stopSimulator } from '@/services/api';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import yaml from 'js-yaml';
 
 // Lazy load heavy components for code splitting
 const ServiceManagement = lazy(() => import('@/components/features/service-management').then(m => ({ default: m.ServiceManagement })));
@@ -47,7 +46,7 @@ function AppContent() {
   const { data: simulatorStatus, isLoading, error, refetch } = useQuery<SimulatorStatus, Error>({
     queryKey: ['simulatorStatus'],
     queryFn: fetchSimulatorStatus,
-    refetchInterval: 5000, // Refetch every 5 seconds
+    refetchInterval: 10000, // Refetch every 10 seconds
   });
   const [services, setServices] = useState<Service[]>([]);
   const { toast } = useToast();
@@ -134,9 +133,10 @@ function AppContent() {
    * @param {number} serviceData.port - The port for the service.
    * @param {string} serviceData.definition - The raw YAML definition string.
    */
-  const handleAddService = useCallback((serviceData: { name: string, version: string, port: number, definition: string }) => {
+  const handleAddService = useCallback(async (serviceData: { name: string, version: string, port: number, definition: string }) => {
     try {
-      const doc: any = yaml.load(serviceData.definition);
+      const yamlModule = await import('js-yaml');
+      const doc: any = yamlModule.default.load(serviceData.definition);
       
       const newService: Service = {
         id: `new-service-${Date.now()}-${newServiceIdCounter++}`,
@@ -171,9 +171,10 @@ function AppContent() {
    * Updates an existing service in the list.
    * @param {Service} updatedService - The service object with updated information.
    */
-  const handleUpdateService = useCallback((updatedService: Service) => {
+  const handleUpdateService = useCallback(async (updatedService: Service) => {
     try {
-      const doc: any = yaml.load(updatedService.definition);
+      const yamlModule = await import('js-yaml');
+      const doc: any = yamlModule.default.load(updatedService.definition);
       
       setServices(prevServices => prevServices.map(service => {
         if (service.id === updatedService.id) {

@@ -1,4 +1,3 @@
-pub mod setup_npm;
 pub mod contract;
 pub mod simulator;
 pub mod shared;
@@ -15,7 +14,6 @@ pub mod tui_render;
 #[cfg(feature = "tui")]
 pub mod tui_events;
 
-pub use setup_npm::SetupNpmHandler;
 pub use contract::{contract_command, ContractAction};
 pub use simulator::{simulator_command, SimulatorAction};
 pub use ai::{ai_command, AiAction};

@@ -111,6 +111,9 @@ enum Commands {
 /// The entry point for the `apicentric` CLI.
 #[tokio::main]
 async fn main() {
+    // Initialize structured logging
+    apicentric::logging::init();
+
     let cli = Cli::parse();
 
     if let Err(e) = run(cli).await {
@@ -157,7 +160,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         sim.set_db_path(&cli.db_path).await.ok();
     }
 
-    let mut exec_ctx = ExecutionContext::new(context.config());
+    let mut exec_ctx = ExecutionContext::new();
     if let Some(mode) = cli.mode {
         exec_ctx = exec_ctx.with_mode(mode.into());
     }

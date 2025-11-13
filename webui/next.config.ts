@@ -34,6 +34,7 @@ const nextConfig: NextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
+  // Optimize imports
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
@@ -41,13 +42,6 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   // Optimize bundle size
   webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Optimize Monaco Editor loading
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        'monaco-editor': 'monaco-editor/esm/vs/editor/editor.api.js',
-      };
-    }
     return config;
   },
 };

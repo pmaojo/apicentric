@@ -55,9 +55,7 @@ impl Context {
         if let Some(ref c) = self.config.simulator {
             c.is_enabled()
         } else {
-            std::env::var("PULSE_API_SIMULATOR")
-                .map(|v| matches!(v.to_lowercase().as_str(), "true" | "1" | "yes" | "on"))
-                .unwrap_or(false)
+            false
         }
     }
 }

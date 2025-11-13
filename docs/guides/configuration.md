@@ -138,8 +138,6 @@ Controls the API simulator behavior.
 - Services directory `services` is a standard convention
 - Database path `apicentric.db` keeps data in the project root
 
-**Environment Override**: Set `PULSE_API_SIMULATOR=true` to enable without config.
-
 ### NPM Integration
 
 Controls NPM script integration.

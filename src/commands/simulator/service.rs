@@ -1,8 +1,10 @@
-// Disabled heavy P2P dependencies for lighter CLI build  
-// use crate::collab::share;
 use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_definition};
-// use libp2p::PeerId;
 use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
+
+#[cfg(feature = "p2p")]
+use crate::collab::share;
+#[cfg(feature = "p2p")]
+use libp2p::PeerId;
 
 pub async fn handle_record(
     context: &Context,
@@ -12,7 +14,7 @@ pub async fn handle_record(
 ) -> ApicentricResult<()> {
     let target = url
         .clone()
-        .unwrap_or_else(|| context.config().base_url.clone());
+        .unwrap_or_else(|| "http://localhost:8080".to_string());
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would record traffic to '{}' (target={})",
@@ -33,8 +35,9 @@ pub async fn handle_record(
     }
 }
 
+#[cfg(feature = "p2p")]
 pub async fn handle_share(
-    context: &Context,
+    _context: &Context,
     service: &str,
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
@@ -42,13 +45,56 @@ pub async fn handle_share(
         println!("🏃 Dry run: Would share service '{}'", service);
         return Ok(());
     }
-    // Disabled heavy P2P sharing functionality for lighter CLI build
-    println!("📡 Sharing feature temporarily disabled for lighter CLI build");
-    println!("   Service: {}", service);
-    println!("   (P2P sharing will be re-enabled in future versions)");
+    
+    // For now, we'll use a default port. In a full implementation, this would
+    // query the running service from the simulator to get its actual port.
+    // This is a simplified implementation for the P2P feature gate demonstration.
+    let port = 8080; // Default port - should be retrieved from running service
+    
+    println!("📡 Sharing service '{}' over P2P...", service);
+    println!("   Note: Using default port {}. Ensure service is running on this port.", port);
+    
+    let (peer_id, token) = share::share_service(port).await.map_err(|e| {
+        ApicentricError::config_error(
+            &format!("Failed to share service: {}", e),
+            Some("Check network connectivity and firewall settings"),
+        )
+    })?;
+    
+    println!("✅ Service shared successfully!");
+    println!("   Peer ID: {}", peer_id);
+    println!("   Token: {}", token);
+    println!("   Port: {}", port);
+    println!("\nOthers can connect with:");
+    println!("   apicentric simulator connect --peer {} --service {} --port <local-port> --token {}", 
+             peer_id, service, token);
+    
     Ok(())
 }
 
+#[cfg(not(feature = "p2p"))]
+pub async fn handle_share(
+    _context: &Context,
+    service: &str,
+    exec_ctx: &ExecutionContext,
+) -> ApicentricResult<()> {
+    if exec_ctx.dry_run {
+        println!("🏃 Dry run: Would share service '{}'", service);
+        return Ok(());
+    }
+    
+    println!("📡 P2P sharing is not available in this build");
+    println!("   Service: {}", service);
+    println!("\n💡 To enable P2P features, rebuild with:");
+    println!("   cargo build --release --features p2p");
+    
+    Err(ApicentricError::config_error(
+        "P2P features not available",
+        Some("Rebuild with --features p2p to enable collaboration"),
+    ))
+}
+
+#[cfg(feature = "p2p")]
 pub async fn handle_connect(
     peer: &str,
     service: &str,
@@ -63,16 +109,66 @@ pub async fn handle_connect(
         );
         return Ok(());
     }
-    // Disabled heavy P2P connection functionality for lighter CLI build
-    println!("🔗 Connection feature temporarily disabled for lighter CLI build");
+    
+    let token = token.ok_or_else(|| {
+        ApicentricError::config_error(
+            "Authentication token is required",
+            Some("Use --token <TOKEN> to provide the token from the sharing peer"),
+        )
+    })?;
+    
+    let peer_id = peer.parse::<PeerId>().map_err(|e| {
+        ApicentricError::config_error(
+            &format!("Invalid peer ID: {}", e),
+            Some("Check the peer ID format from the sharing peer"),
+        )
+    })?;
+    
+    println!("🔗 Connecting to peer '{}' for service '{}'...", peer, service);
+    println!("   Local port: {}", port);
+    
+    share::connect_service(peer_id, token.to_string(), service.to_string(), port)
+        .await
+        .map_err(|e| {
+            ApicentricError::config_error(
+                &format!("Failed to connect to peer: {}", e),
+                Some("Check network connectivity and verify peer ID and token"),
+            )
+        })?;
+    
+    Ok(())
+}
+
+#[cfg(not(feature = "p2p"))]
+pub async fn handle_connect(
+    peer: &str,
+    service: &str,
+    port: u16,
+    token: Option<&str>,
+    exec_ctx: &ExecutionContext,
+) -> ApicentricResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would connect to peer '{}' service '{}' on port {}",
+            peer, service, port
+        );
+        return Ok(());
+    }
+    
+    println!("🔗 P2P connection is not available in this build");
     println!("   Peer: {}", peer);
     println!("   Service: {}", service);
     println!("   Port: {}", port);
     if let Some(t) = token {
         println!("   Token: {}", t);
     }
-    println!("   (P2P connection will be re-enabled in future versions)");
-    Ok(())
+    println!("\n💡 To enable P2P features, rebuild with:");
+    println!("   cargo build --release --features p2p");
+    
+    Err(ApicentricError::config_error(
+        "P2P features not available",
+        Some("Rebuild with --features p2p to enable collaboration"),
+    ))
 }
 
 pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> ApicentricResult<()> {

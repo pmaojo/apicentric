@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, RwLock};
+use tracing::info;
 
 /// Central coordinator for the API simulator functionality
 pub struct ApiSimulatorManager {
@@ -141,7 +142,7 @@ impl ApiSimulatorManager {
             ));
         }
 
-        log::info!("Reloading service configurations...");
+        info!(target: "simulator", "Reloading service configurations");
 
         self.lifecycle.reload_services_internal().await
     }
@@ -273,7 +274,11 @@ impl ApiSimulatorManager {
             }
             
             service.start().await?;
-            log::info!("Started service '{}'", service_name);
+            info!(
+                target: "simulator",
+                service = %service_name,
+                "Service started"
+            );
             Ok(())
         } else {
             Err(ApicentricError::runtime_error(
@@ -298,7 +303,11 @@ impl ApiSimulatorManager {
             }
             
             service.stop().await?;
-            log::info!("Stopped service '{}'", service_name);
+            info!(
+                target: "simulator",
+                service = %service_name,
+                "Service stopped"
+            );
             Ok(())
         } else {
             Err(ApicentricError::runtime_error(

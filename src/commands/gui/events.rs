@@ -5,8 +5,9 @@
 
 #![cfg(feature = "gui")]
 
-use super::{GuiMessage, CapturedRequest, ExportFormat, CodeGenTarget};
-use super::state::{GuiAppState, ServiceStatus, RequestLogEntry, LogFilter};
+use super::messages::{GuiMessage, CapturedRequest, ExportFormat, CodeGenTarget};
+use super::state::GuiAppState;
+use super::models::{ServiceStatus, RequestLogEntry, LogFilter, ServiceInfo, EndpointInfo};
 use apicentric::simulator::manager::ApiSimulatorManager;
 use apicentric::{ApicentricError, ApicentricResult};
 use std::sync::Arc;
@@ -283,7 +284,7 @@ impl EventHandler {
             let service_path = services_dir.join(format!("{}.yaml", service_name));
             let port = def.server.port.unwrap_or(state.config.default_port);
             
-            let mut service_info = super::state::ServiceInfo::new(
+            let mut service_info = ServiceInfo::new(
                 service_name.clone(),
                 service_path,
                 port,
@@ -291,7 +292,7 @@ impl EventHandler {
             
             // Parse endpoints from definition
             for endpoint in &def.endpoints {
-                service_info.endpoints.push(super::state::EndpointInfo {
+                service_info.endpoints.push(EndpointInfo {
                     method: endpoint.method.clone(),
                     path: endpoint.path.clone(),
                 });
@@ -588,7 +589,7 @@ mod tests {
         let log_receiver = tokio::sync::broadcast::channel(1).1;
         let mut state = GuiAppState::new(log_receiver);
 
-        let new_config = super::super::state::GuiConfig {
+        let new_config = super::super::models::GuiConfig {
             services_directory: PathBuf::from("/new/path"),
             default_port: 9000,
         };
@@ -613,7 +614,7 @@ mod tests {
         let mut state = GuiAppState::new(log_receiver);
         
         // Add a service
-        let service = super::super::state::ServiceInfo::new(
+        let service = super::super::models::ServiceInfo::new(
             "test-service".to_string(),
             PathBuf::from("services/test.yaml"),
             8080,
@@ -642,7 +643,7 @@ mod tests {
         
         // Verify service is stopped
         let service = state.find_service("test-service").unwrap();
-        assert_eq!(service.status, super::super::state::ServiceStatus::Stopped);
+        assert_eq!(service.status, super::super::models::ServiceStatus::Stopped);
     }
     
     #[tokio::test]
@@ -653,12 +654,12 @@ mod tests {
         let mut state = GuiAppState::new(log_receiver);
         
         // Add multiple services
-        let service1 = super::super::state::ServiceInfo::new(
+        let service1 = super::super::models::ServiceInfo::new(
             "service-1".to_string(),
             PathBuf::from("services/s1.yaml"),
             8080,
         );
-        let service2 = super::super::state::ServiceInfo::new(
+        let service2 = super::super::models::ServiceInfo::new(
             "service-2".to_string(),
             PathBuf::from("services/s2.yaml"),
             8081,
@@ -689,7 +690,7 @@ mod tests {
         ).await.unwrap();
         
         // Verify first is stopped, second still running
-        assert_eq!(state.find_service("service-1").unwrap().status, super::super::state::ServiceStatus::Stopped);
+        assert_eq!(state.find_service("service-1").unwrap().status, super::super::models::ServiceStatus::Stopped);
         assert!(state.find_service("service-2").unwrap().status.is_running());
     }
     
@@ -725,7 +726,7 @@ mod tests {
         let mut state = GuiAppState::new(log_receiver);
         
         // Add and start a service
-        let service = super::super::state::ServiceInfo::new(
+        let service = super::super::models::ServiceInfo::new(
             "test-service".to_string(),
             PathBuf::from("services/test.yaml"),
             8080,
@@ -754,7 +755,7 @@ mod tests {
         let mut state = GuiAppState::new(log_receiver);
         
         // Add a stopped service
-        let service = super::super::state::ServiceInfo::new(
+        let service = super::super::models::ServiceInfo::new(
             "test-service".to_string(),
             PathBuf::from("services/test.yaml"),
             8080,
@@ -789,20 +790,20 @@ mod tests {
         handler.handle_message(
             GuiMessage::ServiceStatusChanged(
                 "test-service".to_string(),
-                super::super::state::ServiceStatus::Starting
+                super::super::models::ServiceStatus::Starting
             ),
             &mut state
         ).await.unwrap();
-        
+
         assert_eq!(
             state.find_service("test-service").unwrap().status,
-            super::super::state::ServiceStatus::Starting
+            super::super::models::ServiceStatus::Starting
         );
-        
+
         handler.handle_message(
             GuiMessage::ServiceStatusChanged(
                 "test-service".to_string(),
-                super::super::state::ServiceStatus::Running
+                super::super::models::ServiceStatus::Running
             ),
             &mut state
         ).await.unwrap();
@@ -829,7 +830,7 @@ mod tests {
         handler.handle_message(
             GuiMessage::ServiceStatusChanged(
                 "test-service".to_string(),
-                super::super::state::ServiceStatus::Failed("Port in use".to_string())
+                super::super::models::ServiceStatus::Failed("Port in use".to_string())
             ),
             &mut state
         ).await.unwrap();

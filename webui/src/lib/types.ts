@@ -9,7 +9,42 @@ export type Endpoint = {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   path: string;
   description?: string;
+  operationId?: string;
 };
+
+/**
+ * Validation result for service definitions
+ */
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+/**
+ * Log filters for querying request logs
+ */
+export interface LogFilters {
+  search: string;
+  service: string;
+  method: string;
+  status: string;
+}
+
+/**
+ * Payload for creating a new service
+ */
+export interface CreateServicePayload {
+  yaml: string;
+  filename?: string;
+}
+
+/**
+ * Payload for updating an existing service
+ */
+export interface UpdateServicePayload {
+  yaml: string;
+}
 
 /**
  * Represents a mock service in the UI.

@@ -314,10 +314,14 @@ async fn test_codegen_service_not_found() {
         .await
         .unwrap();
     
-    assert_eq!(res.status(), 200);
+    // Should return 404 for non-existent service
+    assert_eq!(res.status(), 404);
     let response: serde_json::Value = res.json().await.unwrap();
-    assert_eq!(response["success"], false);
-    assert!(response["error"].as_str().unwrap().contains("not found"));
+    // Check that the error message contains "not found"
+    let error_msg = response["message"].as_str()
+        .or_else(|| response["error"].as_str())
+        .expect("Response should have error message");
+    assert!(error_msg.contains("not found"), "Error message should contain 'not found', got: {}", error_msg);
 
     // Cleanup
     cloud_handle.abort();

@@ -16,6 +16,7 @@ use tokio_tungstenite::{accept_async, tungstenite::Message};
 
 use crate::simulator::config::EndpointDefinition;
 use crate::simulator::template::{TemplateContext, TemplateEngine};
+use tracing::info;
 
 /// Request router that maps requests to service instances
 pub struct RequestRouter {
@@ -61,10 +62,11 @@ impl RequestRouter {
         self.service_mappings
             .insert(normalized_path, service_name.to_string());
 
-        log::info!(
-            "Registered routes for service '{}' at path '{}'",
-            service_name,
-            base_path
+        info!(
+            target: "simulator",
+            service = %service_name,
+            path = %base_path,
+            "Routes registered for service"
         );
     }
 
@@ -82,13 +84,17 @@ impl RequestRouter {
             self.service_mappings.remove(&path);
         }
 
-        log::info!("Unregistered routes for service '{}'", service_name);
+        info!(
+            target: "simulator",
+            service = %service_name,
+            "Routes unregistered for service"
+        );
     }
 
     /// Clear all route mappings
     pub fn clear_all_routes(&mut self) {
         self.service_mappings.clear();
-        log::info!("Cleared all route mappings");
+        info!(target: "simulator", "All route mappings cleared");
     }
 
     /// Get all registered routes

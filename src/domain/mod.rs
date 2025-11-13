@@ -1,5 +1,4 @@
 pub mod entities;
-pub mod errors;
 pub mod ports;
 
 // Contract Testing modules

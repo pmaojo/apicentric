@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { WebSocketStatus } from '@/components/ui/websocket-status';
 import { Play, Square } from 'lucide-react';
 import * as React from 'react';
 
@@ -18,14 +19,15 @@ export function Header({ title, isSimulatorRunning, onToggleSimulator }: HeaderP
         <SidebarTrigger />
       </div>
       <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-3">
+        <WebSocketStatus />
         {isSimulatorRunning ? (
-          <Button variant="destructive" onClick={onToggleSimulator}>
+          <Button variant="destructive" onClick={onToggleSimulator} data-testid="simulator-toggle">
             <Square className="mr-2 h-4 w-4" />
             Stop Simulator
           </Button>
         ) : (
-          <Button className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={onToggleSimulator}>
+          <Button className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={onToggleSimulator} data-testid="simulator-toggle">
             <Play className="mr-2 h-4 w-4" />
             Start Simulator
           </Button>

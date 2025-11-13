@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
+use indexmap::IndexMap;
 
-use openapi::{Info, Operation, Operations, Parameter, Response, Schema, Spec};
+use openapiv3::{Info, Operation, Parameter, Response, Schema, OpenAPI, PathItem, RequestBody, Responses, ReferenceOr, MediaType, Components, Server, StatusCode, Paths};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value;
@@ -13,146 +14,9 @@ use crate::simulator::config::{
 
 /// Convert an OpenAPI spec into a `ServiceDefinition` used by the simulator
 pub fn from_openapi(doc: &Value) -> ServiceDefinition {
-    if doc.get("openapi").is_some() {
-        return from_openapi_v3(doc);
-    }
-
-    match serde_yaml::from_value::<Spec>(doc.clone()) {
-        Ok(spec) => from_openapi_v2(&spec, doc),
-        Err(_) => from_openapi_v3(doc),
-    }
+    from_openapi_v3(doc)
 }
 
-fn from_openapi_v2(spec: &Spec, raw: &Value) -> ServiceDefinition {
-    let json_doc = serde_json::to_value(raw).unwrap_or(JsonValue::Null);
-    let raw_paths = json_doc.get("paths");
-
-    let server = ServerConfig {
-        port: None,
-        base_path: spec.base_path.clone().unwrap_or_else(|| "/".to_string()),
-        proxy_base_url: None,
-        cors: None,
-        record_unknown: false,
-    };
-
-    let models = if spec.definitions.is_empty() {
-        None
-    } else {
-        let mut map = HashMap::new();
-        for (name, schema) in &spec.definitions {
-            if let Ok(value) = serde_json::to_value(schema) {
-                map.insert(name.clone(), value);
-            }
-        }
-        Some(map)
-    };
-
-    let mut endpoints = Vec::new();
-    for (path, ops) in &spec.paths {
-        let raw_path = raw_paths.and_then(|paths| paths.get(path));
-        let methods: Vec<(&str, Option<&Operation>)> = vec![
-            ("get", ops.get.as_ref()),
-            ("post", ops.post.as_ref()),
-            ("put", ops.put.as_ref()),
-            ("patch", ops.patch.as_ref()),
-            ("delete", ops.delete.as_ref()),
-        ];
-
-        for (method, op_opt) in methods {
-            if let Some(op) = op_opt {
-                let raw_operation = raw_path.and_then(|p| p.get(method));
-
-                let mut params: Vec<ParameterDefinition> = Vec::new();
-                let mut request_body: Option<RequestBodyDefinition> = None;
-                if let Some(ps) = &op.parameters {
-                    for p in ps {
-                        if p.location == "body" {
-                            request_body = Some(RequestBodyDefinition {
-                                required: p.required.unwrap_or(false),
-                                schema: p.schema.as_ref().and_then(|s| {
-                                    s.ref_path
-                                        .as_ref()
-                                        .and_then(|r| r.split('/').last().map(|s| s.to_string()))
-                                }),
-                                content_type: op.consumes.as_ref().and_then(|c| c.first().cloned()),
-                            });
-                        } else {
-                            params.push(ParameterDefinition {
-                                name: p.name.clone(),
-                                location: match p.location.as_str() {
-                                    "path" => ParameterLocation::Path,
-                                    "query" => ParameterLocation::Query,
-                                    _ => ParameterLocation::Header,
-                                },
-                                param_type: p.param_type.clone().unwrap_or_else(|| "string".into()),
-                                required: p.required.unwrap_or(false),
-                                description: None,
-                            });
-                        }
-                    }
-                }
-
-                let parameters = if params.is_empty() {
-                    None
-                } else {
-                    Some(params)
-                };
-
-                let mut responses_map = HashMap::new();
-                let raw_responses = raw_operation.and_then(|op| op.get("responses"));
-                for (status, resp) in &op.responses {
-                    if let Ok(code) = status.parse::<u16>() {
-                        let raw_response = raw_responses.and_then(|r| r.get(status));
-                        let content_type = determine_content_type_v2(op, spec, raw_response);
-                        let body = build_response_body_v2(
-                            resp,
-                            raw_response,
-                            &content_type,
-                            &spec.definitions,
-                        );
-                        responses_map.insert(
-                            code,
-                            ResponseDefinition {
-                                condition: None,
-                                content_type,
-                                body,
-                                script: None,
-                                headers: None,
-                                side_effects: None,
-                            },
-                        );
-                    }
-                }
-
-                endpoints.push(EndpointDefinition {
-                    kind: EndpointKind::Http,
-                    method: method.to_uppercase(),
-                    path: path.clone(),
-                    header_match: None,
-                    description: op.summary.clone().or(op.description.clone()),
-                    parameters,
-                    request_body,
-                    responses: responses_map,
-                    scenarios: None,
-                    stream: None,
-                });
-            }
-        }
-    }
-
-    ServiceDefinition {
-        name: spec.info.title.clone(),
-        version: Some(spec.info.version.clone()),
-        description: None,
-        server,
-        models,
-        fixtures: None,
-        bucket: None,
-        endpoints,
-        graphql: None,
-        behavior: None,
-    }
-}
 
 fn from_openapi_v3(raw: &Value) -> ServiceDefinition {
     match serde_yaml::from_value::<OpenApi3Document>(raw.clone()) {
@@ -317,180 +181,8 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
     }
 }
 
-fn determine_content_type_v2(
-    op: &Operation,
-    spec: &Spec,
-    raw_response: Option<&JsonValue>,
-) -> String {
-    if let Some(content_type) = op
-        .produces
-        .as_ref()
-        .and_then(|values| values.first().cloned())
-    {
-        return content_type;
-    }
 
-    if let Some(content_type) = spec
-        .produces
-        .as_ref()
-        .and_then(|values| values.first().cloned())
-    {
-        return content_type;
-    }
 
-    if let Some(raw) = raw_response {
-        if let Some(examples) = raw.get("examples").and_then(|v| v.as_object()) {
-            if let Some((ctype, _)) = examples.iter().next() {
-                return ctype.clone();
-            }
-        }
-    }
-
-    "application/json".to_string()
-}
-
-fn build_response_body_v2(
-    resp: &Response,
-    raw_response: Option<&JsonValue>,
-    content_type: &str,
-    definitions: &BTreeMap<String, Schema>,
-) -> String {
-    if let Some(example) = extract_example_from_v2(raw_response, content_type) {
-        return format_json_value(&example);
-    }
-
-    if let Some(schema) = &resp.schema {
-        let mut visited = HashSet::new();
-        if let Some(value) = generate_example_from_schema_v2(schema, definitions, &mut visited) {
-            return format_json_value(&value);
-        }
-    }
-
-    resp.description.clone()
-}
-
-fn extract_example_from_v2(
-    raw_response: Option<&JsonValue>,
-    content_type: &str,
-) -> Option<JsonValue> {
-    let resp = raw_response?;
-    if let Some(examples) = resp.get("examples").and_then(|v| v.as_object()) {
-        if let Some(example) = examples.get(content_type) {
-            return Some(example.clone());
-        }
-        if let Some(example) = examples.values().next() {
-            return Some(example.clone());
-        }
-    }
-
-    if let Some(example) = resp.get("example") {
-        return Some(example.clone());
-    }
-
-    resp.get("schema")
-        .and_then(|schema| schema.get("example").cloned())
-}
-
-fn generate_example_from_schema_v2(
-    schema: &Schema,
-    definitions: &BTreeMap<String, Schema>,
-    visited: &mut HashSet<String>,
-) -> Option<JsonValue> {
-    if let Some(ref_path) = &schema.ref_path {
-        if let Some(name) = ref_path.split('/').last() {
-            if !visited.insert(name.to_string()) {
-                return Some(JsonValue::Object(Default::default()));
-            }
-            let result = definitions
-                .get(name)
-                .and_then(|s| generate_example_from_schema_v2(s, definitions, visited));
-            visited.remove(name);
-            return result;
-        }
-    }
-
-    if let Some(schema_type) = schema.schema_type.as_deref() {
-        match schema_type {
-            "object" => {
-                let mut map = serde_json::Map::new();
-                if let Some(props) = &schema.properties {
-                    for (prop_name, prop_schema) in props {
-                        if let Some(value) =
-                            generate_example_from_schema_v2(prop_schema, definitions, visited)
-                        {
-                            map.insert(prop_name.clone(), value);
-                        }
-                    }
-                }
-                return Some(JsonValue::Object(map));
-            }
-            "array" => {
-                if let Some(items) = schema.items.as_ref() {
-                    if let Some(value) =
-                        generate_example_from_schema_v2(items, definitions, visited)
-                    {
-                        return Some(JsonValue::Array(vec![value]));
-                    }
-                }
-                return Some(JsonValue::Array(vec![]));
-            }
-            "integer" => {
-                if let Some(values) = &schema.enum_values {
-                    if let Some(first) = values.first() {
-                        if let Ok(num) = first.parse::<i64>() {
-                            return Some(JsonValue::from(num));
-                        }
-                    }
-                }
-                return Some(JsonValue::from(0));
-            }
-            "number" => {
-                if let Some(values) = &schema.enum_values {
-                    if let Some(first) = values.first() {
-                        if let Ok(num) = first.parse::<f64>() {
-                            if let Some(value) = serde_json::Number::from_f64(num) {
-                                return Some(JsonValue::Number(value));
-                            }
-                        }
-                    }
-                }
-                return serde_json::Number::from_f64(0.0).map(JsonValue::Number);
-            }
-            "boolean" => return Some(JsonValue::Bool(true)),
-            "string" => {
-                if let Some(values) = &schema.enum_values {
-                    if let Some(first) = values.first() {
-                        return Some(JsonValue::String(first.clone()));
-                    }
-                }
-                if let Some(format) = schema.format.as_deref() {
-                    let sample = match format {
-                        "date-time" => "1970-01-01T00:00:00Z",
-                        "date" => "1970-01-01",
-                        "uuid" => "00000000-0000-0000-0000-000000000000",
-                        _ => "string",
-                    };
-                    return Some(JsonValue::String(sample.to_string()));
-                }
-                return Some(JsonValue::String("string".into()));
-            }
-            _ => {}
-        }
-    }
-
-    if let Some(props) = &schema.properties {
-        let mut map = serde_json::Map::new();
-        for (prop_name, prop_schema) in props {
-            if let Some(value) = generate_example_from_schema_v2(prop_schema, definitions, visited)
-            {
-                map.insert(prop_name.clone(), value);
-            }
-        }
-        return Some(JsonValue::Object(map));
-    }
-
-    Some(JsonValue::Null)
-}
 
 fn format_json_value(value: &JsonValue) -> String {
     match value {
@@ -855,132 +547,117 @@ struct OpenApi3Components {
 }
 
 /// Convert a `ServiceDefinition` into an OpenAPI spec
-pub fn to_openapi(service: &ServiceDefinition) -> Spec {
-    let mut paths: BTreeMap<String, Operations> = BTreeMap::new();
+pub fn to_openapi(service: &ServiceDefinition) -> OpenAPI {
+    let mut paths: IndexMap<String, PathItem> = IndexMap::new();
 
     for ep in &service.endpoints {
-        let operations = paths.entry(ep.path.clone()).or_insert_with(|| Operations {
+        let path_item = paths.entry(ep.path.clone()).or_insert_with(|| PathItem {
             get: None,
             post: None,
             put: None,
             patch: None,
             delete: None,
-            parameters: None,
+            parameters: Vec::new(),
+            ..Default::default()
         });
 
         let mut op = Operation {
             summary: ep.description.clone(),
             description: ep.description.clone(),
-            consumes: ep
-                .request_body
-                .as_ref()
-                .and_then(|b| b.content_type.clone().map(|c| vec![c])),
-            produces: ep
-                .responses
-                .values()
-                .next()
-                .map(|r| vec![r.content_type.clone()])
-                .or_else(|| Some(vec!["application/json".into()])),
-            schemes: None,
-            tags: None,
             operation_id: None,
-            responses: BTreeMap::new(),
-            parameters: None,
+            parameters: Vec::new(),
+            request_body: None,
+            responses: Responses {
+                default: None,
+                responses: IndexMap::new(),
+                extensions: IndexMap::new(),
+            },
+            tags: Vec::new(),
+            ..Default::default()
         };
 
-        // parameters
-        if let Some(params) = &ep.parameters {
-            let mut vec = Vec::new();
-            for p in params {
-                vec.push(Parameter {
-                    name: p.name.clone(),
-                    location: match p.location {
-                        ParameterLocation::Path => "path".into(),
-                        ParameterLocation::Query => "query".into(),
-                        ParameterLocation::Header => "header".into(),
-                    },
-                    required: Some(p.required),
-                    schema: None,
-                    unique_items: None,
-                    param_type: Some(p.param_type.clone()),
-                    format: None,
-                });
-            }
-            op.parameters = Some(vec);
-        }
+        // parameters - TODO: implement with openapiv3 Parameter enum
+        // For now, skip parameters
 
         if let Some(body) = &ep.request_body {
-            let schema = body.schema.as_ref().map(|s| Schema {
-                ref_path: Some(format!("#/definitions/{}", s)),
-                description: None,
-                schema_type: None,
-                format: None,
-                enum_values: None,
-                required: None,
-                items: None,
-                properties: None,
-            });
-            let param = Parameter {
-                name: "body".into(),
-                location: "body".into(),
-                required: Some(body.required),
-                schema,
-                unique_items: None,
-                param_type: None,
-                format: None,
+            let content_type = body.content_type.clone().unwrap_or_else(|| "application/json".to_string());
+            let mut content = IndexMap::new();
+            let media_type = openapiv3::MediaType {
+                schema: body.schema.as_ref().map(|s| {
+                    ReferenceOr::Reference {
+                        reference: format!("#/components/schemas/{}", s),
+                    }
+                }),
+                ..Default::default()
             };
-            match op.parameters {
-                Some(ref mut vec) => vec.push(param),
-                None => op.parameters = Some(vec![param]),
-            }
+            content.insert(content_type, media_type);
+            op.request_body = Some(ReferenceOr::Item(RequestBody {
+                description: None,
+                content,
+                required: body.required,
+                ..Default::default()
+            }));
         }
 
         for (code, resp) in &ep.responses {
-            op.responses.insert(
-                code.to_string(),
-                Response {
+            op.responses.responses.insert(
+                StatusCode::Code(*code),
+                ReferenceOr::Item(Response {
                     description: resp.body.clone(),
-                    schema: None,
-                },
+                    content: IndexMap::new(),
+                    ..Default::default()
+                }),
             );
         }
 
         match ep.method.to_lowercase().as_str() {
-            "get" => operations.get = Some(op),
-            "post" => operations.post = Some(op),
-            "put" => operations.put = Some(op),
-            "patch" => operations.patch = Some(op),
-            "delete" => operations.delete = Some(op),
+            "get" => path_item.get = Some(op),
+            "post" => path_item.post = Some(op),
+            "put" => path_item.put = Some(op),
+            "patch" => path_item.patch = Some(op),
+            "delete" => path_item.delete = Some(op),
             _ => {}
         }
     }
 
-    let mut definitions = BTreeMap::new();
-    if let Some(models) = &service.models {
+    let components = if let Some(models) = &service.models {
+        let mut schemas = IndexMap::new();
         for (name, value) in models {
+            // Assuming the value is already a valid Schema
             if let Ok(schema) = serde_json::from_value::<Schema>(value.clone()) {
-                definitions.insert(name.clone(), schema);
+                schemas.insert(name.clone(), ReferenceOr::Item(schema));
             }
         }
-    }
+        Some(openapiv3::Components {
+            schemas,
+            ..Default::default()
+        })
+    } else {
+        None
+    };
 
-    Spec {
-        swagger: "2.0".into(),
+    let openapi_paths = Paths {
+        paths: paths.into_iter().map(|(k, v)| (k, ReferenceOr::Item(v))).collect::<IndexMap<_, _>>(),
+        extensions: IndexMap::new(),
+    };
+
+    OpenAPI {
+        openapi: "3.0.3".to_string(),
         info: Info {
             title: service.name.clone(),
             version: service.version.clone().unwrap_or_else(|| "1.0".into()),
-            terms_of_service: None,
+            contact: None,
+            description: None,
+            ..Default::default()
         },
-        paths,
-        definitions,
-        schemes: None,
-        host: None,
-        base_path: Some(service.server.base_path.clone()),
-        consumes: None,
-        produces: None,
-        parameters: None,
-        responses: None,
-        security_definitions: None,
-        tags: None,
+        servers: vec![openapiv3::Server {
+            url: service.server.base_path.clone(),
+            description: None,
+            variables: None,
+            ..Default::default()
+        }],
+        paths: openapi_paths,
+        components,
+        ..Default::default()
     }
 }

@@ -1,50 +1,42 @@
 //! Defines the error types and error handling utilities for the Apicentric application.
 //!
 //! This module includes the main `ApicentricError` enum, which represents all possible
-//! errors that can occur within the application. It also provides a custom `Result`
-//! type alias, `ApicentricResult`, and an `ErrorFormatter` for creating user-friendly
-//! error messages.
+//! errors that can occur within the application. It provides structured error types
+//! with contextual information and actionable suggestions for common problems.
 
-use thiserror::Error;
+use std::fmt;
 
 /// The main error type for all Apicentric operations.
 ///
 /// This enum consolidates all possible errors that can occur within the application,
-/// including configuration errors, server errors, file system issues, and more.
-/// It uses `thiserror` to derive the `Error` trait and provide descriptive error
-/// messages.
-#[derive(Debug, Error)]
+/// providing contextual variants with built-in suggestions for common issues.
+#[derive(Debug)]
 pub enum ApicentricError {
     /// An error related to application configuration.
-    #[error("Configuration error: {message}")]
     Configuration {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error that occurred within the server.
-    #[error("Server error: {message}")]
     Server {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error that occurred during test execution.
-    #[error("Test execution error: {message}")]
     TestExecution {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error related to file system operations.
-    #[error("File system error: {message}")]
     FileSystem {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error that occurred during data validation.
-    #[error("Validation error: {message}")]
     Validation {
         message: String,
         field: Option<String>,
@@ -52,31 +44,125 @@ pub enum ApicentricError {
     },
 
     /// A general-purpose runtime error.
-    #[error("Runtime error: {message}")]
     Runtime {
         message: String,
         suggestion: Option<String>,
     },
 
+    /// Errors related to simulated services.
+    Service {
+        message: String,
+        service_name: Option<String>,
+        suggestion: Option<String>,
+    },
+
+    /// Errors related to AI operations.
+    Ai {
+        message: String,
+        provider: Option<String>,
+        suggestion: Option<String>,
+    },
+
+    /// Errors related to recording functionality.
+    Recording {
+        message: String,
+        suggestion: Option<String>,
+    },
+
+    /// Errors related to authentication and authorization.
+    Authentication {
+        message: String,
+        suggestion: Option<String>,
+    },
+
+    /// Errors related to network operations.
+    Network {
+        message: String,
+        url: Option<String>,
+        suggestion: Option<String>,
+    },
+
+    /// Errors related to database operations.
+    Database {
+        message: String,
+        suggestion: Option<String>,
+    },
+
     /// An I/O error.
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+    Io(std::io::Error),
 
     /// An error that occurred during JSON serialization or deserialization.
-    #[error("JSON parsing error: {0}")]
-    Json(#[from] serde_json::Error),
+    Json(serde_json::Error),
 
     /// An error related to glob pattern matching.
-    #[error("Glob pattern error: {0}")]
-    Glob(#[from] glob::GlobError),
+    Glob(glob::GlobError),
 
     /// An error in a glob pattern.
-    #[error("Pattern error: {0}")]
-    Pattern(#[from] glob::PatternError),
+    Pattern(glob::PatternError),
 
     /// An error from the `anyhow` crate.
-    #[error("Anyhow error: {0}")]
-    Anyhow(#[from] anyhow::Error),
+    Anyhow(anyhow::Error),
+}
+
+impl fmt::Display for ApicentricError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Configuration { message, .. } => write!(f, "Configuration error: {}", message),
+            Self::Server { message, .. } => write!(f, "Server error: {}", message),
+            Self::TestExecution { message, .. } => write!(f, "Test execution error: {}", message),
+            Self::FileSystem { message, .. } => write!(f, "File system error: {}", message),
+            Self::Validation { message, field, .. } => {
+                if let Some(field) = field {
+                    write!(f, "Validation error in field '{}': {}", field, message)
+                } else {
+                    write!(f, "Validation error: {}", message)
+                }
+            }
+            Self::Runtime { message, .. } => write!(f, "Runtime error: {}", message),
+            Self::Service { message, service_name, .. } => {
+                if let Some(name) = service_name {
+                    write!(f, "Service error for '{}': {}", name, message)
+                } else {
+                    write!(f, "Service error: {}", message)
+                }
+            }
+            Self::Ai { message, provider, .. } => {
+                if let Some(provider) = provider {
+                    write!(f, "AI error ({}): {}", provider, message)
+                } else {
+                    write!(f, "AI error: {}", message)
+                }
+            }
+            Self::Recording { message, .. } => write!(f, "Recording error: {}", message),
+            Self::Authentication { message, .. } => write!(f, "Authentication error: {}", message),
+            Self::Network { message, url, .. } => {
+                if let Some(url) = url {
+                    write!(f, "Network error for {}: {}", url, message)
+                } else {
+                    write!(f, "Network error: {}", message)
+                }
+            }
+            Self::Database { message, .. } => write!(f, "Database error: {}", message),
+            Self::Io(err) => write!(f, "IO error: {}", err),
+            Self::Json(err) => write!(f, "JSON parsing error: {}", err),
+            Self::Glob(err) => write!(f, "Glob pattern error: {}", err),
+            Self::Pattern(err) => write!(f, "Pattern error: {}", err),
+            Self::Anyhow(err) => write!(f, "Anyhow error: {}", err),
+        }
+    }
+}
+
+impl std::error::Error for ApicentricError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(err) => Some(err),
+            Self::Json(err) => Some(err),
+            Self::Glob(err) => Some(err),
+            Self::Pattern(err) => Some(err),
+            Self::Anyhow(err) => Some(err.as_ref()),
+            _ => None,
+        }
+    }
 }
 
 impl ApicentricError {
@@ -191,6 +277,126 @@ impl ApicentricError {
         }
     }
 
+    /// Creates a new service error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `service_name` - The name of the service that caused the error.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
+    pub fn service_error(
+        message: impl Into<String>,
+        service_name: Option<impl Into<String>>,
+        suggestion: Option<impl Into<String>>,
+    ) -> Self {
+        Self::Service {
+            message: message.into(),
+            service_name: service_name.map(|s| s.into()),
+            suggestion: suggestion.map(|s| s.into()),
+        }
+    }
+
+    /// Creates a new AI error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `provider` - The AI provider that caused the error.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
+    pub fn ai_error(
+        message: impl Into<String>,
+        provider: Option<impl Into<String>>,
+        suggestion: Option<impl Into<String>>,
+    ) -> Self {
+        Self::Ai {
+            message: message.into(),
+            provider: provider.map(|p| p.into()),
+            suggestion: suggestion.map(|s| s.into()),
+        }
+    }
+
+    /// Creates a new recording error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
+    pub fn recording_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
+        Self::Recording {
+            message: message.into(),
+            suggestion: suggestion.map(|s| s.into()),
+        }
+    }
+
+    /// Creates a new authentication error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
+    pub fn auth_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
+        Self::Authentication {
+            message: message.into(),
+            suggestion: suggestion.map(|s| s.into()),
+        }
+    }
+
+    /// Creates a new network error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `url` - The URL that caused the error.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
+    pub fn network_error(
+        message: impl Into<String>,
+        url: Option<impl Into<String>>,
+        suggestion: Option<impl Into<String>>,
+    ) -> Self {
+        Self::Network {
+            message: message.into(),
+            url: url.map(|u| u.into()),
+            suggestion: suggestion.map(|s| s.into()),
+        }
+    }
+
+    /// Creates a new database error.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The error message.
+    /// * `suggestion` - An optional suggestion for how to fix the error.
+    ///
+    /// # Returns
+    ///
+    /// A new `ApicentricError` instance.
+    pub fn database_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
+        Self::Database {
+            message: message.into(),
+            suggestion: suggestion.map(|s| s.into()),
+        }
+    }
+
     /// Returns the suggestion for this error, if any.
     ///
     /// # Returns
@@ -204,7 +410,13 @@ impl ApicentricError {
             | Self::TestExecution { suggestion, .. }
             | Self::FileSystem { suggestion, .. }
             | Self::Validation { suggestion, .. }
-            | Self::Runtime { suggestion, .. } => suggestion.as_deref(),
+            | Self::Runtime { suggestion, .. }
+            | Self::Service { suggestion, .. }
+            | Self::Ai { suggestion, .. }
+            | Self::Recording { suggestion, .. }
+            | Self::Authentication { suggestion, .. }
+            | Self::Network { suggestion, .. }
+            | Self::Database { suggestion, .. } => suggestion.as_deref(),
             _ => None,
         }
     }
@@ -220,6 +432,163 @@ impl ApicentricError {
             Self::Validation { field, .. } => field.as_deref(),
             _ => None,
         }
+    }
+
+    /// Returns the service name for service errors, if any.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the service name, or `None` if the error is not a
+    /// service error.
+    pub fn service_name(&self) -> Option<&str> {
+        match self {
+            Self::Service { service_name, .. } => service_name.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Returns the AI provider for AI errors, if any.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the provider name, or `None` if the error is not an
+    /// AI error.
+    pub fn ai_provider(&self) -> Option<&str> {
+        match self {
+            Self::Ai { provider, .. } => provider.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Returns the URL for network errors, if any.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing the URL, or `None` if the error is not a
+    /// network error.
+    pub fn url(&self) -> Option<&str> {
+        match self {
+            Self::Network { url, .. } => url.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Creates a configuration error for missing config file.
+    pub fn config_file_not_found(path: impl Into<String>) -> Self {
+        Self::config_error(
+            format!("Configuration file '{}' not found", path.into()),
+            Some("Create the configuration file or check the path"),
+        )
+    }
+
+    /// Creates a configuration error for invalid YAML.
+    pub fn config_invalid_yaml(error: impl fmt::Display) -> Self {
+        Self::config_error(
+            format!("Invalid YAML in configuration: {}", error),
+            Some("Check YAML syntax and indentation"),
+        )
+    }
+
+    /// Creates a service error for service not found.
+    pub fn service_not_found(name: impl Into<String>) -> Self {
+        let name = name.into();
+        Self::service_error(
+            format!("Service '{}' not found", name),
+            Some(name),
+            Some("Check if the service is defined in your configuration"),
+        )
+    }
+
+    /// Creates a service error for service already running.
+    pub fn service_already_running(name: impl Into<String>) -> Self {
+        let name = name.into();
+        Self::service_error(
+            format!("Service '{}' is already running", name),
+            Some(name),
+            Some("Stop the service first or use a different name"),
+        )
+    }
+
+    /// Creates an AI error for provider not configured.
+    pub fn ai_provider_not_configured(provider: impl Into<String>) -> Self {
+        let provider = provider.into();
+        Self::ai_error(
+            format!("AI provider '{}' not configured", provider),
+            Some(provider),
+            Some("Add AI provider configuration to apicentric.json"),
+        )
+    }
+
+    /// Creates a recording error for no active session.
+    pub fn recording_not_active() -> Self {
+        Self::recording_error(
+            "No active recording session",
+            Some("Start a recording session before performing this action"),
+        )
+    }
+
+    /// Creates an authentication error for invalid token.
+    pub fn auth_invalid_token() -> Self {
+        Self::auth_error(
+            "Invalid authentication token",
+            Some("Check your token or re-authenticate"),
+        )
+    }
+
+    /// Creates a network error for connection failed.
+    pub fn network_connection_failed(url: impl Into<String>) -> Self {
+        Self::network_error(
+            "Connection failed",
+            Some(url.into()),
+            Some("Check network connectivity and URL"),
+        )
+    }
+
+    /// Creates a file system error for permission denied.
+    pub fn fs_permission_denied(path: impl Into<String>) -> Self {
+        Self::fs_error(
+            format!("Permission denied accessing '{}'", path.into()),
+            Some("Check file permissions or run with appropriate privileges"),
+        )
+    }
+
+    /// Creates a validation error for required field missing.
+    pub fn validation_required_field(field: impl Into<String>) -> Self {
+        Self::validation_error(
+            "This field is required",
+            Some(field.into()),
+            Some("Provide a value for this required field"),
+        )
+    }
+}
+
+impl From<std::io::Error> for ApicentricError {
+    fn from(err: std::io::Error) -> Self {
+        Self::Io(err)
+    }
+}
+
+impl From<serde_json::Error> for ApicentricError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::Json(err)
+    }
+}
+
+impl From<glob::GlobError> for ApicentricError {
+    fn from(err: glob::GlobError) -> Self {
+        Self::Glob(err)
+    }
+}
+
+impl From<glob::PatternError> for ApicentricError {
+    fn from(err: glob::PatternError) -> Self {
+        Self::Pattern(err)
+    }
+}
+
+impl From<anyhow::Error> for ApicentricError {
+    fn from(err: anyhow::Error) -> Self {
+        Self::Anyhow(err)
     }
 }
 
@@ -296,6 +665,18 @@ impl ErrorFormatter {
             output.push_str(&format!("\n🔍 Field: {}", field));
         }
 
+        if let Some(service_name) = error.service_name() {
+            output.push_str(&format!("\n🏷️ Service: {}", service_name));
+        }
+
+        if let Some(provider) = error.ai_provider() {
+            output.push_str(&format!("\n🤖 AI Provider: {}", provider));
+        }
+
+        if let Some(url) = error.url() {
+            output.push_str(&format!("\n🌐 URL: {}", url));
+        }
+
         output
     }
 
@@ -339,6 +720,22 @@ mod tests {
         let error = ApicentricError::config_error("Invalid config", Some("Check your apicentric.json file"));
         assert!(error.suggestion().is_some());
         assert_eq!(error.suggestion().unwrap(), "Check your apicentric.json file");
+    }
+
+    #[test]
+    fn test_new_error_variants() {
+        let service_error = ApicentricError::service_not_found("test-service");
+        assert!(matches!(service_error, ApicentricError::Service { .. }));
+        assert_eq!(service_error.service_name().unwrap(), "test-service");
+        assert!(service_error.suggestion().is_some());
+
+        let ai_error = ApicentricError::ai_provider_not_configured("openai");
+        assert!(matches!(ai_error, ApicentricError::Ai { .. }));
+        assert_eq!(ai_error.ai_provider().unwrap(), "openai");
+
+        let network_error = ApicentricError::network_connection_failed("http://example.com");
+        assert!(matches!(network_error, ApicentricError::Network { .. }));
+        assert_eq!(network_error.url().unwrap(), "http://example.com");
     }
 
     #[test]
@@ -454,5 +851,21 @@ mod tests {
         let formatted = ErrorFormatter::format_for_user(&error);
         assert!(formatted.contains("❌ Configuration error: Test config error"));
         assert!(formatted.contains("💡 Suggestion: Fix the config"));
+    }
+
+    #[test]
+    fn test_new_error_display_and_formatting() {
+        let service_error = ApicentricError::service_not_found("my-service");
+        let display_str = format!("{}", service_error);
+        assert!(display_str.contains("Service error for 'my-service'"));
+
+        let formatted = ErrorFormatter::format_for_user(&service_error);
+        assert!(formatted.contains("❌ Service error for 'my-service'"));
+        assert!(formatted.contains("🏷️ Service: my-service"));
+        assert!(formatted.contains("💡 Suggestion"));
+
+        let ai_error = ApicentricError::ai_provider_not_configured("openai");
+        let formatted_ai = ErrorFormatter::format_for_user(&ai_error);
+        assert!(formatted_ai.contains("🤖 AI Provider: openai"));
     }
 }

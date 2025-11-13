@@ -51,7 +51,7 @@ import { CreateGraphQLServiceDialog } from './create-graphql-service-dialog';
 import { EditServiceDialog } from './edit-service-dialog';
 import type { Service } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-// import { useWebSocket, type ServiceStatusUpdate } from '@/hooks/use-websocket';
+import { useWebSocketSubscription, type ServiceStatusUpdate } from '@/providers/websocket-provider';
 import { validateService, startService, stopService, deleteService } from '@/services/api';
 
 /**
@@ -86,35 +86,20 @@ export function ServiceManagement({
   const [bulkOperationLoading, setBulkOperationLoading] = React.useState(false);
   const { toast } = useToast();
 
-  // WebSocket connection for real-time status updates
-  const WS_URL = typeof window !== 'undefined' && (window as any).NEXT_PUBLIC_WS_URL
-    ? (window as any).NEXT_PUBLIC_WS_URL
-    : 'ws://localhost:8080/ws';
-  
-  // WebSocket temporarily disabled due to connection issues
-  // useWebSocket({
-  //   url: WS_URL,
-  //   enabled: false,
-    onMessage: (message) => {
-      if (message.type === 'service_status' && message.data) {
-        const update = message.data as ServiceStatusUpdate;
-        onServiceUpdate?.(update.service_name, {
-          status: update.status as 'running' | 'stopped',
-          port: update.port,
-        });
-        
-        // Remove from loading state when status changes
-        setLoadingServices((prev: Set<string>) => {
-          const next = new Set(prev);
-          next.delete(update.service_name);
-          return next;
-        });
-      }
-    },
-    onError: (error) => {
-      console.error('WebSocket connection error:', error);
-    },
-  });
+  // Subscribe to service status updates via WebSocket
+  useWebSocketSubscription('service_status', (update: ServiceStatusUpdate) => {
+    onServiceUpdate?.(update.service_name, {
+      status: update.status as 'running' | 'stopped',
+      port: update.port,
+    });
+    
+    // Remove from loading state when status changes
+    setLoadingServices((prev: Set<string>) => {
+      const next = new Set(prev);
+      next.delete(update.service_name);
+      return next;
+    });
+  }, [onServiceUpdate]);
 
   /**
    * Validates the selected service's definition.
@@ -363,7 +348,7 @@ export function ServiceManagement({
               <Button variant="outline"><Asterisk className="mr-2 h-4 w-4" /> New GraphQL</Button>
             </CreateGraphQLServiceDialog>
             <CreateServiceDialog onAddService={handleAddService}>
-              <Button><FilePlus className="mr-2 h-4 w-4" /> New REST</Button>
+              <Button data-testid="create-service-button"><FilePlus className="mr-2 h-4 w-4" /> New REST</Button>
             </CreateServiceDialog>
         </div>
       </CardHeader>
@@ -432,6 +417,7 @@ export function ServiceManagement({
                                 size="sm"
                                 onClick={() => handleStopService(service)}
                                 disabled={isLoading}
+                                data-testid="stop-service-button"
                               >
                                 {isLoading ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -445,6 +431,7 @@ export function ServiceManagement({
                                 size="sm"
                                 onClick={() => handleStartService(service)}
                                 disabled={isLoading}
+                                data-testid="start-service-button"
                               >
                                 {isLoading ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />

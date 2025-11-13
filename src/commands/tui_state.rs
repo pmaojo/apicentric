@@ -306,6 +306,7 @@ pub struct LogFilter {
 
 impl LogFilter {
     /// Create a new empty filter
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::default()
     }

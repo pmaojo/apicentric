@@ -8,7 +8,7 @@ import * as React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
-// import { useWebSocket, type WebSocketMessage } from '@/hooks/use-websocket';
+import { useWebSocketSubscription, type RecordingCapture } from '@/providers/websocket-provider';
 import * as api from '@/services/api';
 import {
   Dialog,
@@ -55,28 +55,22 @@ export function Recording() {
   const [isSaving, setIsSaving] = React.useState(false);
   const { toast } = useToast();
 
-  // WebSocket connection for real-time captured requests - temporarily disabled
-  // const { isConnected } = useWebSocket({
-  //   url: WS_URL,
-  //   enabled: false, // isRecording,
-  const isConnected = false; // Temporarily disabled
-    onMessage: (message: WebSocketMessage) => {
-      if (message.type === 'recording_capture' && message.data) {
-        const captured = message.data;
-        setCapturedRequests(prev => [...prev, {
-          id: `req-${Date.now()}-${Math.random()}`,
-          method: captured.method,
-          path: captured.path,
-          status: captured.response_status,
-          headers: captured.headers,
-          body: captured.body,
-          response_status: captured.response_status,
-          response_headers: captured.response_headers,
-          response_body: captured.response_body,
-        }]);
-      }
-    },
-  });
+  // Subscribe to recording captures via WebSocket  
+  useWebSocketSubscription('recording_capture', (captured: RecordingCapture) => {
+    setCapturedRequests(prev => [...prev, {
+      id: `req-${Date.now()}-${Math.random()}`,
+      method: captured.method,
+      path: captured.path,
+      status: captured.response_status,
+      headers: captured.headers,
+      body: captured.body,
+      response_status: captured.response_status,
+      response_headers: captured.response_headers,
+      response_body: captured.response_body,
+    }]);
+  }, []);
+
+  const isConnected = true; // Now managed by WebSocketProvider
 
   // Check recording status on mount
   React.useEffect(() => {

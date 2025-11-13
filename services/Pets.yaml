@@ -1,0 +1,32 @@
+name: Pets
+version: null
+description: A service for pet listing
+server:
+  port: 9000
+  base_path: /pets
+  proxy_base_url: null
+  cors: null
+  record_unknown: false
+models: null
+fixtures: null
+bucket: null
+endpoints:
+- kind: http
+  method: GET
+  path: pets
+  header_match: null
+  description: the pets
+  parameters: null
+  request_body: null
+  responses:
+    200:
+      condition: null
+      content_type: application/json
+      body: MANYPETS!
+      script: null
+      headers: null
+      side_effects: null
+  scenarios: null
+  stream: null
+graphql: null
+behavior: null

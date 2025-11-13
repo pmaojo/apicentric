@@ -118,8 +118,21 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn load_nonexistent_config() {
+    fn load_nonexistent_config_returns_default() {
+        // load_config returns default config when file doesn't exist
         let result = load_config(Path::new("nonexistent.json"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        // Should be default config
+        assert!(config.ai.is_none());
+        assert!(config.simulator.is_none());
+    }
+
+    #[test]
+    fn repository_load_nonexistent_config_returns_error() {
+        // FileConfigRepository::load() returns error when file doesn't exist
+        let repo = FileConfigRepository::new("nonexistent.json");
+        let result = repo.load();
         assert!(result.is_err());
     }
 

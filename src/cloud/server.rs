@@ -165,7 +165,6 @@ impl CloudServer {
             "webui/.next/standalone",  // Docker build
             "webui/out",               // Static export
             "webui/dist",              // Alternative build
-            "gui/dist",                // Legacy path
         ];
         
         for path in frontend_paths {

@@ -25,7 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Search, Download, Trash2, Eye, Calendar, X } from 'lucide-react';
 import { ApiService } from '@/lib/types';
-// import { useWebSocket, type WebSocketMessage } from '@/hooks/use-websocket';
+import { useWebSocketSubscription, type RequestLogEntry } from '@/providers/websocket-provider';
 import { queryLogs, clearLogs, exportLogs, type RequestLogEntry } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -83,26 +83,14 @@ export function LogsViewer({ services }: LogsViewerProps) {
     overscan: 10,
   });
 
-  // WebSocket connection for real-time log streaming
-  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
-  
-  // WebSocket temporarily disabled due to connection issues
-  // useWebSocket({
-  //   url: wsUrl,
-  //   enabled: false,
-    onMessage: (message: WebSocketMessage) => {
-      if (message.type === 'request_log' && message.data) {
-        setLogs((prev) => {
-          const newLogs = [...prev, message.data as RequestLogEntry];
-          // Keep only last 1000 logs in memory
-          return newLogs.slice(-1000);
-        });
-      }
-    },
-    onError: (error) => {
-      console.error('WebSocket error:', error);
-    },
-  });
+  // Subscribe to real-time log updates via WebSocket
+  useWebSocketSubscription('request_log', (logEntry: RequestLogEntry) => {
+    setLogs((prev) => {
+      const newLogs = [...prev, logEntry];
+      // Keep only last 1000 logs in memory
+      return newLogs.slice(-1000);
+    });
+  }, []);
 
   // Load initial logs
   React.useEffect(() => {

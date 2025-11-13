@@ -36,12 +36,13 @@ pub mod context;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod errors;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod logging;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod validation;
-// Disabled heavy dependencies for lighter CLI build
-// #[cfg(not(target_arch = "wasm32"))]
-// pub mod collab;
+#[cfg(all(not(target_arch = "wasm32"), feature = "p2p"))]
+pub mod collab;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod storage;
 #[cfg(not(target_arch = "wasm32"))]
@@ -66,7 +67,6 @@ pub mod adapters {
     pub mod http_client;
     pub mod ui_cli;
     pub mod mock_server;
-    pub mod npm;
     pub mod report_sink;
     pub mod service_spec_loader;
 
@@ -107,7 +107,6 @@ pub use domain::contract::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod infrastructure {
     pub use crate::adapters::*;
-    pub use crate::app::setup_npm::setup_npm_scripts;
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub use infrastructure::*;

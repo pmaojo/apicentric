@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use crate::domain::errors::ApicentricResult;
+use crate::errors::ApicentricResult;
 
 /// Controls the lifecycle of external servers required for tests.
 pub trait ServerControllerPort {
