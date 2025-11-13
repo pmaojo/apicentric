@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm:dev:api\" \"npm:dev:webui\"",
-    "dev:api": "cd .. && cargo build --features webui && apicentric cloud",
+    "dev:api": "bash scripts/fetch-and-run-backend.sh",
     "dev:webui": "next dev --turbopack -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",

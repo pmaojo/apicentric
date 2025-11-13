@@ -45,3 +45,6 @@ firebase-debug.log
 firestore-debug.log
 /pmaojo_apicentric
 pmaojo_apicentric
+
+# local development
+/backend/
