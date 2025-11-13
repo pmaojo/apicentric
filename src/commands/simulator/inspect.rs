@@ -58,6 +58,123 @@ pub async fn handle_validate(
     Ok(())
 }
 
+use apicentric::adapters::{
+    noop_telemetry::{NoOpMetrics, NoOpPublisher, NoOpTracer},
+    simulator_manager_adapter::SimulatorManagerAdapter,
+    ReqwestHttpClientAdapter, YamlServiceSpecLoader,
+};
+use apicentric::{
+    Contract, ContractId, ContractValidationResult, RealApiConfig, RetryAttempts,
+    ScenarioExecutionUseCase, SpecValidationUseCase,
+};
+
+pub async fn handle_contract_test(
+    path: &str,
+    url: &str,
+    env: &str,
+    exec_ctx: &ExecutionContext,
+) -> ApicentricResult<()> {
+    if exec_ctx.dry_run {
+        println!(
+            "🏃 Dry run: Would run contract tests (path={}, url={}, env={})",
+            path, url, env
+        );
+        return Ok(());
+    }
+
+    println!("🚀 Running contract tests...");
+    println!("   Contract: {}", path);
+    println!("   API URL:  {}", url);
+    println!("   Env:      {}", env);
+
+    let spec_loader = YamlServiceSpecLoader::new();
+    let spec_validator = SpecValidationUseCase::new(spec_loader);
+
+    let contract_id = ContractId::new(path.to_string())
+        .map_err(|e| ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>))?;
+    let contract = Contract::new(
+        contract_id.clone(),
+        "service".to_string(), // This should ideally come from the spec
+        path.to_string(),
+        None,
+    )
+    .map_err(|e| ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>))?;
+
+    let scenarios = match spec_validator.execute(&contract).await {
+        Ok(scenarios) => scenarios,
+        Err(e) => {
+            println!("\n❌ Error validating contract: {}", e);
+            return Ok(());
+        }
+    };
+    println!("\n🔬 Found {} test scenarios.", scenarios.len());
+
+    let http_client = ReqwestHttpClientAdapter::new();
+    let mock_runner = SimulatorManagerAdapter::new();
+    let metrics = Box::new(NoOpMetrics);
+    let tracer = Box::new(NoOpTracer);
+    let publisher = Box::new(NoOpPublisher);
+
+    let executor =
+        ScenarioExecutionUseCase::new(http_client, mock_runner, metrics, tracer, publisher);
+
+    let real_api_config = RealApiConfig::new(
+        env.to_string(),
+        apicentric::ApiUrl::new(url.to_string()) .map_err(|e| ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>))?,
+        None,
+        RetryAttempts::new(0).map_err(|e| ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>))?,
+    );
+
+    let policy = apicentric::domain::contract_testing::CompatibilityPolicy::strict();
+
+    match executor
+        .execute(&contract, &real_api_config, &scenarios, &policy)
+        .await
+    {
+        Ok(result) => {
+            print_result(&result);
+        }
+        Err(e) => {
+            println!("\n❌ Error executing contract tests: {}", e);
+        }
+    }
+
+    Ok(())
+}
+
+fn print_result(result: &ContractValidationResult) {
+    let timestamp: DateTime<Utc> = result.validation_timestamp.into();
+    println!("\n🏁 Contract Test Results:");
+    println!("   ID:         {}", result.contract_id);
+    println!("   Timestamp:  {}", timestamp.to_rfc3339());
+    println!("   Environment:{}", result.environment);
+    println!(
+        "   Compatible: {}",
+        if result.is_compatible { "✅" } else { "❌" }
+    );
+    println!("   Score:      {:.2}%", result.compliance_score * 100.0);
+
+    if !result.issues.is_empty() {
+        println!("\n🚨 Found {} compatibility issues:", result.issues.len());
+        for issue in &result.issues {
+            println!("   - [{:?}]: {}", issue.severity, issue.description);
+        }
+    }
+
+    if result.is_compatible {
+        println!("\n✅ All scenarios passed!");
+    } else {
+        println!("\n❌ Some scenarios failed:");
+        for scenario_result in result.scenario_results.iter().filter(|r| r.compliance_issue.is_some()) {
+            if let Some(issue) = &scenario_result.compliance_issue {
+                println!("   - Path:     {}", issue.scenario_path);
+                println!("     Severity: {:?}", issue.severity);
+                println!("     Issue:    {}", issue.description);
+            }
+        }
+    }
+}
+
 pub async fn handle_logs(
     context: &Context,
     service: &str,

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use indexmap::IndexMap;
 
-use openapiv3::{Info, Operation, Parameter, Response, Schema, OpenAPI, PathItem, RequestBody, Responses, ReferenceOr, MediaType, Components, Server, StatusCode, Paths};
+use openapiv3::{Info, Operation, Response, Schema, OpenAPI, PathItem, RequestBody, Responses, ReferenceOr, StatusCode, Paths};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value;

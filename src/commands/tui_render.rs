@@ -332,10 +332,7 @@ pub fn render_help_dialog(f: &mut Frame) {
     f.render_widget(paragraph, dialog_area);
 }
 
-/// Render the actions panel
-pub fn render_actions_panel(f: &mut Frame, area: Rect, state: &TuiAppState) {
-    render_actions_panel_with_metrics(f, area, state, None, None)
-}
+// The small shim `render_actions_panel` was removed to avoid dead_code allowances.
 
 /// Render the actions panel with performance metrics
 pub fn render_actions_panel_with_metrics(

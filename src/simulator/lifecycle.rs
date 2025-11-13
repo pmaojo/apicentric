@@ -16,7 +16,7 @@ use crate::simulator::{
     watcher::ConfigWatcher,
     ConfigChange,
 };
-use tracing::{info, instrument};
+use tracing::info;
 
 /// Trait for managing simulator lifecycle.
 #[async_trait]
