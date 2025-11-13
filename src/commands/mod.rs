@@ -20,6 +20,8 @@ pub use ai::{ai_command, AiAction};
 pub use shared::{find_yaml_files, validate_yaml_file};
 pub use contract_demo::run_full_demo;
 pub use gui::gui_command;
+pub mod cloud;
+pub use cloud::cloud_command;
 
 #[cfg(feature = "tui")]
 pub use tui::tui_command;
