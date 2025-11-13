@@ -2,7 +2,6 @@
 //!
 //! This module contains all the data structures used by the GUI.
 
-use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::time::SystemTime;
 use tokio::sync::broadcast;

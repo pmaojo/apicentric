@@ -27,7 +27,7 @@ use apicentric::{ApicentricError, ApicentricResult};
 use apicentric::simulator::{manager::ApiSimulatorManager, config::SimulatorConfig};
 
 use super::tui_events::{poll_events, handle_key_event, update_service_status, poll_log_entries, Action};
-use super::tui_render::{render_service_list, render_log_view, render_actions_panel, render_actions_panel_with_metrics, render_filter_dialog, render_search_dialog, render_help_dialog};
+use super::tui_render::{render_service_list, render_log_view, render_actions_panel_with_metrics, render_filter_dialog, render_search_dialog, render_help_dialog};
 use super::tui_state::{TuiAppState, ViewMode};
 
 /// Launch the enhanced terminal dashboard with service list, logs and actions panes.
@@ -189,15 +189,15 @@ async fn run_app(
                     Some("Terminal size may be too small. Try resizing your terminal window")
                 )
             })?;
-        let render_time = render_start.elapsed();
+        let _render_time = render_start.elapsed();
 
         // Poll for new log entries (non-blocking)
         let poll_start = std::time::Instant::now();
         poll_log_entries(&mut state, &mut log_receiver);
-        let poll_time = poll_start.elapsed();
+        let _poll_time = poll_start.elapsed();
 
         // Periodic status update (every 1 second)
-        let status_update_time = if last_status_update.elapsed() >= status_update_interval {
+        let _status_update_time = if last_status_update.elapsed() >= status_update_interval {
             let update_start = std::time::Instant::now();
             let _ = update_service_status(&mut state, &manager).await;
             last_status_update = std::time::Instant::now();
@@ -209,10 +209,10 @@ async fn run_app(
         // Poll for keyboard events with optimized timeout (50ms for <100ms response)
         let event_start = std::time::Instant::now();
         let event_timeout = Duration::from_millis(50); // Reduced from 250ms for better responsiveness
-        let mut input_detected = false;
+        let mut _input_detected = false;
         if let Some(event) = poll_events(event_timeout)? {
             if let Event::Key(key) = event {
-                input_detected = true;
+                _input_detected = true;
                 let key_press_time = event_start.elapsed();
 
                 // Track input latency (time from event detection to processing)
@@ -228,7 +228,7 @@ async fn run_app(
                 }
             }
         }
-        let event_time = event_start.elapsed();
+        let _event_time = event_start.elapsed();
 
         // Maintain latency history (keep last 100 measurements)
         if input_latencies.len() > 100 {

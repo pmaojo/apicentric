@@ -15,7 +15,7 @@ use rand::Rng;
 pub fn render(
     ctx: &egui::Context,
     state: &mut GuiAppState,
-    manager: &Arc<ApiSimulatorManager>,
+    _manager: &Arc<ApiSimulatorManager>,
 ) {
     TopBottomPanel::top("top_panel").show(ctx, |ui| {
         ui.heading("Apicentric Control Panel");

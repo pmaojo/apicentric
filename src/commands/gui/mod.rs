@@ -1,22 +1,39 @@
+// The GUI submodules are optional and only compiled when the `gui` feature is enabled.
+// This keeps the GUI code out of builds that don't opt-in to the feature (similar to `p2p`).
+
+#[cfg(feature = "gui")]
 use std::sync::Arc;
+
+#[cfg(feature = "gui")]
 use apicentric::simulator::manager::ApiSimulatorManager;
 
+#[cfg(feature = "gui")]
 pub mod models;
+#[cfg(feature = "gui")]
 pub mod messages;
+#[cfg(feature = "gui")]
 pub mod state;
+#[cfg(feature = "gui")]
 pub mod render;
+#[cfg(feature = "gui")]
 pub mod events;
+#[cfg(feature = "gui")]
 pub mod style;
+#[cfg(feature = "gui")]
 pub mod ai;
 
-#[cfg(test)]
+#[cfg(all(feature = "gui", test))]
 pub mod test_utils;
 
+#[cfg(feature = "gui")]
 pub use messages::*;
+#[cfg(feature = "gui")]
 pub use state::GuiAppState;
+#[cfg(feature = "gui")]
 pub use render::*;
 
 /// Launch the egui GUI application
+#[cfg(feature = "gui")]
 pub async fn gui_command() -> crate::ApicentricResult<()> {
     use apicentric::simulator::manager::ApiSimulatorManager;
     use apicentric::simulator::config::{SimulatorConfig, PortRange};
@@ -54,6 +71,7 @@ pub async fn gui_command() -> crate::ApicentricResult<()> {
 }
 
 /// Run the main egui GUI application
+#[cfg(feature = "gui")]
 async fn run_gui_application(
     mut gui_state: state::GuiAppState,
     manager: Arc<ApiSimulatorManager>,

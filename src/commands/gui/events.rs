@@ -7,7 +7,7 @@
 
 use super::messages::{GuiMessage, CapturedRequest, ExportFormat, CodeGenTarget};
 use super::state::GuiAppState;
-use super::models::{ServiceStatus, RequestLogEntry, LogFilter, ServiceInfo, EndpointInfo};
+use super::models::{ServiceStatus, RequestLogEntry, ServiceInfo, EndpointInfo};
 use apicentric::simulator::manager::ApiSimulatorManager;
 use apicentric::{ApicentricError, ApicentricResult};
 use std::sync::Arc;
@@ -324,7 +324,7 @@ impl EventHandler {
 
     async fn handle_ai_apply_yaml(
         &self,
-        yaml: &str,
+        _yaml: &str,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
         // TODO: Validate YAML and save to file

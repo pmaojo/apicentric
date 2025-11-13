@@ -7,7 +7,7 @@
 //! - Contextual spans for operations
 
 use std::env;
-use tracing::info;
+// `tracing::info!` is used via its macro; avoid importing a conflicting symbol.
 use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Initialize the global tracing subscriber
@@ -62,7 +62,7 @@ pub fn init() {
     }
 
     // Log initialization
-    info!(
+    tracing::info!(
         target: "apicentric::logging",
         format = %format,
         "Logging initialized"
@@ -74,7 +74,7 @@ pub fn init() {
 macro_rules! service_span {
     ($service:expr) => {
         tracing::span!(
-            Level::INFO,
+            tracing::Level::INFO,
             "service_operation",
             service = $service,
             operation = tracing::field::Empty
@@ -87,7 +87,7 @@ macro_rules! service_span {
 macro_rules! request_span {
     ($method:expr, $path:expr, $service:expr) => {
         tracing::span!(
-            Level::INFO,
+            tracing::Level::INFO,
             "http_request",
             method = $method,
             path = $path,
@@ -103,7 +103,7 @@ macro_rules! request_span {
 macro_rules! contract_log {
     ($level:ident, $contract_id:expr, $service:expr, $($field:tt)*) => {
         tracing::event!(
-            Level::$level,
+            tracing::Level::$level,
             contract_id = $contract_id,
             service = $service,
             $($field)*
@@ -127,7 +127,7 @@ macro_rules! simulator_log {
     ($level:ident, $service:expr, $event:expr, $($field:tt)*) => {
         tracing::event!(
             target: "simulator",
-            Level::$level,
+            tracing::Level::$level,
             service = $service,
             event = $event,
             $($field)*
@@ -137,8 +137,8 @@ macro_rules! simulator_log {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use tracing::info;
+    // use super::*;
+    // use tracing::info;
 
     #[test]
     fn test_logging_macros() {
