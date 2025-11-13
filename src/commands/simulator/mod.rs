@@ -198,6 +198,18 @@ pub enum SimulatorAction {
         #[arg(short, long)]
         output: String,
     },
+    /// Run contract tests against a live API
+    Test {
+        /// Path to the service definition YAML file
+        #[arg(short, long)]
+        path: String,
+        /// The base URL of the live API to test against
+        #[arg(short, long)]
+        url: String,
+        /// The environment name for the test run
+        #[arg(long, default_value = "default")]
+        env: String,
+    },
 }
 
 pub async fn simulator_command(
@@ -282,6 +294,9 @@ pub async fn simulator_command(
         } => service::handle_connect(peer, service, *port, token.as_deref(), exec_ctx).await,
         SimulatorAction::Dockerize { services, output } => {
             dockerize::handle_dockerize(services, output, exec_ctx).await
+        }
+        SimulatorAction::Test { path, url, env } => {
+            inspect::handle_contract_test(path, url, env, exec_ctx).await
         }
     }
 }

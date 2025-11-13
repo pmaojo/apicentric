@@ -69,12 +69,16 @@ pub mod adapters {
     pub mod mock_server;
     pub mod report_sink;
     pub mod service_spec_loader;
+    pub mod noop_telemetry;
+    pub mod simulator_manager_adapter;
 
     pub use contract_repository::*;
     pub use http_client::*;
     pub use ui_cli::*;
     pub use report_sink::*;
     pub use service_spec_loader::*;
+    pub use noop_telemetry::*;
+    pub use simulator_manager_adapter::*;
 }
 
 // API Simulator module

@@ -137,8 +137,8 @@ macro_rules! simulator_log {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use tracing::info;
+    use super::*;
+    use tracing::Level;
 
     #[test]
     fn test_logging_macros() {
