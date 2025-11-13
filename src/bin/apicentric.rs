@@ -31,6 +31,10 @@ mod tui_render;
 #[path = "../commands/gui/mod.rs"]
 mod gui_cmd;
 
+#[cfg(feature = "webui")]
+#[path = "../commands/cloud.rs"]
+mod cloud_cmd;
+
 mod commands {
     pub mod shared {
         pub use crate::shared_impl::*;
@@ -106,6 +110,9 @@ enum Commands {
     /// Launches the graphical user interface (requires the 'gui' feature).
     #[cfg(feature = "gui")]
     Gui,
+    /// Launches the cloud API server (requires the 'webui' feature).
+    #[cfg(feature = "webui")]
+    Cloud,
 }
 
 /// The entry point for the `apicentric` CLI.
@@ -217,5 +224,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Tui => tui_cmd::tui_command().await,
         #[cfg(feature = "gui")]
         Commands::Gui => gui_cmd::gui_command().await,
+        #[cfg(feature = "webui")]
+        Commands::Cloud => cloud_cmd::cloud_command().await,
     }
 }
