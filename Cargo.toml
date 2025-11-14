@@ -98,7 +98,7 @@ jsonwebtoken = "9.2"
 tokio-tungstenite = { version = "0.21", optional = true }
 
 # P2P networking support (optional, heavy)
-libp2p = { version = "0.55", optional = true, features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "request-response", "tokio", "quic"] }
+libp2p = { version = "0.55", optional = true, features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "request-response", "tokio", "quic", "macros"] }
 automerge = { version = "0.5", optional = true }
 
 # JavaScript runtime for scripting (optional, heavy)

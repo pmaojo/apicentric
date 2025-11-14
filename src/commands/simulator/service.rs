@@ -2,7 +2,7 @@ use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_def
 use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
 
 #[cfg(feature = "p2p")]
-use crate::collab::share;
+use apicentric::collab::share;
 #[cfg(feature = "p2p")]
 use libp2p::PeerId;
 
