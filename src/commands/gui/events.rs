@@ -779,7 +779,7 @@ mod tests {
         let mut state = GuiAppState::new(log_receiver);
         
         // Add a service
-        let service = super::super::state::ServiceInfo::new(
+        let service = super::super::models::ServiceInfo::new(
             "test-service".to_string(),
             PathBuf::from("services/test.yaml"),
             8080,
@@ -819,7 +819,7 @@ mod tests {
         let mut state = GuiAppState::new(log_receiver);
         
         // Add a service
-        let service = super::super::state::ServiceInfo::new(
+        let service = super::super::models::ServiceInfo::new(
             "test-service".to_string(),
             PathBuf::from("services/test.yaml"),
             8080,

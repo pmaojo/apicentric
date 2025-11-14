@@ -112,9 +112,28 @@ impl Codec for HttpCodec {
 }
 
 #[derive(NetworkBehaviour)]
+#[behaviour(out_event = "ShareBehaviourEvent")]
 struct ShareBehaviour {
     request_response: request_response::Behaviour<HttpCodec>,
     mdns: mdns::tokio::Behaviour,
+}
+
+#[derive(Debug)]
+pub enum ShareBehaviourEvent {
+    RequestResponse(request_response::Event<Bytes, Bytes>),
+    Mdns(mdns::Event),
+}
+
+impl From<request_response::Event<Bytes, Bytes>> for ShareBehaviourEvent {
+    fn from(event: request_response::Event<Bytes, Bytes>) -> Self {
+        ShareBehaviourEvent::RequestResponse(event)
+    }
+}
+
+impl From<mdns::Event> for ShareBehaviourEvent {
+    fn from(event: mdns::Event) -> Self {
+        ShareBehaviourEvent::Mdns(event)
+    }
 }
 
 /// Starts hosting a service over libp2p.
