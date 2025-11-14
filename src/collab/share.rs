@@ -183,7 +183,7 @@ pub async fn share_service(port: u16) -> Result<(PeerId, String), Box<dyn Error>
                                     let _ = swarm
                                         .behaviour_mut()
                                         .request_response
-                                        .send_response(channel, Vec::new());
+                                        .send_response(channel, Bytes::new());
                                     continue;
                                 }
                                 let method = req_msg
@@ -233,7 +233,7 @@ pub async fn share_service(port: u16) -> Result<(PeerId, String), Box<dyn Error>
                                     let _ = swarm
                                         .behaviour_mut()
                                         .request_response
-                                        .send_response(channel, data);
+                                        .send_response(channel, Bytes::from(data));
                                 }
                             }
                         }
