@@ -1,13 +1,10 @@
 use apicentric::simulator::{ApiSimulatorManager, config::SimulatorConfig};
 use apicentric::cloud::CloudServer;
-use apicentric::ApicentricResult;
+use apicentric::{ApicentricError, ApicentricResult};
 use std::path::PathBuf;
 
 /// Launch the Apicentric Cloud API Server
 pub async fn cloud_command() -> ApicentricResult<()> {
-    // Initialize logging
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
     // Create services directory if it doesn't exist
     std::fs::create_dir_all("./services")?;
 
@@ -28,7 +25,12 @@ pub async fn cloud_command() -> ApicentricResult<()> {
     println!("📝 API Documentation: http://localhost:8080/health");
     println!("🔐 Authentication is optional (set APICENTRIC_PROTECT_SERVICES=true to require auth)");
 
-    server.start(8080).await?;
+    if let Err(e) = server.start(8080).await {
+        return Err(ApicentricError::runtime_error(
+            format!("Failed to start cloud server: {}", e),
+            Some("Check if port 8080 is already in use or if there are permission issues"),
+        ));
+    }
 
     Ok(())
 }

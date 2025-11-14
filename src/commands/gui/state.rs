@@ -311,7 +311,13 @@ impl GuiAppState {
 #[cfg(test)]
 mod service_management_tests {
     use super::*;
-    use crate::commands::gui::test_utils::*;
+    use std::path::PathBuf;
+
+    // Helper to create a test state
+    fn create_test_state() -> GuiAppState {
+        let (_, rx) = tokio::sync::broadcast::channel(1);
+        GuiAppState::new(rx)
+    }
     
     // Service Discovery Tests
     
@@ -726,7 +732,13 @@ mod service_management_tests {
 #[cfg(test)]
 mod log_integration_tests {
     use super::*;
-    use crate::commands::gui::test_utils::*;
+    use std::time::SystemTime;
+
+    // Helper to create a test state
+    fn create_test_state() -> GuiAppState {
+        let (_, rx) = tokio::sync::broadcast::channel(1);
+        GuiAppState::new(rx)
+    }
     
     #[test]
     fn test_add_request_log() {

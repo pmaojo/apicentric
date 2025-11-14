@@ -20,9 +20,28 @@ use tokio::sync::mpsc;
 /// The combined network behaviour for collaboration, consisting of gossipsub
 /// and mDNS.
 #[derive(NetworkBehaviour)]
+#[behaviour(out_event = "CollabBehaviourEvent")]
 struct CollabBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::tokio::Behaviour,
+}
+
+#[derive(Debug)]
+pub enum CollabBehaviourEvent {
+    Gossipsub(gossipsub::Event),
+    Mdns(mdns::Event),
+}
+
+impl From<gossipsub::Event> for CollabBehaviourEvent {
+    fn from(event: gossipsub::Event) -> Self {
+        CollabBehaviourEvent::Gossipsub(event)
+    }
+}
+
+impl From<mdns::Event> for CollabBehaviourEvent {
+    fn from(event: mdns::Event) -> Self {
+        CollabBehaviourEvent::Mdns(event)
+    }
 }
 
 /// Spawns a libp2p node that publishes and receives raw CRDT operations.
