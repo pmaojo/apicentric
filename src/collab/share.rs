@@ -3,6 +3,8 @@
 //! This module provides a `share_service` function that can be used to share a
 //! service over libp2p, and a `connect_service` function that can be used to
 //! connect to a remote peer and proxy requests locally.
+//!
+//! This module is only available when the `p2p` feature flag is enabled.
 
 use std::{collections::HashMap, error::Error, sync::Arc};
 
@@ -16,9 +18,10 @@ use libp2p::{
     identity,
     mdns,
     request_response::{self, Codec, OutboundRequestId, ProtocolSupport},
-    swarm::{NetworkBehaviour, SwarmEvent},
+    swarm::SwarmEvent,
     PeerId, SwarmBuilder,
 };
+use libp2p::swarm::NetworkBehaviour;
 use serde::{Deserialize, Serialize};
 use tokio::{net::TcpListener, sync::{mpsc, oneshot, RwLock}};
 use hyper::server::conn::http1;
@@ -52,8 +55,8 @@ struct HttpCodec;
 #[async_trait::async_trait]
 impl Codec for HttpCodec {
     type Protocol = &'static str;
-    type Request = Vec<u8>;
-    type Response = Vec<u8>;
+    type Request = Bytes;
+    type Response = Bytes;
 
     async fn read_request<T>(
         &mut self,
@@ -65,7 +68,7 @@ impl Codec for HttpCodec {
     {
         let mut buf = Vec::new();
         io.read_to_end(&mut buf).await?;
-        Ok(buf)
+        Ok(Bytes::from(buf))
     }
 
     async fn read_response<T>(
@@ -78,7 +81,7 @@ impl Codec for HttpCodec {
     {
         let mut buf = Vec::new();
         io.read_to_end(&mut buf).await?;
-        Ok(buf)
+        Ok(Bytes::from(buf))
     }
 
     async fn write_request<T>(
@@ -109,9 +112,28 @@ impl Codec for HttpCodec {
 }
 
 #[derive(NetworkBehaviour)]
+#[behaviour(out_event = "ShareBehaviourEvent")]
 struct ShareBehaviour {
     request_response: request_response::Behaviour<HttpCodec>,
     mdns: mdns::tokio::Behaviour,
+}
+
+#[derive(Debug)]
+pub enum ShareBehaviourEvent {
+    RequestResponse(request_response::Event<Bytes, Bytes>),
+    Mdns(mdns::Event),
+}
+
+impl From<request_response::Event<Bytes, Bytes>> for ShareBehaviourEvent {
+    fn from(event: request_response::Event<Bytes, Bytes>) -> Self {
+        ShareBehaviourEvent::RequestResponse(event)
+    }
+}
+
+impl From<mdns::Event> for ShareBehaviourEvent {
+    fn from(event: mdns::Event) -> Self {
+        ShareBehaviourEvent::Mdns(event)
+    }
 }
 
 /// Starts hosting a service over libp2p.
@@ -258,8 +280,8 @@ pub async fn connect_service(
         mdns: mdns::tokio::Behaviour::new(mdns::Config::default(), local_peer)?,
     };
 
-    let (tx_req, mut rx_req) = mpsc::unbounded_channel::<(Vec<u8>, oneshot::Sender<Vec<u8>>)>();
-    let pending: Arc<RwLock<HashMap<OutboundRequestId, oneshot::Sender<Vec<u8>>>>> =
+    let (tx_req, mut rx_req) = mpsc::unbounded_channel::<(Bytes, oneshot::Sender<Bytes>)>();
+    let pending: Arc<RwLock<HashMap<OutboundRequestId, oneshot::Sender<Bytes>>>> =
         Arc::new(RwLock::new(HashMap::new()));
     let pending_swarm = pending.clone();
 
@@ -292,7 +314,7 @@ pub async fn connect_service(
                             }
                             request_response::Event::OutboundFailure { request_id, .. } => {
                                 if let Some(tx) = pending_swarm.write().await.remove(&request_id) {
-                                    let _ = tx.send(Vec::new());
+                                    let _ = tx.send(Bytes::new());
                                 }
                             }
                             _ => {}
@@ -347,7 +369,7 @@ pub async fn connect_service(
                                     headers,
                                     body,
                                 };
-                                let data = serde_json::to_vec(&msg).expect("serialize");
+                                let data = Bytes::from(serde_json::to_vec(&msg).expect("serialize"));
                                 let (resp_tx, resp_rx) = oneshot::channel();
                                 tx.send((data, resp_tx)).expect("send req");
                                 if let Ok(resp_data) = resp_rx.await {

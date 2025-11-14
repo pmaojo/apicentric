@@ -255,6 +255,14 @@ pub enum Commands {
     ///
     /// Example: apicentric tui
     Tui,
+
+    /// Launches the Apicentric Cloud API server.
+    ///
+    /// Starts the cloud server, which provides a web API for managing services.
+    /// This is the intended backend for the WebUI.
+    ///
+    /// Example: apicentric cloud
+    Cloud,
 }
 
 /// Parses the command-line arguments into a `Cli` instance.

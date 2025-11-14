@@ -36,18 +36,21 @@ pub mod context;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod errors;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod logging;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod validation;
-// Disabled heavy dependencies for lighter CLI build
-// #[cfg(not(target_arch = "wasm32"))]
-// pub mod collab;
+#[cfg(all(not(target_arch = "wasm32"), feature = "p2p"))]
+pub mod collab;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod storage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ai;
 #[cfg(not(target_arch = "wasm32"))]
-// Cloud & auth modules removed for pure CLI focus
+pub mod cloud;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod auth;
 
 // Domain layer (core business logic)
 #[cfg(not(target_arch = "wasm32"))]
@@ -64,15 +67,18 @@ pub mod adapters {
     pub mod http_client;
     pub mod ui_cli;
     pub mod mock_server;
-    pub mod npm;
     pub mod report_sink;
     pub mod service_spec_loader;
+    pub mod noop_telemetry;
+    pub mod simulator_manager_adapter;
 
     pub use contract_repository::*;
     pub use http_client::*;
     pub use ui_cli::*;
     pub use report_sink::*;
     pub use service_spec_loader::*;
+    pub use noop_telemetry::*;
+    pub use simulator_manager_adapter::*;
 }
 
 // API Simulator module
@@ -105,7 +111,6 @@ pub use domain::contract::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod infrastructure {
     pub use crate::adapters::*;
-    pub use crate::app::setup_npm::setup_npm_scripts;
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub use infrastructure::*;

@@ -16,6 +16,7 @@ impl Storage for NoopStorage {
     fn load_service(&self, _name: &str) -> ApicentricResult<Option<ServiceDefinition>> { Ok(None) }
     fn append_log(&self, _entry: &RequestLogEntry) -> ApicentricResult<()> { Ok(()) }
     fn query_logs(&self, _service: Option<&str>, _route: Option<&str>, _method: Option<&str>, _status: Option<u16>, _limit: usize) -> ApicentricResult<Vec<RequestLogEntry>> { Ok(vec![]) }
+    fn clear_logs(&self) -> ApicentricResult<()> { Ok(()) }
 }
 
 fn test_service_definition() -> ServiceDefinition {

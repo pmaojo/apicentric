@@ -31,6 +31,10 @@ mod tui_render;
 #[path = "../commands/gui/mod.rs"]
 mod gui_cmd;
 
+#[cfg(feature = "webui")]
+#[path = "../commands/cloud.rs"]
+mod cloud_cmd;
+
 mod commands {
     pub mod shared {
         pub use crate::shared_impl::*;
@@ -106,11 +110,17 @@ enum Commands {
     /// Launches the graphical user interface (requires the 'gui' feature).
     #[cfg(feature = "gui")]
     Gui,
+    /// Launches the cloud API server (requires the 'webui' feature).
+    #[cfg(feature = "webui")]
+    Cloud,
 }
 
 /// The entry point for the `apicentric` CLI.
 #[tokio::main]
 async fn main() {
+    // Initialize structured logging
+    apicentric::logging::init();
+
     let cli = Cli::parse();
 
     if let Err(e) = run(cli).await {
@@ -157,7 +167,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         sim.set_db_path(&cli.db_path).await.ok();
     }
 
-    let mut exec_ctx = ExecutionContext::new(context.config());
+    let mut exec_ctx = ExecutionContext::new();
     if let Some(mode) = cli.mode {
         exec_ctx = exec_ctx.with_mode(mode.into());
     }
@@ -214,5 +224,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Tui => tui_cmd::tui_command().await,
         #[cfg(feature = "gui")]
         Commands::Gui => gui_cmd::gui_command().await,
+        #[cfg(feature = "webui")]
+        Commands::Cloud => cloud_cmd::cloud_command().await,
     }
 }

@@ -32,7 +32,7 @@ fn test_openapi_round_trip() {
 
 
     // 1. Import OpenAPI to Apicentric YAML using the unified import command
-    let mut cmd = Command::cargo_bin("apicentric").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_apicentric"));
     cmd.arg("simulator")
         .arg("import")
         .arg("--input")
@@ -45,7 +45,7 @@ fn test_openapi_round_trip() {
     assert!(fs::metadata(&service_path).is_ok(), "Apicentric service file was not created.");
 
     // 2. Export Apicentric YAML back to OpenAPI using the unified export command
-    let mut cmd = Command::cargo_bin("apicentric").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_apicentric"));
     cmd.arg("simulator")
         .arg("export")
         .arg("--input")

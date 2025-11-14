@@ -2,23 +2,46 @@
 //!
 //! This module provides a `spawn` function that creates a new libp2p node for
 //! collaboration.
+//!
+//! This module is only available when the `p2p` feature flag is enabled.
 
 use std::error::Error;
 
 use libp2p::{
     futures::StreamExt,
     gossipsub::{self, IdentTopic, MessageAuthenticity, ValidationMode},
-    identity, mdns, swarm::{NetworkBehaviour, SwarmEvent},
+    identity, mdns,
+    swarm::SwarmEvent,
     PeerId, SwarmBuilder,
 };
+use libp2p::swarm::NetworkBehaviour;
 use tokio::sync::mpsc;
 
 /// The combined network behaviour for collaboration, consisting of gossipsub
 /// and mDNS.
 #[derive(NetworkBehaviour)]
+#[behaviour(out_event = "CollabBehaviourEvent")]
 struct CollabBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::tokio::Behaviour,
+}
+
+#[derive(Debug)]
+pub enum CollabBehaviourEvent {
+    Gossipsub(gossipsub::Event),
+    Mdns(mdns::Event),
+}
+
+impl From<gossipsub::Event> for CollabBehaviourEvent {
+    fn from(event: gossipsub::Event) -> Self {
+        CollabBehaviourEvent::Gossipsub(event)
+    }
+}
+
+impl From<mdns::Event> for CollabBehaviourEvent {
+    fn from(event: mdns::Event) -> Self {
+        CollabBehaviourEvent::Mdns(event)
+    }
 }
 
 /// Spawns a libp2p node that publishes and receives raw CRDT operations.
@@ -29,7 +52,7 @@ struct CollabBehaviour {
 /// messages coming from peers. Messages are plain byte vectors that higher
 /// layers interpret as [`crate::collab::crdt::CrdtMessage`].
 pub async fn spawn()
-    -> Result<(mpsc::UnboundedSender<Vec<u8>>, mpsc::UnboundedReceiver<Vec<u8>>), Box<dyn Error>>
+    -> Result<(mpsc::UnboundedSender<Vec<u8>>, mpsc::UnboundedReceiver<Vec<u8>>), Box<dyn Error + Send + Sync>>
 {
     // Generate a random peer id based on an Ed25519 key pair.
     let local_key = identity::Keypair::generate_ed25519();

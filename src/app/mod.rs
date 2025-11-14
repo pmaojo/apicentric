@@ -3,9 +3,6 @@
 //! This module provides a `PluginManager` that can be used to load plugins
 //! from a directory, register them, and execute their hooks.
 
-pub mod mock_api_service;
-pub mod setup_npm;
-
 use crate::domain::ports::plugin::Plugin;
 use crate::errors::{ApicentricError, ApicentricResult};
 use http::{Request, Response};

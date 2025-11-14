@@ -4,6 +4,7 @@
 //! by serving locally-defined APIs through YAML configuration files.
 
 pub mod admin_server;
+pub mod axios_client;
 pub mod config;
 pub mod lifecycle;
 pub mod log;

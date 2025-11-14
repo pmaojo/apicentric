@@ -38,10 +38,10 @@ pub struct SimulatorConfig {
 }
 
 impl SimulatorConfig {
-    /// Create a new simulator configuration with environment variable override
+    /// Create a new simulator configuration
     pub fn new(enabled: bool, services_dir: PathBuf, port_range: PortRange) -> Self {
         Self {
-            enabled: Self::check_environment_override(enabled),
+            enabled,
             services_dir,
             port_range,
             db_path: default_db_path(),
@@ -53,7 +53,7 @@ impl SimulatorConfig {
     /// Create a default simulator configuration
     pub fn default_config() -> Self {
         Self {
-            enabled: Self::check_environment_override(false),
+            enabled: false,
             services_dir: PathBuf::from("services"),
             port_range: PortRange { start: 8000, end: 8999 },
             db_path: default_db_path(),
@@ -62,31 +62,9 @@ impl SimulatorConfig {
         }
     }
 
-    /// Check if the simulator should be enabled based on environment variables
-    /// Environment variable PULSE_API_SIMULATOR overrides configuration setting
-    fn check_environment_override(config_enabled: bool) -> bool {
-        match std::env::var("PULSE_API_SIMULATOR") {
-            Ok(value) => {
-                let normalized = value.to_lowercase();
-                normalized == "true"
-                    || normalized == "1"
-                    || normalized == "yes"
-                    || normalized == "on"
-            }
-            Err(_) => config_enabled,
-        }
-    }
-
-    /// Check if the simulator is enabled (considering environment variables)
+    /// Check if the simulator is enabled
     pub fn is_enabled(&self) -> bool {
-        Self::check_environment_override(self.enabled)
-    }
-
-    /// Get the effective enabled state with environment variable consideration
-    pub fn effective_enabled_state(&self) -> (bool, bool) {
-        let env_override = std::env::var("PULSE_API_SIMULATOR").is_ok();
-        let effective_enabled = self.is_enabled();
-        (effective_enabled, env_override)
+        self.enabled
     }
 }
 

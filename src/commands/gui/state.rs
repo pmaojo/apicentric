@@ -1,280 +1,23 @@
-//! GUI Application State
+//! GUI Application State Logic
 //!
-//! This module defines the state for the `egui` application.
+//! This module contains the state management logic for the GUI application.
+//! Data models are defined in the `models` module.
 
 #![cfg(feature = "gui")]
 
 use std::collections::VecDeque;
-use std::path::PathBuf;
-use std::time::SystemTime;
 use tokio::sync::broadcast;
 
-/// Request log entry for GUI display
-#[derive(Debug, Clone, PartialEq)]
-pub struct RequestLogEntry {
-    pub timestamp: SystemTime,
-    pub service_name: String,
-    pub method: String,
-    pub path: String,
-    pub status_code: u16,
-    pub duration_ms: u64,
-}
+use super::models::*;
 
-impl RequestLogEntry {
-    /// Create a new request log entry
-    pub fn new(
-        service_name: String,
-        method: String,
-        path: String,
-        status_code: u16,
-        duration_ms: u64,
-    ) -> Self {
-        Self {
-            timestamp: SystemTime::now(),
-            service_name,
-            method,
-            path,
-            status_code,
-            duration_ms,
-        }
-    }
-    
-    /// Create a request log entry with a specific timestamp
-    pub fn with_timestamp(
-        timestamp: SystemTime,
-        service_name: String,
-        method: String,
-        path: String,
-        status_code: u16,
-        duration_ms: u64,
-    ) -> Self {
-        Self {
-            timestamp,
-            service_name,
-            method,
-            path,
-            status_code,
-            duration_ms,
-        }
-    }
-    
-    /// Convert from simulator log entry
-    pub fn from_simulator_log(log: &apicentric::simulator::log::RequestLogEntry) -> Self {
-        Self {
-            timestamp: SystemTime::now(), // Use current time since simulator uses DateTime<Utc>
-            service_name: log.service.clone(),
-            method: log.method.clone(),
-            path: log.path.clone(),
-            status_code: log.status,
-            duration_ms: 0, // Simulator log doesn't track duration
-        }
-    }
-}
 
-/// Filter for request logs
-#[derive(Debug, Clone, PartialEq)]
-pub enum LogFilter {
-    All,
-    Service(String),
-    StatusCode(u16),
-    Method(String),
-}
-
-impl LogFilter {
-    /// Check if a log entry matches this filter
-    pub fn matches(&self, entry: &RequestLogEntry) -> bool {
-        match self {
-            LogFilter::All => true,
-            LogFilter::Service(name) => entry.service_name == *name,
-            LogFilter::StatusCode(code) => entry.status_code == *code,
-            LogFilter::Method(method) => entry.method == *method,
-        }
-    }
-}
-
-impl Default for LogFilter {
-    fn default() -> Self {
-        LogFilter::All
-    }
-}
-
-/// Information about a service
-#[derive(Debug, Clone)]
-pub struct ServiceInfo {
-    pub name: String,
-    pub path: PathBuf,
-    pub status: ServiceStatus,
-    pub port: u16,
-    pub endpoints: Vec<EndpointInfo>,
-}
-
-impl ServiceInfo {
-    /// Create a new ServiceInfo
-    pub fn new(name: String, path: PathBuf, port: u16) -> Self {
-        Self {
-            name,
-            path,
-            status: ServiceStatus::Stopped,
-            port,
-            endpoints: Vec::new(),
-        }
-    }
-    
-    /// Transition to starting state
-    pub fn start(&mut self) -> Result<(), String> {
-        if !self.status.can_start() {
-            return Err(format!("Cannot start service in {} state", self.status.display_string()));
-        }
-        self.status = ServiceStatus::Starting;
-        Ok(())
-    }
-    
-    /// Transition to running state
-    pub fn mark_running(&mut self) {
-        self.status = ServiceStatus::Running;
-    }
-    
-    /// Transition to stopping state
-    pub fn stop(&mut self) -> Result<(), String> {
-        if !self.status.can_stop() {
-            return Err(format!("Cannot stop service in {} state", self.status.display_string()));
-        }
-        self.status = ServiceStatus::Stopping;
-        Ok(())
-    }
-    
-    /// Transition to stopped state
-    pub fn mark_stopped(&mut self) {
-        self.status = ServiceStatus::Stopped;
-    }
-    
-    /// Transition to failed state
-    pub fn mark_failed(&mut self, error: String) {
-        self.status = ServiceStatus::Failed(error);
-    }
-    
-    /// Check if the service can be started
-    pub fn can_start(&self) -> bool {
-        self.status.can_start()
-    }
-    
-    /// Check if the service can be stopped
-    pub fn can_stop(&self) -> bool {
-        self.status.can_stop()
-    }
-}
-
-/// Status of a service
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ServiceStatus {
-    Stopped,
-    Starting,
-    Running,
-    Stopping,
-    Failed(String),
-}
-
-impl ServiceStatus {
-    /// Check if the service can be started
-    pub fn can_start(&self) -> bool {
-        matches!(self, ServiceStatus::Stopped | ServiceStatus::Failed(_))
-    }
-    
-    /// Check if the service can be stopped
-    pub fn can_stop(&self) -> bool {
-        matches!(self, ServiceStatus::Running)
-    }
-    
-    /// Check if the service is in a transitional state
-    pub fn is_transitioning(&self) -> bool {
-        matches!(self, ServiceStatus::Starting | ServiceStatus::Stopping)
-    }
-    
-    /// Check if the service is running
-    pub fn is_running(&self) -> bool {
-        matches!(self, ServiceStatus::Running)
-    }
-    
-    /// Check if the service has failed
-    pub fn is_failed(&self) -> bool {
-        matches!(self, ServiceStatus::Failed(_))
-    }
-    
-    /// Get a display string for the status
-    pub fn display_string(&self) -> &str {
-        match self {
-            ServiceStatus::Stopped => "Stopped",
-            ServiceStatus::Starting => "Starting...",
-            ServiceStatus::Running => "Running",
-            ServiceStatus::Stopping => "Stopping...",
-            ServiceStatus::Failed(_) => "Failed",
-        }
-    }
-    
-    /// Get the error message if failed
-    pub fn error_message(&self) -> Option<&str> {
-        match self {
-            ServiceStatus::Failed(msg) => Some(msg),
-            _ => None,
-        }
-    }
-}
-
-/// Information about an endpoint
-#[derive(Debug, Clone)]
-pub struct EndpointInfo {
-    pub method: String,
-    pub path: String,
-}
-
-/// Recording session state
-#[derive(Debug, Clone)]
-pub struct RecordingSession {
-    pub id: String,
-    pub target_url: String,
-    pub proxy_port: u16,
-    pub is_active: bool,
-}
-
-/// Editor state
-#[derive(Debug, Clone)]
-pub struct EditorState {
-    pub content: String,
-    pub dirty: bool,
-    pub selected_service: Option<String>,
-}
-
-impl Default for EditorState {
-    fn default() -> Self {
-        Self {
-            content: String::new(),
-            dirty: false,
-            selected_service: None,
-        }
-    }
-}
-
-/// GUI configuration
-#[derive(Debug, Clone)]
-pub struct GuiConfig {
-    pub services_directory: PathBuf,
-    pub default_port: u16,
-}
-
-impl Default for GuiConfig {
-    fn default() -> Self {
-        Self {
-            services_directory: PathBuf::from("services"),
-            default_port: 8080,
-        }
-    }
-}
 
 /// Main GUI application state
 pub struct GuiAppState {
     // Service management
     pub services: Vec<ServiceInfo>,
     pub selected_service: Option<String>,
+    pub refreshing_services: bool,
     
     // AI generation (existing fields preserved and enhanced)
     pub ai_prompt: String,
@@ -306,10 +49,51 @@ pub struct GuiAppState {
 }
 
 impl GuiAppState {
+    /// Helper function to rotate logs to keep only the last max_entries
+    fn rotate_logs<T>(logs: &mut VecDeque<T>, max_entries: usize) {
+        while logs.len() > max_entries {
+            logs.pop_front();
+        }
+    }
+
+    /// Helper function to rotate Vec logs by removing from the front
+    fn rotate_vec_logs<T>(logs: &mut Vec<T>, max_entries: usize) {
+        while logs.len() > max_entries {
+            logs.remove(0);
+        }
+    }
+
+    /// Helper to reset AI generation state to initial values
+    fn reset_ai_generation_state(&mut self) {
+        self.ai_generation_in_progress = false;
+        self.ai_error = None;
+        self.ai_generated_yaml = None;
+        self.ai_validation_errors.clear();
+        self.ai_config_missing = false;
+    }
+
+    /// Helper to reset editor loading state
+    fn reset_editor_loading_state(&mut self) {
+        self.editor_state.loading = false;
+        self.editor_state.saving = false;
+    }
+
+    /// Helper to log operation results
+    fn log_operation_result(&mut self, operation: &str, success: bool, details: Option<&str>) {
+        let message = match (success, details) {
+            (true, Some(d)) => format!("{}: {}", operation, d),
+            (true, None) => operation.to_string(),
+            (false, Some(d)) => format!("Failed to {}: {}", operation, d),
+            (false, None) => format!("Failed to {}", operation),
+        };
+        self.add_log(message);
+    }
+
     pub fn new(log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>) -> Self {
         Self {
             services: Vec::new(),
             selected_service: None,
+            refreshing_services: false,
             ai_prompt: String::new(),
             ai_generated_yaml: None,
             ai_generation_in_progress: false,
@@ -363,21 +147,17 @@ impl GuiAppState {
     /// Add a log entry with rotation (string version for backward compatibility)
     pub fn add_log(&mut self, log: String) {
         self.logs.push(log); // Keep for backward compatibility
-        
+
         // Also rotate old logs vector
-        if self.logs.len() > 1000 {
-            self.logs.remove(0);
-        }
+        Self::rotate_vec_logs(&mut self.logs, 1000);
     }
-    
+
     /// Add a request log entry with rotation
     pub fn add_request_log(&mut self, entry: RequestLogEntry) {
         self.request_logs.push_back(entry);
-        
+
         // Rotate logs to keep only last 1000 entries
-        while self.request_logs.len() > 1000 {
-            self.request_logs.pop_front();
-        }
+        Self::rotate_logs(&mut self.request_logs, 1000);
     }
     
     /// Get filtered request logs
@@ -407,26 +187,20 @@ impl GuiAppState {
     
     /// Start AI generation
     pub fn start_ai_generation(&mut self) {
+        self.reset_ai_generation_state();
         self.ai_generation_in_progress = true;
-        self.ai_error = None;
-        self.ai_generated_yaml = None;
-        self.ai_validation_errors.clear();
-        self.ai_config_missing = false;
     }
-    
+
     /// Complete AI generation with success
     pub fn complete_ai_generation(&mut self, yaml: String) {
-        self.ai_generation_in_progress = false;
+        self.reset_ai_generation_state();
         self.ai_generated_yaml = Some(yaml);
-        self.ai_error = None;
-        self.ai_validation_errors.clear();
     }
-    
+
     /// Complete AI generation with error
     pub fn fail_ai_generation(&mut self, error: String) {
-        self.ai_generation_in_progress = false;
-        self.ai_generated_yaml = None;
-        
+        self.reset_ai_generation_state();
+
         // Check if error is due to missing configuration
         if error.contains("AI provider not configured") || error.contains("API key missing") {
             self.ai_config_missing = true;
@@ -475,15 +249,74 @@ impl GuiAppState {
     pub fn mark_editor_clean(&mut self) {
         self.editor_state.dirty = false;
     }
+
+    /// Start loading a service in editor
+    pub fn start_loading_service(&mut self, service_name: String) {
+        self.editor_state.selected_service = Some(service_name);
+        self.reset_editor_loading_state();
+        self.editor_state.loading = true;
+        self.show_editor_window = true;
+    }
+
+    /// Complete loading a service in editor
+    pub fn complete_loading_service(&mut self, content: String) {
+        self.editor_state.content = content;
+        self.reset_editor_loading_state();
+        self.editor_state.dirty = false;
+    }
+
+    /// Fail loading a service in editor
+    pub fn fail_loading_service(&mut self, error: String) {
+        self.reset_editor_loading_state();
+        self.log_operation_result("load service", false, Some(&error));
+    }
+
+    /// Start saving editor content
+    pub fn start_saving_editor(&mut self) {
+        self.reset_editor_loading_state();
+        self.editor_state.saving = true;
+    }
+
+    /// Complete saving editor content
+    pub fn complete_saving_editor(&mut self) {
+        self.reset_editor_loading_state();
+        self.editor_state.dirty = false;
+    }
+
+    /// Fail saving editor content
+    pub fn fail_saving_editor(&mut self, error: String) {
+        self.reset_editor_loading_state();
+        self.log_operation_result("save service", false, Some(&error));
+    }
+
+    /// Start refreshing services
+    pub fn start_refreshing_services(&mut self) {
+        self.refreshing_services = true;
+    }
+
+    /// Complete refreshing services
+    pub fn complete_refreshing_services(&mut self, services: Vec<ServiceInfo>) {
+        self.services = services;
+        self.refreshing_services = false;
+        self.log_operation_result("refresh services", true, Some(&format!("{}", self.services.len())));
+    }
+
+    /// Fail refreshing services
+    pub fn fail_refreshing_services(&mut self, error: String) {
+        self.refreshing_services = false;
+        self.log_operation_result("refresh services", false, Some(&error));
+    }
 }
 
 #[cfg(test)]
 mod service_management_tests {
     use super::*;
-    
+    use std::path::PathBuf;
+
+    // Helper to create a test state
     fn create_test_state() -> GuiAppState {
-        let log_receiver = tokio::sync::broadcast::channel(1).1;
-        GuiAppState::new(log_receiver)
+        let (_, rx) = tokio::sync::broadcast::channel(1);
+        GuiAppState::new(rx)
     }
     
     // Service Discovery Tests
@@ -899,10 +732,12 @@ mod service_management_tests {
 #[cfg(test)]
 mod log_integration_tests {
     use super::*;
-    
+    use std::time::SystemTime;
+
+    // Helper to create a test state
     fn create_test_state() -> GuiAppState {
-        let log_receiver = tokio::sync::broadcast::channel(1).1;
-        GuiAppState::new(log_receiver)
+        let (_, rx) = tokio::sync::broadcast::channel(1);
+        GuiAppState::new(rx)
     }
     
     #[test]

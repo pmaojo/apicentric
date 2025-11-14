@@ -16,6 +16,7 @@ use crate::simulator::{
     watcher::ConfigWatcher,
     ConfigChange,
 };
+use tracing::info;
 
 /// Trait for managing simulator lifecycle.
 #[async_trait]
@@ -71,11 +72,12 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
 
 #[async_trait]
 impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<R> {
+    #[tracing::instrument(skip(self), fields(simulator_enabled = self.config.enabled))]
     async fn start(&self) -> ApicentricResult<()> {
         if !self.config.enabled {
             return Err(ApicentricError::config_error(
                 "API simulator is not enabled",
-                Some("Set PULSE_API_SIMULATOR=true or enable in configuration"),
+                Some("Enable in configuration"),
             ));
         }
 
@@ -125,9 +127,10 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
         *is_active = true;
 
-        log::info!(
-            "API Simulator started with {} services",
-            service_count
+        info!(
+            target: "simulator",
+            service_count = service_count,
+            "API Simulator started"
         );
         // Spawn configuration watcher for automatic reloads
         let (tx, mut rx) = mpsc::channel(16);
@@ -203,6 +206,7 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     async fn stop(&self) -> ApicentricResult<()> {
         let mut is_active = self.is_active.write().await;
         if !*is_active {
@@ -219,7 +223,7 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
         *is_active = false;
 
-        log::info!("API Simulator stopped");
+        info!(target: "simulator", "API Simulator stopped");
 
         Ok(())
     }

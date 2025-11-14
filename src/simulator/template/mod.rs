@@ -318,14 +318,4 @@ mod tests {
         assert_eq!(result, "42");
         assert_eq!(bucket.get("foo"), Some(json!(42)));
     }
-
-    #[test]
-    fn test_env_lookup() {
-        std::env::set_var("PULSE_TEST_ENV", "123");
-        let engine = TemplateEngine::new().unwrap();
-        let context = TemplateContext::minimal();
-        let result = engine.render("{{env.PULSE_TEST_ENV}}", &context).unwrap();
-        assert_eq!(result, "123");
-        std::env::remove_var("PULSE_TEST_ENV");
-    }
 }

@@ -2,10 +2,686 @@ import type { ApiService, Service, SimulatorStatus } from '@/lib/types';
 
 /**
  * @fileoverview API service functions for interacting with the backend.
- * This file assumes the apicentric cloud server is running on localhost:8080.
+ * This file provides a comprehensive API client with JWT authentication,
+ * automatic token refresh, and error handling.
  */
 
-const API_BASE_URL = 'http://localhost:8080/api/simulator';
+// Configuration
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const TOKEN_STORAGE_KEY = 'apicentric_token';
+const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes before expiry
+
+// Token management
+let currentToken: string | null = null;
+let tokenExpiryTime: number | null = null;
+
+/**
+ * Stores the JWT token securely.
+ * Uses localStorage for now - can be upgraded to httpOnly cookies for production.
+ */
+function setToken(token: string): void {
+  currentToken = token;
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  }
+  
+  // Decode token to get expiry time
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    tokenExpiryTime = payload.exp * 1000; // Convert to milliseconds
+  } catch (e) {
+    console.error('Failed to decode token:', e);
+  }
+}
+
+/**
+ * Retrieves the stored JWT token.
+ */
+function getToken(): string | null {
+  if (currentToken) {
+    return currentToken;
+  }
+  
+  if (typeof window !== 'undefined') {
+    currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    return currentToken;
+  }
+  
+  return null;
+}
+
+/**
+ * Removes the stored JWT token.
+ */
+function clearToken(): void {
+  currentToken = null;
+  tokenExpiryTime = null;
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+}
+
+/**
+ * Checks if the token needs to be refreshed.
+ */
+function shouldRefreshToken(): boolean {
+  if (!tokenExpiryTime) {
+    return false;
+  }
+  
+  const timeUntilExpiry = tokenExpiryTime - Date.now();
+  return timeUntilExpiry < TOKEN_REFRESH_THRESHOLD && timeUntilExpiry > 0;
+}
+
+/**
+ * Refreshes the JWT token.
+ */
+async function refreshToken(): Promise<void> {
+  const token = getToken();
+  if (!token) {
+    throw new Error('No token to refresh');
+  }
+  
+  const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  
+  if (!response.ok) {
+    clearToken();
+    throw new Error('Failed to refresh token');
+  }
+  
+  const data = await response.json();
+  setToken(data.token);
+}
+
+/**
+ * Makes an authenticated API request with automatic token refresh.
+ */
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  // Check if token needs refresh
+  if (shouldRefreshToken()) {
+    try {
+      await refreshToken();
+    } catch (e) {
+      console.error('Token refresh failed:', e);
+    }
+  }
+  
+  // Add authentication header if token exists
+  const token = getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+  
+  // Handle 401 - try to refresh token once
+  if (response.status === 401 && token) {
+    try {
+      await refreshToken();
+      
+      // Retry the request with new token
+      const newToken = getToken();
+      if (newToken) {
+        const retryHeaders: Record<string, string> = {
+          ...headers,
+          'Authorization': `Bearer ${newToken}`,
+        };
+        const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+          ...options,
+          headers: retryHeaders,
+        });
+        
+        if (!retryResponse.ok) {
+          throw new Error(`API request failed: ${retryResponse.statusText}`);
+        }
+        
+        return retryResponse.json();
+      }
+    } catch (e) {
+      clearToken();
+      throw new Error('Authentication failed');
+    }
+  }
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({
+      error: response.statusText,
+    }));
+    throw new Error(errorData.error || `Request failed: ${response.statusText}`);
+  }
+  
+  return response.json();
+}
+
+// ============================================================================
+// Authentication API
+// ============================================================================
+
+export interface RegisterRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token: string;
+}
+
+/**
+ * Registers a new user.
+ */
+export async function register(username: string, password: string): Promise<AuthResponse> {
+  const response = await apiRequest<AuthResponse>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+  
+  setToken(response.token);
+  return response;
+}
+
+/**
+ * Logs in a user.
+ */
+export async function login(username: string, password: string): Promise<AuthResponse> {
+  const response = await apiRequest<AuthResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+  
+  setToken(response.token);
+  return response;
+}
+
+/**
+ * Logs out the current user.
+ */
+export async function logout(): Promise<void> {
+  try {
+    await apiRequest('/api/auth/logout', {
+      method: 'POST',
+    });
+  } finally {
+    clearToken();
+  }
+}
+
+/**
+ * Gets the current user information.
+ */
+export async function getCurrentUser(): Promise<{ username: string }> {
+  return apiRequest('/api/auth/me', {
+    method: 'GET',
+  });
+}
+
+/**
+ * Checks if the user is authenticated.
+ */
+export function isAuthenticated(): boolean {
+  return getToken() !== null;
+}
+
+// ============================================================================
+// Service Management API
+// ============================================================================
+
+export interface ServiceResponse {
+  name: string;
+  path: string;
+  status: 'stopped' | 'starting' | 'running' | 'stopping' | 'failed';
+  port: number;
+  endpoints: EndpointResponse[];
+  uptime_seconds?: number;
+}
+
+export interface EndpointResponse {
+  method: string;
+  path: string;
+  responses: any[];
+}
+
+export interface CreateServiceRequest {
+  yaml: string;
+  filename?: string;
+}
+
+export interface UpdateServiceRequest {
+  yaml: string;
+}
+
+/**
+ * Lists all services.
+ */
+export async function listServices(): Promise<ApiService[]> {
+  const response = await apiRequest<{ success: boolean; data: any[] }>('/api/services');
+  return response.data || [];
+}
+
+/**
+ * Gets a specific service by name.
+ */
+export async function getService(name: string): Promise<ServiceResponse> {
+  const response = await apiRequest<{ success: boolean; data: ServiceResponse }>(
+    `/api/services/${encodeURIComponent(name)}`
+  );
+  return response.data;
+}
+
+/**
+ * Creates a new service.
+ */
+export async function createService(yaml: string, filename?: string): Promise<ServiceResponse> {
+  const response = await apiRequest<{ success: boolean; data: ServiceResponse }>('/api/services', {
+    method: 'POST',
+    body: JSON.stringify({ yaml, filename }),
+  });
+  return response.data;
+}
+
+/**
+ * Updates an existing service.
+ */
+export async function updateService(name: string, yaml: string): Promise<ServiceResponse> {
+  const response = await apiRequest<{ success: boolean; data: ServiceResponse }>(
+    `/api/services/${encodeURIComponent(name)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ yaml }),
+    }
+  );
+  return response.data;
+}
+
+/**
+ * Deletes a service.
+ */
+export async function deleteService(name: string): Promise<void> {
+  await apiRequest(`/api/services/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Starts a service.
+ */
+export async function startService(name: string): Promise<void> {
+  await apiRequest(`/api/services/${encodeURIComponent(name)}/start`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Stops a service.
+ */
+export async function stopService(name: string): Promise<void> {
+  await apiRequest(`/api/services/${encodeURIComponent(name)}/stop`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Gets the status of a service.
+ */
+export async function getServiceStatus(name: string): Promise<any> {
+  const response = await apiRequest<{ success: boolean; data: any }>(
+    `/api/services/${encodeURIComponent(name)}/status`
+  );
+  return response.data;
+}
+
+/**
+ * Reloads all services.
+ */
+export async function reloadServices(): Promise<void> {
+  await apiRequest('/api/services/reload', {
+    method: 'POST',
+  });
+}
+
+// ============================================================================
+// Request Logs API
+// ============================================================================
+
+export interface RequestLogEntry {
+  timestamp: string;
+  service: string;
+  method: string;
+  path: string;
+  status: number;
+  duration_ms?: number;
+  request_headers?: Record<string, string>;
+  response_headers?: Record<string, string>;
+  request_body?: string;
+  response_body?: string;
+}
+
+export interface LogsQuery {
+  limit?: number;
+  service?: string;
+  method?: string;
+  status?: number;
+  from?: string;
+  to?: string;
+}
+
+export interface LogsResponse {
+  logs: RequestLogEntry[];
+  total: number;
+  filtered: number;
+}
+
+/**
+ * Queries request logs with optional filters.
+ */
+export async function queryLogs(query: LogsQuery = {}): Promise<LogsResponse> {
+  const params = new URLSearchParams();
+  if (query.limit) params.append('limit', query.limit.toString());
+  if (query.service) params.append('service', query.service);
+  if (query.method) params.append('method', query.method);
+  if (query.status) params.append('status', query.status.toString());
+  if (query.from) params.append('from', query.from);
+  if (query.to) params.append('to', query.to);
+  
+  const response = await apiRequest<{ success: boolean; data: LogsResponse }>(
+    `/api/logs?${params.toString()}`
+  );
+  return response.data;
+}
+
+/**
+ * Clears all request logs.
+ */
+export async function clearLogs(): Promise<void> {
+  await apiRequest('/api/logs', {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Exports logs in the specified format.
+ */
+export async function exportLogs(format: 'json' | 'csv' = 'json'): Promise<string> {
+  const response = await apiRequest<{ success: boolean; data: string }>(
+    `/api/logs/export?format=${format}`
+  );
+  return response.data;
+}
+
+// ============================================================================
+// Recording API
+// ============================================================================
+
+export interface StartRecordingRequest {
+  target_url: string;
+  proxy_port?: number;
+}
+
+export interface RecordingResponse {
+  session_id: string;
+  proxy_url: string;
+  proxy_port: number;
+  target_url: string;
+  captured_count: number;
+}
+
+export interface RecordingStatusResponse {
+  is_active: boolean;
+  session_id?: string;
+  proxy_url?: string;
+  proxy_port?: number;
+  target_url?: string;
+  captured_count: number;
+}
+
+export interface CapturedRequest {
+  method: string;
+  path: string;
+  headers: Record<string, string>;
+  body?: string;
+  response_status: number;
+  response_headers: Record<string, string>;
+  response_body?: string;
+}
+
+/**
+ * Starts recording mode.
+ */
+export async function startRecording(targetUrl: string, proxyPort?: number): Promise<RecordingResponse> {
+  const response = await apiRequest<{ success: boolean; data: RecordingResponse }>(
+    '/api/recording/start',
+    {
+      method: 'POST',
+      body: JSON.stringify({ target_url: targetUrl, proxy_port: proxyPort }),
+    }
+  );
+  return response.data;
+}
+
+/**
+ * Stops recording mode.
+ */
+export async function stopRecording(): Promise<{ captured_requests: CapturedRequest[] }> {
+  const response = await apiRequest<{ success: boolean; data: { captured_requests: CapturedRequest[] } }>(
+    '/api/recording/stop',
+    {
+      method: 'POST',
+    }
+  );
+  return response.data;
+}
+
+/**
+ * Gets the current recording status.
+ */
+export async function getRecordingStatus(): Promise<RecordingStatusResponse> {
+  const response = await apiRequest<{ success: boolean; data: RecordingStatusResponse }>(
+    '/api/recording/status'
+  );
+  return response.data;
+}
+
+/**
+ * Generates a service definition from recorded requests.
+ */
+export async function generateServiceFromRecording(serviceName: string): Promise<ServiceResponse> {
+  const response = await apiRequest<{ success: boolean; data: ServiceResponse }>(
+    '/api/recording/generate',
+    {
+      method: 'POST',
+      body: JSON.stringify({ service_name: serviceName }),
+    }
+  );
+  return response.data;
+}
+
+// ============================================================================
+// AI Generation API
+// ============================================================================
+
+export interface AiGenerateRequest {
+  prompt: string;
+  provider?: 'openai' | 'gemini' | 'local';
+}
+
+export interface AiGenerateResponse {
+  yaml: string;
+  validation_errors: string[];
+}
+
+export interface AiConfigResponse {
+  is_configured: boolean;
+  provider: string;
+  model?: string;
+  issues: string[];
+}
+
+/**
+ * Generates a service definition using AI.
+ */
+export async function aiGenerate(prompt: string, provider?: string): Promise<AiGenerateResponse> {
+  const response = await apiRequest<{ success: boolean; data: AiGenerateResponse }>(
+    '/api/ai/generate',
+    {
+      method: 'POST',
+      body: JSON.stringify({ prompt, provider }),
+    }
+  );
+  return response.data;
+}
+
+/**
+ * Validates a YAML service definition.
+ */
+export async function aiValidate(yaml: string): Promise<{ valid: boolean; errors: string[] }> {
+  const response = await apiRequest<{ success: boolean; data: { valid: boolean; errors: string[] } }>(
+    '/api/ai/validate',
+    {
+      method: 'POST',
+      body: JSON.stringify({ yaml }),
+    }
+  );
+  return response.data;
+}
+
+/**
+ * Gets the AI configuration status.
+ */
+export async function getAiConfig(): Promise<AiConfigResponse> {
+  const response = await apiRequest<{ success: boolean; data: AiConfigResponse }>(
+    '/api/ai/config'
+  );
+  return response.data;
+}
+
+// ============================================================================
+// Code Generation API
+// ============================================================================
+
+export interface TypeScriptGenerateRequest {
+  service_name: string;
+}
+
+export interface ReactQueryGenerateRequest {
+  service_name: string;
+}
+
+export interface AxiosGenerateRequest {
+  service_name: string;
+}
+
+/**
+ * Generates TypeScript types from a service definition.
+ */
+export async function generateTypeScript(serviceName: string): Promise<string> {
+  const response = await apiRequest<{ success: boolean; data: { code: string } }>(
+    '/api/codegen/typescript',
+    {
+      method: 'POST',
+      body: JSON.stringify({ service_name: serviceName }),
+    }
+  );
+  return response.data.code;
+}
+
+/**
+ * Generates React Query hooks from a service definition.
+ */
+export async function generateReactQuery(serviceName: string): Promise<string> {
+  const response = await apiRequest<{ success: boolean; data: { code: string } }>(
+    '/api/codegen/react-query',
+    {
+      method: 'POST',
+      body: JSON.stringify({ service_name: serviceName }),
+    }
+  );
+  return response.data.code;
+}
+
+/**
+ * Generates Axios client from a service definition.
+ */
+export async function generateAxios(serviceName: string): Promise<string> {
+  const response = await apiRequest<{ success: boolean; data: { code: string } }>(
+    '/api/codegen/axios',
+    {
+      method: 'POST',
+      body: JSON.stringify({ service_name: serviceName }),
+    }
+  );
+  return response.data.code;
+}
+
+// ============================================================================
+// Configuration API
+// ============================================================================
+
+export interface UpdateConfigRequest {
+  config: Record<string, any>;
+}
+
+export interface ValidateConfigResponse {
+  valid: boolean;
+  errors: string[];
+}
+
+/**
+ * Gets the current configuration.
+ */
+export async function getConfig(): Promise<Record<string, any>> {
+  const response = await apiRequest<{ success: boolean; data: Record<string, any> }>(
+    '/api/config'
+  );
+  return response.data;
+}
+
+/**
+ * Updates the configuration.
+ */
+export async function updateConfig(config: Record<string, any>): Promise<void> {
+  await apiRequest('/api/config', {
+    method: 'PUT',
+    body: JSON.stringify({ config }),
+  });
+}
+
+/**
+ * Validates a configuration.
+ */
+export async function validateConfig(config: Record<string, any>): Promise<ValidateConfigResponse> {
+  const response = await apiRequest<{ success: boolean; data: ValidateConfigResponse }>(
+    '/api/config/validate',
+    {
+      method: 'POST',
+      body: JSON.stringify({ config }),
+    }
+  );
+  return response.data;
+}
+
+// ============================================================================
+// Legacy API (for backward compatibility)
+// ============================================================================
 
 /**
  * Fetches the list of all available services from the simulator backend.

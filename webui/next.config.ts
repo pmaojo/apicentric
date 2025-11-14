@@ -30,6 +30,20 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Performance optimizations
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // Optimize imports
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+  },
+  // Enable static optimization where possible
+  output: 'standalone',
+  // Optimize bundle size
+  webpack: (config, { isServer }) => {
+    return config;
+  },
 };
 
 export default nextConfig;

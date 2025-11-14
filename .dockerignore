@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+Formula/
+
+# Build artifacts
+target/
+webui/node_modules/
+webui/.next/
+webui/out/
+webui/.turbo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+tests/
+webui/e2e/
+
+# CI/CD
+.github/
+.qodo/
+
+# Local data
+data/
+services/
+*.db
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp

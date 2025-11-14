@@ -1,4 +1,4 @@
-use super::{generate_default_config, ApicentricConfig};
+use super::{ApicentricConfig, generate_default_config};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::validation::ConfigValidator;
 use std::fs;
@@ -81,19 +81,16 @@ impl ConfigRepository for FileConfigRepository {
     }
 }
 
-fn resolve_relative_paths(config: &mut ApicentricConfig, base_dir: &Path) {
-    if !config.routes_dir.is_absolute() {
-        config.routes_dir = base_dir.join(&config.routes_dir);
-    }
-    if !config.specs_dir.is_absolute() {
-        config.specs_dir = base_dir.join(&config.specs_dir);
-    }
-    if !config.index_cache_path.is_absolute() {
-        config.index_cache_path = base_dir.join(&config.index_cache_path);
-    }
+fn resolve_relative_paths(_config: &mut ApicentricConfig, _base_dir: &Path) {
+    // No relative paths to resolve in the simplified config
 }
 
 pub fn load_config(path: &Path) -> ApicentricResult<ApicentricConfig> {
+    // If config file doesn't exist, return default config
+    if !path.exists() {
+        log::info!("Config file not found at {:?}, using defaults", path);
+        return Ok(ApicentricConfig::default());
+    }
     FileConfigRepository::new(path).load()
 }
 
@@ -121,8 +118,21 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn load_nonexistent_config() {
+    fn load_nonexistent_config_returns_default() {
+        // load_config returns default config when file doesn't exist
         let result = load_config(Path::new("nonexistent.json"));
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        // Should be default config
+        assert!(config.ai.is_none());
+        assert!(config.simulator.is_none());
+    }
+
+    #[test]
+    fn repository_load_nonexistent_config_returns_error() {
+        // FileConfigRepository::load() returns error when file doesn't exist
+        let repo = FileConfigRepository::new("nonexistent.json");
+        let result = repo.load();
         assert!(result.is_err());
     }
 
@@ -130,19 +140,11 @@ mod tests {
     fn save_and_load_roundtrip() {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("cfg.json");
-        std::fs::create_dir_all(tmp.path().join("routes")).unwrap();
-        std::fs::create_dir_all(tmp.path().join("specs")).unwrap();
-        std::fs::create_dir_all(tmp.path().join("services")).unwrap();
-        let config = super::ApicentricConfig::builder()
-            .routes_dir(tmp.path().join("routes"))
-            .specs_dir(tmp.path().join("specs"))
-            .index_cache_path(tmp.path().join("index.json"))
-            .simulator_services_dir(tmp.path().join("services"))
-            .build()
-            .unwrap();
+        let config = generate_default_config();
         save_config(&config, &path).unwrap();
         let loaded = load_config(&path).unwrap();
-        assert_eq!(config.base_url, loaded.base_url);
+        assert!(loaded.ai.is_some());
+        assert!(loaded.simulator.is_some());
     }
 }
 

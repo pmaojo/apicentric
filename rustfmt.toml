@@ -1,0 +1,50 @@
+# Rustfmt configuration for apicentric project
+# See https://rust-lang.github.io/rustfmt/ for full options
+
+# Maximum width of each line
+max_width = 100
+
+# Number of spaces per tab
+tab_spaces = 4
+
+# Use spaces instead of tabs
+hard_tabs = false
+
+# Edition to use for parsing and formatting
+edition = "2021"
+
+# Reorder imports
+reorder_imports = true
+
+# Group imports
+group_imports = "StdExternalCrate"
+
+# Format strings
+format_strings = true
+
+# Format macro bodies
+format_macro_bodies = true
+
+# Format macro matchers
+format_macro_matchers = true
+
+# Merge imports
+merge_imports = true
+
+# Normalize comments
+normalize_comments = true
+
+# Wrap comments
+wrap_comments = true
+
+# Comment width
+comment_width = 100
+
+# License template (if applicable)
+# license_template_path = ""
+
+# Ignore files
+# ignore = []
+
+# Required version
+# required_version = "1.4.38"

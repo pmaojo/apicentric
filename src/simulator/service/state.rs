@@ -51,6 +51,13 @@ pub struct ServiceState {
 }
 
 impl ServiceState {
+    /// Create a new ServiceState instance.
+    ///
+    /// # Arguments
+    /// * `fixtures` - Initial fixture data
+    /// * `bucket` - Initial bucket data
+    /// * `storage` - Storage backend for logs
+    /// * `log_sender` - Optional sender for broadcasting log entries
     pub fn new(
         fixtures: Option<HashMap<String, Value>>,
         bucket: Option<HashMap<String, Value>>,
@@ -69,6 +76,15 @@ impl ServiceState {
         }
     }
 
+    /// Get the next response index based on the scenario strategy.
+    ///
+    /// # Arguments
+    /// * `endpoint_index` - Index of the endpoint
+    /// * `total` - Total number of responses
+    /// * `strategy` - Strategy for selecting responses
+    ///
+    /// # Returns
+    /// The index of the next response to use
     pub fn next_response_index(
         &mut self,
         endpoint_index: usize,
@@ -89,6 +105,10 @@ impl ServiceState {
         }
     }
 
+    /// Get a clone of the data bucket.
+    ///
+    /// # Returns
+    /// A DataBucket instance
     pub fn bucket(&self) -> DataBucket {
         self.bucket.clone()
     }
@@ -196,9 +216,13 @@ impl ServiceState {
     ) -> ApicentricResult<bool> {
         match self.fixtures.get_mut(fixture_key) {
             Some(Value::Array(arr)) => {
+                // Iterate through each item in the array
                 for item in arr.iter_mut() {
+                    // Check if the item is a JSON object
                     if let Some(obj) = item.as_object() {
+                        // Check if the object has the specified field
                         if let Some(value) = obj.get(field) {
+                            // If the field value matches, update the item
                             if value == field_value {
                                 *item = new_item;
                                 return Ok(true);

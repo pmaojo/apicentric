@@ -1,0 +1,14 @@
+name: test-api
+version: "1.0"
+description: Test API for CLI validation
+server:
+  port: 9999
+  base_path: /api
+endpoints:
+  - method: GET
+    path: /test
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {"status": "ok"}

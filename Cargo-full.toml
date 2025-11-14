@@ -44,7 +44,7 @@ fake = "4.4.0"
 rand = "0.8"
 
 # OpenAPI support
-openapi = "0.1.5"
+openapiv3 = "2.0"
 
 # HTTP client for contract testing
 reqwest = { version = "0.11", features = ["json"] }

@@ -1,4 +1,4 @@
-use thiserror::Error;
+lmuse thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ApicentricError {

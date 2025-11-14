@@ -10,8 +10,12 @@ pub mod jwt;
 pub mod repository;
 pub mod handlers;
 pub mod extractor;
+pub mod blacklist;
+pub mod middleware;
 
 pub use model::*;
 pub use repository::*;
 pub use handlers::*;
 pub use extractor::*;
+pub use blacklist::*;
+pub use middleware::*;

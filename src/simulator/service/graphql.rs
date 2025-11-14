@@ -6,10 +6,20 @@ use async_graphql_parser::parse_schema;
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::GraphQLConfig;
 use crate::simulator::template::TemplateEngine;
+#[cfg(feature = "graphql")]
+use crate::simulator::template::{TemplateContext, RequestContext};
+#[cfg(feature = "graphql")]
+use super::routing::PathParameters;
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::Response;
+#[cfg(feature = "graphql")]
+use hyper::StatusCode;
+#[cfg(feature = "graphql")]
+use serde_json::Value;
 use std::collections::HashMap;
+#[cfg(feature = "graphql")]
+use std::fs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
