@@ -25,6 +25,21 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+  readme:
+    name: README Sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-rdme
+        run: cargo install cargo-rdme
+
+      - name: Verify README is up to date
+        run: cargo rdme --check
+
   lint:
     name: Clippy Lint
     runs-on: ubuntu-latest
@@ -64,13 +79,25 @@ jobs:
         if: matrix.features == 'minimal'
         run: cargo test --no-default-features --features minimal
 
+      - name: Run doc tests (minimal)
+        if: matrix.features == 'minimal'
+        run: cargo test --doc --no-default-features --features minimal
+
       - name: Run tests (default)
         if: matrix.features == 'default'
         run: cargo test
 
+      - name: Run doc tests (default)
+        if: matrix.features == 'default'
+        run: cargo test --doc
+
       - name: Run tests (full)
         if: matrix.features == 'full'
         run: cargo test --all-features
+
+      - name: Run doc tests (full)
+        if: matrix.features == 'full'
+        run: cargo test --doc --all-features
 
   audit:
     name: Security Audit

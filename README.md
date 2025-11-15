@@ -1,3 +1,5 @@
+<!-- cargo-rdme start -->
+
 # Apicentric
 
 > A powerful CLI tool and API simulator platform for developers who love the terminal
@@ -620,3 +622,27 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - [GitHub Issues](https://github.com/pmaojo/apicentric/issues)
 - [Discussions](https://github.com/pmaojo/apicentric/discussions)
+## Crate Modules
+
+The crate follows hexagonal architecture principles and exposes the following modules:
+
+- `app`: Application bootstrap and command execution.
+- `config`: Configuration management for the simulator and tooling.
+- `context`: Shared runtime context and dependency wiring.
+- `errors`: Custom error types aligned with domain-driven design.
+- `logging`: Logging setup and tracing utilities.
+- `utils`: Cross-cutting helper functions.
+- `validation`: Input validation helpers used across adapters and domain logic.
+- `storage`: Persistence adapters for service specifications.
+- `ai`: AI-assisted tooling integrations.
+- `cloud`: Cloud synchronization utilities.
+- `auth`: Authentication helpers for collaborative scenarios.
+- `domain`: Core business rules and ports.
+- `contract`: Contract testing orchestration.
+- `adapters`: Infrastructure adapters that implement ports.
+- `simulator`: The API simulator runtime.
+- `cli` and `cli_ui`: CLI and text-based UI front-ends.
+
+Refer to the module documentation for deeper implementation details.
+
+<!-- cargo-rdme end -->
