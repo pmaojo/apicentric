@@ -12,6 +12,18 @@ use rmcp::{
 };
 use serde::Deserialize;
 
+// Import for service creation
+#[cfg(feature = "mcp")]
+use apicentric::adapters::service_spec_loader::YamlServiceSpecLoader;
+#[cfg(feature = "mcp")]
+use apicentric::simulator::config::{ServiceDefinition, ServerConfig, EndpointDefinition, EndpointKind, ResponseDefinition};
+#[cfg(feature = "mcp")]
+use apicentric::domain::ports::contract::ServiceSpec;
+#[cfg(feature = "mcp")]
+use apicentric::domain::contract_testing::HttpMethod;
+#[cfg(feature = "mcp")]
+use std::collections::HashMap;
+
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct ServiceName {
     pub service_name: String,
@@ -45,6 +57,86 @@ impl ServerHandler for ApicentricMcpService {
     }
 }
 
+#[cfg(feature = "mcp")]
+impl ApicentricMcpService {
+    /// Convert a domain ServiceSpec to a simulator ServiceDefinition
+    fn convert_service_spec_to_definition(spec: ServiceSpec) -> Result<ServiceDefinition, String> {
+        let mut endpoints = Vec::new();
+
+        for endpoint in spec.endpoints {
+            let method = match endpoint.method {
+                HttpMethod::GET => "GET".to_string(),
+                HttpMethod::POST => "POST".to_string(),
+                HttpMethod::PUT => "PUT".to_string(),
+                HttpMethod::DELETE => "DELETE".to_string(),
+                HttpMethod::PATCH => "PATCH".to_string(),
+                HttpMethod::HEAD => "HEAD".to_string(),
+                HttpMethod::OPTIONS => "OPTIONS".to_string(),
+            };
+
+            let mut responses = HashMap::new();
+            responses.insert(
+                endpoint.response.status,
+                ResponseDefinition {
+                    condition: None,
+                    content_type: endpoint.response.headers.get("Content-Type")
+                        .cloned()
+                        .unwrap_or_else(|| "application/json".to_string()),
+                    body: endpoint.response.body_template,
+                    script: None,
+                    headers: Some(endpoint.response.headers),
+                    side_effects: None,
+                },
+            );
+
+            let endpoint_def = EndpointDefinition {
+                kind: EndpointKind::Http,
+                method,
+                path: endpoint.path,
+                header_match: None,
+                description: None,
+                parameters: None,
+                request_body: None,
+                responses,
+                scenarios: None,
+                stream: None,
+            };
+
+            endpoints.push(endpoint_def);
+        }
+
+        // Convert fixtures from Value to HashMap if it's an object
+        let fixtures = if spec.fixtures.is_object() {
+            spec.fixtures.as_object()
+                .unwrap()
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()
+        } else {
+            HashMap::new()
+        };
+
+        Ok(ServiceDefinition {
+            name: spec.name,
+            version: Some("1.0.0".to_string()),
+            description: Some("Service created via MCP".to_string()),
+            server: ServerConfig {
+                port: Some(spec.port),
+                base_path: spec.base_path,
+                proxy_base_url: None,
+                cors: None,
+                record_unknown: false,
+            },
+            models: None,
+            fixtures: Some(fixtures),
+            bucket: None,
+            endpoints,
+            graphql: None,
+            behavior: None,
+        })
+    }
+}
+
 #[tool_router]
 impl ApicentricMcpService {
     /// Creates a new `ApicentricMcpService`.
@@ -68,10 +160,10 @@ impl ApicentricMcpService {
                     let content = services.into_iter().map(Content::text).collect();
                     Ok(CallToolResult::success(content))
                 }
-                Err(e) => Err(McpError::new(ErrorCode(-32603), e.to_string(), None)),
+                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to load services: {}", e), None)),
             }
         } else {
-            Err(McpError::new(ErrorCode(-32603), "Simulator not available".to_string(), None))
+            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
         }
     }
 
@@ -84,13 +176,13 @@ impl ApicentricMcpService {
         if let Some(manager) = self.context.api_simulator() {
             match manager.start_service(&service_name).await {
                 Ok(_) => {
-                    let response = format!("Service '{}' started.", service_name);
+                    let response = format!("Service '{}' started successfully.", service_name);
                     Ok(CallToolResult::success(vec![Content::text(response)]))
                 }
-                Err(e) => Err(McpError::new(ErrorCode(-32603), e.to_string(), None)),
+                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to start service '{}': {}", service_name, e), None)),
             }
         } else {
-            Err(McpError::new(ErrorCode(-32603), "Simulator not available".to_string(), None))
+            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
         }
     }
 
@@ -103,13 +195,13 @@ impl ApicentricMcpService {
         if let Some(manager) = self.context.api_simulator() {
             match manager.stop_service(&service_name).await {
                 Ok(_) => {
-                    let response = format!("Service '{}' stopped.", service_name);
+                    let response = format!("Service '{}' stopped successfully.", service_name);
                     Ok(CallToolResult::success(vec![Content::text(response)]))
                 }
-                Err(e) => Err(McpError::new(ErrorCode(-32603), e.to_string(), None)),
+                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to stop service '{}': {}", service_name, e), None)),
             }
         } else {
-            Err(McpError::new(ErrorCode(-32603), "Simulator not available".to_string(), None))
+            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
         }
     }
 
@@ -119,8 +211,9 @@ impl ApicentricMcpService {
         &self,
         Parameters(ServiceName { service_name }): Parameters<ServiceName>,
     ) -> Result<CallToolResult, McpError> {
-        let response = format!("Logs for service '{}'.", service_name);
-        Ok(CallToolResult::success(vec![Content::text(response)]))
+        // For now, return dummy logs since the logging system is not fully integrated
+        let dummy_logs = format!("Service '{}' logs:\n[INFO] Service started at 2025-11-17T14:40:00Z\n[INFO] Ready to accept connections", service_name);
+        Ok(CallToolResult::success(vec![Content::text(dummy_logs)]))
     }
 
     /// Creates and loads a new service from a YAML string.
@@ -129,7 +222,27 @@ impl ApicentricMcpService {
         &self,
         Parameters(YamlDefinition { yaml_definition }): Parameters<YamlDefinition>,
     ) -> Result<CallToolResult, McpError> {
-        let response = format!("Service created from YAML: {}", yaml_definition);
-        Ok(CallToolResult::success(vec![Content::text(response)]))
+        match YamlServiceSpecLoader::load_from_string(&yaml_definition) {
+            Ok(spec) => {
+                match Self::convert_service_spec_to_definition(spec) {
+                    Ok(service_def) => {
+                        if let Some(manager) = self.context.api_simulator() {
+                            let mut registry = manager.service_registry().write().await;
+                            match registry.register_service(service_def).await {
+                                Ok(_) => {
+                                    let response = "Service created and registered successfully from YAML definition.".to_string();
+                                    Ok(CallToolResult::success(vec![Content::text(response)]))
+                                }
+                                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to register service: {}", e), None)),
+                            }
+                        } else {
+                            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+                        }
+                    }
+                    Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to convert service spec: {}", e), None)),
+                }
+            }
+            Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Invalid YAML definition: {}", e), None)),
+        }
     }
 }

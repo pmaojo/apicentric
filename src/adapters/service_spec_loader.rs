@@ -35,6 +35,22 @@ impl YamlServiceSpecLoader {
         }
     }
 
+    /// Loads a service specification from a YAML string.
+    ///
+    /// # Arguments
+    ///
+    /// * `yaml_content` - The YAML content as a string.
+    pub fn load_from_string(yaml_content: &str) -> Result<ServiceSpec, SpecLoaderError> {
+        // Parse YAML
+        let yaml_spec: YamlServiceSpec = serde_yaml::from_str(yaml_content).map_err(|e| {
+            SpecLoaderError::InvalidYaml(format!("Failed to parse YAML: {}", e))
+        })?;
+
+        // Convert to domain ServiceSpec
+        let loader = YamlServiceSpecLoader::new();
+        loader.convert_yaml_to_service_spec(yaml_spec)
+    }
+
     /// Creates a new `YamlServiceSpecLoader` with a base path.
     ///
     /// # Arguments
