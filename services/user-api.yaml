@@ -2,7 +2,7 @@ name: User API
 version: "1.0"
 description: Basic user management API for examples
 server:
-  port: 9001
+  port: 9004
   base_path: /api/v1
   cors: 
     enabled: true

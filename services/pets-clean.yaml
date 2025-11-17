@@ -1,0 +1,56 @@
+name: pets-clean-v2
+version: "1.0"
+description: Pet service demonstrating template rendering with fixtures
+server:
+  port: 9090
+  base_path: /api
+  cors: 
+    enabled: true
+    origins: ["*"]
+
+fixtures:
+  pets:
+    - id: 1
+      name: "Max"
+      type: "dog"
+      breed: "Labrador"
+      age: 3
+      available: true
+    - id: 2
+      name: "Luna"
+      type: "cat"
+      breed: "Siamese"
+      age: 2
+      available: true
+    - id: 3
+      name: "Buddy"
+      type: "dog"
+      breed: "Golden Retriever"
+      age: 5
+      available: false
+
+endpoints:
+  - method: GET
+    path: /pets
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "pets": {{ json fixtures.pets }},
+            "total_count": {{ length fixtures.pets }},
+            "template_working": true
+          }
+
+  - method: GET
+    path: /pets/{id}
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "id": {{ params.id }},
+            "name": "Test Name",
+            "type": "test",
+            "available": true
+          }

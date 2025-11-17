@@ -1009,11 +1009,23 @@ impl ServiceInstance {
 
                     let response_body = response_def.body.clone();
                     let processed_body = if response_body.contains("{{") {
-                        match template_engine.render(&response_body, &template_context) {
+                        match Self::process_response_body_template(
+                            &response_body,
+                            &template_context,
+                            &template_engine,
+                            &service_name,
+                            method,
+                            path,
+                        ) {
                             Ok(rendered) => rendered,
                             Err(e) => {
-                                log::warn!("Template rendering error: {}", e);
-                                response_body
+                                return Err(ApicentricError::runtime_error(
+                                    format!(
+                                        "Failed to process template for {} {} in service '{}': {}",
+                                        method, path, service_name, e
+                                    ),
+                                    Some("Check template syntax and fixture availability"),
+                                ));
                             }
                         }
                     } else {
@@ -1851,6 +1863,80 @@ impl ServiceInstance {
         }
 
         Ok(())
+    }
+    /// Process response body template with robust error handling and validation
+    fn process_response_body_template(
+        response_body: &str,
+        template_context: &TemplateContext,
+        template_engine: &TemplateEngine,
+        service_name: &str,
+        method: &str,
+        path: &str,
+    ) -> ApicentricResult<String> {
+        let processed_body = if response_body.contains("{{") {
+            // Template contains Handlebars placeholders, attempt to render
+            match template_engine.render(response_body, template_context) {
+                Ok(rendered) => {
+                    // Validate that rendered body is not empty when template was expected to produce content
+                    let trimmed = rendered.trim();
+                    if trimmed.is_empty() {
+                        log::error!(
+                            "Template rendering produced empty body for {} {} in service '{}': Original template: '{}'",
+                            method,
+                            path,
+                            service_name,
+                            response_body
+                        );
+                        return Err(ApicentricError::runtime_error(
+                            "Template rendering produced empty body",
+                            Some("Check template logic and ensure fixtures contain required data")
+                        ));
+                    }
+                    
+                    // Log successful template rendering for debugging
+                    log::info!(
+                        "Successfully processed template for {} {} in service '{}': '{}'",
+                        method,
+                        path,
+                        service_name,
+                        trimmed
+                    );
+                    
+                    rendered
+                }
+                Err(e) => {
+                    // Handle template rendering errors explicitly
+                    log::error!(
+                        "Template rendering failed for {} {} in service '{}': {}",
+                        method,
+                        path,
+                        service_name,
+                        e
+                    );
+                    
+                    // Try to provide more specific error information
+                    let (error_type, suggestion) = if response_body.contains("{{ fixtures") {
+                        ("Fixture reference error", "Ensure fixtures contain the referenced data")
+                    } else if response_body.contains("{{ params") {
+                        ("Parameter reference error", "Ensure URL path parameters are properly defined")
+                    } else if response_body.contains("{{ request") {
+                        ("Request context error", "Check request context availability")
+                    } else {
+                        ("Template syntax error", "Check Handlebars template syntax")
+                    };
+                    
+                    return Err(ApicentricError::runtime_error(
+                        format!("Template rendering failed: {}", e),
+                        Some(format!("{}: {}", error_type, suggestion))
+                    ));
+                }
+            }
+        } else {
+            // No Handlebars placeholders, return as-is
+            response_body.to_string()
+        };
+
+        Ok(processed_body)
     }
 }
 

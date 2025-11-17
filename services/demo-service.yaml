@@ -2,7 +2,7 @@ name: demo-service
 version: "1.0"
 description: Demo service
 server:
-  port: 9001
+  port: 9003
   base_path: /api
 endpoints:
   - method: GET

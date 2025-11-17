@@ -1,0 +1,37 @@
+  [2m2025-11-17T15:36:28.537586Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:65
+
+🚀 Starting API Simulator (blocking)…
+  [2m2025-11-17T15:36:28.627646Z[0m [32m INFO[0m [1;32msimulator[0m[32m: [32mService registered, [1;32mservice[0m[32m: dummy, [1;32mport[0m[32m: 8080[0m
+    [2;3mat[0m src/simulator/registry.rs:128
+    [2;3min[0m apicentric::simulator::lifecycle::[1mstart[0m [2;3mwith[0m [1msimulator_enabled[0m: true
+
+  [2m2025-11-17T15:36:28.628295Z[0m [32m INFO[0m [1;32msimulator[0m[32m: [32mRoutes registered for service, [1;32mservice[0m[32m: dummy, [1;32mpath[0m[32m: /api[0m
+    [2;3mat[0m src/simulator/router.rs:65
+    [2;3min[0m apicentric::simulator::lifecycle::[1mstart[0m [2;3mwith[0m [1msimulator_enabled[0m: true
+
+  [2m2025-11-17T15:36:28.630209Z[0m [32m INFO[0m [1;32msimulator[0m[32m: [32mService registered, [1;32mservice[0m[32m: User API, [1;32mport[0m[32m: 9001[0m
+    [2;3mat[0m src/simulator/registry.rs:128
+    [2;3min[0m apicentric::simulator::lifecycle::[1mstart[0m [2;3mwith[0m [1msimulator_enabled[0m: true
+
+  [2m2025-11-17T15:36:28.630257Z[0m [32m INFO[0m [1;32msimulator[0m[32m: [32mRoutes registered for service, [1;32mservice[0m[32m: User API, [1;32mpath[0m[32m: /api/v1[0m
+    [2;3mat[0m src/simulator/router.rs:65
+    [2;3min[0m apicentric::simulator::lifecycle::[1mstart[0m [2;3mwith[0m [1msimulator_enabled[0m: true
+
+  [2m2025-11-17T15:36:28.630804Z[0m [32m INFO[0m [1;32msimulator[0m[32m: [32mService registered, [1;32mservice[0m[32m: pets-clean, [1;32mport[0m[32m: 9090[0m
+    [2;3mat[0m src/simulator/registry.rs:128
+    [2;3min[0m apicentric::simulator::lifecycle::[1mstart[0m [2;3mwith[0m [1msimulator_enabled[0m: true
+
+  [2m2025-11-17T15:36:28.630973Z[0m [32m INFO[0m [1;32msimulator[0m[32m: [32mRoutes registered for service, [1;32mservice[0m[32m: pets-clean, [1;32mpath[0m[32m: /api[0m
+    [2;3mat[0m src/simulator/router.rs:65
+    [2;3min[0m apicentric::simulator::lifecycle::[1mstart[0m [2;3mwith[0m [1msimulator_enabled[0m: true
+
+  [2m2025-11-17T15:36:28.631573Z[0m [32m INFO[0m [1;32msimulator[0m[32m: [32mService registered, [1;32mservice[0m[32m: Pets API, [1;32mport[0m[32m: 9002[0m
+    [2;3mat[0m src/simulator/registry.rs:128
+    [2;3min[0m apicentric::simulator::lifecycle::[1mstart[0m [2;3mwith[0m [1msimulator_enabled[0m: true
+
+  [2m2025-11-17T15:36:28.631588Z[0m [32m INFO[0m [1;32msimulator[0m[32m: [32mRoutes registered for service, [1;32mservice[0m[32m: Pets API, [1;32mpath[0m[32m: /api/v1[0m
+    [2;3mat[0m src/simulator/router.rs:65
+    [2;3min[0m apicentric::simulator::lifecycle::[1mstart[0m [2;3mwith[0m [1msimulator_enabled[0m: true
+
+Error: Runtime error: Port 9001 is already in use

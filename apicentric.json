@@ -3,7 +3,7 @@
     "enabled": true,
     "services_dir": "services",
     "port_range": {
-      "start": 9000,
+      "start": 9002,
       "end": 9099
     },
     "db_path": "apicentric.db",

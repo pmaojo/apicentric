@@ -1,0 +1,23 @@
+name: test-fixed
+version: "1.0"
+description: Test service with fixed handlebars template
+port: 9006
+basePath: /api
+fixtures:
+  items:
+    - id: 1
+      name: "Test Item"
+      value: 42
+endpoints:
+  - path: /item/{id}
+    method: GET
+    response:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: |
+        {
+          "id": {{ params.id }},
+          "name": "{{ (find fixtures.items "id" params.id).name~ }}",
+          "value": {{ (find fixtures.items "id" params.id).value }}
+        }

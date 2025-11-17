@@ -1,0 +1,13 @@
+name: test-service
+version: "1.0"
+description: Test service for MCP
+server:
+  port: 9005
+  base_path: /api
+endpoints:
+  - method: GET
+    path: /test
+    responses:
+      200:
+        content_type: application/json
+        body: '{"message": "Test service working"}'

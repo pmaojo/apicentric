@@ -1,0 +1,88 @@
+name: auth-service
+version: "1.0"
+description: Authentication service with login and token verification
+server:
+  port: 9007
+  base_path: /api/auth
+fixtures:
+  users:
+    - id: 1
+      username: "admin"
+      password: "password123"
+      role: "admin"
+    - id: 2
+      username: "user"
+      password: "user123"
+      role: "user"
+endpoints:
+  - method: POST
+    path: /login
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZSI6IkFkbWluIFVzZXIiLCJpYXQiOjE1MTYyMzkwMjIsInJvbGUiOiJhZG1pbiJ9.signature",
+            "user": {
+              "id": 1,
+              "username": "admin",
+              "role": "admin"
+            },
+            "expires_in": 3600
+          }
+      401:
+        condition: "{{ne request.body.password 'password123'}}"
+        content_type: application/json
+        body: |
+          {
+            "error": "Invalid credentials",
+            "message": "Username or password is incorrect"
+          }
+
+  - method: GET
+    path: /verify
+    responses:
+      200:
+        condition: "{{and (contains request.headers.authorization 'Bearer ') (eq request.headers.authorization 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZSI6IkFkbWluIFVzZXIiLCJpYXQiOjE1MTYyMzkwMjIsInJvbGUiOiJhZG1pbiJ9.signature')}}"
+        content_type: application/json
+        body: |
+          {
+            "valid": true,
+            "user": {
+              "id": 1,
+              "username": "admin",
+              "role": "admin"
+            },
+            "token_expires": 3600
+          }
+      401:
+        content_type: application/json
+        body: |
+          {
+            "error": "Unauthorized",
+            "message": "Valid token required"
+          }
+
+  - method: GET
+    path: /profile
+    responses:
+      200:
+        condition: "{{and (contains request.headers.authorization 'Bearer ') (eq request.headers.authorization 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZSI6IkFkbWluIFVzZXIiLCJpYXQiOjE1MTYyMzkwMjIsInJvbGUiOiJhZG1pbiJ9.signature')}}"
+        content_type: application/json
+        body: |
+          {
+            "user": {
+              "id": 1,
+              "username": "admin",
+              "email": "admin@example.com",
+              "role": "admin",
+              "created_at": "2025-01-01T00:00:00Z"
+            }
+          }
+      401:
+        content_type: application/json
+        body: |
+          {
+            "error": "Unauthorized",
+            "message": "Valid token required"
+          }
