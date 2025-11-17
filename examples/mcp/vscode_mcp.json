@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "apicentric": {
+      "type": "stdio",
+      "command": "apicentric",
+      "args": ["mcp"]
+    }
+  }
+}

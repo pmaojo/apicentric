@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "apicentric": {
+      "command": "apicentric",
+      "args": ["mcp"]
+    }
+  }
+}

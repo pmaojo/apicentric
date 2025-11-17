@@ -216,6 +216,100 @@ impl ApicentricMcpService {
         Ok(CallToolResult::success(vec![Content::text(dummy_logs)]))
     }
 
+    /// Reloads all services from the services directory.
+    #[tool]
+    pub async fn reload_services(&self) -> Result<CallToolResult, McpError> {
+        if let Some(manager) = self.context.api_simulator() {
+            match manager.reload_services().await {
+                Ok(_) => {
+                    let response = "All services reloaded successfully from services directory.".to_string();
+                    Ok(CallToolResult::success(vec![Content::text(response)]))
+                }
+                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to reload services: {}", e), None)),
+            }
+        } else {
+            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+        }
+    }
+
+    /// Gets the status of a specific service.
+    #[tool]
+    pub async fn get_service_status(
+        &self,
+        Parameters(ServiceName { service_name }): Parameters<ServiceName>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Some(manager) = self.context.api_simulator() {
+            let registry = manager.service_registry().read().await;
+            let service_infos = registry.list_services().await;
+
+            if let Some(service_info) = service_infos.into_iter().find(|s| s.name == service_name) {
+                let status = if service_info.is_running {
+                    "running"
+                } else {
+                    "stopped"
+                };
+                let response = format!(
+                    "Service '{}' status: {}\nPort: {}\nBase Path: {}\nEndpoints: {}",
+                    service_name,
+                    status,
+                    service_info.port,
+                    service_info.base_path,
+                    service_info.endpoints_count
+                );
+                Ok(CallToolResult::success(vec![Content::text(response)]))
+            } else {
+                Err(McpError::new(ErrorCode(-32603), format!("Service '{}' not found", service_name), None))
+            }
+        } else {
+            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+        }
+    }
+
+    /// Deletes a service from the registry.
+    #[tool]
+    pub async fn delete_service(
+        &self,
+        Parameters(ServiceName { service_name }): Parameters<ServiceName>,
+    ) -> Result<CallToolResult, McpError> {
+        if let Some(manager) = self.context.api_simulator() {
+            // First stop the service if it's running
+            let _ = manager.stop_service(&service_name).await;
+
+            // Remove from registry
+            let mut registry = manager.service_registry().write().await;
+            match registry.unregister_service(&service_name).await {
+                Ok(_) => {
+                    let response = format!("Service '{}' deleted successfully.", service_name);
+                    Ok(CallToolResult::success(vec![Content::text(response)]))
+                }
+                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to delete service '{}': {}", service_name, e), None)),
+            }
+        } else {
+            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+        }
+    }
+
+    /// Gets the overall status of the API simulator.
+    #[tool]
+    pub async fn get_simulator_status(&self) -> Result<CallToolResult, McpError> {
+        if let Some(manager) = self.context.api_simulator() {
+            let status = manager.get_status().await;
+            let response = format!(
+                "API Simulator Status:\nTotal Services: {}\nActive Services: {}\n\nActive Services:\n{}",
+                status.services_count,
+                status.active_services.len(),
+                status.active_services
+                    .iter()
+                    .map(|s| format!("  - {}: http://localhost:{}{}", s.name, s.port, s.base_path))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
+            Ok(CallToolResult::success(vec![Content::text(response)]))
+        } else {
+            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+        }
+    }
+
     /// Creates and loads a new service from a YAML string.
     #[tool]
     pub async fn create_service(
