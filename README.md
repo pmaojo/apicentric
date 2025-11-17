@@ -13,7 +13,7 @@ Apicentric is a **Rust-based CLI tool and API simulator platform** that helps de
 - 🎯 **Mock APIs** with simple YAML configuration
 - ✅ **Test API contracts** between services
 - 🔄 **Generate code** (TypeScript types, React Query hooks)
-- 🌐 **MCP** Poer your agent with API mocking tools
+- ✨ **MCP** Power your agent with API mocking tools
 - 🖥️ **TUI (Terminal User Interface)** for visual service management
 - 🌐 **P2P collaboration** on service definitions (optional)
 
