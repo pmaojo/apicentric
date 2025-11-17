@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "apicentric": {
+      "type": "stdio",
+      "command": "cargo",
+      "args": ["run", "--features", "mcp", "--bin", "apicentric", "--", "mcp"]
+    }
+  }
+}
