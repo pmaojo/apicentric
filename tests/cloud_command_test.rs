@@ -1,4 +1,3 @@
-use assert_cmd::prelude::*;
 use std::process::Command;
 use std::time::{Duration, Instant};
 use reqwest::blocking::Client;
@@ -12,7 +11,7 @@ fn test_cloud_command_starts_server() {
     assert!(build_status.success(), "Failed to build apicentric binary");
 
     // Run the cloud command in the background
-    let mut cmd = Command::cargo_bin("apicentric").unwrap();
+    let mut cmd = Command::new("target/debug/apicentric");
     let mut child = cmd.arg("cloud").spawn().expect("Failed to start apicentric cloud");
 
     // Wait for the server to become available
