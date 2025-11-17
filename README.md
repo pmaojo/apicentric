@@ -595,6 +595,90 @@ Interactive terminal dashboard for service management:
 - Start/stop services
 - Keyboard-driven workflow
 
+### 🤖 AI Integration with MCP (Model Context Protocol)
+
+Apicentric supports the **Model Context Protocol (MCP)**, allowing AI assistants like Claude, ChatGPT, and other MCP-compatible tools to interact with your API simulator programmatically.
+
+#### What is MCP?
+
+MCP is an open protocol that enables AI models to securely access external tools and data sources. With MCP, AI assistants can:
+
+- Create and manage mock API services
+- Start/stop services dynamically
+- Monitor service logs and status
+- Generate service definitions from natural language descriptions
+
+#### Quick MCP Setup
+
+1. **Install with MCP support:**
+   ```bash
+   cargo install apicentric --features mcp
+   # or
+   brew install pmaojo/tap/apicentric  # includes MCP
+   ```
+
+2. **Configure your AI assistant:**
+
+   For **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+   ```json
+   {
+     "mcpServers": {
+       "apicentric": {
+         "command": "apicentric",
+         "args": ["mcp"]
+       }
+     }
+   }
+   ```
+
+   For **VS Code** (`.vscode/mcp.json`):
+   ```json
+   {
+     "servers": {
+       "apicentric": {
+         "type": "stdio",
+         "command": "apicentric",
+         "args": ["mcp"]
+       }
+     }
+   }
+   ```
+
+3. **Start using MCP tools in your AI assistant:**
+
+   ```
+   "Create a mock API for a user management system with login and profile endpoints"
+   ```
+
+   The AI will use MCP tools to automatically create and start the service!
+
+#### Available MCP Tools
+
+- **`list_services`**: List all available mock services
+- **`create_service`**: Create a new service from YAML definition
+- **`start_service`**: Start a specific mock service
+- **`stop_service`**: Stop a running service
+- **`get_service_logs`**: Retrieve logs for a service
+
+#### MCP Example Workflow
+
+**User:** "Create a REST API for managing books with CRUD operations"
+
+**AI Assistant (using MCP tools):**
+1. Uses `create_service` to generate a books API YAML
+2. Uses `start_service` to launch the API on a port
+3. Confirms with `get_service_logs` that it's running
+4. Provides curl examples for testing
+
+**Result:** A fully functional mock API ready for testing!
+
+#### MCP Benefits
+
+- **Natural Language API Creation**: Describe your API in plain English
+- **Automated Testing Setup**: AI handles service creation and configuration
+- **Integrated Development**: Seamless workflow between AI assistance and API development
+- **Rapid Prototyping**: Go from idea to working mock API in seconds
+
 ### 🌐 Advanced Features (Optional)
 
 - **P2P Collaboration**: Share services with team members
