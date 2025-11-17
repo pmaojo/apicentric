@@ -11,6 +11,28 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  manifest:
+    name: Manifest Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check manifest
+        run: cargo check
+
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Uncommitted changes detected in Cargo.lock. Please run 'cargo check' locally and commit the changes."
+            exit 1
+          fi
+
   format:
     name: Format Check
     runs-on: ubuntu-latest
