@@ -35,6 +35,10 @@ mod gui_cmd;
 #[path = "../commands/cloud.rs"]
 mod cloud_cmd;
 
+#[cfg(feature = "mcp")]
+#[path = "../commands/mcp/mod.rs"]
+mod mcp_cmd;
+
 mod commands {
     pub mod shared {
         pub use crate::shared_impl::*;
@@ -113,6 +117,9 @@ enum Commands {
     /// Launches the cloud API server (requires the 'webui' feature).
     #[cfg(feature = "webui")]
     Cloud,
+    /// Starts the MCP server for AI agent interaction (requires the 'mcp' feature).
+    #[cfg(feature = "mcp")]
+    Mcp(mcp_cmd::Mcp),
 }
 
 /// The entry point for the `apicentric` CLI.
@@ -226,5 +233,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Gui => gui_cmd::gui_command().await,
         #[cfg(feature = "webui")]
         Commands::Cloud => cloud_cmd::cloud_command().await,
+        #[cfg(feature = "mcp")]
+        Commands::Mcp(mcp) => mcp_cmd::mcp_command(&mcp, &context, &exec_ctx).await,
     }
 }

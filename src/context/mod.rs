@@ -5,6 +5,7 @@ use crate::{config, ApicentricError, ApicentricResult};
 pub mod init;
 
 /// Minimal application context containing configuration and optional API simulator.
+#[derive(Clone)]
 pub struct Context {
     config: config::ApicentricConfig,
     api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
