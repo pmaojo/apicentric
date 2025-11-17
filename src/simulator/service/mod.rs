@@ -188,12 +188,12 @@ impl ServiceInstance {
                                             let fallback = match Response::builder()
                                                 .status(StatusCode::INTERNAL_SERVER_ERROR)
                                                 .header("content-type", "application/json")
-                                                .body(Box::new(Full::new(Bytes::from(format!(
+                                                .body(hyper::body::Body::from(format!(
                                                     r#"{{"error": "{}"}}"#,
                                                     err
-                                                )))) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>) {
+                                                ))) {
                                                 Ok(r) => r,
-                                                Err(_) => Response::new(Box::new(Full::new(Bytes::new())) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>),
+                                                Err(_) => Response::new(hyper::body::Body::empty()),
                                             };
                                             Ok::<_, Infallible>(fallback)
                                         }
@@ -256,7 +256,7 @@ impl ServiceInstance {
     pub async fn handle_request(
         &self,
         req: Request<hyper::body::Incoming>,
-    ) -> ApicentricResult<Response<Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>>> {
+    ) -> ApicentricResult<Response<hyper::body::Body>> {
         if !self.is_running {
             return Err(ApicentricError::runtime_error(
                 format!(
@@ -618,7 +618,7 @@ impl ServiceInstance {
         active_scenario: Arc<RwLock<Option<String>>>,
         graphql: Option<Arc<GraphQLMocks>>,
         storage: Arc<dyn Storage>,
-    ) -> ApicentricResult<Response<Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>>> {
+    ) -> ApicentricResult<Response<hyper::body::Body>> {
         let (service_name, base_path, endpoints, cors_cfg, proxy_base_url, record_unknown) = {
             let def = definition.read().unwrap();
             (
@@ -744,7 +744,7 @@ impl ServiceInstance {
                 .header("access-control-allow-methods", &allow_methods)
                 .header("access-control-allow-headers", &req_headers)
                 .header("access-control-max-age", "86400")
-                .body(Box::new(Full::new(Bytes::from_static(b""))) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>)
+                .body(hyper::body::Body::empty())
                 .map_err(|e| {
                     ApicentricError::runtime_error(
                         format!("Failed to build CORS preflight response: {}", e),
@@ -775,9 +775,9 @@ impl ServiceInstance {
                 let resp = Response::builder()
                     .status(StatusCode::BAD_REQUEST)
                     .header("content-type", "application/json")
-                    .body(Box::new(Full::new(Bytes::from(
+                    .body(hyper::body::Body::from(
                         r#"{"error": "Failed to read request body"}"#,
-                    ))) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>)
+                    ))
                     .map_err(|e| {
                         ApicentricError::runtime_error(
                             format!("Failed to build bad request response: {}", e),
@@ -884,7 +884,7 @@ impl ServiceInstance {
             let resp = Response::builder()
                 .status(StatusCode::OK)
                 .header("content-type", "application/json")
-                .body(Box::new(Full::new(Bytes::from(body))) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>)
+                .body(hyper::body::Body::from(body))
                 .map_err(|e| {
                     ApicentricError::runtime_error(
                         format!("Failed to build logs response: {}", e),
@@ -1121,7 +1121,7 @@ impl ServiceInstance {
                     } else {
                         // Handle regular response
                         response
-                            .body(Box::new(http_body_util::Full::new(bytes::Bytes::from(processed_body))))
+                            .body(hyper::body::Body::from(processed_body))
                             .map_err(|e| {
                                 ApicentricError::runtime_error(
                                     format!("Failed to build response body: {}", e),
@@ -1149,9 +1149,9 @@ impl ServiceInstance {
                     let resp = Response::builder()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
                         .header("content-type", "application/json")
-                        .body(Box::new(Full::new(Bytes::from(
+                        .body(hyper::body::Body::from(
                             r#"{"error": "No response definition found"}"#,
-                        ))))
+                        ))
                         .map_err(|e| {
                             ApicentricError::runtime_error(
                                 format!("Failed to build error response: {}", e),
@@ -1216,7 +1216,7 @@ impl ServiceInstance {
                                     response = response.header(name.as_str(), v);
                                 }
                             }
-                            let final_resp = response.body(Box::new(Full::new(bytes))).map_err(|e| {
+                            let final_resp = response.body(hyper::body::Body::from(bytes)).map_err(|e| {
                                 ApicentricError::runtime_error(
                                     format!("Failed to build proxy response: {}", e),
                                     None::<String>,
@@ -1237,10 +1237,10 @@ impl ServiceInstance {
                             let resp = Response::builder()
                                 .status(StatusCode::BAD_GATEWAY)
                                 .header("content-type", "application/json")
-                                .body(Box::new(Full::new(Bytes::from(format!(
+                                .body(hyper::body::Body::from(format!(
                                     r#"{{"error": "Proxy request failed", "details": "{}"}}"#,
                                     e
-                                )))))
+                                )))
                                 .map_err(|e| {
                                     ApicentricError::runtime_error(
                                         format!("Failed to build proxy error response: {}", e),
@@ -1328,7 +1328,7 @@ impl ServiceInstance {
                     }
 
                     let resp = response
-                        .body(Box::new(Full::new(Bytes::from(response_body))))
+                        .body(hyper::body::Body::from(response_body))
                         .map_err(|e| {
                             ApicentricError::runtime_error(
                                 format!("Failed to build recorded response: {}", e),
@@ -1349,10 +1349,10 @@ impl ServiceInstance {
                     let resp = Response::builder()
                         .status(StatusCode::NOT_FOUND)
                         .header("content-type", "application/json")
-                        .body(Box::new(Full::new(Bytes::from(format!(
+                        .body(hyper::body::Body::from(format!(
                             r#"{{"error": "Endpoint not found", "method": "{}", "path": "{}", "service": "{}"}}"#,
                             method, relative_path, service_name
-                        )))))
+                        )))
                         .map_err(|e| {
                             ApicentricError::runtime_error(
                                 format!("Failed to build not found response: {}", e),
@@ -1973,7 +1973,7 @@ impl ServiceInstance {
                         Ok::<_, std::convert::Infallible>(hyper::body::Frame::data(Bytes::from(chunk)))
                     });
 
-                response.body(Box::new(hyper::body::Body::wrap_stream(stream))).unwrap()
+                response.body(hyper::body::Body::wrap_stream(stream)).unwrap()
             }
             StreamType::Chunked => {
                 // HTTP chunked transfer encoding
@@ -1987,7 +1987,7 @@ impl ServiceInstance {
                         Ok::<_, std::convert::Infallible>(hyper::body::Frame::data(Bytes::from(chunk)))
                     });
 
-                response.body(Box::new(hyper::body::Body::wrap_stream(stream))).unwrap()
+                response.body(hyper::body::Body::wrap_stream(stream)).unwrap()
             }
             StreamType::Token => {
                 // Token-by-token streaming (simulates LLM responses)
@@ -2001,7 +2001,7 @@ impl ServiceInstance {
                         Ok::<_, std::convert::Infallible>(hyper::body::Frame::data(Bytes::from(chunk)))
                     });
 
-                response.body(Box::new(hyper::body::Body::wrap_stream(stream))).unwrap()
+                response.body(hyper::body::Body::wrap_stream(stream)).unwrap()
             }
         }
     }
