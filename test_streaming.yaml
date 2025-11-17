@@ -1,0 +1,41 @@
+name: test-streaming
+version: "1.0"
+description: Test service with streaming responses
+port: 9007
+basePath: /api
+fixtures:
+  data:
+    - id: 1
+      content: "This is a streaming response that simulates LLM output."
+endpoints:
+  - path: /stream/sse
+    method: GET
+    response:
+      status: 200
+      content_type: text/event-stream
+      body: '{{ fixtures.data[0].content }}'
+      stream:
+        stream_type: sse
+        chunk_delay_ms: 200
+        max_chunk_size: 10
+  - path: /stream/chunked
+    method: GET
+    response:
+      status: 200
+      content_type: application/json
+      body: '{"message": "Hello from chunked streaming!"}'
+      stream:
+        stream_type: chunked
+        chunk_delay_ms: 300
+        max_chunk_size: 5
+  - path: /stream/token
+    method: GET
+    response:
+      status: 200
+      content_type: application/json
+      body: 'Streaming text response'
+      stream:
+        stream_type: token
+        chunk_delay_ms: 150
+        max_chunk_size: 1
+        include_finish_reason: true

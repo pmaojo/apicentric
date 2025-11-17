@@ -146,6 +146,7 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                                 script: None,
                                 headers: None,
                                 side_effects: None,
+                                stream: None,
                             },
                         );
                     }

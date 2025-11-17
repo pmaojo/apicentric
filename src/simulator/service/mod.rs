@@ -26,12 +26,16 @@ use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine
 use crate::storage::Storage;
 use bytes::Bytes;
 use deno_core::{JsRuntime, RuntimeOptions};
+use futures::stream::{self, StreamExt};
 use http_body_util::Full;
 use hyper::header::HOST;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
-use hyper::{Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode, body::Body};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use hyper_util::rt::TokioIo;
+use tokio::time::{sleep, Duration};
 use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -184,12 +188,12 @@ impl ServiceInstance {
                                             let fallback = match Response::builder()
                                                 .status(StatusCode::INTERNAL_SERVER_ERROR)
                                                 .header("content-type", "application/json")
-                                                .body(Full::new(Bytes::from(format!(
+                                                .body(Box::new(Full::new(Bytes::from(format!(
                                                     r#"{{"error": "{}"}}"#,
                                                     err
-                                                )))) {
+                                                )))) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>) {
                                                 Ok(r) => r,
-                                                Err(_) => Response::new(Full::new(Bytes::new())),
+                                                Err(_) => Response::new(Box::new(Full::new(Bytes::new())) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>),
                                             };
                                             Ok::<_, Infallible>(fallback)
                                         }
@@ -252,7 +256,7 @@ impl ServiceInstance {
     pub async fn handle_request(
         &self,
         req: Request<hyper::body::Incoming>,
-    ) -> ApicentricResult<Response<Full<Bytes>>> {
+    ) -> ApicentricResult<Response<Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>>> {
         if !self.is_running {
             return Err(ApicentricError::runtime_error(
                 format!(
@@ -614,7 +618,7 @@ impl ServiceInstance {
         active_scenario: Arc<RwLock<Option<String>>>,
         graphql: Option<Arc<GraphQLMocks>>,
         storage: Arc<dyn Storage>,
-    ) -> ApicentricResult<Response<Full<Bytes>>> {
+    ) -> ApicentricResult<Response<Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>>> {
         let (service_name, base_path, endpoints, cors_cfg, proxy_base_url, record_unknown) = {
             let def = definition.read().unwrap();
             (
@@ -740,7 +744,7 @@ impl ServiceInstance {
                 .header("access-control-allow-methods", &allow_methods)
                 .header("access-control-allow-headers", &req_headers)
                 .header("access-control-max-age", "86400")
-                .body(Full::new(Bytes::from_static(b"")))
+                .body(Box::new(Full::new(Bytes::from_static(b""))) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>)
                 .map_err(|e| {
                     ApicentricError::runtime_error(
                         format!("Failed to build CORS preflight response: {}", e),
@@ -771,9 +775,9 @@ impl ServiceInstance {
                 let resp = Response::builder()
                     .status(StatusCode::BAD_REQUEST)
                     .header("content-type", "application/json")
-                    .body(Full::new(Bytes::from(
+                    .body(Box::new(Full::new(Bytes::from(
                         r#"{"error": "Failed to read request body"}"#,
-                    )))
+                    ))) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>)
                     .map_err(|e| {
                         ApicentricError::runtime_error(
                             format!("Failed to build bad request response: {}", e),
@@ -880,7 +884,7 @@ impl ServiceInstance {
             let resp = Response::builder()
                 .status(StatusCode::OK)
                 .header("content-type", "application/json")
-                .body(Full::new(Bytes::from(body)))
+                .body(Box::new(Full::new(Bytes::from(body))) as Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>)
                 .map_err(|e| {
                     ApicentricError::runtime_error(
                         format!("Failed to build logs response: {}", e),
@@ -1111,14 +1115,20 @@ impl ServiceInstance {
                         response = response.header("access-control-allow-origin", "*");
                     }
 
-                    let final_response = response
-                        .body(Full::new(Bytes::from(processed_body)))
-                        .map_err(|e| {
-                            ApicentricError::runtime_error(
-                                format!("Failed to build response body: {}", e),
-                                None::<String>,
-                            )
-                        })?;
+                    let final_response = if let Some(stream_config) = &response_def.stream {
+                        // Handle streaming response
+                        Self::create_streaming_response(response, processed_body, stream_config).await
+                    } else {
+                        // Handle regular response
+                        response
+                            .body(Box::new(http_body_util::Full::new(bytes::Bytes::from(processed_body))))
+                            .map_err(|e| {
+                                ApicentricError::runtime_error(
+                                    format!("Failed to build response body: {}", e),
+                                    None::<String>,
+                                )
+                            })?
+                    };
 
                     println!(
                         "📤 [{}] Sending response with status {}",
@@ -1139,9 +1149,9 @@ impl ServiceInstance {
                     let resp = Response::builder()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
                         .header("content-type", "application/json")
-                        .body(Full::new(Bytes::from(
+                        .body(Box::new(Full::new(Bytes::from(
                             r#"{"error": "No response definition found"}"#,
-                        )))
+                        ))))
                         .map_err(|e| {
                             ApicentricError::runtime_error(
                                 format!("Failed to build error response: {}", e),
@@ -1206,7 +1216,7 @@ impl ServiceInstance {
                                     response = response.header(name.as_str(), v);
                                 }
                             }
-                            let final_resp = response.body(Full::new(bytes)).map_err(|e| {
+                            let final_resp = response.body(Box::new(Full::new(bytes))).map_err(|e| {
                                 ApicentricError::runtime_error(
                                     format!("Failed to build proxy response: {}", e),
                                     None::<String>,
@@ -1227,10 +1237,10 @@ impl ServiceInstance {
                             let resp = Response::builder()
                                 .status(StatusCode::BAD_GATEWAY)
                                 .header("content-type", "application/json")
-                                .body(Full::new(Bytes::from(format!(
+                                .body(Box::new(Full::new(Bytes::from(format!(
                                     r#"{{"error": "Proxy request failed", "details": "{}"}}"#,
                                     e
-                                ))))
+                                )))))
                                 .map_err(|e| {
                                     ApicentricError::runtime_error(
                                         format!("Failed to build proxy error response: {}", e),
@@ -1318,7 +1328,7 @@ impl ServiceInstance {
                     }
 
                     let resp = response
-                        .body(Full::new(Bytes::from(response_body)))
+                        .body(Box::new(Full::new(Bytes::from(response_body))))
                         .map_err(|e| {
                             ApicentricError::runtime_error(
                                 format!("Failed to build recorded response: {}", e),
@@ -1339,10 +1349,10 @@ impl ServiceInstance {
                     let resp = Response::builder()
                         .status(StatusCode::NOT_FOUND)
                         .header("content-type", "application/json")
-                        .body(Full::new(Bytes::from(format!(
+                        .body(Box::new(Full::new(Bytes::from(format!(
                             r#"{{"error": "Endpoint not found", "method": "{}", "path": "{}", "service": "{}"}}"#,
                             method, relative_path, service_name
-                        ))))
+                        )))))
                         .map_err(|e| {
                             ApicentricError::runtime_error(
                                 format!("Failed to build not found response: {}", e),
@@ -1443,6 +1453,7 @@ impl ServiceInstance {
                 script: None,
                 headers: None,
                 side_effects: None,
+                stream: None,
             },
         );
 
@@ -1937,6 +1948,99 @@ impl ServiceInstance {
         };
 
         Ok(processed_body)
+    }
+
+    /// Create a streaming response based on the streaming configuration
+    async fn create_streaming_response(
+        mut response: hyper::http::response::Builder,
+        body: String,
+        stream_config: &crate::simulator::config::StreamingConfig,
+    ) -> Response<Box<dyn Body<Data = bytes::Bytes, Error = hyper::Error>>> {
+        use crate::simulator::config::StreamType;
+
+        match stream_config.stream_type {
+            StreamType::Sse => {
+                // Server-Sent Events streaming
+                response = response
+                    .header("content-type", "text/event-stream")
+                    .header("cache-control", "no-cache")
+                    .header("connection", "keep-alive");
+
+                let chunks = Self::create_sse_chunks(&body, stream_config);
+                let stream = stream::iter(chunks)
+                    .then(move |chunk| async move {
+                        sleep(Duration::from_millis(stream_config.chunk_delay_ms)).await;
+                        Ok::<_, std::convert::Infallible>(hyper::body::Frame::data(Bytes::from(chunk)))
+                    });
+
+                response.body(Box::new(hyper::body::Body::wrap_stream(stream))).unwrap()
+            }
+            StreamType::Chunked => {
+                // HTTP chunked transfer encoding
+                response = response
+                    .header("transfer-encoding", "chunked");
+
+                let chunks = Self::create_chunked_chunks(&body, stream_config);
+                let stream = stream::iter(chunks)
+                    .then(move |chunk| async move {
+                        sleep(Duration::from_millis(stream_config.chunk_delay_ms)).await;
+                        Ok::<_, std::convert::Infallible>(hyper::body::Frame::data(Bytes::from(chunk)))
+                    });
+
+                response.body(Box::new(hyper::body::Body::wrap_stream(stream))).unwrap()
+            }
+            StreamType::Token => {
+                // Token-by-token streaming (simulates LLM responses)
+                response = response
+                    .header("content-type", "application/json");
+
+                let chunks = Self::create_token_chunks(&body, stream_config);
+                let stream = stream::iter(chunks)
+                    .then(move |chunk| async move {
+                        sleep(Duration::from_millis(stream_config.chunk_delay_ms)).await;
+                        Ok::<_, std::convert::Infallible>(hyper::body::Frame::data(Bytes::from(chunk)))
+                    });
+
+                response.body(Box::new(hyper::body::Body::wrap_stream(stream))).unwrap()
+            }
+        }
+    }
+
+    /// Create SSE chunks from the response body
+    fn create_sse_chunks(body: &str, _config: &crate::simulator::config::StreamingConfig) -> Vec<String> {
+        // For SSE, send the entire body as a single data event
+        vec![format!("data: {}\n\n", body)]
+    }
+
+    /// Create chunked transfer encoding chunks
+    fn create_chunked_chunks(body: &str, config: &crate::simulator::config::StreamingConfig) -> Vec<String> {
+        // Split the body into chunks of max_chunk_size
+        body.chars()
+            .collect::<Vec<char>>()
+            .chunks(config.max_chunk_size)
+            .map(|chunk| chunk.iter().collect::<String>())
+            .collect()
+    }
+
+    /// Create token-by-token chunks (simulates LLM streaming)
+    fn create_token_chunks(body: &str, config: &crate::simulator::config::StreamingConfig) -> Vec<String> {
+        let mut chunks = Vec::new();
+        let chars: Vec<char> = body.chars().collect();
+
+        for i in 0..chars.len() {
+            let mut chunk = chars[0..=i].iter().collect::<String>();
+
+            // Add streaming metadata for LLM-style responses
+            if config.include_finish_reason && i == chars.len() - 1 {
+                chunk = format!("{{\"content\":\"{}\",\"finish_reason\":\"stop\"}}", chunk);
+            } else {
+                chunk = format!("{{\"content\":\"{}\"}}", chunk);
+            }
+
+            chunks.push(chunk);
+        }
+
+        chunks
     }
 }
 

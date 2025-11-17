@@ -258,6 +258,7 @@ fn upsert_recorded_endpoint(
             script: None,
             headers: headers_option,
             side_effects: None,
+            stream: None,
         },
     );
 }

@@ -113,6 +113,7 @@ fn collect_postman_items(items: &[Value], endpoints: &mut Vec<EndpointDefinition
                             script: None,
                             headers,
                             side_effects: None,
+                            stream: None,
                         },
                     );
                 }
@@ -127,6 +128,7 @@ fn collect_postman_items(items: &[Value], endpoints: &mut Vec<EndpointDefinition
                         script: None,
                         headers: None,
                         side_effects: None,
+                        stream: None,
                     },
                 );
             }
@@ -220,6 +222,7 @@ fn convert_insomnia(v: &Value) -> ServiceDefinition {
                         script: None,
                         headers: None,
                         side_effects: None,
+                        stream: None,
                     },
                 );
                 endpoints.push(EndpointDefinition {

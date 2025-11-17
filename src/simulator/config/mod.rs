@@ -11,6 +11,7 @@ pub use endpoint::{
     EndpointKind, StreamConfig, PeriodicMessage, EndpointDefinition,
     ParameterDefinition, ParameterLocation, RequestBodyDefinition, ResponseDefinition,
     SideEffect, ScenarioDefinition, ScenarioStrategy, ScenarioConditions, ScenarioResponse,
+    StreamingConfig, StreamType,
 };
 pub use validation::{ConfigLoader, LoadError, LoadErrorType, LoadResult, ValidationSummary};
 

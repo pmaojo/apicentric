@@ -1,0 +1,183 @@
+   Compiling apicentric v0.2.2 (/Users/pelayo/apicentric)
+error[E0432]: unresolved import `tokio_stream::wrappers::IntervalStream`
+  --> src/simulator/service/mod.rs:37:5
+   |
+37 | use tokio_stream::wrappers::IntervalStream;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `IntervalStream` in `wrappers`
+   |
+note: found an item that was configured out
+  --> /Users/pelayo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-stream-0.1.17/src/wrappers.rs:38:23
+   |
+36 | / cfg_time! {
+37 | |     mod interval;
+38 | |     pub use interval::IntervalStream;
+   | |                       ^^^^^^^^^^^^^^
+39 | | }
+   | |_- the item is gated behind the `time` feature
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `futures`
+  --> src/simulator/service/mod.rs:29:5
+   |
+29 | use futures::stream::{self, StreamExt};
+   |     ^^^^^^^ use of unresolved module or unlinked crate `futures`
+   |
+   = help: if you wanted to use a crate named `futures`, use `cargo add futures` to add it to your `Cargo.toml`
+
+error[E0432]: unresolved import `futures`
+  --> src/simulator/service/mod.rs:29:5
+   |
+29 | use futures::stream::{self, StreamExt};
+   |     ^^^^^^^ help: a similar path exists: `deno_core::futures`
+
+error[E0782]: expected a type, found a trait
+   --> src/simulator/service/mod.rs:258:36
+    |
+258 |     ) -> ApicentricResult<Response<Body>> {
+    |                                    ^^^^
+    |
+help: you can add the `dyn` keyword if you want a trait object
+    |
+258 |     ) -> ApicentricResult<Response<dyn Body>> {
+    |                                    +++
+
+error[E0782]: expected a type, found a trait
+   --> src/simulator/service/mod.rs:620:36
+    |
+620 |     ) -> ApicentricResult<Response<Body>> {
+    |                                    ^^^^
+    |
+help: you can add the `dyn` keyword if you want a trait object
+    |
+620 |     ) -> ApicentricResult<Response<dyn Body>> {
+    |                                    +++
+
+error[E0782]: expected a type, found a trait
+    --> src/simulator/service/mod.rs:1956:19
+     |
+1956 |     ) -> Response<Body> {
+     |                   ^^^^
+     |
+help: you can add the `dyn` keyword if you want a trait object
+     |
+1956 |     ) -> Response<dyn Body> {
+     |                   +++
+
+error[E0782]: expected a type, found a trait
+    --> src/simulator/service/mod.rs:1123:35
+     |
+1123 | ...                   .body(Body::from(processed_body))
+     |                             ^^^^
+     |
+help: you can add the `dyn` keyword if you want a trait object
+     |
+1123 |                             .body(<dyn Body>::from(processed_body))
+     |                                   ++++     +
+
+error[E0782]: expected a type, found a trait
+    --> src/simulator/service/mod.rs:1974:31
+     |
+1974 |                 response.body(Body::wrap_stream(stream)).unwrap()
+     |                               ^^^^
+     |
+help: you can add the `dyn` keyword if you want a trait object
+     |
+1974 |                 response.body(<dyn Body>::wrap_stream(stream)).unwrap()
+     |                               ++++     +
+
+error[E0782]: expected a type, found a trait
+    --> src/simulator/service/mod.rs:1988:31
+     |
+1988 |                 response.body(Body::wrap_stream(stream)).unwrap()
+     |                               ^^^^
+     |
+help: you can add the `dyn` keyword if you want a trait object
+     |
+1988 |                 response.body(<dyn Body>::wrap_stream(stream)).unwrap()
+     |                               ++++     +
+
+error[E0782]: expected a type, found a trait
+    --> src/simulator/service/mod.rs:2002:31
+     |
+2002 |                 response.body(Body::wrap_stream(stream)).unwrap()
+     |                               ^^^^
+     |
+help: you can add the `dyn` keyword if you want a trait object
+     |
+2002 |                 response.body(<dyn Body>::wrap_stream(stream)).unwrap()
+     |                               ++++     +
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/cloud/recording_session.rs:354:9
+    |
+354 |         ResponseDefinition {
+    |         ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+  --> src/simulator/mockoon.rs:73:32
+   |
+73 |                 let response = ResponseDefinition {
+   |                                ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/simulator/openapi.rs:142:29
+    |
+142 | ...                   ResponseDefinition {
+    |                       ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/simulator/postman.rs:109:25
+    |
+109 |                         ResponseDefinition {
+    |                         ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/simulator/postman.rs:123:21
+    |
+123 |                     ResponseDefinition {
+    |                     ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/simulator/postman.rs:216:21
+    |
+216 |                     ResponseDefinition {
+    |                     ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/simulator/recording_proxy.rs:254:9
+    |
+254 |         ResponseDefinition {
+    |         ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+    --> src/simulator/service/mod.rs:1443:13
+     |
+1443 |             ResponseDefinition {
+     |             ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/simulator/wiremock.rs:308:9
+    |
+308 |         ResponseDefinition {
+    |         ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/simulator/wiremock.rs:320:5
+    |
+320 |     ResponseDefinition {
+    |     ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/simulator/wiremock.rs:331:5
+    |
+331 |     ResponseDefinition {
+    |     ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+error[E0063]: missing field `stream` in initializer of `ResponseDefinition`
+   --> src/simulator/wiremock.rs:342:5
+    |
+342 |     ResponseDefinition {
+    |     ^^^^^^^^^^^^^^^^^^ missing `stream`
+
+Some errors have detailed explanations: E0063, E0432, E0433, E0782.
+For more information about an error, try `rustc --explain E0063`.
+error: could not compile `apicentric` (lib) due to 22 previous errors

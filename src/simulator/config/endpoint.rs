@@ -44,6 +44,47 @@ pub struct PeriodicMessage {
     pub message: String,
 }
 
+/// Configuration for LLM-style streaming responses
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct StreamingConfig {
+    /// Type of streaming (sse, chunked, token)
+    #[serde(default = "default_stream_type")]
+    pub stream_type: StreamType,
+    /// Delay between chunks in milliseconds
+    #[serde(default = "default_chunk_delay")]
+    pub chunk_delay_ms: u64,
+    /// Maximum chunk size (for token-based streaming)
+    #[serde(default = "default_max_chunk_size")]
+    pub max_chunk_size: usize,
+    /// Whether to include finish reason
+    #[serde(default)]
+    pub include_finish_reason: bool,
+}
+
+fn default_stream_type() -> StreamType {
+    StreamType::Sse
+}
+
+fn default_chunk_delay() -> u64 {
+    100
+}
+
+fn default_max_chunk_size() -> usize {
+    50
+}
+
+/// Type of streaming response
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StreamType {
+    /// Server-Sent Events format
+    Sse,
+    /// HTTP chunked transfer encoding
+    Chunked,
+    /// Token-by-token streaming (simulates LLM responses)
+    Token,
+}
+
 /// Endpoint definition
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EndpointDefinition {
@@ -110,6 +151,8 @@ pub struct ResponseDefinition {
     pub headers: Option<HashMap<String, String>>,
     #[serde(default)]
     pub side_effects: Option<Vec<SideEffect>>,
+    #[serde(default)]
+    pub stream: Option<StreamingConfig>, // LLM-style streaming configuration
 }
 
 /// Side effects that can be triggered by responses

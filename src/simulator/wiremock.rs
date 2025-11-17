@@ -312,6 +312,7 @@ fn convert_response(response: &WiremockResponse) -> (u16, ResponseDefinition) {
             script: None,
             headers: headers_opt,
             side_effects: None,
+            stream: None,
         },
     )
 }
@@ -324,6 +325,7 @@ fn empty_default_response() -> ResponseDefinition {
         script: None,
         headers: None,
         side_effects: None,
+        stream: None,
     }
 }
 
@@ -335,6 +337,7 @@ fn empty_not_found_response() -> ResponseDefinition {
         script: None,
         headers: None,
         side_effects: None,
+        stream: None,
     }
 }
 
@@ -346,6 +349,7 @@ fn empty_body_mismatch_response() -> ResponseDefinition {
         script: None,
         headers: None,
         side_effects: None,
+        stream: None,
     }
 }
 

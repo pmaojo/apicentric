@@ -84,6 +84,7 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
                         Some(headers)
                     },
                     side_effects: None,
+                    stream: None,
                 };
                 responses.insert(resp.status_code, response);
             }
@@ -147,3 +148,4 @@ pub fn from_path<P: AsRef<Path>>(path: P) -> Result<ServiceDefinition, Box<dyn s
     let content = fs::read_to_string(path)?;
     from_str(&content)
 }
+
