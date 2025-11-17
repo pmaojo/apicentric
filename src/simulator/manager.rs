@@ -291,17 +291,17 @@ impl ApiSimulatorManager {
     /// Stop a specific service by name
     pub async fn stop_service(&self, service_name: &str) -> ApicentricResult<()> {
         let registry = self.service_registry.read().await;
-        
+
         if let Some(service_arc) = registry.get_service(service_name) {
             let mut service = service_arc.write().await;
-            
+
             if !service.is_running() {
                 return Err(ApicentricError::runtime_error(
                     format!("Service '{}' is not running", service_name),
                     Some("Start the service first with 'apicentric simulator start'")
                 ));
             }
-            
+
             service.stop().await?;
             info!(
                 target: "simulator",
@@ -315,6 +315,16 @@ impl ApiSimulatorManager {
                 Some("Check that the service is registered"),
             ))
         }
+    }
+
+    /// Load services from the configured directory
+    pub async fn load_services(&self) -> ApicentricResult<()> {
+        let services = self.config_loader.load_all_services()?;
+        let mut registry = self.service_registry.write().await;
+        for service in services {
+            registry.register_service(service).await?;
+        }
+        Ok(())
     }
 }
 

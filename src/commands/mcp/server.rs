@@ -6,7 +6,7 @@ use apicentric::Context;
 use rmcp::{
     handler::server::{tool::ToolRouter, wrapper::Parameters, ServerHandler},
     model::{
-        CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
+        CallToolResult, Content, ErrorCode, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
     },
     schemars, tool, tool_handler, tool_router, ErrorData as McpError,
 };
@@ -58,9 +58,21 @@ impl ApicentricMcpService {
     /// Lists all available mock services.
     #[tool]
     pub async fn list_services(&self) -> Result<CallToolResult, McpError> {
-        let services = vec!["service1".to_string(), "service2".to_string()];
-        let content = services.into_iter().map(Content::text).collect();
-        Ok(CallToolResult::success(content))
+        if let Some(manager) = self.context.api_simulator() {
+            // Load services from directory if not loaded
+            match manager.load_services().await {
+                Ok(_) => {
+                    let registry = manager.service_registry().read().await;
+                    let service_infos = registry.list_services().await;
+                    let services = service_infos.into_iter().map(|s| s.name).collect::<Vec<_>>();
+                    let content = services.into_iter().map(Content::text).collect();
+                    Ok(CallToolResult::success(content))
+                }
+                Err(e) => Err(McpError::new(ErrorCode(-32603), e.to_string(), None)),
+            }
+        } else {
+            Err(McpError::new(ErrorCode(-32603), "Simulator not available".to_string(), None))
+        }
     }
 
     /// Starts a specific mock service.
@@ -69,8 +81,17 @@ impl ApicentricMcpService {
         &self,
         Parameters(ServiceName { service_name }): Parameters<ServiceName>,
     ) -> Result<CallToolResult, McpError> {
-        let response = format!("Service '{}' started.", service_name);
-        Ok(CallToolResult::success(vec![Content::text(response)]))
+        if let Some(manager) = self.context.api_simulator() {
+            match manager.start_service(&service_name).await {
+                Ok(_) => {
+                    let response = format!("Service '{}' started.", service_name);
+                    Ok(CallToolResult::success(vec![Content::text(response)]))
+                }
+                Err(e) => Err(McpError::new(ErrorCode(-32603), e.to_string(), None)),
+            }
+        } else {
+            Err(McpError::new(ErrorCode(-32603), "Simulator not available".to_string(), None))
+        }
     }
 
     /// Stops a running mock service.
@@ -79,8 +100,17 @@ impl ApicentricMcpService {
         &self,
         Parameters(ServiceName { service_name }): Parameters<ServiceName>,
     ) -> Result<CallToolResult, McpError> {
-        let response = format!("Service '{}' stopped.", service_name);
-        Ok(CallToolResult::success(vec![Content::text(response)]))
+        if let Some(manager) = self.context.api_simulator() {
+            match manager.stop_service(&service_name).await {
+                Ok(_) => {
+                    let response = format!("Service '{}' stopped.", service_name);
+                    Ok(CallToolResult::success(vec![Content::text(response)]))
+                }
+                Err(e) => Err(McpError::new(ErrorCode(-32603), e.to_string(), None)),
+            }
+        } else {
+            Err(McpError::new(ErrorCode(-32603), "Simulator not available".to_string(), None))
+        }
     }
 
     /// Retrieves the latest logs for a service.
