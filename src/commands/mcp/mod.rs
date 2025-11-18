@@ -5,7 +5,7 @@
 
 #![cfg(feature = "mcp")]
 
-mod server;
+pub mod server;
 
 use apicentric::{ApicentricError, ApicentricResult, Context, ExecutionContext};
 use clap::Parser;

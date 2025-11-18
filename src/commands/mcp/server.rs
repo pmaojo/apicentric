@@ -16,11 +16,13 @@ use serde::Deserialize;
 #[cfg(feature = "mcp")]
 use apicentric::adapters::service_spec_loader::YamlServiceSpecLoader;
 #[cfg(feature = "mcp")]
-use apicentric::simulator::config::{ServiceDefinition, ServerConfig, EndpointDefinition, EndpointKind, ResponseDefinition};
+use apicentric::domain::contract_testing::HttpMethod;
 #[cfg(feature = "mcp")]
 use apicentric::domain::ports::contract::ServiceSpec;
 #[cfg(feature = "mcp")]
-use apicentric::domain::contract_testing::HttpMethod;
+use apicentric::simulator::config::{
+    EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
+};
 #[cfg(feature = "mcp")]
 use std::collections::HashMap;
 
@@ -32,6 +34,11 @@ pub struct ServiceName {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct YamlDefinition {
     pub yaml_definition: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct GenerationPrompt {
+    pub prompt: String,
 }
 
 /// The `apicentric` MCP service.
@@ -337,6 +344,44 @@ impl ApicentricMcpService {
                 }
             }
             Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Invalid YAML definition: {}", e), None)),
+        }
+    }
+
+    /// Generates, creates, and starts a new service from a prompt.
+    #[tool]
+    pub async fn generate_and_start_service(
+        &self,
+        Parameters(GenerationPrompt { prompt }): Parameters<GenerationPrompt>,
+    ) -> Result<CallToolResult, McpError> {
+        match apicentric::ai::generate_service(&self.context, &prompt).await {
+            Ok(yaml) => {
+                if let Some(manager) = self.context.api_simulator() {
+                    match manager.apply_service_yaml(&yaml).await {
+                        Ok(service_name) => {
+                            let response =
+                                format!("Service '{}' generated and started successfully.", service_name);
+                            Ok(CallToolResult::success(vec![Content::text(response)]))
+                        }
+                        Err(e) => Err(McpError::new(
+                            ErrorCode(-32603),
+                            format!("Failed to apply generated service: {}", e),
+                            None,
+                        )),
+                    }
+                } else {
+                    Err(McpError::new(
+                        ErrorCode(-32603),
+                        "API Simulator not available - ensure the 'simulator' feature is enabled"
+                            .to_string(),
+                        None,
+                    ))
+                }
+            }
+            Err(e) => Err(McpError::new(
+                ErrorCode(-32603),
+                format!("Failed to generate service from prompt: {}", e),
+                None,
+            )),
         }
     }
 }
