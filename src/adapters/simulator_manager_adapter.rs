@@ -35,6 +35,7 @@ impl ContractMockApiRunner for SimulatorManagerAdapter {
         self.manager
             .apply_service_yaml(&yaml_content)
             .await
+            .map(|_| ())
             .map_err(|e| {
                 MockApiError::StartupError(format!("Failed to apply service definition: {}", e))
             })?;

@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "method": "call_tool",
+  "params": {
+    "tool_name": "generate_and_start_service",
+    "parameters": {
+      "prompt": "a simple user api"
+    }
+  },
+  "id": 1
+}

@@ -1,6 +1,8 @@
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.77s
-     Running `target/debug/apicentric mcp`
-  [2m2025-11-17T15:45:53.323901Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+  [2m2025-11-17T23:44:56.905741Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
     [2;3mat[0m src/logging.rs:65
 
-Error: Server error: connection closed: initialized request
+error: unrecognized subcommand 'mcp'
+
+Usage: apicentric [OPTIONS] <COMMAND>
+
+For more information, try '--help'.

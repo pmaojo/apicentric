@@ -1,0 +1,9 @@
+{
+  "jsonrpc": "2.0",
+  "method": "call_tool",
+  "params": {
+    "tool_name": "list_services",
+    "parameters": {}
+  },
+  "id": 1
+}

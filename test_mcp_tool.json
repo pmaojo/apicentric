@@ -1,0 +1,9 @@
+{
+  "version": "2024-11-05",
+  "method": "call_tool",
+  "tool": "generate_and_start_service",
+  "parameters": {
+    "prompt": "Create a simple API for managing users with endpoints for GET and POST"
+  },
+  "id": "12345"
+}

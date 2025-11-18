@@ -183,7 +183,7 @@ impl ApiSimulatorManager {
     }
 
     /// Apply a YAML service definition string to the running simulator and CRDT.
-    pub async fn apply_service_yaml(&self, yaml: &str) -> ApicentricResult<()> {
+    pub async fn apply_service_yaml(&self, yaml: &str) -> ApicentricResult<String> {
         let def: ServiceDefinition = serde_yaml::from_str(yaml).map_err(|e| {
             ApicentricError::validation_error(
                 format!("Invalid service YAML: {}", e),
@@ -191,7 +191,9 @@ impl ApiSimulatorManager {
                 None::<String>,
             )
         })?;
-        self.apply_service_definition(def).await
+        let service_name = def.name.clone();
+        self.apply_service_definition(def).await?;
+        Ok(service_name)
     }
 
     /// Set the active scenario for all services
