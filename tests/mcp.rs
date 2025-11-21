@@ -25,7 +25,6 @@ fn test_mcp_command_starts_server_and_responds_to_initialize() {
     assert!(response.contains("result"));
 }
 
-use std::io::Write;
 use std::process::{Command as StdCommand, Stdio};
 
 #[test]
@@ -34,7 +33,19 @@ fn test_mcp_generate_and_start_service_tool() {
 
     let mut config_file = NamedTempFile::new().unwrap();
     config_file
-        .write_all(br#"{ "ai": { "provider": "openai", "api_key": "test-key" } }"#)
+        .write_all(
+            br#"{
+  "ai": { "provider": "openai", "api_key": "test-key" },
+  "simulator": {
+    "enabled": true,
+    "services_dir": "services",
+    "port_range": { "start": 9000, "end": 9099 },
+    "db_path": "apicentric.db",
+    "admin_port": null,
+    "global_behavior": { "latency": null, "error_simulation": null, "rate_limiting": null }
+  }
+}"#,
+        )
         .unwrap();
     let config_path = config_file.path();
 
