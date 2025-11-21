@@ -2,6 +2,7 @@
 //!
 //! This module contains all the data structures used by the GUI.
 
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::SystemTime;
 use tokio::sync::broadcast;
@@ -231,6 +232,7 @@ pub struct RecordingSession {
     pub target_url: String,
     pub proxy_port: u16,
     pub is_active: bool,
+    pub captured_requests: Vec<RecordedRequest>,
 }
 
 /// Editor state
@@ -256,7 +258,7 @@ impl Default for EditorState {
 }
 
 /// GUI configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GuiConfig {
     pub services_directory: PathBuf,
     pub default_port: u16,
@@ -269,4 +271,20 @@ impl Default for GuiConfig {
             default_port: 8080,
         }
     }
+}
+
+/// Stored details about generated code artifacts
+#[derive(Debug, Clone, Default)]
+pub struct GuiCodegenState {
+    pub last_target: Option<String>,
+    pub last_output: Option<String>,
+}
+
+/// Captured HTTP request data for recording sessions
+#[derive(Debug, Clone)]
+pub struct RecordedRequest {
+    pub method: String,
+    pub url: String,
+    pub headers: Vec<(String, String)>,
+    pub body: Option<String>,
 }

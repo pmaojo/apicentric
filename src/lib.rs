@@ -658,6 +658,8 @@ pub mod errors;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod logging;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod env_config;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod validation;
