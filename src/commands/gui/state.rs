@@ -38,6 +38,9 @@ pub struct GuiAppState {
     
     // Editor state
     pub editor_state: EditorState,
+
+    // Code generation state
+    pub codegen_state: GuiCodegenState,
     
     // Configuration
     pub config: GuiConfig,
@@ -106,6 +109,7 @@ impl GuiAppState {
             log_receiver,
             recording_session: None,
             editor_state: EditorState::default(),
+            codegen_state: GuiCodegenState::default(),
             config: GuiConfig::default(),
             show_ai_window: false,
             show_editor_window: false,

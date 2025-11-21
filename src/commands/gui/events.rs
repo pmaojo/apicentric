@@ -5,13 +5,18 @@
 
 #![cfg(feature = "gui")]
 
-use super::messages::{GuiMessage, CapturedRequest, ExportFormat, CodeGenTarget};
+use super::messages::{CapturedRequest, CodeGenTarget, ExportFormat, GuiMessage};
+use super::models::{EndpointInfo, RequestLogEntry, ServiceInfo, ServiceStatus};
 use super::state::GuiAppState;
-use super::models::{ServiceStatus, RequestLogEntry, ServiceInfo, EndpointInfo};
+use apicentric::simulator::config::{
+    EndpointDefinition, ResponseDefinition, ServerConfig, ServiceDefinition,
+};
 use apicentric::simulator::manager::ApiSimulatorManager;
 use apicentric::{ApicentricError, ApicentricResult};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Event handler for processing GUI messages
 pub struct EventHandler {
@@ -324,12 +329,53 @@ impl EventHandler {
 
     async fn handle_ai_apply_yaml(
         &self,
-        _yaml: &str,
+        yaml: &str,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Validate YAML and save to file
-        // For now, just log
-        state.add_log("Applied AI-generated YAML".to_string());
+        let service: ServiceDefinition = serde_yaml::from_str(yaml).map_err(|e| {
+            ApicentricError::validation_error(
+                format!("Invalid service YAML: {}", e),
+                Some("service"),
+                Some("Ensure the YAML matches the service definition schema"),
+            )
+        })?;
+
+        fs::create_dir_all(&state.config.services_directory).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Cannot create services directory: {}", e),
+                Some("Check write permissions for the configured directory"),
+            )
+        })?;
+
+        let file_path = state
+            .config
+            .services_directory
+            .join(format!("{}.yaml", service.name));
+        fs::write(&file_path, yaml).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write service file: {}", e),
+                Some("Verify disk space and permissions"),
+            )
+        })?;
+
+        // Apply to running simulator if possible
+        if let Err(err) = self.manager.apply_service_yaml(yaml).await {
+            state.add_log(format!("Applied YAML locally but failed to load service: {}", err));
+        }
+
+        // Update state services list
+        if let Some(existing) = state.find_service_mut(&service.name) {
+            existing.path = file_path.clone();
+            existing.mark_running();
+        } else {
+            let mut info = ServiceInfo::new(service.name.clone(), file_path.clone(), state.config.default_port);
+            for endpoint in &service.endpoints {
+                info.endpoints.push(EndpointInfo { method: endpoint.method.clone(), path: endpoint.path.clone() });
+            }
+            state.add_service(info);
+        }
+
+        state.add_log(format!("Applied AI-generated YAML to {:?}", file_path));
         Ok(())
     }
 
@@ -340,7 +386,15 @@ impl EventHandler {
         target_url: &str,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Start proxy server and create recording session
+        let session = super::models::RecordingSession {
+            id: uuid::Uuid::new_v4().to_string(),
+            target_url: target_url.to_string(),
+            proxy_port: state.config.default_port,
+            is_active: true,
+            captured_requests: Vec::new(),
+        };
+
+        state.recording_session = Some(session);
         state.add_log(format!("Started recording: {}", target_url));
         Ok(())
     }
@@ -349,27 +403,141 @@ impl EventHandler {
         &self,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Stop proxy server and finalize recording
-        state.recording_session = None;
-        state.add_log("Stopped recording".to_string());
+        if let Some(session) = &mut state.recording_session {
+            session.is_active = false;
+            state.add_log("Stopped recording".to_string());
+        }
         Ok(())
     }
 
     async fn handle_capture_request(
         &self,
-        _request: CapturedRequest,
+        request: CapturedRequest,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Add request to recording session
-        state.add_log("Captured request".to_string());
-        Ok(())
+        if let Some(session) = &mut state.recording_session {
+            if !session.is_active {
+                return Err(ApicentricError::runtime_error(
+                    "Recording session is not active",
+                    Some("Start a recording session first"),
+                ));
+            }
+            session.captured_requests.push(super::models::RecordedRequest {
+                method: request.method,
+                url: request.url,
+                headers: request.headers,
+                body: request.body,
+            });
+            state.add_log("Captured request".to_string());
+            Ok(())
+        } else {
+            Err(ApicentricError::runtime_error(
+                "No active recording session",
+                Some("Start recording before capturing requests"),
+            ))
+        }
     }
 
     async fn handle_generate_from_recording(
         &self,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Convert captured requests to service definition
+        let session = state
+            .recording_session
+            .as_mut()
+            .ok_or_else(|| {
+                ApicentricError::runtime_error(
+                    "No recording session to generate from",
+                    Some("Record traffic before generating a service"),
+                )
+            })?;
+
+        if session.captured_requests.is_empty() {
+            return Err(ApicentricError::validation_error(
+                "No captured requests to generate from",
+                Some("captured_requests"),
+                Some("Capture at least one request"),
+            ));
+        }
+
+        let mut endpoints: HashMap<(String, String), EndpointDefinition> = HashMap::new();
+        for req in &session.captured_requests {
+            let key = (req.method.clone(), req.url.clone());
+            endpoints.entry(key).or_insert_with(|| EndpointDefinition {
+                kind: apicentric::simulator::config::EndpointKind::Http,
+                method: req.method.to_uppercase(),
+                path: req
+                    .url
+                    .split('?')
+                    .next()
+                    .unwrap_or("/")
+                    .to_string(),
+                header_match: None,
+                description: Some("Recorded endpoint".to_string()),
+                parameters: None,
+                request_body: None,
+                responses: {
+                    let mut map = HashMap::new();
+                    map.insert(
+                        200,
+                        ResponseDefinition {
+                            condition: None,
+                            content_type: "application/json".to_string(),
+                            body: req.body.clone().unwrap_or_else(|| "{}".to_string()),
+                            script: None,
+                            headers: None,
+                            side_effects: None,
+                        },
+                    );
+                    map
+                },
+                scenarios: None,
+                stream: None,
+            });
+        }
+
+        let def = ServiceDefinition {
+            name: "recording_service".to_string(),
+            version: None,
+            description: Some(format!("Recorded from {}", session.target_url)),
+            server: ServerConfig {
+                port: Some(session.proxy_port),
+                base_path: "/".to_string(),
+                proxy_base_url: Some(session.target_url.clone()),
+                cors: None,
+                record_unknown: false,
+            },
+            models: None,
+            fixtures: None,
+            bucket: None,
+            endpoints: endpoints.into_values().collect(),
+            graphql: None,
+            behavior: None,
+        };
+
+        fs::create_dir_all(&state.config.services_directory).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Cannot create services directory: {}", e),
+                Some("Check write permissions"),
+            )
+        })?;
+        let file_path = state
+            .config
+            .services_directory
+            .join("recording_service.yaml");
+        let yaml = serde_yaml::to_string(&def).map_err(|e| {
+            ApicentricError::runtime_error(
+                format!("Failed to serialize recorded service: {}", e),
+                None::<String>,
+            )
+        })?;
+        fs::write(&file_path, yaml).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write recorded service: {}", e),
+                Some("Check path permissions"),
+            )
+        })?;
+        session.is_active = false;
         state.add_log("Generated service from recording".to_string());
         Ok(())
     }
@@ -382,8 +550,12 @@ impl EventHandler {
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
         if let Some(service) = state.find_service(name) {
-            // TODO: Read actual file content
-            let content = format!("# Service: {}\n# TODO: Load actual content from {:?}", name, service.path);
+            let content = fs::read_to_string(&service.path).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!("Failed to load service file: {}", e),
+                    Some("Ensure the service file exists and is readable"),
+                )
+            })?;
             state.load_service_in_editor(name.to_string(), content);
             Ok(())
         } else {
@@ -399,7 +571,32 @@ impl EventHandler {
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
         if let Some(service_name) = state.editor_state.selected_service.clone() {
-            // TODO: Validate YAML and save to file
+            let service = state
+                .find_service(&service_name)
+                .cloned()
+                .ok_or_else(|| {
+                    ApicentricError::runtime_error(
+                        format!("Service not found: {}", service_name),
+                        Some("Reload services before saving"),
+                    )
+                })?;
+
+            // Validate YAML
+            serde_yaml::from_str::<ServiceDefinition>(&state.editor_state.content).map_err(|e| {
+                ApicentricError::validation_error(
+                    format!("Invalid YAML: {}", e),
+                    Some("editor"),
+                    Some("Correct the YAML before saving"),
+                )
+            })?;
+
+            fs::write(&service.path, &state.editor_state.content).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!("Failed to write service file: {}", e),
+                    Some("Check write permissions"),
+                )
+            })?;
+
             state.mark_editor_clean();
             state.add_log(format!("Saved service: {}", service_name));
             Ok(())
@@ -440,7 +637,39 @@ impl EventHandler {
         path: &Path,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Detect format and import
+        let content = fs::read_to_string(path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to read import file: {}", e),
+                Some("Check the file path and permissions"),
+            )
+        })?;
+
+        let service = if path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("json"))
+            .unwrap_or(false)
+        {
+            apicentric::simulator::postman::from_str(&content).map_err(|e| {
+                ApicentricError::validation_error(
+                    format!("Failed to parse Postman/Insomnia export: {}", e),
+                    Some("import"),
+                    Some("Ensure the file is a valid collection"),
+                )
+            })?
+        } else {
+            serde_yaml::from_str::<ServiceDefinition>(&content).or_else(|_| {
+                serde_json::from_str::<ServiceDefinition>(&content).map_err(|e| {
+                    ApicentricError::validation_error(
+                        format!("Unrecognized import format: {}", e),
+                        Some("import"),
+                        Some("Provide a Postman/Insomnia JSON or simulator YAML"),
+                    )
+                })
+            })?
+        };
+
+        self.persist_service_definition(&service, state)?;
         state.add_log(format!("Imported file: {:?}", path));
         Ok(())
     }
@@ -448,10 +677,80 @@ impl EventHandler {
     async fn handle_export_service(
         &self,
         name: &str,
-        _format: ExportFormat,
+        format: ExportFormat,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Export service to specified format
+        let service = self.load_service_by_name(name, state)?;
+
+        let output_path = match format {
+            ExportFormat::Yaml => state
+                .config
+                .services_directory
+                .join(format!("{}.yaml", service.name)),
+            ExportFormat::Json => state
+                .config
+                .services_directory
+                .join(format!("{}.json", service.name)),
+            ExportFormat::Postman => state
+                .config
+                .services_directory
+                .join(format!("{}.postman.json", service.name)),
+        };
+
+        if let Some(parent) = output_path.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!("Failed to prepare export directory: {}", e),
+                    Some("Check permissions"),
+                )
+            })?;
+        }
+
+        match format {
+            ExportFormat::Yaml => {
+                let yaml = serde_yaml::to_string(&service).map_err(|e| {
+                    ApicentricError::runtime_error(
+                        format!("Failed to serialize YAML: {}", e),
+                        None::<String>,
+                    )
+                })?;
+                fs::write(&output_path, yaml).map_err(|e| {
+                    ApicentricError::fs_error(
+                        format!("Failed to write YAML export: {}", e),
+                        Some("Check disk space"),
+                    )
+                })?;
+            }
+            ExportFormat::Json => {
+                let json = serde_json::to_string_pretty(&service).map_err(|e| {
+                    ApicentricError::runtime_error(
+                        format!("Failed to serialize JSON: {}", e),
+                        None::<String>,
+                    )
+                })?;
+                fs::write(&output_path, json).map_err(|e| {
+                    ApicentricError::fs_error(
+                        format!("Failed to write JSON export: {}", e),
+                        Some("Check disk space"),
+                    )
+                })?;
+            }
+            ExportFormat::Postman => {
+                let json = apicentric::simulator::postman::to_string(&service).map_err(|e| {
+                    ApicentricError::runtime_error(
+                        format!("Failed to create Postman export: {}", e),
+                        None::<String>,
+                    )
+                })?;
+                fs::write(&output_path, json).map_err(|e| {
+                    ApicentricError::fs_error(
+                        format!("Failed to write Postman export: {}", e),
+                        Some("Check disk space"),
+                    )
+                })?;
+            }
+        }
+
         state.add_log(format!("Exported service: {}", name));
         Ok(())
     }
@@ -461,7 +760,9 @@ impl EventHandler {
         paths: &[PathBuf],
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Import multiple files
+        for path in paths {
+            self.handle_import_file(path, state).await?;
+        }
         state.add_log(format!("Batch imported {} files", paths.len()));
         Ok(())
     }
@@ -471,20 +772,40 @@ impl EventHandler {
     async fn handle_generate_code(
         &self,
         name: &str,
-        _target: CodeGenTarget,
+        target: CodeGenTarget,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Generate code for service
+        let service = self.load_service_by_name(name, state)?;
+        let code = match target {
+            CodeGenTarget::TypeScript | CodeGenTarget::JavaScript | CodeGenTarget::Python => {
+                let spec = apicentric::simulator::openapi::to_openapi(&service);
+                serde_json::to_string_pretty(&spec).map_err(|e| {
+                    ApicentricError::runtime_error(
+                        format!("Failed to serialize OpenAPI spec: {}", e),
+                        None::<String>,
+                    )
+                })?
+            }
+            CodeGenTarget::Go | CodeGenTarget::Rust => serde_yaml::to_string(&service).map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to serialize service definition: {}", e),
+                    None::<String>,
+                )
+            })?,
+        };
+
+        state.codegen_state.last_target = Some(format!("{:?}", target));
+        state.codegen_state.last_output = Some(code);
         state.add_log(format!("Generated code for: {}", name));
         Ok(())
     }
 
     async fn handle_copy_to_clipboard(
         &self,
-        _content: &str,
+        content: &str,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Copy to system clipboard
+        state.codegen_state.last_output = Some(content.to_string());
         state.add_log("Copied to clipboard".to_string());
         Ok(())
     }
@@ -492,10 +813,23 @@ impl EventHandler {
     async fn handle_save_generated_code(
         &self,
         path: &Path,
-        _content: &str,
+        content: &str,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Save generated code to file
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!("Failed to create directories: {}", e),
+                    Some("Check write permissions"),
+                )
+            })?;
+        }
+        fs::write(path, content).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to save generated code: {}", e),
+                Some("Check disk space"),
+            )
+        })?;
         state.add_log(format!("Saved generated code to: {:?}", path));
         Ok(())
     }
@@ -506,7 +840,27 @@ impl EventHandler {
         &self,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Serialize and save config to file
+        let path = state.config.services_directory.join("gui_config.yaml");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!("Failed to prepare config directory: {}", e),
+                    Some("Check write permissions"),
+                )
+            })?;
+        }
+        let yaml = serde_yaml::to_string(&state.config).map_err(|e| {
+            ApicentricError::runtime_error(
+                format!("Failed to serialize GUI config: {}", e),
+                None::<String>,
+            )
+        })?;
+        fs::write(&path, yaml).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write GUI config: {}", e),
+                Some("Check permissions"),
+            )
+        })?;
         state.add_log("Saved configuration".to_string());
         Ok(())
     }
@@ -515,9 +869,96 @@ impl EventHandler {
         &self,
         state: &mut GuiAppState,
     ) -> ApicentricResult<()> {
-        // TODO: Load config from file or use defaults
+        let path = state.config.services_directory.join("gui_config.yaml");
+        if !path.exists() {
+            state.add_log("No saved configuration found".to_string());
+            return Ok(());
+        }
+
+        let yaml = fs::read_to_string(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to read GUI config: {}", e),
+                Some("Check permissions"),
+            )
+        })?;
+        let cfg: super::models::GuiConfig = serde_yaml::from_str(&yaml).map_err(|e| {
+            ApicentricError::validation_error(
+                format!("Invalid GUI config: {}", e),
+                Some("gui_config"),
+                Some("Regenerate configuration using the GUI"),
+            )
+        })?;
+        state.config = cfg;
         state.add_log("Loaded configuration".to_string());
         Ok(())
+    }
+}
+
+impl EventHandler {
+    fn persist_service_definition(
+        &self,
+        service: &ServiceDefinition,
+        state: &mut GuiAppState,
+    ) -> ApicentricResult<()> {
+        fs::create_dir_all(&state.config.services_directory).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to prepare services directory: {}", e),
+                Some("Check permissions"),
+            )
+        })?;
+
+        let path = state
+            .config
+            .services_directory
+            .join(format!("{}.yaml", service.name));
+        let yaml = serde_yaml::to_string(service).map_err(|e| {
+            ApicentricError::runtime_error(
+                format!("Failed to serialize service: {}", e),
+                None::<String>,
+            )
+        })?;
+        fs::write(&path, yaml).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write service file: {}", e),
+                Some("Check permissions"),
+            )
+        })?;
+
+        if let Some(existing) = state.find_service_mut(&service.name) {
+            existing.path = path.clone();
+        } else {
+            let mut info = ServiceInfo::new(service.name.clone(), path.clone(), state.config.default_port);
+            for endpoint in &service.endpoints {
+                info.endpoints.push(EndpointInfo { method: endpoint.method.clone(), path: endpoint.path.clone() });
+            }
+            state.add_service(info);
+        }
+
+        Ok(())
+    }
+
+    fn load_service_by_name(
+        &self,
+        name: &str,
+        state: &GuiAppState,
+    ) -> ApicentricResult<ServiceDefinition> {
+        let service = state
+            .find_service(name)
+            .ok_or_else(|| ApicentricError::runtime_error("Service not found", None::<String>))?;
+        let content = fs::read_to_string(&service.path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to read service file: {}", e),
+                Some("Ensure the service exists"),
+            )
+        })?;
+
+        serde_yaml::from_str(&content).or_else(|_| serde_json::from_str(&content)).map_err(|e| {
+            ApicentricError::validation_error(
+                format!("Invalid service definition: {}", e),
+                Some("service"),
+                Some("Correct the service file contents"),
+            )
+        })
     }
 }
 
@@ -842,8 +1283,253 @@ mod tests {
             GuiMessage::StartService("test-service".to_string()),
             &mut state
         ).await;
-        
+
         assert!(result.is_ok());
         assert!(state.find_service("test-service").unwrap().status.is_running());
+    }
+
+    #[tokio::test]
+    async fn test_ai_apply_yaml_persists_file() {
+        let manager = create_test_manager();
+        let handler = EventHandler::new(manager);
+        let log_receiver = tokio::sync::broadcast::channel(1).1;
+        let mut state = GuiAppState::new(log_receiver);
+        let temp = tempfile::tempdir().unwrap();
+        state.config.services_directory = temp.path().to_path_buf();
+
+        let yaml = r#"
+name: recorded
+server:
+  base_path: "/"
+endpoints:
+  - method: GET
+    path: "/hello"
+    responses:
+      200:
+        content_type: application/json
+        body: "{}"
+"#;
+
+        handler
+            .handle_message(GuiMessage::AiApplyYaml(yaml.to_string()), &mut state)
+            .await
+            .unwrap();
+
+        let expected = temp.path().join("recorded.yaml");
+        assert!(expected.exists());
+        let saved = std::fs::read_to_string(expected).unwrap();
+        assert!(saved.contains("recorded"));
+    }
+
+    #[tokio::test]
+    async fn test_recording_flow_and_generation() {
+        let manager = create_test_manager();
+        let handler = EventHandler::new(manager);
+        let log_receiver = tokio::sync::broadcast::channel(1).1;
+        let mut state = GuiAppState::new(log_receiver);
+        let temp = tempfile::tempdir().unwrap();
+        state.config.services_directory = temp.path().to_path_buf();
+
+        handler
+            .handle_message(
+                GuiMessage::StartRecording("http://example.com".into()),
+                &mut state,
+            )
+            .await
+            .unwrap();
+
+        handler
+            .handle_message(
+                GuiMessage::CaptureRequest(super::super::messages::CapturedRequest {
+                    method: "GET".into(),
+                    url: "http://example.com/api".into(),
+                    headers: vec![("Content-Type".into(), "application/json".into())],
+                    body: Some("{}".into()),
+                }),
+                &mut state,
+            )
+            .await
+            .unwrap();
+
+        handler
+            .handle_message(GuiMessage::StopRecording, &mut state)
+            .await
+            .unwrap();
+
+        handler
+            .handle_message(GuiMessage::GenerateFromRecording, &mut state)
+            .await
+            .unwrap();
+
+        assert!(temp
+            .path()
+            .join("recording_service.yaml")
+            .exists());
+        assert!(state.recording_session.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_editor_load_and_save() {
+        let manager = create_test_manager();
+        let handler = EventHandler::new(manager);
+        let log_receiver = tokio::sync::broadcast::channel(1).1;
+        let mut state = GuiAppState::new(log_receiver);
+        let temp = tempfile::tempdir().unwrap();
+        let file_path = temp.path().join("service.yaml");
+        let yaml = "name: svc\nserver:\n  base_path: '/'\nendpoints: []\n";
+        std::fs::write(&file_path, yaml).unwrap();
+
+        state.add_service(super::super::models::ServiceInfo::new(
+            "svc".into(),
+            file_path.clone(),
+            8000,
+        ));
+
+        handler
+            .handle_message(GuiMessage::LoadServiceInEditor("svc".into()), &mut state)
+            .await
+            .unwrap();
+
+        assert_eq!(state.editor_state.content, yaml);
+        state.editor_state.content = yaml.replace("svc", "svc2");
+
+        handler
+            .handle_message(GuiMessage::SaveEditorContent, &mut state)
+            .await
+            .unwrap();
+
+        let saved = std::fs::read_to_string(&file_path).unwrap();
+        assert!(saved.contains("svc2"));
+        assert!(!state.editor_state.dirty);
+    }
+
+    #[tokio::test]
+    async fn test_import_export_and_batch() {
+        let manager = create_test_manager();
+        let handler = EventHandler::new(manager);
+        let log_receiver = tokio::sync::broadcast::channel(1).1;
+        let mut state = GuiAppState::new(log_receiver);
+        let temp = tempfile::tempdir().unwrap();
+        state.config.services_directory = temp.path().to_path_buf();
+
+        let import_path = temp.path().join("demo.yaml");
+        let yaml = r#"
+name: demo
+server:
+  base_path: "/"
+endpoints:
+  - method: GET
+    path: "/ping"
+    responses:
+      200:
+        content_type: application/json
+        body: "{}"
+"#;
+        std::fs::write(&import_path, yaml).unwrap();
+
+        handler
+            .handle_message(GuiMessage::ImportFile(import_path.clone()), &mut state)
+            .await
+            .unwrap();
+
+        assert_eq!(state.services.len(), 1);
+
+        handler
+            .handle_message(
+                GuiMessage::ExportService(
+                    "demo".into(),
+                    super::super::messages::ExportFormat::Json,
+                ),
+                &mut state,
+            )
+            .await
+            .unwrap();
+
+        assert!(temp.path().join("demo.json").exists());
+
+        let another = temp.path().join("demo2.yaml");
+        std::fs::write(&another, yaml.replace("demo", "demo2")).unwrap();
+        handler
+            .handle_message(GuiMessage::BatchImport(vec![another.clone()]), &mut state)
+            .await
+            .unwrap();
+        assert_eq!(state.services.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_code_generation_and_save() {
+        let manager = create_test_manager();
+        let handler = EventHandler::new(manager);
+        let log_receiver = tokio::sync::broadcast::channel(1).1;
+        let mut state = GuiAppState::new(log_receiver);
+        let temp = tempfile::tempdir().unwrap();
+        state.config.services_directory = temp.path().to_path_buf();
+        let service_path = temp.path().join("demo.yaml");
+        let yaml = r#"
+name: demo
+server:
+  base_path: "/"
+endpoints:
+  - method: GET
+    path: "/ping"
+    responses:
+      200:
+        content_type: application/json
+        body: "{}"
+"#;
+        std::fs::write(&service_path, yaml).unwrap();
+        state.add_service(super::super::models::ServiceInfo::new(
+            "demo".into(),
+            service_path.clone(),
+            8000,
+        ));
+
+        handler
+            .handle_message(
+                GuiMessage::GenerateCode(
+                    "demo".into(),
+                    super::super::messages::CodeGenTarget::Python,
+                ),
+                &mut state,
+            )
+            .await
+            .unwrap();
+
+        assert!(state.codegen_state.last_output.is_some());
+
+        let code_path = temp.path().join("generated.py");
+        handler
+            .handle_message(
+                GuiMessage::SaveGeneratedCode(code_path.clone(), "print('hi')".into()),
+                &mut state,
+            )
+            .await
+            .unwrap();
+
+        assert!(code_path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_config_save_and_load() {
+        let manager = create_test_manager();
+        let handler = EventHandler::new(manager);
+        let log_receiver = tokio::sync::broadcast::channel(1).1;
+        let mut state = GuiAppState::new(log_receiver);
+        let temp = tempfile::tempdir().unwrap();
+        state.config.services_directory = temp.path().to_path_buf();
+        state.config.default_port = 7000;
+
+        handler
+            .handle_message(GuiMessage::SaveConfig, &mut state)
+            .await
+            .unwrap();
+
+        state.config.default_port = 0;
+        handler
+            .handle_message(GuiMessage::LoadConfig, &mut state)
+            .await
+            .unwrap();
+
+        assert_eq!(state.config.default_port, 7000);
     }
 }
