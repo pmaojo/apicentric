@@ -2,5 +2,20 @@
   "ai": {
     "provider": "openai",
     "api_key": "test-key"
+  },
+  "simulator": {
+    "enabled": true,
+    "services_dir": "services",
+    "port_range": {
+      "start": 9000,
+      "end": 9099
+    },
+    "db_path": "apicentric.db",
+    "admin_port": null,
+    "global_behavior": {
+      "latency": null,
+      "error_simulation": null,
+      "rate_limiting": null
+    }
   }
 }
