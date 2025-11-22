@@ -728,6 +728,9 @@ The crate follows hexagonal architecture principles and exposes the following mo
 - `simulator`: The API simulator runtime.
 - `cli` and `cli_ui`: CLI and text-based UI front-ends.
 
+  <img width="2752" height="1536" alt="image" src="https://github.com/user-attachments/assets/52ef5f9c-149d-45cf-ab56-3fc8d4345f55" />
+
+
 Refer to the module documentation for deeper implementation details.
 
 <!-- cargo-rdme end -->
