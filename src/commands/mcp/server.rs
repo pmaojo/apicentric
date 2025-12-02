@@ -25,6 +25,10 @@ use apicentric::simulator::config::{
 };
 #[cfg(feature = "mcp")]
 use std::collections::HashMap;
+#[cfg(feature = "mcp")]
+use std::fs;
+#[cfg(feature = "mcp")]
+use std::path::Path;
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct ServiceName {
@@ -329,10 +333,34 @@ impl ApicentricMcpService {
                     Ok(service_def) => {
                         if let Some(manager) = self.context.api_simulator() {
                             let mut registry = manager.service_registry().write().await;
-                            match registry.register_service(service_def).await {
+                            match registry.register_service(service_def.clone()).await {
                                 Ok(_) => {
-                                    let response = "Service created and registered successfully from YAML definition.".to_string();
-                                    Ok(CallToolResult::success(vec![Content::text(response)]))
+                                    // Persist the service to disk
+                                    let services_dir = if let Some(config) = &self.context.config().simulator {
+                                        config.services_dir.clone()
+                                    } else {
+                                        std::path::PathBuf::from("services")
+                                    };
+
+                                    if let Err(e) = fs::create_dir_all(&services_dir) {
+                                        return Err(McpError::new(ErrorCode(-32603), format!("Failed to create services directory: {}", e), None));
+                                    }
+
+                                    let file_path = services_dir.join(format!("{}.yaml", service_def.name));
+
+                                    // Serialize the definition to YAML
+                                    match serde_yaml::to_string(&service_def) {
+                                        Ok(yaml_content) => {
+                                            match fs::write(&file_path, yaml_content) {
+                                                Ok(_) => {
+                                                    let response = format!("Service '{}' created, registered, and saved to {}.", service_def.name, file_path.display());
+                                                    Ok(CallToolResult::success(vec![Content::text(response)]))
+                                                },
+                                                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to write service file: {}", e), None)),
+                                            }
+                                        },
+                                        Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to serialize service definition: {}", e), None)),
+                                    }
                                 }
                                 Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to register service: {}", e), None)),
                             }
@@ -358,9 +386,26 @@ impl ApicentricMcpService {
                 if let Some(manager) = self.context.api_simulator() {
                     match manager.apply_service_yaml(&yaml).await {
                         Ok(service_name) => {
-                            let response =
-                                format!("Service '{}' generated and started successfully.", service_name);
-                            Ok(CallToolResult::success(vec![Content::text(response)]))
+                            // Persist the service to disk
+                            let services_dir = if let Some(config) = &self.context.config().simulator {
+                                config.services_dir.clone()
+                            } else {
+                                std::path::PathBuf::from("services")
+                            };
+
+                            if let Err(e) = fs::create_dir_all(&services_dir) {
+                                return Err(McpError::new(ErrorCode(-32603), format!("Failed to create services directory: {}", e), None));
+                            }
+
+                            let file_path = services_dir.join(format!("{}.yaml", service_name));
+
+                            match fs::write(&file_path, &yaml) {
+                                Ok(_) => {
+                                    let response = format!("Service '{}' generated, started, and saved to {}.", service_name, file_path.display());
+                                    Ok(CallToolResult::success(vec![Content::text(response)]))
+                                },
+                                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to write service file: {}", e), None)),
+                            }
                         }
                         Err(e) => Err(McpError::new(
                             ErrorCode(-32603),
