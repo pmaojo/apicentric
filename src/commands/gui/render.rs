@@ -10,6 +10,7 @@ use egui::{CentralPanel, TopBottomPanel, SidePanel, ScrollArea};
 use apicentric::simulator::manager::ApiSimulatorManager;
 use std::sync::Arc;
 use rand::Rng;
+use super::messages::GuiSystemEvent;
 
 
 pub fn render(
@@ -17,6 +18,39 @@ pub fn render(
     state: &mut GuiAppState,
     _manager: &Arc<ApiSimulatorManager>,
 ) {
+    // Poll system events
+    while let Ok(event) = state.system_event_rx.try_recv() {
+        match event {
+            GuiSystemEvent::SimulatorStarted => {
+                state.add_log("Simulator started successfully".to_string());
+                // After start, we might want to refresh services to see which are running
+                // but we handled that in the async block by reloading services first
+            }
+            GuiSystemEvent::SimulatorStopped => {
+                state.add_log("Simulator stopped".to_string());
+                for service in &mut state.services {
+                    if service.status.is_running() {
+                        service.status = ServiceStatus::Stopped;
+                    }
+                }
+            }
+            GuiSystemEvent::ServicesLoaded(services) => {
+                 state.complete_refreshing_services(services);
+            }
+            GuiSystemEvent::ServicesRefreshed(services) => {
+                 state.complete_refreshing_services(services);
+            }
+            GuiSystemEvent::Error(msg) => {
+                 state.add_log(format!("Error: {}", msg));
+                 // Also reset refreshing state if it was active
+                 state.refreshing_services = false;
+            }
+            GuiSystemEvent::Log(msg) => {
+                 state.add_log(msg);
+            }
+        }
+    }
+
     TopBottomPanel::top("top_panel").show(ctx, |ui| {
         ui.heading("Apicentric Control Panel");
     });
@@ -82,16 +116,44 @@ pub fn render(
 
             // Apply changes after the loop to avoid borrowing issues
             state.selected_service = selected_service;
+
+            // NOTE: The individual start/stop logic below is local only.
+            // It should ideally use the same channel pattern or EventHandler
+            // but for this task we focused on "Start Simulator" button.
+            // Keeping existing logic for individual services for now.
             for service_name in services_to_start {
                 if let Some(service) = state.services.iter_mut().find(|s| s.name == service_name) {
                     let _ = service.start();
                     state.add_log(format!("Starting service: {}", service_name));
+                     // Start service via manager
+                    let manager = _manager.clone();
+                    let tx = state.system_event_tx.clone();
+                    let name = service_name.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = manager.start_service(&name).await {
+                             let _ = tx.send(GuiSystemEvent::Error(format!("Failed to start service {}: {}", name, e)));
+                             // In a real app we might want to send a "ServiceStartFailed" event to revert the optimistic UI update
+                        } else {
+                             let _ = tx.send(GuiSystemEvent::Log(format!("Service {} started", name)));
+                        }
+                    });
                 }
             }
             for service_name in services_to_stop {
                 if let Some(service) = state.services.iter_mut().find(|s| s.name == service_name) {
                     let _ = service.stop();
                     state.add_log(format!("Stopping service: {}", service_name));
+                     // Stop service via manager
+                    let manager = _manager.clone();
+                    let tx = state.system_event_tx.clone();
+                    let name = service_name.clone();
+                    tokio::spawn(async move {
+                         if let Err(e) = manager.stop_service(&name).await {
+                             let _ = tx.send(GuiSystemEvent::Error(format!("Failed to stop service {}: {}", name, e)));
+                         } else {
+                             let _ = tx.send(GuiSystemEvent::Log(format!("Service {} stopped", name)));
+                         }
+                    });
                 }
             }
             if let Some(service_name) = service_to_edit {
@@ -106,24 +168,59 @@ pub fn render(
         // Simulator controls
         ui.collapsing("Simulator", |ui| {
             if ui.button("Start Simulator").clicked() {
-                // TODO: Actually start the simulator
                 state.add_log("Starting simulator...".to_string());
-                // For now, just add some dummy services to show the interface
-                if state.services.is_empty() {
-                    state.services.push(super::models::ServiceInfo::new("api-service".to_string(), std::path::PathBuf::from("services/api.yaml"), 8080));
-                    state.services.push(super::models::ServiceInfo::new("user-service".to_string(), std::path::PathBuf::from("services/user.yaml"), 8081));
-                    state.add_log("Added sample services".to_string());
+                let manager = _manager.clone();
+                let tx = state.system_event_tx.clone();
 
-                    // Add some sample request logs
-                    state.add_request_log(RequestLogEntry::new("api-service".to_string(), "GET".to_string(), "/api/users".to_string(), 200, 45));
-                    state.add_request_log(RequestLogEntry::new("api-service".to_string(), "POST".to_string(), "/api/users".to_string(), 201, 120));
-                    state.add_request_log(RequestLogEntry::new("user-service".to_string(), "GET".to_string(), "/users/123".to_string(), 200, 30));
-                    state.add_request_log(RequestLogEntry::new("api-service".to_string(), "GET".to_string(), "/api/orders".to_string(), 404, 25));
-                    state.add_log("Added sample request logs".to_string());
-                }
+                tokio::spawn(async move {
+                    // Load services first
+                    match manager.load_services().await {
+                        Ok(_) => {
+                            // Update UI with loaded services
+                            let registry = manager.service_registry().read().await;
+                            let services_list = registry.list_services().await;
+
+                             let mut gui_services = Vec::new();
+                             for s in services_list {
+                                 let mut gui_service = super::models::ServiceInfo::new(
+                                     s.name,
+                                     std::path::PathBuf::from(""), // We don't have path in simple info
+                                     s.port
+                                 );
+                                 if s.is_running {
+                                     gui_service.status = ServiceStatus::Running;
+                                 }
+                                 // To get endpoints we would need to inspect service definition,
+                                 // but `list_services` gives summary.
+                                 // For now, let's just push what we have.
+                                 gui_services.push(gui_service);
+                             }
+                             let _ = tx.send(GuiSystemEvent::ServicesLoaded(gui_services));
+                        },
+                        Err(e) => {
+                            let _ = tx.send(GuiSystemEvent::Error(format!("Failed to load services: {}", e)));
+                            return;
+                        }
+                    }
+
+                    if let Err(e) = manager.start().await {
+                        let _ = tx.send(GuiSystemEvent::Error(format!("Failed to start simulator: {}", e)));
+                    } else {
+                        let _ = tx.send(GuiSystemEvent::SimulatorStarted);
+                    }
+                });
             }
             if ui.button("Stop Simulator").clicked() {
                 state.add_log("Stopping simulator...".to_string());
+                let manager = _manager.clone();
+                let tx = state.system_event_tx.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = manager.stop().await {
+                        let _ = tx.send(GuiSystemEvent::Error(format!("Failed to stop simulator: {}", e)));
+                    } else {
+                        let _ = tx.send(GuiSystemEvent::SimulatorStopped);
+                    }
+                });
             }
         });
 
@@ -134,7 +231,35 @@ pub fn render(
                     ui.add_enabled(false, egui::Button::new("Refreshing..."));
                     ui.add(egui::Spinner::new());
                 } else if ui.button("Refresh Services").clicked() {
+                    state.start_refreshing_services();
                     state.add_log("Refreshing services...".to_string());
+
+                    let manager = _manager.clone();
+                    let tx = state.system_event_tx.clone();
+                    tokio::spawn(async move {
+                         // We can reload services from disk
+                         if let Err(e) = manager.reload_services().await {
+                             let _ = tx.send(GuiSystemEvent::Error(format!("Failed to reload services: {}", e)));
+                         } else {
+                             // Fetch new list
+                             let registry = manager.service_registry().read().await;
+                             let services_list = registry.list_services().await;
+
+                             let mut gui_services = Vec::new();
+                             for s in services_list {
+                                 let mut gui_service = super::models::ServiceInfo::new(
+                                     s.name,
+                                     std::path::PathBuf::from(""),
+                                     s.port
+                                 );
+                                 if s.is_running {
+                                     gui_service.status = ServiceStatus::Running;
+                                 }
+                                 gui_services.push(gui_service);
+                             }
+                             let _ = tx.send(GuiSystemEvent::ServicesRefreshed(gui_services));
+                         }
+                    });
                 }
             });
             ui.label(format!("Loaded: {} services", state.services.len()));
