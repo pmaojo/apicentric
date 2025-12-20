@@ -18,7 +18,6 @@
 - anyhow = "1.0.99"
 - clap = { version = "4.4.8", features = ["derive"] }
 - glob = "0.3.3"
-- lazy_static = "1.5.0"
 - log = "0.4.20"
 - env_logger = "0.10"
 - serde = { version = "1.0.219", features = ["derive"] }

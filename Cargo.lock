@@ -320,7 +320,6 @@ dependencies = [
  "indicatif",
  "inquire",
  "jsonwebtoken",
- "lazy_static",
  "libloading",
  "libp2p",
  "log",
