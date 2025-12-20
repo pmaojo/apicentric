@@ -4,8 +4,9 @@
 //! between the GUI components and the event handler.
 
 use std::path::PathBuf;
+use super::models::ServiceInfo;
 
-/// Messages sent from the GUI to the event handler
+/// Messages sent from the GUI to the event handler (User Actions)
 #[derive(Debug, Clone)]
 pub enum GuiMessage {
     // Service Management
@@ -49,6 +50,17 @@ pub enum GuiMessage {
     UpdateConfig(super::models::GuiConfig),
     SaveConfig,
     LoadConfig,
+}
+
+/// Events sent from background tasks to the GUI (System Events)
+#[derive(Debug)]
+pub enum GuiSystemEvent {
+    SimulatorStarted,
+    SimulatorStopped,
+    ServicesLoaded(Vec<ServiceInfo>),
+    ServicesRefreshed(Vec<ServiceInfo>),
+    Error(String),
+    Log(String),
 }
 
 /// Information about a captured HTTP request

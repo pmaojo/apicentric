@@ -7,9 +7,9 @@
 
 use std::collections::VecDeque;
 use tokio::sync::broadcast;
-
+use std::sync::mpsc;
 use super::models::*;
-
+use super::messages::GuiSystemEvent;
 
 
 /// Main GUI application state
@@ -33,6 +33,10 @@ pub struct GuiAppState {
     pub log_filter: LogFilter,
     pub log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
     
+    // System events channel
+    pub system_event_rx: mpsc::Receiver<GuiSystemEvent>,
+    pub system_event_tx: mpsc::Sender<GuiSystemEvent>,
+
     // Recording mode
     pub recording_session: Option<RecordingSession>,
     
@@ -49,6 +53,9 @@ pub struct GuiAppState {
     pub show_ai_window: bool,
     pub show_editor_window: bool,
     pub show_config_window: bool,
+
+    // Simulator status
+    pub is_simulator_running: bool,
 }
 
 impl GuiAppState {
@@ -93,6 +100,7 @@ impl GuiAppState {
     }
 
     pub fn new(log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>) -> Self {
+        let (tx, rx) = mpsc::channel();
         Self {
             services: Vec::new(),
             selected_service: None,
@@ -107,6 +115,8 @@ impl GuiAppState {
             request_logs: VecDeque::new(),
             log_filter: LogFilter::default(),
             log_receiver,
+            system_event_rx: rx,
+            system_event_tx: tx,
             recording_session: None,
             editor_state: EditorState::default(),
             codegen_state: GuiCodegenState::default(),
@@ -114,6 +124,7 @@ impl GuiAppState {
             show_ai_window: false,
             show_editor_window: false,
             show_config_window: false,
+            is_simulator_running: false,
         }
     }
     
