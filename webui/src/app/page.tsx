@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider, useQuery, useMutation } from '@tansta
 import { fetchSimulatorStatus, startSimulator, stopSimulator } from '@/services/api';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { BackendConnectionError } from '@/components/features/backend-connection-error';
 
 // Lazy load heavy components for code splitting
 const ServiceManagement = lazy(() => import('@/components/features/service-management').then(m => ({ default: m.ServiceManagement })));
@@ -31,7 +32,14 @@ const ComponentLoader = () => (
  * It manages the overall layout, state, and view switching for the application.
  */
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1, // Minimize retries to show error state faster
+      retryDelay: 1000,
+    }
+  }
+});
 
 let newServiceIdCounter = 0;
 
@@ -46,7 +54,7 @@ function AppContent() {
   const { data: simulatorStatus, isLoading, error, refetch } = useQuery<SimulatorStatus, Error>({
     queryKey: ['simulatorStatus'],
     queryFn: fetchSimulatorStatus,
-    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchInterval: (data) => data ? 10000 : false, // Only poll if we have a successful connection
   });
   const [services, setServices] = useState<Service[]>([]);
   const { toast } = useToast();
@@ -237,9 +245,10 @@ function AppContent() {
 
     if (error && !simulatorStatus) {
       return (
-        <div className="flex items-center justify-center h-full text-destructive">
-          <p>Error loading simulator status: {error.message}</p>
-        </div>
+        <BackendConnectionError
+          error={error}
+          onRetry={() => refetch()}
+        />
       );
     }
     
@@ -302,7 +311,7 @@ function AppContent() {
       default:
         return <Dashboard services={services} onToggleService={handleToggleService} />;
     }
-  }, [activeView, services, handleToggleService, handleAddService, handleUpdateService, handleDeleteService, isLoading]);
+  }, [activeView, services, handleToggleService, handleAddService, handleUpdateService, handleDeleteService, isLoading, error, simulatorStatus, refetch]);
 
   /**
    * A map of view names to their corresponding display titles.

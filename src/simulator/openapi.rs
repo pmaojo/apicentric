@@ -1,7 +1,11 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use indexmap::IndexMap;
 
-use openapiv3::{Info, Operation, Response, Schema, OpenAPI, PathItem, RequestBody, Responses, ReferenceOr, StatusCode, Paths};
+use openapiv3::{
+    Info, OpenAPI, Operation, Parameter, ParameterData, ParameterSchemaOrContent,
+    PathItem, Paths, ReferenceOr, RequestBody, Response, Responses,
+    Schema, SchemaKind, StatusCode, Type, ArrayType, QueryStyle, PathStyle, HeaderStyle,
+};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value;
@@ -576,8 +580,11 @@ pub fn to_openapi(service: &ServiceDefinition) -> OpenAPI {
             ..Default::default()
         };
 
-        // parameters - TODO: implement with openapiv3 Parameter enum
-        // For now, skip parameters
+        if let Some(params) = &ep.parameters {
+            for param in params {
+                op.parameters.push(convert_parameter_to_openapi(param));
+            }
+        }
 
         if let Some(body) = &ep.request_body {
             let content_type = body.content_type.clone().unwrap_or_else(|| "application/json".to_string());
@@ -660,4 +667,61 @@ pub fn to_openapi(service: &ServiceDefinition) -> OpenAPI {
         components,
         ..Default::default()
     }
+}
+
+fn convert_parameter_to_openapi(param: &ParameterDefinition) -> ReferenceOr<Parameter> {
+    let schema = convert_type_to_schema(&param.param_type);
+
+    let parameter_data = ParameterData {
+        name: param.name.clone(),
+        description: param.description.clone(),
+        required: param.required,
+        deprecated: None,
+        format: ParameterSchemaOrContent::Schema(schema),
+        example: None,
+        examples: IndexMap::new(),
+        explode: None,
+        extensions: IndexMap::new(),
+    };
+
+    let parameter = match param.location {
+        ParameterLocation::Query => Parameter::Query {
+            parameter_data,
+            allow_reserved: false,
+            style: QueryStyle::Form,
+            allow_empty_value: None,
+        },
+        ParameterLocation::Path => Parameter::Path {
+            parameter_data,
+            style: PathStyle::Simple,
+        },
+        ParameterLocation::Header => Parameter::Header {
+            parameter_data,
+            style: HeaderStyle::Simple,
+        },
+    };
+
+    ReferenceOr::Item(parameter)
+}
+
+fn convert_type_to_schema(type_name: &str) -> ReferenceOr<Schema> {
+    let schema_kind = match type_name {
+        "string" => SchemaKind::Type(Type::String(Default::default())),
+        "integer" => SchemaKind::Type(Type::Integer(Default::default())),
+        "number" => SchemaKind::Type(Type::Number(Default::default())),
+        "boolean" => SchemaKind::Type(Type::Boolean(Default::default())),
+        "array" => SchemaKind::Type(Type::Array(ArrayType {
+            items: None,
+            min_items: None,
+            max_items: None,
+            unique_items: false,
+        })),
+        "object" => SchemaKind::Type(Type::Object(Default::default())),
+        _ => SchemaKind::Type(Type::String(Default::default())), // Default
+    };
+
+    ReferenceOr::Item(Schema {
+        schema_data: Default::default(),
+        schema_kind,
+    })
 }
