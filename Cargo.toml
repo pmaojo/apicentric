@@ -85,6 +85,7 @@ tokio = { version = "1.47.1", default-features = false, features = ["rt-multi-th
 
 # HTTP server and client
 hyper = { version = "1.0", default-features = false, features = ["http1", "http2", "server", "client"] }
+hyper-rustls = { version = "0.27", default-features = false, features = ["native-tokio", "http1", "http2", "tls12", "ring"] }
 hyper-util = { version = "0.1", default-features = false, features = ["server", "client", "client-legacy", "http1", "http2", "tokio"] }
 http = "1.0"
 http-body-util = "0.1"
@@ -117,6 +118,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # Template engine (lightweight)
 handlebars = "6.2.0"
+
+# TLS support
+rustls = { version = "0.23.19", default-features = false, features = ["std", "tls12", "ring"] }
 
 # OpenAPI support
 openapiv3 = "2.0"
