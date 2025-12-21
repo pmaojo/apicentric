@@ -7,27 +7,23 @@ import fs from 'fs';
 const BACKEND_DIR = path.join(process.cwd(), 'webui/backend');
 const BINARY_NAME = 'apicentric';
 const BINARY_PATH = path.join(BACKEND_DIR, BINARY_NAME);
-const SERVICES_DIR = path.join(process.cwd(), 'services'); // Assume services are at root or configure appropriately
+const SERVICES_DIR = path.join(process.cwd(), 'services');
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // 1. Determine the path and service
-  // The route is /api/simulate/[[...slug]]
-  // Example: /api/simulate/users/123 -> path: /users/123
   const { slug } = req.query;
   const requestPath = Array.isArray(slug) ? '/' + slug.join('/') : '/';
 
-  // For this example, we'll assume a single default service file.
-  // In a real scenario, you might map the first part of the path to a service file.
+  // In Vercel, we need to ensure this file exists.
+  // We'll map to default.yaml for this example.
   const serviceFile = path.join(SERVICES_DIR, 'default.yaml');
 
   if (!fs.existsSync(BINARY_PATH)) {
     return res.status(500).json({ error: 'Apicentric binary not found', path: BINARY_PATH });
   }
 
-  // 2. Spawn the process
   const args = [
     'simulator',
     'handle-request',
@@ -36,15 +32,26 @@ export default async function handler(
     '--path', requestPath,
   ];
 
-  if (req.body && (typeof req.body === 'object' || typeof req.body === 'string')) {
-    const bodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-    args.push('--body', bodyStr);
-  }
-
   const headers = JSON.stringify(req.headers);
   args.push('--headers', headers);
 
+  // Body handling: We pass body via stdin
+  let bodyContent = '';
+  if (req.body) {
+    if (typeof req.body === 'string') {
+        bodyContent = req.body;
+    } else if (typeof req.body === 'object') {
+        bodyContent = JSON.stringify(req.body);
+    }
+  }
+
   const child = spawn(BINARY_PATH, args);
+
+  // Write body to stdin
+  if (bodyContent) {
+      child.stdin.write(bodyContent);
+  }
+  child.stdin.end();
 
   let stdout = '';
   let stderr = '';
@@ -71,19 +78,13 @@ export default async function handler(
   try {
     const result = JSON.parse(stdout);
 
-    // Set response headers
     if (result.headers) {
       for (const [key, value] of Object.entries(result.headers)) {
         res.setHeader(key, value as string);
       }
     }
 
-    // Set status
     res.status(result.status || 200);
-
-    // Send body
-    // If the body is a string that looks like JSON, Next.js will handle it if we send it as object?
-    // The result.body is a string.
     res.send(result.body);
 
   } catch (e) {

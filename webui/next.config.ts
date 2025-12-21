@@ -1,4 +1,5 @@
 import type {NextConfig} from 'next';
+import path from 'path';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -37,6 +38,13 @@ const nextConfig: NextConfig = {
   // Optimize imports
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    // Ensure services and binary are included in the standalone build
+    outputFileTracingIncludes: {
+      '/api/simulate/[[...slug]]': [
+        path.join(__dirname, '../services/**/*'),
+        path.join(__dirname, 'backend/**/*'),
+      ],
+    },
   },
   // Enable static optimization where possible
   output: 'standalone',

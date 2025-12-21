@@ -29,7 +29,7 @@ console.log('Downloading apicentric binary...');
 
 // Determine asset name (Hardcoded for Linux x64 as Vercel uses Amazon Linux 2)
 // Ideally this should detect OS, but for Vercel deployment we target Linux.
-const ASSET_NAME = 'apicentric-x86_64-unknown-linux-gnu.tar.gz';
+const ASSET_NAME = 'apicentric-linux-x64.tar.gz';
 const REPO = 'pmaojo/apicentric';
 
 // Function to download file

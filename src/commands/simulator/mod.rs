@@ -222,9 +222,6 @@ pub enum SimulatorAction {
         /// Request path
         #[arg(long)]
         path: String,
-        /// Request body
-        #[arg(long)]
-        body: Option<String>,
         /// Request headers as JSON string
         #[arg(long)]
         headers: Option<String>,
@@ -321,18 +318,9 @@ pub async fn simulator_command(
             service,
             method,
             path,
-            body,
             headers,
         } => {
-            handle_request::execute(
-                service,
-                method,
-                path,
-                body.as_deref(),
-                headers.as_deref(),
-                exec_ctx,
-            )
-            .await
+            handle_request::execute(service, method, path, headers.as_deref(), exec_ctx).await
         }
     }
 }
