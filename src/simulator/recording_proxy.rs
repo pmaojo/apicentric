@@ -6,11 +6,67 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use rustls::client::danger::{ServerCertVerifier, ServerCertVerified, HandshakeSignatureValid};
+use rustls::{pki_types::{CertificateDer, ServerName, UnixTime}, DigitallySignedStruct};
+
+#[derive(Debug)]
+struct NoCertificateVerification;
+
+impl ServerCertVerifier for NoCertificateVerification {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: UnixTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
+        Ok(ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        vec![
+            rustls::SignatureScheme::RSA_PKCS1_SHA1,
+            rustls::SignatureScheme::ECDSA_SHA1_Legacy,
+            rustls::SignatureScheme::RSA_PKCS1_SHA256,
+            rustls::SignatureScheme::ECDSA_NISTP256_SHA256,
+            rustls::SignatureScheme::RSA_PKCS1_SHA384,
+            rustls::SignatureScheme::ECDSA_NISTP384_SHA384,
+            rustls::SignatureScheme::RSA_PKCS1_SHA512,
+            rustls::SignatureScheme::ECDSA_NISTP521_SHA512,
+            rustls::SignatureScheme::RSA_PSS_SHA256,
+            rustls::SignatureScheme::RSA_PSS_SHA384,
+            rustls::SignatureScheme::RSA_PSS_SHA512,
+            rustls::SignatureScheme::ED25519,
+            rustls::SignatureScheme::ED448,
+        ]
+    }
+}
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{HeaderMap, Request, Response, Uri};
+use std::error::Error;
+use hyper_rustls::{ConfigBuilderExt, HttpsConnectorBuilder};
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};
@@ -37,9 +93,19 @@ impl RecordingProxy for ProxyRecorder {
     async fn record(&self, target: &str, output_dir: PathBuf, port: u16) -> ApicentricResult<()> {
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-        let connector = HttpConnector::new();
-        let client: Client<HttpConnector, Full<Bytes>> =
-            Client::builder(TokioExecutor::new()).build(connector);
+        // Create a custom TLS configuration that ignores certificate validation errors
+        let tls = rustls::ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(std::sync::Arc::new(NoCertificateVerification))
+            .with_no_client_auth();
+
+        let https = HttpsConnectorBuilder::new()
+            .with_tls_config(tls)
+            .https_or_http()
+            .enable_http1()
+            .build();
+
+        let client: Client<_, Full<Bytes>> = Client::builder(TokioExecutor::new()).build(https);
         let endpoints: Arc<Mutex<HashMap<(String, String), EndpointDefinition>>> =
             Arc::new(Mutex::new(HashMap::new()));
         let listener = TcpListener::bind(addr).await.map_err(|e| {
@@ -87,9 +153,9 @@ impl RecordingProxy for ProxyRecorder {
                                     }
                                 };
 
-                                let uri: Uri = format!("{}{}", target, path_and_query)
-                                    .parse()
-                                    .unwrap();
+                                let target_trimmed = target.trim_end_matches('/');
+                                let uri_string = format!("{}{}", target_trimmed, path_and_query);
+                                let uri: Uri = uri_string.parse().unwrap();
 
                                 let mut fwd_req = Request::new(Full::from(req_body.clone()));
                                 *fwd_req.method_mut() = method.clone();
@@ -99,6 +165,7 @@ impl RecordingProxy for ProxyRecorder {
                                 let resp = match client.request(fwd_req).await {
                                     Ok(r) => r,
                                     Err(e) => {
+                                        eprintln!("Proxy request failed to {}: {} (source: {:?})", uri_string, e, e.source());
                                         let mut err_resp = Response::new(Full::from(Bytes::from(e.to_string())));
                                         *err_resp.status_mut() = hyper::StatusCode::BAD_GATEWAY;
                                         return Ok::<_, Infallible>(err_resp);
