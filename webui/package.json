@@ -8,6 +8,7 @@
     "dev:webui": "next dev --turbopack -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
+    "postinstall": "node scripts/download-binary.js",
     "build": "NODE_ENV=production next build",
     "build:analyze": "ANALYZE=true NODE_ENV=production next build",
     "start": "next start",

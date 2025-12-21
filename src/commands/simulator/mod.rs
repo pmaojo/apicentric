@@ -10,6 +10,7 @@ pub enum ExportFormat {
 mod control;
 mod dockerize;
 mod export;
+mod handle_request;
 mod import;
 mod inspect;
 mod service;
@@ -210,6 +211,24 @@ pub enum SimulatorAction {
         #[arg(long, default_value = "default")]
         env: String,
     },
+    /// Handle a single request and return the response (for serverless/CGI use)
+    HandleRequest {
+        /// Path to the service definition YAML file
+        #[arg(long)]
+        service: String,
+        /// HTTP method
+        #[arg(long)]
+        method: String,
+        /// Request path
+        #[arg(long)]
+        path: String,
+        /// Request body
+        #[arg(long)]
+        body: Option<String>,
+        /// Request headers as JSON string
+        #[arg(long)]
+        headers: Option<String>,
+    },
 }
 
 pub async fn simulator_command(
@@ -297,6 +316,23 @@ pub async fn simulator_command(
         }
         SimulatorAction::Test { path, url, env } => {
             inspect::handle_contract_test(path, url, env, exec_ctx).await
+        }
+        SimulatorAction::HandleRequest {
+            service,
+            method,
+            path,
+            body,
+            headers,
+        } => {
+            handle_request::execute(
+                service,
+                method,
+                path,
+                body.as_deref(),
+                headers.as_deref(),
+                exec_ctx,
+            )
+            .await
         }
     }
 }
