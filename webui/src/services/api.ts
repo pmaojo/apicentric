@@ -7,9 +7,42 @@ import type { ApiService, Service, SimulatorStatus } from '@/lib/types';
  */
 
 // Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const DEFAULT_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const STORAGE_KEY_API_URL = 'apicentric_api_url';
 const TOKEN_STORAGE_KEY = 'apicentric_token';
 const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes before expiry
+
+/**
+ * Gets the configured API base URL.
+ * Checks localStorage first for runtime overrides, then falls back to environment variable or default.
+ */
+export function getApiUrl(): string {
+  if (typeof window !== 'undefined') {
+    const storedUrl = localStorage.getItem(STORAGE_KEY_API_URL);
+    if (storedUrl) {
+      return storedUrl;
+    }
+  }
+  return DEFAULT_API_URL;
+}
+
+/**
+ * Sets a new API base URL at runtime.
+ */
+export function setApiUrl(url: string): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY_API_URL, url);
+  }
+}
+
+/**
+ * Resets the API URL to the default configuration.
+ */
+export function resetApiUrl(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEY_API_URL);
+  }
+}
 
 // Token management
 let currentToken: string | null = null;
@@ -82,7 +115,7 @@ async function refreshToken(): Promise<void> {
     throw new Error('No token to refresh');
   }
   
-  const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+  const response = await fetch(`${getApiUrl()}/api/auth/refresh`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -125,7 +158,7 @@ async function apiRequest<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
   
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${getApiUrl()}${endpoint}`, {
     ...options,
     headers,
   });
@@ -142,7 +175,7 @@ async function apiRequest<T>(
           ...headers,
           'Authorization': `Bearer ${newToken}`,
         };
-        const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const retryResponse = await fetch(`${getApiUrl()}${endpoint}`, {
           ...options,
           headers: retryHeaders,
         });
@@ -690,7 +723,7 @@ export async function validateConfig(config: Record<string, any>): Promise<Valid
  * @deprecated Use fetchSimulatorStatus instead to get a complete view of the simulator.
  */
 export async function fetchServices(): Promise<ApiService[]> {
-  const response = await fetch(`${API_BASE_URL}/status`);
+  const response = await fetch(`${getApiUrl()}/status`);
   if (!response.ok) {
     throw new Error('Network response was not ok');
   }
@@ -705,7 +738,7 @@ export async function fetchServices(): Promise<ApiService[]> {
  * @returns {Promise<SimulatorStatus>} A promise that resolves to the simulator's status.
  */
 export async function fetchSimulatorStatus(): Promise<SimulatorStatus> {
-    const response = await fetch(`${API_BASE_URL}/status`);
+    const response = await fetch(`${getApiUrl()}/status`);
     if (!response.ok) {
         throw new Error('Failed to fetch simulator status');
     }
@@ -718,7 +751,7 @@ export async function fetchSimulatorStatus(): Promise<SimulatorStatus> {
  * @returns {Promise<any>} A promise that resolves when the simulator has been started.
  */
 export async function startSimulator(): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/start`, { method: 'POST' });
+    const response = await fetch(`${getApiUrl()}/start`, { method: 'POST' });
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to start simulator' }));
         throw new Error(errorData.error);
@@ -731,7 +764,7 @@ export async function startSimulator(): Promise<any> {
  * @returns {Promise<any>} A promise that resolves when the simulator has been stopped.
  */
 export async function stopSimulator(): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/stop`, { method: 'POST' });
+    const response = await fetch(`${getApiUrl()}/stop`, { method: 'POST' });
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to stop simulator' }));
         throw new Error(errorData.error);
@@ -745,7 +778,7 @@ export async function stopSimulator(): Promise<any> {
  * @returns {Promise<{ success: boolean, message?: string, error?: string }>} A promise that resolves to the validation result.
  */
 export async function validateService(definition: string): Promise<{ success: boolean, message?: string, error?: string }> {
-    const response = await fetch('/api/simulator/validate', {
+    const response = await fetch(`${getApiUrl()}/api/simulator/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ definition }),
@@ -767,7 +800,7 @@ export async function validateService(definition: string): Promise<{ success: bo
  * @returns {Promise<Service>} A promise that resolves to the newly created service.
  */
 export async function createGraphQLService(name: string, port: number): Promise<Service> {
-  const response = await fetch('/api/services/create-graphql', {
+  const response = await fetch(`${getApiUrl()}/api/services/create-graphql`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, port }),
@@ -787,7 +820,7 @@ export async function createGraphQLService(name: string, port: number): Promise<
  * @returns {Promise<any>} A promise that resolves with the test results.
  */
 export async function runContractTests(service: Service): Promise<any> {
-    const response = await fetch('/api/contract-testing', {
+    const response = await fetch(`${getApiUrl()}/api/contract-testing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(service),
@@ -808,7 +841,7 @@ export async function runContractTests(service: Service): Promise<any> {
  * @returns {Promise<string>} A promise that resolves to the generated code.
  */
 export async function generateCode(definition: string, target: 'typescript' | 'react-query' | 'react-components'): Promise<string> {
-    const response = await fetch('/api/codegen', {
+    const response = await fetch(`${getApiUrl()}/api/codegen`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ definition, target }),
