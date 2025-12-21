@@ -46,22 +46,23 @@ const nextConfig: NextConfig = {
   },
   // Rewrite requests to the local backend to avoid Mixed Content issues
   async rewrites() {
+    const backendUrl = process.env.BACKEND_URL || 'http://127.0.0.1:8080';
     return [
       {
         source: '/api/proxy/status',
-        destination: 'http://127.0.0.1:8080/status',
+        destination: `${backendUrl}/status`,
       },
       {
         source: '/api/proxy/start',
-        destination: 'http://127.0.0.1:8080/start',
+        destination: `${backendUrl}/start`,
       },
       {
         source: '/api/proxy/stop',
-        destination: 'http://127.0.0.1:8080/stop',
+        destination: `${backendUrl}/stop`,
       },
       {
         source: '/api/proxy/api/:path*',
-        destination: 'http://127.0.0.1:8080/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },

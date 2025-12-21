@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertCircle, RefreshCw, Settings, Terminal } from 'lucide-react';
+import { AlertCircle, RefreshCw, Settings, Terminal, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ export function BackendConnectionError({ error, onRetry }: BackendConnectionErro
   const [customUrl, setCustomUrl] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const currentUrl = getApiUrl();
+  const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 
   useEffect(() => {
     setCustomUrl(currentUrl);
@@ -75,6 +76,19 @@ export function BackendConnectionError({ error, onRetry }: BackendConnectionErro
             </AlertDescription>
           </Alert>
 
+          {isVercel && (
+             <Alert className="bg-amber-50 border-amber-200 text-amber-800">
+                <ExternalLink className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800">Vercel Deployment Detected</AlertTitle>
+                <AlertDescription className="text-amber-700 text-sm mt-1">
+                   The backend binary cannot run directly on Vercel's serverless environment.
+                   You must deploy the backend separately (e.g., on Fly.io, Railway, or a VPS) and set the
+                   <code className="bg-amber-100 px-1 mx-1 rounded text-amber-900 font-mono">BACKEND_URL</code>
+                   environment variable in your Vercel project settings.
+                </AlertDescription>
+             </Alert>
+          )}
+
           {/* Diagnostic Info */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -85,9 +99,9 @@ export function BackendConnectionError({ error, onRetry }: BackendConnectionErro
               <div className="text-sm border rounded-md p-3 bg-muted/50">
                 <div className="grid grid-cols-[80px_1fr] gap-1">
                   <span className="text-muted-foreground">API URL:</span>
-                  <span className="font-mono">{currentUrl}</span>
+                  <span className="font-mono break-all">{currentUrl}</span>
                   <span className="text-muted-foreground">Frontend:</span>
-                  <span className="font-mono">{typeof window !== 'undefined' ? window.location.origin : 'unknown'}</span>
+                  <span className="font-mono break-all">{typeof window !== 'undefined' ? window.location.origin : 'unknown'}</span>
                 </div>
               </div>
             </div>
@@ -112,13 +126,13 @@ export function BackendConnectionError({ error, onRetry }: BackendConnectionErro
 
           {/* URL Configuration */}
           <div className="space-y-3 pt-2 border-t">
-            <Label htmlFor="api-url">Backend API URL</Label>
+            <Label htmlFor="api-url">Backend API URL Override</Label>
             <div className="flex gap-2">
               <Input
                 id="api-url"
                 value={customUrl}
                 onChange={(e) => setCustomUrl(e.target.value)}
-                placeholder="http://localhost:8080"
+                placeholder="http://localhost:8080 or https://api.myapp.com"
                 className="font-mono"
               />
               <Button onClick={handleUpdateUrl} disabled={isUpdating}>
@@ -126,8 +140,7 @@ export function BackendConnectionError({ error, onRetry }: BackendConnectionErro
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              If running locally, try <code className="bg-muted px-1 rounded">http://localhost:8080</code>.
-              If deployed, ensure the backend is accessible over HTTPS.
+              This overrides the default connection URL for your session.
             </p>
           </div>
         </CardContent>
