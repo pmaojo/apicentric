@@ -27,10 +27,13 @@ pub struct Mcp {
 /// * `context` - The application context.
 /// * `_exec_ctx` - The execution context.
 pub async fn mcp_command(
-    mcp: &Mcp,
+    _mcp: &Mcp,
     context: &Context,
     _exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
+    // We use stderr for logging to avoid corrupting the JSON-RPC stdout stream.
+    // This is handled globally in logging initialization, but good to keep in mind.
+
     let transport = (stdin(), stdout());
     let service = ApicentricMcpService::new(context.clone());
 
@@ -39,15 +42,12 @@ pub async fn mcp_command(
         .await
         .map_err(|e| ApicentricError::server_error(e.to_string(), None::<String>))?;
 
-    if mcp.test {
-        // In test mode, we don't want to block. The server will process the first
-        // request and then exit.
-    } else {
-        server
-            .waiting()
-            .await
-            .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
-    }
+    // Always wait for the server to complete (which happens when stdin closes or error occurs).
+    // The --test flag logic was previously exiting too early.
+    server
+        .waiting()
+        .await
+        .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
 
     Ok(())
 }
