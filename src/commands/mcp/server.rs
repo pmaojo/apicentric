@@ -161,19 +161,21 @@ impl ApicentricMcpService {
     /// Lists all available mock services.
     #[tool]
     pub async fn list_services(&self) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: list_services");
         if let Some(manager) = self.context.api_simulator() {
             // Load services from directory if not loaded
-            match manager.load_services().await {
-                Ok(_) => {
-                    let registry = manager.service_registry().read().await;
-                    let service_infos = registry.list_services().await;
-                    let services = service_infos.into_iter().map(|s| s.name).collect::<Vec<_>>();
-                    let content = services.into_iter().map(Content::text).collect();
-                    Ok(CallToolResult::success(content))
-                }
-                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to load services: {}", e), None)),
+            if let Err(e) = manager.load_services().await {
+                 tracing::warn!("Failed to load services: {}", e);
+                 // We don't return error here, just return empty list or partial list
             }
+
+            let registry = manager.service_registry().read().await;
+            let service_infos = registry.list_services().await;
+            let services = service_infos.into_iter().map(|s| s.name).collect::<Vec<_>>();
+            let content = services.into_iter().map(Content::text).collect();
+            Ok(CallToolResult::success(content))
         } else {
+            tracing::warn!("API Simulator not available");
             Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
         }
     }
@@ -184,6 +186,7 @@ impl ApicentricMcpService {
         &self,
         Parameters(ServiceName { service_name }): Parameters<ServiceName>,
     ) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: start_service for {}", service_name);
         if let Some(manager) = self.context.api_simulator() {
             match manager.start_service(&service_name).await {
                 Ok(_) => {
@@ -203,6 +206,7 @@ impl ApicentricMcpService {
         &self,
         Parameters(ServiceName { service_name }): Parameters<ServiceName>,
     ) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: stop_service for {}", service_name);
         if let Some(manager) = self.context.api_simulator() {
             match manager.stop_service(&service_name).await {
                 Ok(_) => {
@@ -222,6 +226,7 @@ impl ApicentricMcpService {
         &self,
         Parameters(ServiceName { service_name }): Parameters<ServiceName>,
     ) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: get_service_logs for {}", service_name);
         // For now, return dummy logs since the logging system is not fully integrated
         let dummy_logs = format!("Service '{}' logs:\n[INFO] Service started at 2025-11-17T14:40:00Z\n[INFO] Ready to accept connections", service_name);
         Ok(CallToolResult::success(vec![Content::text(dummy_logs)]))
@@ -230,6 +235,7 @@ impl ApicentricMcpService {
     /// Reloads all services from the services directory.
     #[tool]
     pub async fn reload_services(&self) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: reload_services");
         if let Some(manager) = self.context.api_simulator() {
             match manager.reload_services().await {
                 Ok(_) => {
@@ -249,6 +255,7 @@ impl ApicentricMcpService {
         &self,
         Parameters(ServiceName { service_name }): Parameters<ServiceName>,
     ) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: get_service_status for {}", service_name);
         if let Some(manager) = self.context.api_simulator() {
             let registry = manager.service_registry().read().await;
             let service_infos = registry.list_services().await;
@@ -282,6 +289,7 @@ impl ApicentricMcpService {
         &self,
         Parameters(ServiceName { service_name }): Parameters<ServiceName>,
     ) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: delete_service for {}", service_name);
         if let Some(manager) = self.context.api_simulator() {
             // First stop the service if it's running
             let _ = manager.stop_service(&service_name).await;
@@ -303,6 +311,7 @@ impl ApicentricMcpService {
     /// Gets the overall status of the API simulator.
     #[tool]
     pub async fn get_simulator_status(&self) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: get_simulator_status");
         if let Some(manager) = self.context.api_simulator() {
             let status = manager.get_status().await;
             let response = format!(
@@ -327,6 +336,7 @@ impl ApicentricMcpService {
         &self,
         Parameters(YamlDefinition { yaml_definition }): Parameters<YamlDefinition>,
     ) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: create_service");
         match YamlServiceSpecLoader::load_from_string(&yaml_definition) {
             Ok(spec) => {
                 match Self::convert_service_spec_to_definition(spec) {
@@ -381,6 +391,7 @@ impl ApicentricMcpService {
         &self,
         Parameters(GenerationPrompt { prompt }): Parameters<GenerationPrompt>,
     ) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: generate_and_start_service");
         match apicentric::ai::generate_service(&self.context, &prompt).await {
             Ok(yaml) => {
                 if let Some(manager) = self.context.api_simulator() {

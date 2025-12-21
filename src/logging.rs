@@ -39,6 +39,7 @@ pub fn init() {
             // JSON format for production/log aggregation
             let json_layer = tracing_subscriber::fmt::layer()
                 .json()
+                .with_writer(std::io::stderr)
                 .with_target(true)
                 .with_thread_ids(true)
                 .with_thread_names(true)
@@ -51,6 +52,7 @@ pub fn init() {
             // Pretty format for development
             let pretty_layer = tracing_subscriber::fmt::layer()
                 .pretty()
+                .with_writer(std::io::stderr)
                 .with_target(true)
                 .with_thread_ids(false)
                 .with_thread_names(false)
