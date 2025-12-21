@@ -11,7 +11,7 @@
     "install:backend": "bash scripts/install-backend.sh",
     "build": "npm run install:backend && NODE_ENV=production next build",
     "build:analyze": "ANALYZE=true NODE_ENV=production next build",
-    "start": "next start",
+    "start": "cd backend && ./apicentric cloud > /dev/null 2>&1 & next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",

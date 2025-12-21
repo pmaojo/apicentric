@@ -44,6 +44,27 @@ const nextConfig: NextConfig = {
   webpack: (config, { isServer }) => {
     return config;
   },
+  // Rewrite requests to the local backend to avoid Mixed Content issues
+  async rewrites() {
+    return [
+      {
+        source: '/api/proxy/status',
+        destination: 'http://127.0.0.1:8080/status',
+      },
+      {
+        source: '/api/proxy/start',
+        destination: 'http://127.0.0.1:8080/start',
+      },
+      {
+        source: '/api/proxy/stop',
+        destination: 'http://127.0.0.1:8080/stop',
+      },
+      {
+        source: '/api/proxy/api/:path*',
+        destination: 'http://127.0.0.1:8080/api/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

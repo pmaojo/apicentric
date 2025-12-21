@@ -7,7 +7,12 @@ import type { ApiService, Service, SimulatorStatus } from '@/lib/types';
  */
 
 // Configuration
-const DEFAULT_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+// If running in the browser, default to the proxy path to avoid Mixed Content issues.
+// If running on the server (SSR), use the direct localhost URL.
+const DEFAULT_API_URL = typeof window !== 'undefined'
+  ? '/api/proxy'
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080');
+
 const STORAGE_KEY_API_URL = 'apicentric_api_url';
 const TOKEN_STORAGE_KEY = 'apicentric_token';
 const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes before expiry
