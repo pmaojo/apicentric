@@ -36,7 +36,7 @@ where
     }
     if with_simulator { if let Some(sim) = context.api_simulator() { if !sim.is_active().await { let _ = sim.start().await; } let status = sim.get_status().await; println!("🔧 Simulator activo servicios: {}", status.active_services.len()); for svc in status.active_services.iter().take(simulator_sample) { println!("   - {}:{}{}", svc.name, svc.port, svc.base_path); } } }
     println!("\nResultado: {}", if all_ok {"✅ COMPATIBLE"} else {"❌ DIFERENCIAS"});
-    if html_report { if let Err(e) = write_demo_html_report(&contract, &rows, all_ok) { println!("❌ Report error: {}", e);} }
+    if html_report { if let Err(e) = write_demo_html_report(&contract, &rows, all_ok).await { println!("❌ Report error: {}", e);} }
     Ok(())
 }
 
@@ -52,18 +52,18 @@ async fn simple_head_or_get(url: &str) -> bool { let client = reqwest::Client::b
 
 async fn fetch_api_response(url: &str) -> Result<apicentric::domain::contract_testing::ApiResponse, String> { use apicentric::domain::contract_testing::{ApiResponse, ResponseBody}; use std::collections::HashMap; let start = std::time::Instant::now(); let client = reqwest::Client::builder().danger_accept_invalid_certs(true).timeout(std::time::Duration::from_secs(10)).build().map_err(|e| e.to_string())?; let resp = client.get(url).send().await.map_err(|e| e.to_string())?; let status = resp.status().as_u16(); let headers = resp.headers().iter().map(|(k,v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect::<HashMap<_,_>>(); let text = resp.text().await.map_err(|e| e.to_string())?; let body = if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) { ResponseBody::Json(json) } else { ResponseBody::Text(text) }; Ok(ApiResponse::new(status, headers, body, start.elapsed().as_millis() as u64)) }
 
-fn write_demo_html_report(
+async fn write_demo_html_report(
     contract: &Contract,
     rows: &[(String, Option<apicentric::domain::contract_testing::ApiResponse>, Option<apicentric::domain::contract_testing::ApiResponse>)],
     compatible: bool,
 ) -> Result<(), String> {
-    use chrono::Utc; let dir = std::path::Path::new(".apicentric/reports"); if !dir.exists() { std::fs::create_dir_all(dir).map_err(|e| e.to_string())?; }
+    use chrono::Utc; let dir = std::path::Path::new(".apicentric/reports"); if !dir.exists() { tokio::fs::create_dir_all(dir).await.map_err(|e| e.to_string())?; }
     let file = dir.join(format!("demo_contract_{}_{}.html", contract.service_name, Utc::now().format("%Y%m%d_%H%M%S")));
     let mut html = String::from("<html><head><meta charset='utf-8'><title>Apicentric Contract Demo</title><style>body{font-family:Arial}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px;font-size:12px}.ok{color:green}.bad{color:#b00}</style></head><body>");
     html.push_str(&format!("<h1>Contract Demo - {}</h1><p>ID: {}</p><p>Status: <strong class='{}'>{}</strong></p>", contract.service_name, contract.id, if compatible {"ok"} else {"bad"}, if compatible {"COMPATIBLE"} else {"INCOMPATIBLE"}));
     html.push_str("<table><tr><th>Endpoint</th><th>Mock Status</th><th>Real Status</th><th>Match</th></tr>");
     for (ep,m,r) in rows { let (ms, rs) = (m.as_ref().map(|x| x.status_code.to_string()).unwrap_or("ERR".into()), r.as_ref().map(|x| x.status_code.to_string()).unwrap_or("ERR".into())); let match_cell = if let (Some(mv), Some(rv)) = (m,r) { if mv.status_code == rv.status_code {"✅"} else {"❌"} } else {"❌"}; html.push_str(&format!("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>", ep, ms, rs, match_cell)); }
-    html.push_str("</table></body></html>"); std::fs::write(&file, html).map_err(|e| e.to_string())?; println!("📄 Reporte HTML: {}", file.display()); Ok(()) }
+    html.push_str("</table></body></html>"); tokio::fs::write(&file, html).await.map_err(|e| e.to_string())?; println!("📄 Reporte HTML: {}", file.display()); Ok(()) }
 
 async fn start_mock_from_contract_spec(contract: &Contract, port: u16) -> Result<(), String> { use apicentric::infrastructure::YamlServiceSpecLoader; use apicentric::domain::ports::ServiceSpecLoader; use apicentric::adapters::mock_server::{MockApiSpec, MockEndpoint}; let loader = YamlServiceSpecLoader::new(); let spec = loader.load(&contract.spec_path).await.map_err(|e| e.to_string())?; let mut mock_spec = MockApiSpec { name: Some(spec.name.clone()), port: Some(port), base_path: Some(spec.base_path.clone()), endpoints: Vec::new() }; for ep in spec.endpoints { let body_json = if ep.response.body_template.trim().is_empty() { serde_yaml::Value::Null } else { serde_yaml::from_str(&ep.response.body_template).unwrap_or(serde_yaml::Value::Null) }; mock_spec.endpoints.push(MockEndpoint { method: ep.method.to_string(), path: ep.path, status: ep.response.status, delay_ms: None, headers: ep.response.headers, response: body_json }); } tokio::spawn(async move { if let Err(e) = apicentric::adapters::mock_server::run_mock_server(mock_spec).await { eprintln!("Mock server error: {}", e); }}); Ok(()) }
 
