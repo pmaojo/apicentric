@@ -5,6 +5,8 @@
  * This is the single point of WebSocket management.
  */
 
+import { logger } from './logger';
+
 export interface WebSocketMessage {
   type: string;
   data?: any;
@@ -40,7 +42,7 @@ export class WebSocketManager implements WebSocketManagerInterface {
       this.ws = new WebSocket(this.url);
       
       this.ws.onopen = () => {
-        console.log('WebSocket connected');
+        logger.log('WebSocket connected');
         this.reconnectAttempts = 0;
       };
 
@@ -49,12 +51,12 @@ export class WebSocketManager implements WebSocketManagerInterface {
           const message: WebSocketMessage = JSON.parse(event.data);
           this.handleMessage(message);
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          logger.error('Failed to parse WebSocket message:', error);
         }
       };
 
       this.ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code);
+        logger.log('WebSocket closed:', event.code);
         this.ws = null;
         
         if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -66,11 +68,11 @@ export class WebSocketManager implements WebSocketManagerInterface {
       };
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        logger.error('WebSocket error:', error);
       };
 
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
+      logger.error('Failed to create WebSocket connection:', error);
     }
   }
 
@@ -105,7 +107,7 @@ export class WebSocketManager implements WebSocketManagerInterface {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     } else {
-      console.warn('WebSocket is not connected');
+      logger.warn('WebSocket is not connected');
     }
   }
 
@@ -120,7 +122,7 @@ export class WebSocketManager implements WebSocketManagerInterface {
         try {
           callback(message.data);
         } catch (error) {
-          console.error(`Error in WebSocket subscriber for ${message.type}:`, error);
+          logger.error(`Error in WebSocket subscriber for ${message.type}:`, error);
         }
       });
     }
