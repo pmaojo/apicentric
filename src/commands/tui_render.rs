@@ -62,21 +62,21 @@ pub fn render_service_list(f: &mut Frame, area: Rect, state: &ServiceListState, 
                 Style::default()
             };
 
-            let line = Line::from(vec![
-                Span::styled(indicator, Style::default().fg(indicator_color)),
-                Span::styled(
-                    format!(" {} :{}", service.name, service.port),
-                    style,
-                ),
-                if service.request_count > 0 {
-                    Span::styled(
-                        format!(" ({})", service.request_count),
-                        Style::default().fg(Color::Cyan),
-                    )
-                } else {
-                    Span::raw("")
-                },
-            ]);
+            let mut spans = Vec::with_capacity(3);
+            spans.push(Span::styled(indicator, Style::default().fg(indicator_color)));
+            spans.push(Span::styled(
+                format!(" {} :{}", service.name, service.port),
+                style,
+            ));
+
+            if service.request_count > 0 {
+                spans.push(Span::styled(
+                    format!(" ({})", service.request_count),
+                    Style::default().fg(Color::Cyan),
+                ));
+            }
+
+            let line = Line::from(spans);
 
             ListItem::new(line)
         })
