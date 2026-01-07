@@ -113,6 +113,9 @@ where
             println!("❌ Report error: {}", e);
         }
     }
+    if with_simulator { if let Some(sim) = context.api_simulator() { if !sim.is_active().await { let _ = sim.start().await; } let status = sim.get_status().await; println!("🔧 Simulator activo servicios: {}", status.active_services.len()); for svc in status.active_services.iter().take(simulator_sample) { println!("   - {}:{}{}", svc.name, svc.port, svc.base_path); } } }
+    println!("\nResultado: {}", if all_ok {"✅ COMPATIBLE"} else {"❌ DIFERENCIAS"});
+    if html_report { if let Err(e) = write_demo_html_report(&contract, &rows, all_ok).await { println!("❌ Report error: {}", e);} }
     Ok(())
 }
 
@@ -245,7 +248,7 @@ async fn fetch_api_response(
     ))
 }
 
-fn write_demo_html_report(
+async fn write_demo_html_report(
     contract: &Contract,
     rows: &[(
         String,
@@ -254,16 +257,8 @@ fn write_demo_html_report(
     )],
     compatible: bool,
 ) -> Result<(), String> {
-    use chrono::Utc;
-    let dir = std::path::Path::new(".apicentric/reports");
-    if !dir.exists() {
-        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-    }
-    let file = dir.join(format!(
-        "demo_contract_{}_{}.html",
-        contract.service_name,
-        Utc::now().format("%Y%m%d_%H%M%S")
-    ));
+    use chrono::Utc; let dir = std::path::Path::new(".apicentric/reports"); if !dir.exists() { tokio::fs::create_dir_all(dir).await.map_err(|e| e.to_string())?; }
+    let file = dir.join(format!("demo_contract_{}_{}.html", contract.service_name, Utc::now().format("%Y%m%d_%H%M%S")));
     let mut html = String::from("<html><head><meta charset='utf-8'><title>Apicentric Contract Demo</title><style>body{font-family:Arial}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px;font-size:12px}.ok{color:green}.bad{color:#b00}</style></head><body>");
     html.push_str(&format!(
         "<h1>Contract Demo - {}</h1><p>ID: {}</p><p>Status: <strong class='{}'>{}</strong></p>",
@@ -277,34 +272,8 @@ fn write_demo_html_report(
         }
     ));
     html.push_str("<table><tr><th>Endpoint</th><th>Mock Status</th><th>Real Status</th><th>Match</th></tr>");
-    for (ep, m, r) in rows {
-        let (ms, rs) = (
-            m.as_ref()
-                .map(|x| x.status_code.to_string())
-                .unwrap_or("ERR".into()),
-            r.as_ref()
-                .map(|x| x.status_code.to_string())
-                .unwrap_or("ERR".into()),
-        );
-        let match_cell = if let (Some(mv), Some(rv)) = (m, r) {
-            if mv.status_code == rv.status_code {
-                "✅"
-            } else {
-                "❌"
-            }
-        } else {
-            "❌"
-        };
-        html.push_str(&format!(
-            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
-            ep, ms, rs, match_cell
-        ));
-    }
-    html.push_str("</table></body></html>");
-    std::fs::write(&file, html).map_err(|e| e.to_string())?;
-    println!("📄 Reporte HTML: {}", file.display());
-    Ok(())
-}
+    for (ep,m,r) in rows { let (ms, rs) = (m.as_ref().map(|x| x.status_code.to_string()).unwrap_or("ERR".into()), r.as_ref().map(|x| x.status_code.to_string()).unwrap_or("ERR".into())); let match_cell = if let (Some(mv), Some(rv)) = (m,r) { if mv.status_code == rv.status_code {"✅"} else {"❌"} } else {"❌"}; html.push_str(&format!("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>", ep, ms, rs, match_cell)); }
+    html.push_str("</table></body></html>"); tokio::fs::write(&file, html).await.map_err(|e| e.to_string())?; println!("📄 Reporte HTML: {}", file.display()); Ok(()) }
 
 async fn start_mock_from_contract_spec(contract: &Contract, port: u16) -> Result<(), String> {
     use apicentric::adapters::mock_server::{MockApiSpec, MockEndpoint};
