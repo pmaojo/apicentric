@@ -37,11 +37,12 @@ pub async fn register(Extension(state): Extension<Arc<AuthState>>, Json(payload)
     if payload.username.trim().is_empty() || payload.password.len() < 6 {
         return Err((StatusCode::BAD_REQUEST, "Invalid username or password (min length 6)".into()));
     }
-    if let Ok(Some(_existing)) = state.repo.find_by_username(&payload.username) {
+    if let Ok(Some(_existing)) = state.repo.find_by_username(payload.username.clone()).await {
         return Err((StatusCode::CONFLICT, "Username already exists".into()));
     }
     let hash = hash_password(&payload.password).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    state.repo.create_user(&payload.username, &hash).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    state.repo.create_user(payload.username.clone(), hash).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let token = generate_token(&payload.username, &state.keys, 24).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(AuthResponse { token }))
 }
@@ -58,7 +59,7 @@ pub async fn register(Extension(state): Extension<Arc<AuthState>>, Json(payload)
 /// A `Result` containing an `AuthResponse` if the login was successful, or a
 /// rejection otherwise.
 pub async fn login(Extension(state): Extension<Arc<AuthState>>, Json(payload): Json<LoginRequest>) -> Result<Json<AuthResponse>, (StatusCode, String)> {
-    let user = state.repo.find_by_username(&payload.username).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let user = state.repo.find_by_username(payload.username.clone()).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let Some(user) = user else { return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".into())); };
     let ok = verify_password(&user.password_hash, &payload.password).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     if !ok { return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".into())); }
