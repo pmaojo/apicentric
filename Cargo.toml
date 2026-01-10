@@ -62,7 +62,10 @@ no-p2p = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "
 [dependencies]
 indexmap = "2.12.0"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Core Dependencies (Shared across Native and WASI)
+# These are included for both standard native targets and WASI targets (e.g. wasm32-wasi)
+# but EXCLUDED for browser WASM (wasm32-unknown-unknown).
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 # Core CLI dependencies
 anyhow = "1.0.99"
 clap = { version = "4.4.8", features = ["derive"] }
@@ -98,17 +101,7 @@ tower-http = { version = "0.5", default-features = false, features = ["cors", "f
 argon2 = "0.5"
 jsonwebtoken = "9.2"
 
-# WebSocket support (optional)
-tokio-tungstenite = { version = "0.21", optional = true }
-
-# P2P networking support (optional, heavy)
-libp2p = { version = "0.55", optional = true, features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "request-response", "tokio", "quic", "macros"] }
-automerge = { version = "0.5", optional = true }
-
-# JavaScript runtime for scripting (optional, heavy)
-deno_core = { version = "0.272.0", optional = true }
-
-# GraphQL support (optional)
+# GraphQL support
 async-graphql = { version = "7.0", optional = true }
 async-graphql-parser = { version = "7.0", optional = true }
 
@@ -116,7 +109,7 @@ async-graphql-parser = { version = "7.0", optional = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
-# Template engine (lightweight)
+# Template engine
 handlebars = "6.2.0"
 
 # TLS support
@@ -125,39 +118,53 @@ rustls = { version = "0.23.19", default-features = false, features = ["std", "tl
 # OpenAPI support
 openapiv3 = "2.0"
 
-# HTTP client for contract testing (optional)
+# HTTP client
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
 async-trait = { version = "0.1.74", optional = true }
 
-# Database (optional)
-rusqlite = { version = "0.31", default-features = false, features = ["bundled"], optional = true }
-
-# Plugin system (basic)
-libloading = "0.8"
-
-# Terminal UI dependencies (optional)
-indicatif = { version = "0.17.7", default-features = false, optional = true }
-console = { version = "0.15.7", default-features = false, optional = true }
-inquire = { version = "0.6", default-features = false, features = ["crossterm"], optional = true }
-ratatui = { version = "0.26.0", default-features = false, features = ["crossterm"], optional = true }
-crossterm = { version = "0.27", default-features = false, optional = true }
-
-# Colored output (lightweight, always included)
+# Colored output
 colored = "2.1.0"
 
 # Mock data generation (optional)
 fake = { version = "4.4.0", default-features = false, features = ["derive"], optional = true }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"], optional = true }
 
-# File watching (optional)
+# MCP
+rmcp = { version = "0.8.5", features = ["server"], optional = true }
+
+
+# Native Only Dependencies
+# These are strictly excluded for ALL wasm32 targets (including WASI).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# WebSocket support (optional)
+tokio-tungstenite = { version = "0.21", optional = true }
+
+# P2P networking support (heavy)
+libp2p = { version = "0.55", optional = true, features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "request-response", "tokio", "quic", "macros"] }
+automerge = { version = "0.5", optional = true }
+
+# JavaScript runtime for scripting (heavy, native only)
+deno_core = { version = "0.272.0", optional = true }
+
+# Database (Native only for now, can potentially work on WASI with bundled sqlite)
+rusqlite = { version = "0.31", default-features = false, features = ["bundled"], optional = true }
+
+# Plugin system (Native only)
+libloading = "0.8"
+
+# Terminal UI dependencies (Native only usually)
+indicatif = { version = "0.17.7", default-features = false, optional = true }
+console = { version = "0.15.7", default-features = false, optional = true }
+inquire = { version = "0.6", default-features = false, features = ["crossterm"], optional = true }
+ratatui = { version = "0.26.0", default-features = false, features = ["crossterm"], optional = true }
+crossterm = { version = "0.27", default-features = false, optional = true }
+
+# File watching (Native only)
 notify = { version = "8.2.0", optional = true }
 
-# GUI dependencies (optional)
+# GUI dependencies (Native only)
 eframe = { version = "0.33.0", optional = true }
 egui = { version = "0.33.0", optional = true }
-
-# MCP: Model Context Protocol (optional)
-rmcp = { version = "0.8.5", features = ["server"], optional = true }
 
 [dev-dependencies]
 assert_cmd = "2.0"
