@@ -3,6 +3,7 @@
 //! This module handles AI-powered service definition generation for the GUI.
 
 #![cfg(feature = "gui")]
+#![allow(unused_imports)]
 
 pub mod generator;
 

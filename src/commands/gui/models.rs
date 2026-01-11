@@ -2,6 +2,8 @@
 //!
 //! This module contains all the data structures used by the GUI.
 
+#![allow(unused_imports)]
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::SystemTime;

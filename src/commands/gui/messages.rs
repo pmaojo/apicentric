@@ -8,48 +8,49 @@ use super::models::ServiceInfo;
 
 /// Messages sent from the GUI to the event handler (User Actions)
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum GuiMessage {
     // Service Management
     StartService(String),
     StopService(String),
     RefreshServices,
-    _ServiceStatusChanged(String, super::models::ServiceStatus),
+    ServiceStatusChanged(String, super::models::ServiceStatus),
 
     // AI Generation
     AiGenerate(String),
-    _AiGenerationComplete(Result<String, String>),
-    _AiApplyYaml(String),
+    AiGenerationComplete(Result<String, String>),
+    AiApplyYaml(String),
 
     // Recording Mode
-    _StartRecording(String),
-    _StopRecording,
-    _CaptureRequest(CapturedRequest),
-    _GenerateFromRecording,
+    StartRecording(String),
+    StopRecording,
+    CaptureRequest(CapturedRequest),
+    GenerateFromRecording,
 
     // Editor
-    _LoadServiceInEditor(String),
-    _SaveEditorContent,
-    _EditorContentChanged(String),
+    LoadServiceInEditor(String),
+    SaveEditorContent,
+    EditorContentChanged(String),
 
     // Logs
-    _NewRequestLog(super::models::RequestLogEntry),
-    _ClearLogs,
-    _FilterLogsBy(super::models::LogFilter),
+    NewRequestLog(super::models::RequestLogEntry),
+    ClearLogs,
+    FilterLogsBy(super::models::LogFilter),
 
     // Import/Export
-    _ImportFile(PathBuf),
-    _ExportService(String, ExportFormat),
-    _BatchImport(Vec<PathBuf>),
+    ImportFile(PathBuf),
+    ExportService(String, ExportFormat),
+    BatchImport(Vec<PathBuf>),
 
     // Code Generation
-    _GenerateCode(String, CodeGenTarget),
-    _CopyToClipboard(String),
-    _SaveGeneratedCode(PathBuf, String),
+    GenerateCode(String, CodeGenTarget),
+    CopyToClipboard(String),
+    SaveGeneratedCode(PathBuf, String),
 
     // Configuration
-    _UpdateConfig(super::models::GuiConfig),
-    _SaveConfig,
-    _LoadConfig,
+    UpdateConfig(super::models::GuiConfig),
+    SaveConfig,
+    LoadConfig,
 }
 
 /// Events sent from background tasks to the GUI (System Events)
@@ -74,18 +75,20 @@ pub struct CapturedRequest {
 
 /// Export format options
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum ExportFormat {
-    _Yaml,
-    _Json,
-    _Postman,
+    Yaml,
+    Json,
+    Postman,
 }
 
 /// Code generation target options
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum CodeGenTarget {
-    _TypeScript,
-    _JavaScript,
-    _Python,
-    _Go,
-    _Rust,
+    TypeScript,
+    JavaScript,
+    Python,
+    Go,
+    Rust,
 }

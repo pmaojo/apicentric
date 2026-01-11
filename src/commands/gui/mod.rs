@@ -1,6 +1,8 @@
 // The GUI submodules are optional and only compiled when the `gui` feature is enabled.
 // This keeps the GUI code out of builds that don't opt-in to the feature (similar to `p2p`).
 
+#![allow(unused_imports)]
+
 #[cfg(feature = "gui")]
 use std::sync::Arc;
 
