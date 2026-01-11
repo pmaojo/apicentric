@@ -1,5 +1,5 @@
 //! Rendering functions for TUI panels
-//! 
+//!
 //! This module is only available when the `tui` feature is enabled.
 
 #![cfg(feature = "tui")]
@@ -33,7 +33,12 @@ fn calculate_dialog_area(f: &Frame, width: u16, height: u16) -> Rect {
 /// Helper function to create a styled action line
 fn create_action_line<'a>(key: &'a str, description: &'a str) -> Line<'a> {
     Line::from(vec![
-        Span::styled(key, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            key,
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(description),
     ])
 }
@@ -63,7 +68,10 @@ pub fn render_service_list(f: &mut Frame, area: Rect, state: &ServiceListState, 
             };
 
             let mut spans = Vec::with_capacity(3);
-            spans.push(Span::styled(indicator, Style::default().fg(indicator_color)));
+            spans.push(Span::styled(
+                indicator,
+                Style::default().fg(indicator_color),
+            ));
             spans.push(Span::styled(
                 format!(" {} :{}", service.name, service.port),
                 style,
@@ -140,13 +148,12 @@ pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState, is_focuse
 
             // Format the log line
             let line = Line::from(vec![
-                Span::styled(
-                    format!("{} ", timestamp),
-                    Style::default().fg(Color::Gray),
-                ),
+                Span::styled(format!("{} ", timestamp), Style::default().fg(Color::Gray)),
                 Span::styled(
                     format!("{:6} ", entry.method),
-                    Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     format!("{:30} ", entry.path),
@@ -154,7 +161,9 @@ pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState, is_focuse
                 ),
                 Span::styled(
                     format!("→ {}", entry.status),
-                    Style::default().fg(status_color).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(status_color)
+                        .add_modifier(Modifier::BOLD),
                 ),
             ]);
 
@@ -193,10 +202,7 @@ pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState, is_focuse
 
 /// Render the filter dialog
 pub fn render_filter_dialog(f: &mut Frame, state: &TuiAppState) {
-    use ratatui::{
-        layout::Alignment,
-        widgets::{Clear},
-    };
+    use ratatui::{layout::Alignment, widgets::Clear};
 
     let dialog_area = calculate_dialog_area(f, 60, 7);
 
@@ -242,10 +248,7 @@ pub fn render_filter_dialog(f: &mut Frame, state: &TuiAppState) {
 
 /// Render the search dialog
 pub fn render_search_dialog(f: &mut Frame, state: &TuiAppState) {
-    use ratatui::{
-        layout::Alignment,
-        widgets::{Clear},
-    };
+    use ratatui::{layout::Alignment, widgets::Clear};
 
     let dialog_area = calculate_dialog_area(f, 50, 6);
 
@@ -282,10 +285,7 @@ pub fn render_search_dialog(f: &mut Frame, state: &TuiAppState) {
 
 /// Render the help dialog
 pub fn render_help_dialog(f: &mut Frame) {
-    use ratatui::{
-        layout::Alignment,
-        widgets::{Clear},
-    };
+    use ratatui::{layout::Alignment, widgets::Clear};
 
     let dialog_area = calculate_dialog_area(f, 60, 18);
 
@@ -295,16 +295,22 @@ pub fn render_help_dialog(f: &mut Frame) {
     // Create help content
     let lines = vec![
         Line::from(""),
-        Line::from(vec![
-            Span::styled("Navigation", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Navigation",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from("  ↑/↓       Navigate focused panel"),
         Line::from("  PgUp/PgDn Scroll logs"),
         Line::from("  Tab       Switch panel focus"),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("Actions", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Actions",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from("  Enter     Start/Stop service"),
         Line::from("  f         Open filter dialog"),
         Line::from("  r         Refresh status"),
@@ -312,9 +318,12 @@ pub fn render_help_dialog(f: &mut Frame) {
         Line::from("  s         Save logs to file"),
         Line::from("  /         Search logs"),
         Line::from(""),
-        Line::from(vec![
-            Span::styled("Other", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Other",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
         Line::from("  ?         Show this help"),
         Line::from("  q         Quit"),
         Line::from(""),
@@ -359,7 +368,12 @@ pub fn render_actions_panel_with_metrics(
     // Show filter status if active
     if state.logs.filter.is_active() {
         lines.push(Line::from(vec![
-            Span::styled("Filter: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Filter: ",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(
                 state.logs.filter.description(),
                 Style::default().fg(Color::White),
@@ -395,13 +409,24 @@ pub fn render_actions_panel_with_metrics(
     // Show performance metrics if available
     if let (Some(avg), Some(max)) = (avg_input_latency, max_input_latency) {
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled("Performance", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "Performance",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]));
         let avg_ms = avg.as_millis();
         let max_ms = max.as_millis();
-        let avg_color = if avg_ms < 100 { Color::Green } else { Color::Yellow };
-        let max_color = if max_ms < 100 { Color::Green } else { Color::Red };
+        let avg_color = if avg_ms < 100 {
+            Color::Green
+        } else {
+            Color::Yellow
+        };
+        let max_color = if max_ms < 100 {
+            Color::Green
+        } else {
+            Color::Red
+        };
         lines.push(Line::from(vec![
             Span::raw("Avg latency: "),
             Span::styled(format!("{}ms", avg_ms), Style::default().fg(avg_color)),

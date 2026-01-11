@@ -18,21 +18,19 @@ use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, util::Subscrib
 /// - APICENTRIC_LOG_FORMAT environment variable ("json" or "pretty")
 /// - Default level is INFO for production, DEBUG for development
 pub fn init() {
-    let filter = EnvFilter::try_from_env("RUST_LOG")
-        .unwrap_or_else(|_| {
-            // Default filter: info level, debug for development
-            if cfg!(debug_assertions) {
-                EnvFilter::new("apicentric=debug,simulator=info,domain=info")
-            } else {
-                EnvFilter::new("apicentric=info,simulator=warn,domain=warn")
-            }
-        });
+    let filter = EnvFilter::try_from_env("RUST_LOG").unwrap_or_else(|_| {
+        // Default filter: info level, debug for development
+        if cfg!(debug_assertions) {
+            EnvFilter::new("apicentric=debug,simulator=info,domain=info")
+        } else {
+            EnvFilter::new("apicentric=info,simulator=warn,domain=warn")
+        }
+    });
 
     let registry = tracing_subscriber::registry().with(filter);
 
     // Choose output format based on environment
-    let format = env::var("APICENTRIC_LOG_FORMAT")
-        .unwrap_or_else(|_| "pretty".to_string());
+    let format = env::var("APICENTRIC_LOG_FORMAT").unwrap_or_else(|_| "pretty".to_string());
 
     match format.as_str() {
         "json" => {

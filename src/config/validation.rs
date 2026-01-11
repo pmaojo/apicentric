@@ -24,7 +24,9 @@ impl ConfigValidator for AiConfig {
             }
             AiProviderKind::Gemini => {
                 // Gemini can use GEMINI_API_KEY from environment or ai.api_key from config
-                if self.api_key.as_deref().unwrap_or("").is_empty() && std::env::var("GEMINI_API_KEY").is_err() {
+                if self.api_key.as_deref().unwrap_or("").is_empty()
+                    && std::env::var("GEMINI_API_KEY").is_err()
+                {
                     errors.push(ValidationError::new(
                         "ai.api_key",
                         "api_key is required for gemini provider (or set GEMINI_API_KEY environment variable)",
@@ -32,29 +34,37 @@ impl ConfigValidator for AiConfig {
                 }
             }
         }
-        if errors.is_empty() { Ok(()) } else { Err(errors) }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 }
 
 impl ConfigValidator for ApicentricConfig {
     fn validate(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
-        
+
         // Validate AI config if present
         if let Some(ref ai) = self.ai {
             if let Err(mut ai_errors) = ai.validate() {
                 errors.append(&mut ai_errors);
             }
         }
-        
+
         // Validate simulator config if present
         if let Some(ref simulator) = self.simulator {
             if let Err(mut simulator_errors) = simulator.validate() {
                 errors.append(&mut simulator_errors);
             }
         }
-        
-        if errors.is_empty() { Ok(()) } else { Err(errors) }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 }
 
@@ -84,4 +94,3 @@ mod tests {
         assert!(config.validate().is_err());
     }
 }
-

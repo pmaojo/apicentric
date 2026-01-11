@@ -119,14 +119,20 @@ impl fmt::Display for ApicentricError {
                 }
             }
             Self::Runtime { message, .. } => write!(f, "Runtime error: {}", message),
-            Self::Service { message, service_name, .. } => {
+            Self::Service {
+                message,
+                service_name,
+                ..
+            } => {
                 if let Some(name) = service_name {
                     write!(f, "Service error for '{}': {}", name, message)
                 } else {
                     write!(f, "Service error: {}", message)
                 }
             }
-            Self::Ai { message, provider, .. } => {
+            Self::Ai {
+                message, provider, ..
+            } => {
                 if let Some(provider) = provider {
                     write!(f, "AI error ({}): {}", provider, message)
                 } else {
@@ -333,7 +339,10 @@ impl ApicentricError {
     /// # Returns
     ///
     /// A new `ApicentricError` instance.
-    pub fn recording_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
+    pub fn recording_error(
+        message: impl Into<String>,
+        suggestion: Option<impl Into<String>>,
+    ) -> Self {
         Self::Recording {
             message: message.into(),
             suggestion: suggestion.map(|s| s.into()),
@@ -390,7 +399,10 @@ impl ApicentricError {
     /// # Returns
     ///
     /// A new `ApicentricError` instance.
-    pub fn database_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
+    pub fn database_error(
+        message: impl Into<String>,
+        suggestion: Option<impl Into<String>>,
+    ) -> Self {
         Self::Database {
             message: message.into(),
             suggestion: suggestion.map(|s| s.into()),
@@ -717,9 +729,15 @@ mod tests {
 
     #[test]
     fn test_error_creation() {
-        let error = ApicentricError::config_error("Invalid config", Some("Check your apicentric.json file"));
+        let error = ApicentricError::config_error(
+            "Invalid config",
+            Some("Check your apicentric.json file"),
+        );
         assert!(error.suggestion().is_some());
-        assert_eq!(error.suggestion().unwrap(), "Check your apicentric.json file");
+        assert_eq!(
+            error.suggestion().unwrap(),
+            "Check your apicentric.json file"
+        );
     }
 
     #[test]
@@ -765,7 +783,10 @@ mod tests {
     #[test]
     fn test_all_error_types() {
         let config_error = ApicentricError::config_error("Config issue", None::<String>);
-        assert!(matches!(config_error, ApicentricError::Configuration { .. }));
+        assert!(matches!(
+            config_error,
+            ApicentricError::Configuration { .. }
+        ));
 
         let server_error = ApicentricError::server_error("Server issue", Some("Restart server"));
         assert!(matches!(server_error, ApicentricError::Server { .. }));
@@ -779,7 +800,10 @@ mod tests {
 
         let validation_error =
             ApicentricError::validation_error("Invalid", Some("field"), Some("Fix it"));
-        assert!(matches!(validation_error, ApicentricError::Validation { .. }));
+        assert!(matches!(
+            validation_error,
+            ApicentricError::Validation { .. }
+        ));
         assert_eq!(validation_error.field().unwrap(), "field");
     }
 
@@ -837,7 +861,8 @@ mod tests {
         assert_eq!(error.suggestion().unwrap(), "Test suggestion");
         assert_eq!(error.field().unwrap(), "test_field");
 
-        let io_error: ApicentricError = std::io::Error::new(std::io::ErrorKind::NotFound, "test").into();
+        let io_error: ApicentricError =
+            std::io::Error::new(std::io::ErrorKind::NotFound, "test").into();
         assert!(io_error.suggestion().is_none());
         assert!(io_error.field().is_none());
     }

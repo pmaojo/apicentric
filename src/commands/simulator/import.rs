@@ -8,7 +8,10 @@ pub async fn handle_import(
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
-        println!("🏃 Dry run: Would auto-detect and import '{}' into service '{}'", input, output);
+        println!(
+            "🏃 Dry run: Would auto-detect and import '{}' into service '{}'",
+            input, output
+        );
         return Ok(());
     }
 
@@ -38,7 +41,9 @@ pub async fn handle_import(
         }
     }
 
-    println!("Could not detect specific JSON format, attempting to parse as OpenAPI (YAML/JSON)...");
+    println!(
+        "Could not detect specific JSON format, attempting to parse as OpenAPI (YAML/JSON)..."
+    );
     import_openapi(&content, output).await
 }
 
@@ -47,7 +52,10 @@ fn is_openapi(value: &JsonValue) -> bool {
 }
 
 fn is_postman(value: &JsonValue) -> bool {
-    value.get("info").and_then(|i| i.get("_postman_id")).is_some()
+    value
+        .get("info")
+        .and_then(|i| i.get("_postman_id"))
+        .is_some()
 }
 
 fn is_wiremock(value: &JsonValue) -> bool {
@@ -67,23 +75,47 @@ fn is_mockoon(value: &JsonValue) -> bool {
 }
 
 async fn import_openapi(content: &str, output: &str) -> ApicentricResult<()> {
-    let spec: YamlValue = serde_yaml::from_str(content).map_err(|e| ApicentricError::validation_error(e.to_string(), Option::<String>::None, Option::<String>::None))?;
+    let spec: YamlValue = serde_yaml::from_str(content).map_err(|e| {
+        ApicentricError::validation_error(
+            e.to_string(),
+            Option::<String>::None,
+            Option::<String>::None,
+        )
+    })?;
     let service = apicentric::simulator::openapi::from_openapi(&spec);
     write_service_file(service, output, "OpenAPI")
 }
 
 async fn import_postman_from_json(value: &JsonValue, output: &str) -> ApicentricResult<()> {
-    let service = apicentric::simulator::postman::from_json(value).map_err(|e| ApicentricError::validation_error(e.to_string(), Option::<String>::None, Option::<String>::None))?;
+    let service = apicentric::simulator::postman::from_json(value).map_err(|e| {
+        ApicentricError::validation_error(
+            e.to_string(),
+            Option::<String>::None,
+            Option::<String>::None,
+        )
+    })?;
     write_service_file(service, output, "Postman")
 }
 
 async fn import_wiremock_from_json(value: &JsonValue, output: &str) -> ApicentricResult<()> {
-    let service = apicentric::simulator::wiremock::from_json(value).map_err(|e| ApicentricError::validation_error(e.to_string(), Option::<String>::None, Option::<String>::None))?;
+    let service = apicentric::simulator::wiremock::from_json(value).map_err(|e| {
+        ApicentricError::validation_error(
+            e.to_string(),
+            Option::<String>::None,
+            Option::<String>::None,
+        )
+    })?;
     write_service_file(service, output, "WireMock")
 }
 
 async fn import_mockoon_from_json(value: &JsonValue, output: &str) -> ApicentricResult<()> {
-    let service = apicentric::simulator::mockoon::from_json(value).map_err(|e| ApicentricError::validation_error(e.to_string(), Option::<String>::None, Option::<String>::None))?;
+    let service = apicentric::simulator::mockoon::from_json(value).map_err(|e| {
+        ApicentricError::validation_error(
+            e.to_string(),
+            Option::<String>::None,
+            Option::<String>::None,
+        )
+    })?;
     write_service_file(service, output, "Mockoon")
 }
 
@@ -92,7 +124,8 @@ fn write_service_file(
     output: &str,
     format_name: &str,
 ) -> ApicentricResult<()> {
-    let yaml = serde_yaml::to_string(&service).map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
+    let yaml = serde_yaml::to_string(&service)
+        .map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
     std::fs::write(output, yaml)?;
     println!("✅ Imported {} file to {}", format_name, output);
     Ok(())

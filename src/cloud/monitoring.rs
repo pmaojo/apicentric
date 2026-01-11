@@ -1,9 +1,9 @@
 //! Monitoring and observability utilities for the cloud server.
 
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
 
 /// Application metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -199,7 +199,10 @@ impl StructuredLog {
     /// Logs the entry
     pub fn log(&self) {
         let json = serde_json::to_string(self).unwrap_or_else(|_| {
-            format!("{{\"level\":\"{}\",\"message\":\"{}\"}}", self.level, self.message)
+            format!(
+                "{{\"level\":\"{}\",\"message\":\"{}\"}}",
+                self.level, self.message
+            )
         });
 
         match self.level.as_str() {
@@ -235,9 +238,15 @@ mod tests {
         let collector = MetricsCollector::new();
 
         // Record some requests
-        collector.record_request(Duration::from_millis(100), 200).await;
-        collector.record_request(Duration::from_millis(200), 200).await;
-        collector.record_request(Duration::from_millis(150), 500).await;
+        collector
+            .record_request(Duration::from_millis(100), 200)
+            .await;
+        collector
+            .record_request(Duration::from_millis(200), 200)
+            .await;
+        collector
+            .record_request(Duration::from_millis(150), 500)
+            .await;
 
         let metrics = collector.get_metrics().await;
         assert_eq!(metrics.total_requests, 3);

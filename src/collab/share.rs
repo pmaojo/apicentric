@@ -9,25 +9,30 @@
 use std::{collections::HashMap, error::Error, sync::Arc};
 
 use bytes::Bytes;
-use libp2p::futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
-use hyper::{Request, Response};
+use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
-use http_body_util::{Full, BodyExt};
-use hyper_util::{client::legacy::{connect::HttpConnector, Client}, rt::TokioExecutor};
+use hyper::server::conn::http1;
+use hyper::service::service_fn;
+use hyper::{Request, Response};
+use hyper_util::rt::TokioIo;
+use hyper_util::{
+    client::legacy::{connect::HttpConnector, Client},
+    rt::TokioExecutor,
+};
+use libp2p::futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
+use libp2p::swarm::NetworkBehaviour;
 use libp2p::{
-    identity,
-    mdns,
+    identity, mdns,
     request_response::{self, Codec, OutboundRequestId, ProtocolSupport},
     swarm::SwarmEvent,
     PeerId, SwarmBuilder,
 };
-use libp2p::swarm::NetworkBehaviour;
 use serde::{Deserialize, Serialize};
-use tokio::{net::TcpListener, sync::{mpsc, oneshot, RwLock}};
-use hyper::server::conn::http1;
-use hyper::service::service_fn;
-use hyper_util::rt::TokioIo;
 use std::convert::Infallible;
+use tokio::{
+    net::TcpListener,
+    sync::{mpsc, oneshot, RwLock},
+};
 
 /// A message representing an HTTP request sent over libp2p.
 #[derive(Debug, Serialize, Deserialize)]
@@ -176,9 +181,15 @@ pub async fn share_service(port: u16) -> Result<(PeerId, String), Box<dyn Error>
         loop {
             match swarm.select_next_some().await {
                 SwarmEvent::Behaviour(ShareBehaviourEvent::RequestResponse(ev)) => match ev {
-                    request_response::Event::Message { peer: _, message, .. } => {
-                        if let request_response::Message::Request { request, channel, .. } = message {
-                            if let Ok(req_msg) = serde_json::from_slice::<HttpRequestMsg>(&request) {
+                    request_response::Event::Message {
+                        peer: _, message, ..
+                    } => {
+                        if let request_response::Message::Request {
+                            request, channel, ..
+                        } = message
+                        {
+                            if let Ok(req_msg) = serde_json::from_slice::<HttpRequestMsg>(&request)
+                            {
                                 if req_msg.token != token_clone {
                                     let _ = swarm
                                         .behaviour_mut()
@@ -186,15 +197,10 @@ pub async fn share_service(port: u16) -> Result<(PeerId, String), Box<dyn Error>
                                         .send_response(channel, Bytes::new());
                                     continue;
                                 }
-                                let method = req_msg
-                                    .method
-                                    .parse()
-                                    .unwrap_or(hyper::Method::GET);
-                                let mut builder =
-                                    Request::builder().method(method).uri(format!(
-                                        "http://127.0.0.1:{}{}",
-                                        port, req_msg.path
-                                    ));
+                                let method = req_msg.method.parse().unwrap_or(hyper::Method::GET);
+                                let mut builder = Request::builder()
+                                    .method(method)
+                                    .uri(format!("http://127.0.0.1:{}{}", port, req_msg.path));
                                 for (k, v) in req_msg.headers {
                                     builder = builder.header(&k, v);
                                 }
@@ -221,7 +227,11 @@ pub async fn share_service(port: u16) -> Result<(PeerId, String), Box<dyn Error>
                                             .unwrap_or_default()
                                             .to_bytes()
                                             .to_vec();
-                                        HttpResponseMsg { status, headers, body }
+                                        HttpResponseMsg {
+                                            status,
+                                            headers,
+                                            body,
+                                        }
                                     }
                                     Err(_) => HttpResponseMsg {
                                         status: 500,
@@ -360,7 +370,9 @@ pub async fn connect_service(
                                 let headers = parts
                                     .headers
                                     .iter()
-                                    .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or_default().to_string()))
+                                    .map(|(k, v)| {
+                                        (k.to_string(), v.to_str().unwrap_or_default().to_string())
+                                    })
                                     .collect();
                                 let msg = HttpRequestMsg {
                                     token: token.clone(),
@@ -369,12 +381,16 @@ pub async fn connect_service(
                                     headers,
                                     body,
                                 };
-                                let data = Bytes::from(serde_json::to_vec(&msg).expect("serialize"));
+                                let data =
+                                    Bytes::from(serde_json::to_vec(&msg).expect("serialize"));
                                 let (resp_tx, resp_rx) = oneshot::channel();
                                 tx.send((data, resp_tx)).expect("send req");
                                 if let Ok(resp_data) = resp_rx.await {
-                                    if let Ok(resp_msg) = serde_json::from_slice::<HttpResponseMsg>(&resp_data) {
-                                        let mut builder = Response::builder().status(resp_msg.status);
+                                    if let Ok(resp_msg) =
+                                        serde_json::from_slice::<HttpResponseMsg>(&resp_data)
+                                    {
+                                        let mut builder =
+                                            Response::builder().status(resp_msg.status);
                                         for (k, v) in resp_msg.headers {
                                             builder = builder.header(&k, v);
                                         }
@@ -383,8 +399,10 @@ pub async fn connect_service(
                                         return Ok::<_, Infallible>(resp);
                                     }
                                 }
-                                let resp =
-                                    Response::builder().status(500).body(Full::from(Vec::new())).unwrap();
+                                let resp = Response::builder()
+                                    .status(500)
+                                    .body(Full::from(Vec::new()))
+                                    .unwrap();
                                 Ok::<_, Infallible>(resp)
                             }
                         }),

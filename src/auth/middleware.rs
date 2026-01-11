@@ -3,16 +3,16 @@
 //! This module provides middleware for validating JWT tokens on protected
 //! endpoints with optional authentication based on configuration.
 
+use crate::auth::{handlers::AuthState, jwt::validate_token};
 use axum::{
     extract::Request,
-    http::{StatusCode, header},
+    http::{header, StatusCode},
     middleware::Next,
-    response::{Response, IntoResponse},
+    response::{IntoResponse, Response},
     Json,
 };
-use std::sync::Arc;
 use serde_json::json;
-use crate::auth::{jwt::validate_token, handlers::AuthState};
+use std::sync::Arc;
 
 /// Error response for authentication failures.
 #[derive(serde::Serialize)]
@@ -28,8 +28,9 @@ impl IntoResponse for AuthError {
             Json(json!({
                 "error": self.error,
                 "code": self.code
-            }))
-        ).into_response()
+            })),
+        )
+            .into_response()
     }
 }
 
@@ -81,24 +82,26 @@ pub async fn require_auth(
     }
 
     // Validate token
-    let claims = validate_token(token, &auth_state.keys)
-        .map_err(|e| {
-            let (error, code) = match e.kind() {
-                jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
-                    ("Token has expired".to_string(), "TOKEN_EXPIRED".to_string())
-                }
-                jsonwebtoken::errors::ErrorKind::InvalidToken => {
-                    ("Invalid token format".to_string(), "INVALID_TOKEN".to_string())
-                }
-                jsonwebtoken::errors::ErrorKind::InvalidSignature => {
-                    ("Invalid token signature".to_string(), "INVALID_SIGNATURE".to_string())
-                }
-                _ => {
-                    ("Token validation failed".to_string(), "TOKEN_VALIDATION_FAILED".to_string())
-                }
-            };
-            AuthError { error, code }
-        })?;
+    let claims = validate_token(token, &auth_state.keys).map_err(|e| {
+        let (error, code) = match e.kind() {
+            jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
+                ("Token has expired".to_string(), "TOKEN_EXPIRED".to_string())
+            }
+            jsonwebtoken::errors::ErrorKind::InvalidToken => (
+                "Invalid token format".to_string(),
+                "INVALID_TOKEN".to_string(),
+            ),
+            jsonwebtoken::errors::ErrorKind::InvalidSignature => (
+                "Invalid token signature".to_string(),
+                "INVALID_SIGNATURE".to_string(),
+            ),
+            _ => (
+                "Token validation failed".to_string(),
+                "TOKEN_VALIDATION_FAILED".to_string(),
+            ),
+        };
+        AuthError { error, code }
+    })?;
 
     // Add claims to request extensions for downstream handlers
     request.extensions_mut().insert(claims);
@@ -138,7 +141,7 @@ pub async fn optional_auth(
 
 // Tests are commented out due to complexity with Axum test setup
 // The middleware is tested through integration tests instead
-// 
+//
 // #[cfg(test)]
 // mod tests {
 //     // Test implementation would go here

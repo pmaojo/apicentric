@@ -6,10 +6,13 @@ use async_trait::async_trait;
 use tokio::sync::{broadcast, mpsc, RwLock};
 
 #[cfg(feature = "p2p")]
-use crate::collab::{crdt::{ServiceCrdt, CrdtMessage}, p2p};
+use crate::collab::{
+    crdt::{CrdtMessage, ServiceCrdt},
+    p2p,
+};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
-    config::{ConfigLoader, SimulatorConfig, ServiceDefinition},
+    config::{ConfigLoader, ServiceDefinition, SimulatorConfig},
     log::RequestLogEntry,
     registry::ServiceRegistry,
     route_registry::RouteRegistry,
@@ -50,8 +53,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
         p2p_enabled: Arc<RwLock<bool>>,
         collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
-        #[cfg(feature = "p2p")]
-        crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
+        #[cfg(feature = "p2p")] crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
         log_sender: broadcast::Sender<RequestLogEntry>,
     ) -> Self {
         Self {
@@ -102,7 +104,7 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         // Register and start services
         let mut registry = self.service_registry.write().await;
         let mut router = self.route_registry.write().await;
-        
+
         #[cfg(feature = "p2p")]
         let mut crdts_map = self.crdts.write().await;
 
@@ -112,11 +114,11 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
             registry.register_service(service_def.clone()).await?;
             router.register_service(&service_name, &base_path);
-            
+
             #[cfg(feature = "p2p")]
             crdts_map.insert(service_name, ServiceCrdt::new(service_def));
         }
-        
+
         #[cfg(feature = "p2p")]
         drop(crdts_map);
 
@@ -191,7 +193,9 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
                                 if let Some(doc) = map.get(&msg.name) {
                                     let service = doc.to_service();
                                     drop(map);
-                                    if let Err(err) = manager_clone.apply_remote_service(service).await {
+                                    if let Err(err) =
+                                        manager_clone.apply_remote_service(service).await
+                                    {
                                         eprintln!("Failed to apply remote update: {}", err);
                                     }
                                 }
@@ -294,7 +298,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
                 crdts_map.insert(service_name, ServiceCrdt::new(service_def));
             }
         }
-        
+
         for service_def in services {
             let service_name = service_def.name.clone();
             let base_path = service_def.server.base_path.clone();
@@ -306,4 +310,3 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         Ok(())
     }
 }
-

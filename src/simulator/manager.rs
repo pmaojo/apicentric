@@ -6,7 +6,7 @@ use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     admin_server::AdminServer,
     config::{ConfigLoader, ServiceDefinition, SimulatorConfig},
-    lifecycle::{SimulatorLifecycle, Lifecycle},
+    lifecycle::{Lifecycle, SimulatorLifecycle},
     log::RequestLogEntry,
     recording_proxy::{ProxyRecorder, RecordingProxy},
     registry::ServiceRegistry,
@@ -149,9 +149,14 @@ impl ApiSimulatorManager {
 
     /// Apply a service definition and update CRDT state.
     #[cfg(feature = "p2p")]
-    pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> ApicentricResult<()> {
+    pub async fn apply_service_definition(
+        &self,
+        service_def: ServiceDefinition,
+    ) -> ApicentricResult<()> {
         let service_name = service_def.name.clone();
-        self.lifecycle.apply_remote_service(service_def.clone()).await?;
+        self.lifecycle
+            .apply_remote_service(service_def.clone())
+            .await?;
         {
             let mut crdts = self.crdts.write().await;
             if let Some(doc) = crdts.get_mut(&service_name) {
@@ -178,7 +183,10 @@ impl ApiSimulatorManager {
 
     /// Apply a service definition (P2P feature disabled)
     #[cfg(not(feature = "p2p"))]
-    pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> ApicentricResult<()> {
+    pub async fn apply_service_definition(
+        &self,
+        service_def: ServiceDefinition,
+    ) -> ApicentricResult<()> {
         self.lifecycle.apply_remote_service(service_def).await
     }
 
@@ -264,17 +272,17 @@ impl ApiSimulatorManager {
     /// Start a specific service by name
     pub async fn start_service(&self, service_name: &str) -> ApicentricResult<()> {
         let registry = self.service_registry.read().await;
-        
+
         if let Some(service_arc) = registry.get_service(service_name) {
             let mut service = service_arc.write().await;
-            
+
             if service.is_running() {
                 return Err(ApicentricError::runtime_error(
                     format!("Service '{}' is already running", service_name),
-                    Some("Stop the service first or use --force to restart")
+                    Some("Stop the service first or use --force to restart"),
                 ));
             }
-            
+
             service.start().await?;
             info!(
                 target: "simulator",
@@ -300,7 +308,7 @@ impl ApiSimulatorManager {
             if !service.is_running() {
                 return Err(ApicentricError::runtime_error(
                     format!("Service '{}' is not running", service_name),
-                    Some("Start the service first with 'apicentric simulator start'")
+                    Some("Start the service first with 'apicentric simulator start'"),
                 ));
             }
 
@@ -329,4 +337,3 @@ impl ApiSimulatorManager {
         Ok(())
     }
 }
-

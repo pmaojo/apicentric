@@ -9,12 +9,12 @@ use crate::simulator::config::{EndpointDefinition, EndpointKind, ServiceDefiniti
 pub fn to_axios_client(service: &ServiceDefinition) -> Result<String> {
     let mut out = String::new();
     out.push_str("import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';\n\n");
-    
+
     // Generate the client class
     let class_name = format!("{}Client", capitalize(&service.name));
     out.push_str(&format!("export class {} {{\n", class_name));
     out.push_str("  private client: AxiosInstance;\n\n");
-    
+
     // Constructor
     out.push_str("  constructor(baseURL: string, config?: AxiosRequestConfig) {\n");
     out.push_str("    this.client = axios.create({\n");
@@ -22,7 +22,7 @@ pub fn to_axios_client(service: &ServiceDefinition) -> Result<String> {
     out.push_str("      ...config,\n");
     out.push_str("    });\n");
     out.push_str("  }\n\n");
-    
+
     // Generate methods for each endpoint
     for ep in &service.endpoints {
         if ep.kind != EndpointKind::Http {
@@ -31,9 +31,9 @@ pub fn to_axios_client(service: &ServiceDefinition) -> Result<String> {
         out.push_str(&generate_client_method(ep, &service.server.base_path));
         out.push('\n');
     }
-    
+
     out.push_str("}\n");
-    
+
     Ok(out)
 }
 
@@ -43,11 +43,14 @@ fn generate_client_method(ep: &EndpointDefinition, base_path: &str) -> String {
     let param_list = format_params(&params);
     let url = build_url(base_path, &ep.path, &params);
     let http_method = ep.method.to_lowercase();
-    
+
     let mut method = format!("  async {}({}): Promise<any> {{\n", method_name, param_list);
-    
+
     if http_method == "get" || http_method == "delete" {
-        method.push_str(&format!("    return this.client.{}(`{}`);\n", http_method, url));
+        method.push_str(&format!(
+            "    return this.client.{}(`{}`);\n",
+            http_method, url
+        ));
     } else {
         // POST, PUT, PATCH need a body parameter
         let body_param = if param_list.is_empty() {
@@ -55,10 +58,16 @@ fn generate_client_method(ep: &EndpointDefinition, base_path: &str) -> String {
         } else {
             ", data?: any".to_string()
         };
-        method = format!("  async {}({}{}): Promise<any> {{\n", method_name, param_list, body_param);
-        method.push_str(&format!("    return this.client.{}(`{}`, data);\n", http_method, url));
+        method = format!(
+            "  async {}({}{}): Promise<any> {{\n",
+            method_name, param_list, body_param
+        );
+        method.push_str(&format!(
+            "    return this.client.{}(`{}`, data);\n",
+            http_method, url
+        ));
     }
-    
+
     method.push_str("  }\n");
     method
 }
@@ -72,7 +81,7 @@ fn method_name(ep: &EndpointDefinition) -> String {
         .map(|s| s.trim_matches(|c| c == '{' || c == '}'))
         .map(capitalize)
         .collect::<String>();
-    
+
     let method = ep.method.to_lowercase();
     format!("{}{}", method, path_part)
 }

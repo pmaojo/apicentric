@@ -30,4 +30,3 @@ pub trait FsPort {
 pub trait ProcessPort {
     fn run(&self, cmd: &str, args: &[&str]) -> ApicentricResult<(i32, String, String)>;
 }
-

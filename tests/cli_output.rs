@@ -9,5 +9,7 @@ fn test_simulator_start_output() {
         .arg("start")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Dry run: Would start API simulator"));
+        .stdout(predicate::str::contains(
+            "Dry run: Would start API simulator",
+        ));
 }

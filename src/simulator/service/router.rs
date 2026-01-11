@@ -16,8 +16,8 @@ pub trait RequestRouter: Send + Sync {
 pub struct DefaultRouter;
 
 #[async_trait]
-    impl RequestRouter for DefaultRouter {
-        async fn route(&self, _req: Request<Full<Bytes>>) -> ApicentricResult<Response<Full<Bytes>>> {
+impl RequestRouter for DefaultRouter {
+    async fn route(&self, _req: Request<Full<Bytes>>) -> ApicentricResult<Response<Full<Bytes>>> {
         Ok(Response::builder()
             .status(StatusCode::OK)
             .body(Full::new(Bytes::from_static(b"")))
@@ -32,7 +32,10 @@ mod tests {
     #[tokio::test]
     async fn default_router_returns_ok() {
         let router = DefaultRouter;
-        let req = Request::builder().uri("/").body(Full::new(Bytes::new())).unwrap();
+        let req = Request::builder()
+            .uri("/")
+            .body(Full::new(Bytes::new()))
+            .unwrap();
         let resp = router.route(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
     }

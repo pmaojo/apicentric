@@ -1,18 +1,23 @@
+use reqwest::blocking::Client;
 use std::process::Command;
 use std::time::{Duration, Instant};
-use reqwest::blocking::Client;
 
 #[test]
 fn test_cloud_command_starts_server() {
     // Build the binary with the webui feature
     let mut build_cmd = Command::new("cargo");
     build_cmd.args(["build", "--features", "webui"]);
-    let build_status = build_cmd.status().expect("Failed to build apicentric binary");
+    let build_status = build_cmd
+        .status()
+        .expect("Failed to build apicentric binary");
     assert!(build_status.success(), "Failed to build apicentric binary");
 
     // Run the cloud command in the background
     let mut cmd = Command::new("target/debug/apicentric");
-    let mut child = cmd.arg("cloud").spawn().expect("Failed to start apicentric cloud");
+    let mut child = cmd
+        .arg("cloud")
+        .spawn()
+        .expect("Failed to start apicentric cloud");
 
     // Wait for the server to become available
     let client = Client::new();
@@ -35,5 +40,8 @@ fn test_cloud_command_starts_server() {
 
     // Assert that the server responded successfully
     let response = response.expect("Server did not become available within 30 seconds");
-    assert!(response.status().is_success(), "Health check endpoint did not return a success status");
+    assert!(
+        response.status().is_success(),
+        "Health check endpoint did not return a success status"
+    );
 }

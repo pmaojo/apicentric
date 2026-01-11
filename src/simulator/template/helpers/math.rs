@@ -119,8 +119,16 @@ pub fn eq_helper(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    let a = h.param(0).map(|p| p.value()).cloned().unwrap_or(Value::Null);
-    let b = h.param(1).map(|p| p.value()).cloned().unwrap_or(Value::Null);
+    let a = h
+        .param(0)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
+    let b = h
+        .param(1)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
     out.write(if a == b { "true" } else { "false" })?;
     Ok(())
 }
@@ -132,8 +140,16 @@ pub fn ne_helper(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    let a = h.param(0).map(|p| p.value()).cloned().unwrap_or(Value::Null);
-    let b = h.param(1).map(|p| p.value()).cloned().unwrap_or(Value::Null);
+    let a = h
+        .param(0)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
+    let b = h
+        .param(1)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
     out.write(if a != b { "true" } else { "false" })?;
     Ok(())
 }
@@ -199,10 +215,13 @@ pub fn exists_helper(
     out: &mut dyn Output,
 ) -> HelperResult {
     if let Some(param) = h.param(0) {
-        out.write(if is_truthy(param.value()) { "true" } else { "false" })?;
+        out.write(if is_truthy(param.value()) {
+            "true"
+        } else {
+            "false"
+        })?;
     } else {
         out.write("false")?;
     }
     Ok(())
 }
-

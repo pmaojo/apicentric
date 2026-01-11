@@ -1,7 +1,7 @@
 //! Service Management Tests
 //!
 //! Tests for service discovery, start/stop operations, and status updates.
-//! 
+//!
 //! Note: These tests are in the state.rs file as part of the service_management_tests module.
 //! This file is kept for organizational purposes but the actual tests are embedded in state.rs.
 

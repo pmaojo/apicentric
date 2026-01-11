@@ -35,9 +35,7 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
         if result.services.is_empty() {
             return Err(ApicentricError::config_error(
                 "No valid service definitions found in services directory",
-                Some(
-                    "Add YAML files with service definitions to the services directory",
-                ),
+                Some("Add YAML files with service definitions to the services directory"),
             ));
         }
         Ok(result.services)

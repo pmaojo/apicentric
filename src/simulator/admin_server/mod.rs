@@ -42,9 +42,7 @@ impl AdminServer {
                     let service = service_fn(move |req| {
                         let service_registry = service_registry.clone();
                         async move {
-                            Ok::<_, Infallible>(
-                                handle_admin_request(req, service_registry).await,
-                            )
+                            Ok::<_, Infallible>(handle_admin_request(req, service_registry).await)
                         }
                     });
 
@@ -72,7 +70,10 @@ async fn handle_admin_request(
     let admin_token = env::var("APICENTRIC_ADMIN_TOKEN").ok();
 
     if let Some(admin_token) = admin_token {
-        let auth_header = req.headers().get("Authorization").and_then(|h| h.to_str().ok());
+        let auth_header = req
+            .headers()
+            .get("Authorization")
+            .and_then(|h| h.to_str().ok());
 
         if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
             let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));

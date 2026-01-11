@@ -6,17 +6,17 @@
 //! - Service status updates broadcasting
 //! - Reconnection handling
 
+use apicentric::cloud::CloudServer;
 use apicentric::simulator::{
     config::{
-        EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
-        SimulatorConfig, PortRange,
+        EndpointDefinition, EndpointKind, PortRange, ResponseDefinition, ServerConfig,
+        ServiceDefinition, SimulatorConfig,
     },
     manager::ApiSimulatorManager,
 };
-use apicentric::cloud::CloudServer;
+use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
-use tokio::time::{sleep, Duration, timeout};
-use futures_util::{StreamExt, SinkExt};
+use tokio::time::{sleep, timeout, Duration};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefinition {
@@ -70,7 +70,7 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
 async fn test_websocket_connection_establishment() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a dummy service so manager.start() doesn't fail
     let service_def = create_test_service_definition("dummy-service", Some(10002));
     let service_path = services_dir.path().join("dummy-service.yaml");
@@ -80,43 +80,49 @@ async fn test_websocket_connection_establishment() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 10000, end: 10100 };
+    config.port_range = PortRange {
+        start: 10000,
+        end: 10100,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(10001).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
     // Test: Connect to WebSocket endpoint
     let ws_url = "ws://localhost:10001/ws";
-    let result = timeout(
-        Duration::from_secs(5),
-        connect_async(ws_url)
-    ).await;
+    let result = timeout(Duration::from_secs(5), connect_async(ws_url)).await;
 
     assert!(result.is_ok(), "WebSocket connection should succeed");
     let (ws_stream, _) = result.unwrap().unwrap();
-    
+
     // Verify we can split the stream (connection is valid)
     let (mut _write, mut read) = ws_stream.split();
-    
+
     // Should receive initial state message
     let msg_result = timeout(Duration::from_secs(2), read.next()).await;
     assert!(msg_result.is_ok(), "Should receive initial state message");
-    
+
     if let Some(Ok(Message::Text(text))) = msg_result.unwrap() {
         let json: serde_json::Value = serde_json::from_str(&text).unwrap();
-        assert_eq!(json["type"], "initial_state", "First message should be initial_state");
-        assert!(json["data"]["services"].is_array(), "Should contain services array");
+        assert_eq!(
+            json["type"], "initial_state",
+            "First message should be initial_state"
+        );
+        assert!(
+            json["data"]["services"].is_array(),
+            "Should contain services array"
+        );
     } else {
         panic!("Expected text message with initial state");
     }
@@ -130,7 +136,7 @@ async fn test_websocket_connection_establishment() {
 async fn test_websocket_ping_pong() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a dummy service so manager.start() doesn't fail
     let service_def = create_test_service_definition("dummy-service-2", Some(10102));
     let service_path = services_dir.path().join("dummy-service-2.yaml");
@@ -140,19 +146,22 @@ async fn test_websocket_ping_pong() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 10100, end: 10200 };
+    config.port_range = PortRange {
+        start: 10100,
+        end: 10200,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(10101).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
@@ -160,7 +169,7 @@ async fn test_websocket_ping_pong() {
     let ws_url = "ws://localhost:10101/ws";
     let (ws_stream, _) = connect_async(ws_url).await.unwrap();
     let (mut write, mut read) = ws_stream.split();
-    
+
     // Consume initial state message
     let _ = timeout(Duration::from_secs(2), read.next()).await;
 
@@ -168,16 +177,22 @@ async fn test_websocket_ping_pong() {
     let ping_msg = serde_json::json!({
         "type": "ping"
     });
-    write.send(Message::Text(ping_msg.to_string())).await.unwrap();
+    write
+        .send(Message::Text(ping_msg.to_string()))
+        .await
+        .unwrap();
 
     // Should receive pong response
     let msg_result = timeout(Duration::from_secs(2), read.next()).await;
     assert!(msg_result.is_ok(), "Should receive pong response");
-    
+
     if let Some(Ok(Message::Text(text))) = msg_result.unwrap() {
         let json: serde_json::Value = serde_json::from_str(&text).unwrap();
         assert_eq!(json["type"], "pong", "Should receive pong message");
-        assert!(json["timestamp"].is_number(), "Pong should include timestamp");
+        assert!(
+            json["timestamp"].is_number(),
+            "Pong should include timestamp"
+        );
     } else {
         panic!("Expected text message with pong");
     }
@@ -191,7 +206,7 @@ async fn test_websocket_ping_pong() {
 async fn test_websocket_log_streaming() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a test service
     let service_def = create_test_service_definition("log-test-service", Some(10200));
     let service_path = services_dir.path().join("log-test-service.yaml");
@@ -201,22 +216,25 @@ async fn test_websocket_log_streaming() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 10200, end: 10300 };
+    config.port_range = PortRange {
+        start: 10200,
+        end: 10300,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
-    
+
     // Give the service time to start
     sleep(Duration::from_millis(500)).await;
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(10201).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
@@ -224,7 +242,7 @@ async fn test_websocket_log_streaming() {
     let ws_url = "ws://localhost:10201/ws";
     let (ws_stream, _) = connect_async(ws_url).await.unwrap();
     let (mut _write, mut read) = ws_stream.split();
-    
+
     // Consume initial state message
     let _ = timeout(Duration::from_secs(2), read.next()).await;
 
@@ -232,10 +250,7 @@ async fn test_websocket_log_streaming() {
     let client = reqwest::Client::new();
     let request_task = tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
-        let _ = client
-            .get("http://localhost:10200/test")
-            .send()
-            .await;
+        let _ = client.get("http://localhost:10200/test").send().await;
     });
 
     // Should receive log entry via WebSocket
@@ -249,18 +264,34 @@ async fn test_websocket_log_streaming() {
             }
         }
         None
-    }).await;
+    })
+    .await;
 
-    assert!(msg_result.is_ok(), "Should receive log message within timeout");
+    assert!(
+        msg_result.is_ok(),
+        "Should receive log message within timeout"
+    );
     let log_json = msg_result.unwrap();
     assert!(log_json.is_some(), "Should receive request_log message");
-    
+
     let log_json = log_json.unwrap();
     assert_eq!(log_json["type"], "request_log");
-    assert!(log_json["data"]["service"].is_string(), "Log should contain service name");
-    assert!(log_json["data"]["method"].is_string(), "Log should contain method");
-    assert!(log_json["data"]["path"].is_string(), "Log should contain path");
-    assert!(log_json["data"]["status"].is_number(), "Log should contain status code");
+    assert!(
+        log_json["data"]["service"].is_string(),
+        "Log should contain service name"
+    );
+    assert!(
+        log_json["data"]["method"].is_string(),
+        "Log should contain method"
+    );
+    assert!(
+        log_json["data"]["path"].is_string(),
+        "Log should contain path"
+    );
+    assert!(
+        log_json["data"]["status"].is_number(),
+        "Log should contain status code"
+    );
 
     // Wait for request task to complete
     let _ = request_task.await;
@@ -274,7 +305,7 @@ async fn test_websocket_log_streaming() {
 async fn test_websocket_service_status_updates() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a test service
     let service_def = create_test_service_definition("status-test-service", None);
     let service_path = services_dir.path().join("status-test-service.yaml");
@@ -284,22 +315,25 @@ async fn test_websocket_service_status_updates() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 10300, end: 10400 };
+    config.port_range = PortRange {
+        start: 10300,
+        end: 10400,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
-    
+
     // Give time for service discovery
     sleep(Duration::from_millis(500)).await;
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(10301).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
@@ -307,7 +341,7 @@ async fn test_websocket_service_status_updates() {
     let ws_url = "ws://localhost:10301/ws";
     let (ws_stream, _) = connect_async(ws_url).await.unwrap();
     let (mut write, mut read) = ws_stream.split();
-    
+
     // Consume initial state message
     let _ = timeout(Duration::from_secs(2), read.next()).await;
 
@@ -323,7 +357,7 @@ async fn test_websocket_service_status_updates() {
 
     // Wait for start task to complete
     let _ = start_task.await;
-    
+
     // Give the service time to start
     sleep(Duration::from_millis(500)).await;
 
@@ -343,13 +377,20 @@ async fn test_websocket_service_status_updates() {
             }
         }
         None
-    }).await;
+    })
+    .await;
 
     // The test passes if we can still communicate via WebSocket
     // This validates the WebSocket infrastructure is working
     // Note: Service status broadcasting will be tested once that feature is fully implemented
-    assert!(msg_result.is_ok(), "WebSocket should remain connected and responsive");
-    assert!(msg_result.unwrap().is_some(), "Should receive pong response");
+    assert!(
+        msg_result.is_ok(),
+        "WebSocket should remain connected and responsive"
+    );
+    assert!(
+        msg_result.unwrap().is_some(),
+        "Should receive pong response"
+    );
 
     // Cleanup
     cloud_handle.abort();
@@ -360,7 +401,7 @@ async fn test_websocket_service_status_updates() {
 async fn test_websocket_multiple_clients() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a test service
     let service_def = create_test_service_definition("multi-client-service", Some(10400));
     let service_path = services_dir.path().join("multi-client-service.yaml");
@@ -370,34 +411,37 @@ async fn test_websocket_multiple_clients() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 10400, end: 10500 };
+    config.port_range = PortRange {
+        start: 10400,
+        end: 10500,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
-    
+
     // Give the service time to start
     sleep(Duration::from_millis(500)).await;
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(10401).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
     // Connect two WebSocket clients
     let ws_url = "ws://localhost:10401/ws";
-    
+
     let (ws_stream1, _) = connect_async(ws_url).await.unwrap();
     let (mut _write1, mut read1) = ws_stream1.split();
-    
+
     let (ws_stream2, _) = connect_async(ws_url).await.unwrap();
     let (mut _write2, mut read2) = ws_stream2.split();
-    
+
     // Consume initial state messages
     let _ = timeout(Duration::from_secs(2), read1.next()).await;
     let _ = timeout(Duration::from_secs(2), read2.next()).await;
@@ -406,10 +450,7 @@ async fn test_websocket_multiple_clients() {
     let client = reqwest::Client::new();
     let request_task = tokio::spawn(async move {
         sleep(Duration::from_millis(200)).await;
-        let _ = client
-            .get("http://localhost:10400/test")
-            .send()
-            .await;
+        let _ = client.get("http://localhost:10400/test").send().await;
     });
 
     // Both clients should receive the same log entry
@@ -424,7 +465,8 @@ async fn test_websocket_multiple_clients() {
                 }
             }
             None
-        }).await
+        })
+        .await
     });
 
     let client2_task = tokio::spawn(async move {
@@ -438,7 +480,8 @@ async fn test_websocket_multiple_clients() {
                 }
             }
             None
-        }).await
+        })
+        .await
     });
 
     let result1 = client1_task.await.unwrap();
@@ -446,10 +489,10 @@ async fn test_websocket_multiple_clients() {
 
     assert!(result1.is_ok(), "Client 1 should receive log message");
     assert!(result2.is_ok(), "Client 2 should receive log message");
-    
+
     let log1 = result1.unwrap();
     let log2 = result2.unwrap();
-    
+
     assert!(log1.is_some(), "Client 1 should receive request_log");
     assert!(log2.is_some(), "Client 2 should receive request_log");
 
@@ -465,7 +508,7 @@ async fn test_websocket_multiple_clients() {
 async fn test_websocket_reconnection() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a dummy service so manager.start() doesn't fail
     let service_def = create_test_service_definition("dummy-service-5", Some(10502));
     let service_path = services_dir.path().join("dummy-service-5.yaml");
@@ -475,19 +518,22 @@ async fn test_websocket_reconnection() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 10500, end: 10600 };
+    config.port_range = PortRange {
+        start: 10500,
+        end: 10600,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(10501).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
@@ -496,14 +542,17 @@ async fn test_websocket_reconnection() {
     // First connection
     let (ws_stream, _) = connect_async(ws_url).await.unwrap();
     let (mut write, mut read) = ws_stream.split();
-    
+
     // Consume initial state message
     let _ = timeout(Duration::from_secs(2), read.next()).await;
 
     // Send a ping to verify connection
     let ping_msg = serde_json::json!({"type": "ping"});
-    write.send(Message::Text(ping_msg.to_string())).await.unwrap();
-    
+    write
+        .send(Message::Text(ping_msg.to_string()))
+        .await
+        .unwrap();
+
     // Receive pong
     let msg = timeout(Duration::from_secs(2), read.next()).await;
     assert!(msg.is_ok(), "First connection should work");
@@ -518,23 +567,29 @@ async fn test_websocket_reconnection() {
     // Reconnect (simulating client reconnection)
     let result = timeout(Duration::from_secs(5), connect_async(ws_url)).await;
     assert!(result.is_ok(), "Reconnection should succeed");
-    
+
     let (ws_stream2, _) = result.unwrap().unwrap();
     let (mut write2, mut read2) = ws_stream2.split();
-    
+
     // Should receive initial state again
     let msg = timeout(Duration::from_secs(2), read2.next()).await;
     assert!(msg.is_ok(), "Should receive initial state on reconnection");
-    
+
     if let Some(Ok(Message::Text(text))) = msg.unwrap() {
         let json: serde_json::Value = serde_json::from_str(&text).unwrap();
-        assert_eq!(json["type"], "initial_state", "Should receive initial_state on reconnection");
+        assert_eq!(
+            json["type"], "initial_state",
+            "Should receive initial_state on reconnection"
+        );
     }
 
     // Verify new connection works
     let ping_msg = serde_json::json!({"type": "ping"});
-    write2.send(Message::Text(ping_msg.to_string())).await.unwrap();
-    
+    write2
+        .send(Message::Text(ping_msg.to_string()))
+        .await
+        .unwrap();
+
     let msg = timeout(Duration::from_secs(2), read2.next()).await;
     assert!(msg.is_ok(), "Reconnected connection should work");
 
@@ -547,7 +602,7 @@ async fn test_websocket_reconnection() {
 async fn test_websocket_connection_cleanup() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a dummy service so manager.start() doesn't fail
     let service_def = create_test_service_definition("dummy-service-6", Some(10602));
     let service_path = services_dir.path().join("dummy-service-6.yaml");
@@ -557,19 +612,22 @@ async fn test_websocket_connection_cleanup() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 10600, end: 10700 };
+    config.port_range = PortRange {
+        start: 10600,
+        end: 10700,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(10601).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 

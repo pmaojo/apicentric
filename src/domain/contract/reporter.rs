@@ -1,7 +1,8 @@
 use super::ReportingError;
 use crate::domain::contract_testing::ContractValidationResult;
 use crate::domain::ports::contract::{
-    ContractNotificationSender, ContractReportSink, NotificationConfig, ReportFormat, ReportingConfig,
+    ContractNotificationSender, ContractReportSink, NotificationConfig, ReportFormat,
+    ReportingConfig,
 };
 use tracing::{error, info};
 

@@ -3,9 +3,9 @@
 //! This module provides environment-based CORS configuration with secure
 //! defaults for production deployments.
 
-use tower_http::cors::CorsLayer;
-use axum::http::{Method, HeaderValue, header};
+use axum::http::{header, HeaderValue, Method};
 use std::env;
+use tower_http::cors::CorsLayer;
 
 /// Creates a CORS layer based on environment configuration.
 ///
@@ -24,7 +24,7 @@ use std::env;
 /// A configured `CorsLayer` for use with Axum.
 pub fn create_cors_layer() -> CorsLayer {
     let env_mode = env::var("APICENTRIC_ENV").unwrap_or_else(|_| "development".to_string());
-    
+
     if env_mode == "production" {
         create_production_cors()
     } else {
@@ -44,9 +44,9 @@ fn create_development_cors() -> CorsLayer {
 /// Only allows specific origins from the `ALLOWED_ORIGINS` environment variable.
 /// If not set, defaults to localhost for safety.
 fn create_production_cors() -> CorsLayer {
-    let allowed_origins = env::var("ALLOWED_ORIGINS")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
-    
+    let allowed_origins =
+        env::var("ALLOWED_ORIGINS").unwrap_or_else(|_| "http://localhost:3000".to_string());
+
     let origins: Vec<HeaderValue> = allowed_origins
         .split(',')
         .filter_map(|origin| {
@@ -71,11 +71,7 @@ fn create_production_cors() -> CorsLayer {
                 Method::DELETE,
                 Method::OPTIONS,
             ])
-            .allow_headers([
-                header::AUTHORIZATION,
-                header::CONTENT_TYPE,
-                header::ACCEPT,
-            ])
+            .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT])
             .allow_credentials(true);
     }
 
@@ -88,11 +84,7 @@ fn create_production_cors() -> CorsLayer {
             Method::DELETE,
             Method::OPTIONS,
         ])
-        .allow_headers([
-            header::AUTHORIZATION,
-            header::CONTENT_TYPE,
-            header::ACCEPT,
-        ])
+        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT])
         .allow_credentials(true)
         .max_age(std::time::Duration::from_secs(3600))
 }
@@ -127,11 +119,7 @@ pub fn create_cors_with_origins(origins: &[&str]) -> CorsLayer {
             Method::DELETE,
             Method::OPTIONS,
         ])
-        .allow_headers([
-            header::AUTHORIZATION,
-            header::CONTENT_TYPE,
-            header::ACCEPT,
-        ])
+        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT])
         .allow_credentials(true)
 }
 
@@ -150,7 +138,10 @@ mod tests {
     #[test]
     fn test_production_cors_with_origins() {
         env::set_var("APICENTRIC_ENV", "production");
-        env::set_var("ALLOWED_ORIGINS", "https://example.com,https://app.example.com");
+        env::set_var(
+            "ALLOWED_ORIGINS",
+            "https://example.com,https://app.example.com",
+        );
         let _cors = create_cors_layer();
         // This test ensures production CORS can be created with valid origins
     }

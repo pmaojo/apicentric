@@ -4,8 +4,8 @@ use std::process::Command;
 use anyhow::{anyhow, Context, Result};
 use tempfile::NamedTempFile;
 
-use crate::simulator::config::ServiceDefinition;
 use super::openapi;
+use crate::simulator::config::ServiceDefinition;
 
 /// Generate TypeScript types for a service definition using `openapi-typescript`
 ///
@@ -38,4 +38,3 @@ pub fn to_typescript(service: &ServiceDefinition) -> Result<String> {
     let types = String::from_utf8(output.stdout).context("parse openapi-typescript output")?;
     Ok(types)
 }
-

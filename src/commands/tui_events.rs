@@ -9,7 +9,7 @@ use tokio::sync::broadcast;
 use apicentric::simulator::{log::RequestLogEntry, manager::ApiSimulatorManager};
 use apicentric::ApicentricResult;
 
-use super::tui_state::{TuiAppState, ViewMode, FocusedPanel};
+use super::tui_state::{FocusedPanel, TuiAppState, ViewMode};
 
 /// Action to take after handling an event
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,7 +26,9 @@ pub async fn update_service_status(
     manager: &Arc<ApiSimulatorManager>,
 ) -> ApicentricResult<()> {
     let status = manager.get_status().await;
-    state.services.update_from_service_info(status.active_services);
+    state
+        .services
+        .update_from_service_info(status.active_services);
     state.services.update_stats_from_logs(&state.logs.entries);
     Ok(())
 }
@@ -122,12 +124,15 @@ async fn handle_normal_mode_key(
                     Ok(_) => {
                         // Update service status immediately
                         update_service_status(state, manager).await?;
-                        
+
                         let action = if is_running { "stopped" } else { "started" };
                         state.set_status(format!("Service '{}' {}", service_name, action));
                     }
                     Err(e) => {
-                        state.set_error(format!("Failed to toggle service '{}': {}", service_name, e));
+                        state.set_error(format!(
+                            "Failed to toggle service '{}': {}",
+                            service_name, e
+                        ));
                     }
                 }
             } else {
@@ -170,7 +175,9 @@ async fn handle_normal_mode_key(
         // Open search dialog
         KeyCode::Char('/') => {
             state.mode = ViewMode::SearchDialog;
-            state.input.setup("Search Logs".to_string(), "Enter search term".to_string());
+            state
+                .input
+                .setup("Search Logs".to_string(), "Enter search term".to_string());
             state.clear_messages();
             Ok(Action::Continue)
         }
@@ -205,7 +212,10 @@ async fn handle_normal_mode_key(
 }
 
 /// Handle keys in filter dialog mode
-fn handle_filter_dialog_key(key: event::KeyEvent, state: &mut TuiAppState) -> ApicentricResult<Action> {
+fn handle_filter_dialog_key(
+    key: event::KeyEvent,
+    state: &mut TuiAppState,
+) -> ApicentricResult<Action> {
     match key.code {
         KeyCode::Esc => {
             state.mode = ViewMode::Normal;
@@ -243,7 +253,10 @@ fn handle_filter_dialog_key(key: event::KeyEvent, state: &mut TuiAppState) -> Ap
 }
 
 /// Handle keys in search dialog mode
-fn handle_search_dialog_key(key: event::KeyEvent, state: &mut TuiAppState) -> ApicentricResult<Action> {
+fn handle_search_dialog_key(
+    key: event::KeyEvent,
+    state: &mut TuiAppState,
+) -> ApicentricResult<Action> {
     match key.code {
         KeyCode::Esc => {
             state.mode = ViewMode::Normal;
@@ -279,7 +292,10 @@ fn handle_search_dialog_key(key: event::KeyEvent, state: &mut TuiAppState) -> Ap
 }
 
 /// Handle keys in help dialog mode
-fn handle_help_dialog_key(key: event::KeyEvent, state: &mut TuiAppState) -> ApicentricResult<Action> {
+fn handle_help_dialog_key(
+    key: event::KeyEvent,
+    state: &mut TuiAppState,
+) -> ApicentricResult<Action> {
     match key.code {
         KeyCode::Esc | KeyCode::Char('?') | KeyCode::Char('q') => {
             state.mode = ViewMode::Normal;
@@ -317,7 +333,10 @@ fn parse_and_apply_filter(input: &str, state: &mut TuiAppState) {
     }
 
     if state.logs.filter.is_active() {
-        state.set_status(format!("Filter applied: {}", state.logs.filter.description()));
+        state.set_status(format!(
+            "Filter applied: {}",
+            state.logs.filter.description()
+        ));
     } else {
         state.set_status("No valid filter criteria".to_string());
     }
@@ -338,7 +357,7 @@ fn save_logs_to_file(state: &mut TuiAppState) -> ApicentricResult<()> {
     let mut file = File::create(&filename).map_err(|e| {
         apicentric::ApicentricError::runtime_error(
             format!("Failed to create log file: {}", e),
-            Some("Check directory permissions or try a different location")
+            Some("Check directory permissions or try a different location"),
         )
     })?;
 
@@ -355,7 +374,7 @@ fn save_logs_to_file(state: &mut TuiAppState) -> ApicentricResult<()> {
         .map_err(|e| {
             apicentric::ApicentricError::runtime_error(
                 format!("Failed to write to log file: {}", e),
-                Some("Check disk space and file permissions")
+                Some("Check disk space and file permissions"),
             )
         })?;
     }
@@ -369,13 +388,13 @@ pub fn poll_events(timeout: Duration) -> ApicentricResult<Option<Event>> {
     if event::poll(timeout).map_err(|e| {
         apicentric::ApicentricError::runtime_error(
             format!("Event poll failed: {}", e),
-            Some("Terminal input may be unavailable. Try restarting the TUI")
+            Some("Terminal input may be unavailable. Try restarting the TUI"),
         )
     })? {
         let event = event::read().map_err(|e| {
             apicentric::ApicentricError::runtime_error(
                 format!("Event read failed: {}", e),
-                Some("Terminal input may be unavailable. Try restarting the TUI")
+                Some("Terminal input may be unavailable. Try restarting the TUI"),
             )
         })?;
         Ok(Some(event))

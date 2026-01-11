@@ -6,13 +6,13 @@
 #![cfg(feature = "gui")]
 
 use apicentric::ai::AiProvider;
-use apicentric::simulator::manager::ApiSimulatorManager;
 use apicentric::simulator::config::SimulatorConfig;
 use apicentric::simulator::log::RequestLogEntry;
+use apicentric::simulator::manager::ApiSimulatorManager;
 use apicentric::{ApicentricError, ApicentricResult};
 use async_trait::async_trait;
-use std::sync::{Arc, Mutex};
 use chrono::Utc;
+use std::sync::{Arc, Mutex};
 
 /// Mock AI Provider for testing
 pub struct MockAiProvider {
@@ -53,7 +53,7 @@ impl AiProvider for MockAiProvider {
     async fn generate_yaml(&self, _prompt: &str) -> ApicentricResult<String> {
         let mut count = self.call_count.lock().unwrap();
         *count += 1;
-        
+
         let response = self.response.lock().unwrap().clone();
         response.map_err(|e| ApicentricError::runtime_error(e, None::<String>))
     }
@@ -97,7 +97,10 @@ pub fn create_test_manager() -> Arc<ApiSimulatorManager> {
     let config = SimulatorConfig {
         enabled: true,
         services_dir: std::path::PathBuf::from("test_services"),
-        port_range: apicentric::simulator::config::PortRange { start: 9000, end: 9099 },
+        port_range: apicentric::simulator::config::PortRange {
+            start: 9000,
+            end: 9099,
+        },
         db_path: std::path::PathBuf::from(":memory:"),
         admin_port: None,
         global_behavior: None,

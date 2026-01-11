@@ -82,7 +82,6 @@ enum ServerMessage {
     /// Initial state synchronization
     #[serde(rename = "initial_state")]
     InitialState { data: SimulatorState },
-
 }
 
 /// Service status update
@@ -118,21 +117,21 @@ pub async fn ws_handler(
 }
 
 /// Handle a WebSocket connection
-async fn handle_socket(
-    socket: WebSocket,
-    state: Arc<WebSocketState>,
-) {
+async fn handle_socket(socket: WebSocket, state: Arc<WebSocketState>) {
     let client_id = Uuid::new_v4();
-    
+
     // Check connection limit
     {
         let clients = state.clients.read().await;
         if clients.len() >= MAX_CONNECTIONS {
-            log::warn!("WebSocket connection limit reached, rejecting client {}", client_id);
+            log::warn!(
+                "WebSocket connection limit reached, rejecting client {}",
+                client_id
+            );
             return;
         }
     }
-    
+
     log::info!("WebSocket client {} connected", client_id);
 
     let (mut sender, mut receiver) = socket.split();
@@ -143,17 +142,16 @@ async fn handle_socket(
     // Register the client
     {
         let mut clients = state.clients.write().await;
-        clients.insert(
-            client_id,
-            WebSocketClient {
-                sender: tx.clone(),
-            },
-        );
+        clients.insert(client_id, WebSocketClient { sender: tx.clone() });
     }
 
     // Send initial state
     if let Err(e) = send_initial_state(&state, &tx).await {
-        log::error!("Failed to send initial state to client {}: {}", client_id, e);
+        log::error!(
+            "Failed to send initial state to client {}: {}",
+            client_id,
+            e
+        );
     }
 
     // Subscribe to log broadcasts

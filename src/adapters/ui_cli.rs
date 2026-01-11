@@ -39,7 +39,10 @@ impl ProgressPort for CliProgress {
 
     /// Finishes the progress bar.
     fn finish(&self) {
-        println!("✅ {} completed ({}/{})", self.message, self.total, self.total);
+        println!(
+            "✅ {} completed ({}/{})",
+            self.message, self.total, self.total
+        );
     }
 }
 
@@ -52,31 +55,41 @@ impl UserInterfacePort for CliUiAdapter {
     /// # Arguments
     ///
     /// * `message` - The message to print.
-    fn print_success(&self, message: &str) { println!("✅ {}", message); }
+    fn print_success(&self, message: &str) {
+        println!("✅ {}", message);
+    }
     /// Prints an error message to the console.
     ///
     /// # Arguments
     ///
     /// * `message` - The message to print.
-    fn print_error(&self, message: &str) { println!("❌ {}", message); }
+    fn print_error(&self, message: &str) {
+        println!("❌ {}", message);
+    }
     /// Prints a warning message to the console.
     ///
     /// # Arguments
     ///
     /// * `message` - The message to print.
-    fn print_warning(&self, message: &str) { println!("⚠️  {}", message); }
+    fn print_warning(&self, message: &str) {
+        println!("⚠️  {}", message);
+    }
     /// Prints an informational message to the console.
     ///
     /// # Arguments
     ///
     /// * `message` - The message to print.
-    fn print_info(&self, message: &str) { println!("ℹ️  {}", message); }
+    fn print_info(&self, message: &str) {
+        println!("ℹ️  {}", message);
+    }
     /// Prints a debug message to the console.
     ///
     /// # Arguments
     ///
     /// * `message` - The message to print.
-    fn print_debug(&self, message: &str) { println!("🐛 {}", message); }
+    fn print_debug(&self, message: &str) {
+        println!("🐛 {}", message);
+    }
 
     /// Creates a new progress bar.
     ///

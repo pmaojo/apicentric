@@ -9,7 +9,11 @@ fn test_dockerize_command() {
     let output_dir = tempdir().unwrap();
 
     let service_def_path = input_dir.path().join("test-service.yaml");
-    fs::write(&service_def_path, "name: test-service\nserver:\n  port: 8080").unwrap();
+    fs::write(
+        &service_def_path,
+        "name: test-service\nserver:\n  port: 8080",
+    )
+    .unwrap();
 
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_apicentric"));
     cmd.arg("simulator")
@@ -24,7 +28,10 @@ fn test_dockerize_command() {
 
     assert!(output_dir.path().join("Dockerfile").exists());
     assert!(output_dir.path().join(".dockerignore").exists());
-    assert!(output_dir.path().join("services/test-service.yaml").exists());
+    assert!(output_dir
+        .path()
+        .join("services/test-service.yaml")
+        .exists());
 
     let dockerfile_content = fs::read_to_string(output_dir.path().join("Dockerfile")).unwrap();
     assert!(dockerfile_content.contains("cargo install apicentric"));

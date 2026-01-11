@@ -3,8 +3,8 @@
 //! This module defines the message types used for communication
 //! between the GUI components and the event handler.
 
-use std::path::PathBuf;
 use super::models::ServiceInfo;
+use std::path::PathBuf;
 
 /// Messages sent from the GUI to the event handler (User Actions)
 #[derive(Debug, Clone)]

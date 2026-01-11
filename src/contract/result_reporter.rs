@@ -50,7 +50,9 @@ mod tests {
 
     #[tokio::test]
     async fn delegates_reporting_to_sink() {
-        let sink = Arc::new(FakeSink { called: Mutex::new(false) });
+        let sink = Arc::new(FakeSink {
+            called: Mutex::new(false),
+        });
         let reporter = ResultReporter::new(sink.clone());
         let result = ContractValidationResult {
             contract_id: ContractId::new("c1".into()).unwrap(),
@@ -62,12 +64,8 @@ mod tests {
             environment: "test".into(),
         };
 
-        let output = reporter
-            .report(ReportFormat::Json, &result)
-            .await
-            .unwrap();
+        let output = reporter.report(ReportFormat::Json, &result).await.unwrap();
         assert_eq!(output, Some("ok".to_string()));
         assert!(*sink.called.lock().unwrap());
     }
 }
-

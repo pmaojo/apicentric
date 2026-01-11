@@ -3,10 +3,10 @@
 //! This module provides an `AuthRepository` that can be used to store and
 //! retrieve user data from a SQLite database.
 
-use rusqlite::{Connection, params};
+use crate::auth::model::User;
+use rusqlite::{params, Connection};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use crate::auth::model::User;
 
 /// A repository for storing user data.
 #[derive(Clone)]
@@ -31,7 +31,9 @@ impl AuthRepository {
             )",
             [],
         )?;
-        Ok(Self { conn: Arc::new(Mutex::new(conn)) })
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
     }
 
     /// Creates a new user.
@@ -44,7 +46,11 @@ impl AuthRepository {
     /// # Returns
     ///
     /// The new user.
-    pub async fn create_user(&self, username: String, password_hash: String) -> anyhow::Result<User> {
+    pub async fn create_user(
+        &self,
+        username: String,
+        password_hash: String,
+    ) -> anyhow::Result<User> {
         let conn = self.conn.clone();
         tokio::task::spawn_blocking(move || {
             let now = chrono::Utc::now().to_rfc3339();
@@ -54,8 +60,14 @@ impl AuthRepository {
                 params![username, password_hash, now],
             )?;
             let id = c.last_insert_rowid();
-            Ok(User { id, username, password_hash, created_at: now })
-        }).await?
+            Ok(User {
+                id,
+                username,
+                password_hash,
+                created_at: now,
+            })
+        })
+        .await?
     }
 
     /// Finds a user by their username.
@@ -72,7 +84,9 @@ impl AuthRepository {
         let conn = self.conn.clone();
         tokio::task::spawn_blocking(move || {
             let c = conn.lock().unwrap();
-            let mut stmt = c.prepare("SELECT id, username, password_hash, created_at FROM users WHERE username = ?1")?;
+            let mut stmt = c.prepare(
+                "SELECT id, username, password_hash, created_at FROM users WHERE username = ?1",
+            )?;
             let mut rows = stmt.query(params![username])?;
             if let Some(row) = rows.next()? {
                 Ok(Some(User {
@@ -84,6 +98,7 @@ impl AuthRepository {
             } else {
                 Ok(None)
             }
-        }).await?
+        })
+        .await?
     }
 }

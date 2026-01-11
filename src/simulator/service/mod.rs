@@ -1889,10 +1889,10 @@ impl ServiceInstance {
                         );
                         return Err(ApicentricError::runtime_error(
                             "Template rendering produced empty body",
-                            Some("Check template logic and ensure fixtures contain required data")
+                            Some("Check template logic and ensure fixtures contain required data"),
                         ));
                     }
-                    
+
                     // Log successful template rendering for debugging
                     log::info!(
                         "Successfully processed template for {} {} in service '{}': '{}'",
@@ -1901,7 +1901,7 @@ impl ServiceInstance {
                         service_name,
                         trimmed
                     );
-                    
+
                     rendered
                 }
                 Err(e) => {
@@ -1913,21 +1913,30 @@ impl ServiceInstance {
                         service_name,
                         e
                     );
-                    
+
                     // Try to provide more specific error information
                     let (error_type, suggestion) = if response_body.contains("{{ fixtures") {
-                        ("Fixture reference error", "Ensure fixtures contain the referenced data")
+                        (
+                            "Fixture reference error",
+                            "Ensure fixtures contain the referenced data",
+                        )
                     } else if response_body.contains("{{ params") {
-                        ("Parameter reference error", "Ensure URL path parameters are properly defined")
+                        (
+                            "Parameter reference error",
+                            "Ensure URL path parameters are properly defined",
+                        )
                     } else if response_body.contains("{{ request") {
-                        ("Request context error", "Check request context availability")
+                        (
+                            "Request context error",
+                            "Check request context availability",
+                        )
                     } else {
                         ("Template syntax error", "Check Handlebars template syntax")
                     };
-                    
+
                     return Err(ApicentricError::runtime_error(
                         format!("Template rendering failed: {}", e),
-                        Some(format!("{}: {}", error_type, suggestion))
+                        Some(format!("{}: {}", error_type, suggestion)),
                     ));
                 }
             }
