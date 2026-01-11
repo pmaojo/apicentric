@@ -60,7 +60,6 @@ impl ServerCertVerifier for NoCertificateVerification {
         ]
     }
 }
-
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
