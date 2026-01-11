@@ -15,7 +15,6 @@ Apicentric is a **Rust-based CLI tool and API simulator platform** that helps de
 - 🔄 **Generate code** (TypeScript types, React Query hooks)
 - ✨ **MCP** Power your agent with API mocking tools
 - 🖥️ **TUI (Terminal User Interface)** for visual service management
-- 🌐 **P2P collaboration** on service definitions (optional)
 
 Perfect for frontend developers who need backend APIs, teams doing contract testing, or anyone who loves working in the terminal.
 
@@ -191,6 +190,7 @@ curl http://localhost:9002/api/v2/orders/5678/status
 ```
 
 This example demonstrates features like:
+
 - **Fixtures**: Reusable data for your endpoints.
 - **Dynamic Responses**: Handlebars templating for realistic data.
 - **Request Validation**: Conditional responses based on the request body.
@@ -200,9 +200,10 @@ This example demonstrates features like:
 
 Create a portable Docker image for your service:
 
+````bash
 ```bash
-apicentric simulator dockerize --services ecommerce-api.yaml --output ./ecommerce-docker
-```
+apicentric simulator dockerize --file ecommerce-api.yaml --output ./ecommerce-docker
+````
 
 This will create a `Dockerfile` and copy the service definition into the `ecommerce-docker` directory. You can then build and run the image:
 
@@ -245,6 +246,7 @@ curl -fsSL https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/inst
 ```
 
 This script will:
+
 - Detect your platform and architecture automatically
 - Download the appropriate binary
 - Verify checksums for security
@@ -271,6 +273,7 @@ irm https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/install.ps1
 ```
 
 This script will:
+
 - Download the Windows x64 binary
 - Verify checksums
 - Extract to `%USERPROFILE%\.apicentric\bin`
@@ -329,6 +332,7 @@ apicentric --version
 Download pre-built binaries for your platform from [GitHub Releases](https://github.com/pmaojo/apicentric/releases).
 
 **Available platforms:**
+
 - Linux x64 (`apicentric-linux-x64.tar.gz`)
 - macOS x64 (`apicentric-macos-x64.tar.gz`)
 - macOS ARM64 (`apicentric-macos-arm64.tar.gz`)
@@ -372,7 +376,7 @@ apicentric --version
 You can use the `dockerize` command to create a self-contained Docker image for your services.
 
 ```bash
-apicentric simulator dockerize --services <service1>.yaml [<service2>.yaml ...] --output ./my-service-docker
+apicentric simulator dockerize --file <service1>.yaml [<service2>.yaml ...] --output ./my-service-docker
 ```
 
 This will generate a `Dockerfile` and a `.dockerignore` file in the output directory, along with a `services` directory containing your service definitions.
@@ -411,12 +415,14 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - **Homebrew:** Ensure Homebrew's bin directory is in your PATH:
+
   ```bash
   echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.bashrc  # or ~/.zshrc
   source ~/.bashrc
   ```
 
 - **Install script:** Verify `/usr/local/bin` is in your PATH:
+
   ```bash
   echo $PATH | grep -q "/usr/local/bin" && echo "✓ In PATH" || echo "✗ Not in PATH"
   ```
@@ -436,10 +442,13 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - **Unix install script:** The script requires sudo for `/usr/local/bin`. Use custom directory:
+
   ```bash
   INSTALL_DIR=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/install.sh | sh
   ```
+
   Then add to PATH:
+
   ```bash
   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
   source ~/.bashrc
@@ -458,6 +467,7 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - Download may be corrupted. Delete and try again:
+
   ```bash
   rm apicentric-*.tar.gz
   curl -LO https://github.com/pmaojo/apicentric/releases/latest/download/apicentric-linux-x64.tar.gz
@@ -473,11 +483,13 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - **Update Rust:** Ensure you have the latest stable Rust:
+
   ```bash
   rustup update stable
   ```
 
 - **Missing dependencies:** Install required system dependencies:
+
   - **Ubuntu/Debian:**
     ```bash
     sudo apt-get update
@@ -501,6 +513,7 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - You installed a minimal build. Reinstall with desired features:
+
   ```bash
   cargo install apicentric --features cli-tools --force
   ```
@@ -517,11 +530,13 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - **Option 1:** Use Homebrew installation (recommended):
+
   ```bash
   brew install pmaojo/tap/apicentric
   ```
 
 - **Option 2:** Allow the binary manually:
+
   ```bash
   xattr -d com.apple.quarantine /usr/local/bin/apicentric
   ```
@@ -582,10 +597,10 @@ Validate that mocks match real APIs:
 
 Generate client code from service definitions or export to standard formats:
 
-- **Generate TypeScript types**: `apicentric simulator generate-types`
-- **Generate React Query hooks**: `apicentric simulator generate-query`
-- **Export to OpenAPI**: `apicentric simulator export --format openapi`
-- **Export to Postman**: `apicentric simulator export --format postman`
+- **Generate TypeScript types**: `apicentric simulator generate-types --file <service.yaml> --output <output.ts>`
+- **Generate React Query hooks**: `apicentric simulator generate-query --file <service.yaml> --output <output.ts>`
+- **Export to OpenAPI**: `apicentric simulator export --file <service.yaml> --output <openapi.json> --format openapi`
+- **Export to Postman**: `apicentric simulator export --file <service.yaml> --output <collection.json> --format postman`
 
 ### 🖥️ TUI (Terminal User Interface)
 
@@ -612,6 +627,7 @@ MCP is an open protocol that enables AI models to securely access external tools
 #### Quick MCP Setup
 
 1. **Install with MCP support:**
+
    ```bash
    cargo install apicentric --features mcp
    # or
@@ -621,6 +637,7 @@ MCP is an open protocol that enables AI models to securely access external tools
 2. **Configure your AI assistant:**
 
    For **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
    ```json
    {
      "mcpServers": {
@@ -633,6 +650,7 @@ MCP is an open protocol that enables AI models to securely access external tools
    ```
 
    For **VS Code** (`.vscode/mcp.json`):
+
    ```json
    {
      "servers": {
@@ -666,6 +684,7 @@ MCP is an open protocol that enables AI models to securely access external tools
 **User:** "Create a REST API for managing books with CRUD operations"
 
 **AI Assistant (using MCP tools):**
+
 1. Uses `create_service` to generate a books API YAML
 2. Uses `start_service` to launch the API on a port
 3. Confirms with `get_service_logs` that it's running
@@ -707,6 +726,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - [GitHub Issues](https://github.com/pmaojo/apicentric/issues)
 - [Discussions](https://github.com/pmaojo/apicentric/discussions)
+
 ## Crate Modules
 
 The crate follows hexagonal architecture principles and exposes the following modules:
@@ -729,7 +749,6 @@ The crate follows hexagonal architecture principles and exposes the following mo
 - `cli` and `cli_ui`: CLI and text-based UI front-ends.
 
   <img width="2752" height="1536" alt="image" src="https://github.com/user-attachments/assets/52ef5f9c-149d-45cf-ab56-3fc8d4345f55" />
-
 
 Refer to the module documentation for deeper implementation details.
 
