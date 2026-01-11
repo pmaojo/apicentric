@@ -101,7 +101,7 @@ pub enum SimulatorAction {
     /// Export a service definition to a specified format
     Export {
         /// Path to the service YAML definition
-        #[arg(short, long, alias = "input")]
+        #[arg(short = 'i', long, alias = "input")]
         file: String,
         /// Output path for the exported file
         #[arg(short, long)]
