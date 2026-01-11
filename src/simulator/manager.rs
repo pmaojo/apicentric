@@ -14,7 +14,11 @@ use crate::simulator::{
     watcher::ConfigWatcher,
     ConfigChange, SimulatorStatus,
 };
+#[cfg(all(feature = "database", not(target_os = "wasi")))]
 use crate::storage::sqlite::SqliteStorage;
+#[cfg(any(not(feature = "database"), target_os = "wasi"))]
+use crate::storage::memory::InMemoryStorage;
+
 #[cfg(feature = "p2p")]
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -45,10 +49,16 @@ impl ApiSimulatorManager {
     /// Create a new API simulator manager
     pub fn new(config: SimulatorConfig) -> Self {
         let config_loader = ConfigLoader::new(config.services_dir.clone());
+
+        #[cfg(all(feature = "database", not(target_os = "wasi")))]
         let storage = Arc::new(
             SqliteStorage::init_db(config.db_path.clone())
                 .expect("failed to initialize sqlite storage"),
         );
+
+        #[cfg(any(not(feature = "database"), target_os = "wasi"))]
+        let storage = Arc::new(InMemoryStorage::new());
+
         let (log_sender, _) = broadcast::channel(100);
         let service_registry = Arc::new(RwLock::new(ServiceRegistry::new(
             config.port_range.clone(),
@@ -98,10 +108,18 @@ impl ApiSimulatorManager {
 
     /// Update database path for persistent storage
     pub async fn set_db_path<P: AsRef<std::path::Path>>(&self, path: P) -> ApicentricResult<()> {
-        let storage = Arc::new(SqliteStorage::init_db(path)?);
-        let mut reg = self.service_registry.write().await;
-        reg.set_storage(storage);
-        Ok(())
+        #[cfg(all(feature = "database", not(target_os = "wasi")))]
+        {
+            let storage = Arc::new(SqliteStorage::init_db(path)?);
+            let mut reg = self.service_registry.write().await;
+            reg.set_storage(storage);
+            Ok(())
+        }
+        #[cfg(any(not(feature = "database"), target_os = "wasi"))]
+        {
+             // No persistent storage on WASI/Memory, ignore path update
+            Ok(())
+        }
     }
 
     /// Enable or disable peer-to-peer collaboration.

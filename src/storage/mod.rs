@@ -17,4 +17,7 @@ pub trait Storage: Send + Sync {
     fn clear_logs(&self) -> ApicentricResult<()>;
 }
 
+#[cfg(all(feature = "database", not(target_os = "wasi")))]
 pub mod sqlite;
+
+pub mod memory;

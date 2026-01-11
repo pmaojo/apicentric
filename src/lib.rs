@@ -644,46 +644,51 @@
 //! Refer to the module documentation for deeper implementation details.
 
 // Enhanced error handling and validation
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 use wasm_bindgen::prelude::*;
 
-#[cfg(not(target_arch = "wasm32"))]
+// Core modules (Available on Native + WASI)
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod app;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod config;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod context;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod errors;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod logging;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod env_config;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod utils;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod validation;
+
+// Native-only modules
 #[cfg(all(not(target_arch = "wasm32"), feature = "p2p"))]
 pub mod collab;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod storage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ai;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod cloud;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(target_arch = "wasm32"))] // Requires rusqlite by default usually, check dependencies
 pub mod auth;
 
+// Storage (Core)
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub mod storage;
+
 // Domain layer (core business logic)
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod domain;
 
 // Contract modules (execution, scenarios, reporting)
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod contract;
 
 // Adapter layer (implementations of domain ports)
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod adapters {
     pub mod contract_repository;
     pub mod http_client;
@@ -704,41 +709,41 @@ pub mod adapters {
 }
 
 // API Simulator module
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod simulator;
 
 // CLI module
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod cli;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod cli_ui;
 
 // Re-export commonly used types
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use config::ApicentricConfig;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use context::{Context, ContextBuilder, ExecutionContext};
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use errors::{ApicentricError, ApicentricResult};
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use simulator::{ApiSimulatorManager, ServiceDefinition, SimulatorConfig};
 
 // Re-export contract testing functionality
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use domain::contract_testing::*;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use domain::contract::*;
 
 /// Re-exports from the infrastructure layer.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod infrastructure {
     pub use crate::adapters::*;
 }
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub use infrastructure::*;
 
 /// Re-export of the mock API facade.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 pub mod mock {
     pub use crate::adapters::mock_server::{load_spec, run_mock_server, MockApiSpec};
 }
