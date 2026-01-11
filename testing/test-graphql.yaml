@@ -1,0 +1,33 @@
+name: Test GraphQL API
+version: "1.0"
+description: A simple GraphQL API for testing apicentric
+server:
+  port: 9006
+  base_path: /graphql
+
+schema: |
+  type User {
+    id: ID!
+    name: String!
+  }
+
+  type Query {
+    user(id: ID!): User
+    users: [User!]!
+  }
+
+endpoints:
+  - method: POST
+    path: /graphql
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "users": [
+                {"id": "1", "name": "Alice"},
+                {"id": "2", "name": "Bob"}
+              ]
+            }
+          }

@@ -95,11 +95,11 @@ async fn test_user_registration_and_retrieval() {
     let username = "testuser";
     let password_hash = "hashed_password";
     
-    repo.create_user(username, password_hash)
+    repo.create_user(username.to_string(), password_hash.to_string()).await
         .expect("Failed to create user");
     
     // Retrieve the user
-    let user = repo.find_by_username(username)
+    let user = repo.find_by_username(username.to_string()).await
         .expect("Failed to find user")
         .expect("User not found");
     
@@ -115,10 +115,10 @@ async fn test_duplicate_user_registration_fails() {
     let password_hash = "hashed_password";
     
     // Create first user
-    repo.create_user(username, password_hash)
+    repo.create_user(username.to_string(), password_hash.to_string()).await
         .expect("Failed to create first user");
     
     // Try to create duplicate user - should fail
-    let result = repo.create_user(username, password_hash);
+    let result = repo.create_user(username.to_string(), password_hash.to_string()).await;
     assert!(result.is_err());
 }

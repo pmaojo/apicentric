@@ -1,0 +1,36 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Test REST API",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check endpoint",
+        "description": "Health check endpoint",
+        "responses": {
+          "200": {
+            "description": "{\"status\": \"ok\"}"
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "summary": "List users",
+        "description": "List users",
+        "responses": {
+          "200": {
+            "description": "{\n  \"users\": {{json fixtures.users}}\n}\n"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+name: Test REST API
+version: "1.0"
+description: A simple REST API for testing apicentric
+server:
+  port: 9005
+  base_path: /api/v1
+
+fixtures:
+  users:
+    - id: 1
+      name: "Alice"
+    - id: 2
+      name: "Bob"
+
+endpoints:
+  - method: GET
+    path: /health
+    description: Health check endpoint
+    responses:
+      200:
+        content_type: application/json
+        body: '{"status": "ok"}'
+
+  - method: GET
+    path: /users
+    description: List users
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "users": {{json fixtures.users}}
+          }
+
+scenarios:
+  - name: "slow"
+    description: "Simulate slow response"
+    delay_ms: 2000
