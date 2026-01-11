@@ -31,7 +31,7 @@ pub struct GuiAppState {
     pub logs: Vec<String>, // Keep for backward compatibility
     pub request_logs: VecDeque<RequestLogEntry>,
     pub log_filter: LogFilter,
-    pub log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
+    // pub log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
     
     // System events channel
     pub system_event_rx: mpsc::Receiver<GuiSystemEvent>,
@@ -50,9 +50,9 @@ pub struct GuiAppState {
     pub config: GuiConfig,
     
     // UI state
-    pub show_ai_window: bool,
+    pub _show_ai_window: bool,
     pub show_editor_window: bool,
-    pub show_config_window: bool,
+    pub _show_config_window: bool,
 
     // Simulator status
     pub is_simulator_running: bool,
@@ -99,7 +99,7 @@ impl GuiAppState {
         self.add_log(message);
     }
 
-    pub fn new(log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>) -> Self {
+    pub fn new(_log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>) -> Self {
         let (tx, rx) = mpsc::channel();
         Self {
             services: Vec::new(),
@@ -114,7 +114,7 @@ impl GuiAppState {
             logs: Vec::new(), // Keep for backward compatibility
             request_logs: VecDeque::new(),
             log_filter: LogFilter::default(),
-            log_receiver,
+            // log_receiver,
             system_event_rx: rx,
             system_event_tx: tx,
             recording_session: None,
@@ -124,6 +124,9 @@ impl GuiAppState {
             show_ai_window: false,
             show_editor_window: false,
             show_config_window: false,
+            _show_ai_window: false,
+            show_editor_window: false,
+            _show_config_window: false,
             is_simulator_running: false,
         }
     }
@@ -224,17 +227,17 @@ impl GuiAppState {
     }
     
     /// Set validation errors for generated YAML
-    pub fn set_validation_errors(&mut self, errors: Vec<String>) {
+    pub fn _set_validation_errors(&mut self, errors: Vec<String>) {
         self.ai_validation_errors = errors;
     }
     
     /// Clear validation errors
-    pub fn clear_validation_errors(&mut self) {
+    pub fn _clear_validation_errors(&mut self) {
         self.ai_validation_errors.clear();
     }
     
     /// Check if AI configuration is present
-    pub fn check_ai_config(&mut self) {
+    pub fn _check_ai_config(&mut self) {
         // This would be called on startup to check if AI is configured
         // For now, we'll set it based on whether we can load config
         match apicentric::config::load_config(std::path::Path::new("apicentric.json")) {

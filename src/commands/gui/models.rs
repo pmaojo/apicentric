@@ -228,7 +228,7 @@ pub struct EndpointInfo {
 /// Recording session state
 #[derive(Debug, Clone)]
 pub struct RecordingSession {
-    pub id: String,
+    pub _id: String,
     pub target_url: String,
     pub proxy_port: u16,
     pub is_active: bool,
@@ -285,6 +285,6 @@ pub struct GuiCodegenState {
 pub struct RecordedRequest {
     pub method: String,
     pub url: String,
-    pub headers: Vec<(String, String)>,
+    pub _headers: Vec<(String, String)>,
     pub body: Option<String>,
 }

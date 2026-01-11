@@ -19,8 +19,10 @@ pub struct EnvConfig {
 
 impl EnvConfig {
     /// Load environment variables (respecting .env files) into a typed structure.
-    pub fn load() -> ApicentricResult<Self> {
-        let _ = dotenvy::dotenv();
+    pub fn load(ignore_env_file: bool) -> ApicentricResult<Self> {
+        if !ignore_env_file {
+            let _ = dotenvy::dotenv();
+        }
         let config_path = env::var("APICENTRIC_CONFIG_PATH")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("apicentric.json"));
@@ -100,7 +102,7 @@ mod tests {
     #[test]
     fn load_defaults_when_env_missing() {
         clear_env();
-        let env_cfg = EnvConfig::load().unwrap();
+        let env_cfg = EnvConfig::load(true).unwrap(); // Ignore local .env
         assert_eq!(env_cfg.config_path, PathBuf::from("apicentric.json"));
         assert!(env_cfg.services_dir.is_none());
     }
@@ -115,7 +117,7 @@ mod tests {
         env::set_var("APICENTRIC_ADMIN_PORT", "9999");
         env::set_var("APICENTRIC_SIMULATOR_ENABLED", "true");
 
-        let env_cfg = EnvConfig::load().unwrap();
+        let env_cfg = EnvConfig::load(true).unwrap(); // Ignore local .env
         let mut cfg = ApicentricConfig::default();
         env_cfg.apply(&mut cfg);
 
@@ -133,7 +135,7 @@ mod tests {
         clear_env();
         env::set_var("APICENTRIC_PORT_START", "9000");
         env::set_var("APICENTRIC_PORT_END", "8000");
-        let result = EnvConfig::load();
+        let result = EnvConfig::load(true); // Ignore local .env
         assert!(result.is_err());
     }
 }

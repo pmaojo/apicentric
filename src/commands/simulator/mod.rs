@@ -43,8 +43,8 @@ pub enum SimulatorAction {
     /// Validate service definition files
     Validate {
         /// Path to service definition file or directory
-        #[arg(short, long, default_value = "services")]
-        path: String,
+        #[arg(short, long, default_value = "services", alias = "file")]
+        file: String,
         /// Validate all files in directory recursively
         #[arg(short, long)]
         recursive: bool,
@@ -92,8 +92,8 @@ pub enum SimulatorAction {
     /// Import a service from a file (OpenAPI, Mockoon, Postman, etc.)
     Import {
         /// Path to the input file to import
-        #[arg(short, long)]
-        input: String,
+        #[arg(short, long, alias = "input")]
+        file: String,
         /// Output path for the generated service YAML definition
         #[arg(short, long)]
         output: String,
@@ -101,8 +101,8 @@ pub enum SimulatorAction {
     /// Export a service definition to a specified format
     Export {
         /// Path to the service YAML definition
-        #[arg(short, long)]
-        input: String,
+        #[arg(short, long, alias = "input")]
+        file: String,
         /// Output path for the exported file
         #[arg(short, long)]
         output: String,
@@ -114,8 +114,8 @@ pub enum SimulatorAction {
     #[command(name = "generate-types")]
     GenerateTypes {
         /// Path to service YAML definition
-        #[arg(short, long)]
-        input: String,
+        #[arg(short, long, alias = "input")]
+        file: String,
         /// Output path for generated TypeScript
         #[arg(short, long)]
         output: String,
@@ -124,8 +124,8 @@ pub enum SimulatorAction {
     #[command(name = "generate-query")]
     GenerateQuery {
         /// Path to service YAML definition
-        #[arg(short, long)]
-        input: String,
+        #[arg(short, long, alias = "input")]
+        file: String,
         /// Output path for generated TypeScript hooks
         #[arg(short, long)]
         output: String,
@@ -134,8 +134,8 @@ pub enum SimulatorAction {
     #[command(name = "generate-view")]
     GenerateView {
         /// Path to service YAML definition
-        #[arg(short, long)]
-        input: String,
+        #[arg(short, long, alias = "input")]
+        file: String,
         /// Output path for generated TSX view
         #[arg(short, long)]
         output: String,
@@ -158,8 +158,8 @@ pub enum SimulatorAction {
     /// Edit an existing service definition (add endpoint)
     Edit {
         /// Path to service YAML definition
-        #[arg(short, long)]
-        input: String,
+        #[arg(short, long, alias = "input")]
+        file: String,
     },
     /// Record live API interactions into service definitions
     Record {
@@ -192,8 +192,8 @@ pub enum SimulatorAction {
     /// Package a service as a Docker image
     Dockerize {
         /// Path to service YAML definition
-        #[arg(short, long)]
-        services: Vec<String>,
+        #[arg(short, long, alias = "services")]
+        file: Vec<String>,
         /// Output directory for Docker assets
         #[arg(short, long)]
         output: String,
@@ -228,10 +228,10 @@ pub async fn simulator_command(
             control::handle_status(context, *detailed, exec_ctx).await
         }
         SimulatorAction::Validate {
-            path,
+            file,
             recursive,
             verbose,
-        } => inspect::handle_validate(path, *recursive, *verbose, exec_ctx).await,
+        } => inspect::handle_validate(file, *recursive, *verbose, exec_ctx).await,
         SimulatorAction::Logs {
             service,
             limit,
@@ -260,26 +260,28 @@ pub async fn simulator_command(
         SimulatorAction::SetScenario { scenario } => {
             control::handle_set_scenario(context, scenario, exec_ctx).await
         }
-        SimulatorAction::Import { input, output } => {
-            import::handle_import(input, output, exec_ctx).await
+        SimulatorAction::Import { file, output } => {
+            import::handle_import(file, output, exec_ctx).await
         }
-        SimulatorAction::Export { input, output, format } => {
-            export::handle_export(input, output, format, exec_ctx).await
+        SimulatorAction::Export {
+            file,
+            output,
+            format,
+        } => export::handle_export(file, output, format, exec_ctx).await,
+        SimulatorAction::GenerateTypes { file, output } => {
+            export::handle_export_types(file, output, exec_ctx).await
         }
-        SimulatorAction::GenerateTypes { input, output } => {
-            export::handle_export_types(input, output, exec_ctx).await
+        SimulatorAction::GenerateQuery { file, output } => {
+            export::handle_export_query(file, output, exec_ctx).await
         }
-        SimulatorAction::GenerateQuery { input, output } => {
-            export::handle_export_query(input, output, exec_ctx).await
-        }
-        SimulatorAction::GenerateView { input, output } => {
-            export::handle_export_view(input, output, exec_ctx).await
+        SimulatorAction::GenerateView { file, output } => {
+            export::handle_export_view(file, output, exec_ctx).await
         }
         SimulatorAction::New { output } => service::handle_new(output, exec_ctx).await,
         SimulatorAction::NewGraphql { name, output } => {
             service::handle_new_graphql(name, output, exec_ctx).await
         }
-        SimulatorAction::Edit { input } => service::handle_edit(input, exec_ctx).await,
+        SimulatorAction::Edit { file } => service::handle_edit(file, exec_ctx).await,
         SimulatorAction::Record { output, url } => {
             service::handle_record(context, output, url, exec_ctx).await
         }
@@ -292,8 +294,8 @@ pub async fn simulator_command(
             port,
             token,
         } => service::handle_connect(peer, service, *port, token.as_deref(), exec_ctx).await,
-        SimulatorAction::Dockerize { services, output } => {
-            dockerize::handle_dockerize(services, output, exec_ctx).await
+        SimulatorAction::Dockerize { file, output } => {
+            dockerize::handle_dockerize(file, output, exec_ctx).await
         }
         SimulatorAction::Test { path, url, env } => {
             inspect::handle_contract_test(path, url, env, exec_ctx).await

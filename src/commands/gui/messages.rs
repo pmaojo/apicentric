@@ -13,43 +13,43 @@ pub enum GuiMessage {
     StartService(String),
     StopService(String),
     RefreshServices,
-    ServiceStatusChanged(String, super::models::ServiceStatus),
+    _ServiceStatusChanged(String, super::models::ServiceStatus),
 
     // AI Generation
     AiGenerate(String),
-    AiGenerationComplete(Result<String, String>),
-    AiApplyYaml(String),
+    _AiGenerationComplete(Result<String, String>),
+    _AiApplyYaml(String),
 
     // Recording Mode
-    StartRecording(String),
-    StopRecording,
-    CaptureRequest(CapturedRequest),
-    GenerateFromRecording,
+    _StartRecording(String),
+    _StopRecording,
+    _CaptureRequest(CapturedRequest),
+    _GenerateFromRecording,
 
     // Editor
-    LoadServiceInEditor(String),
-    SaveEditorContent,
-    EditorContentChanged(String),
+    _LoadServiceInEditor(String),
+    _SaveEditorContent,
+    _EditorContentChanged(String),
 
     // Logs
-    NewRequestLog(super::models::RequestLogEntry),
-    ClearLogs,
-    FilterLogsBy(super::models::LogFilter),
+    _NewRequestLog(super::models::RequestLogEntry),
+    _ClearLogs,
+    _FilterLogsBy(super::models::LogFilter),
 
     // Import/Export
-    ImportFile(PathBuf),
-    ExportService(String, ExportFormat),
-    BatchImport(Vec<PathBuf>),
+    _ImportFile(PathBuf),
+    _ExportService(String, ExportFormat),
+    _BatchImport(Vec<PathBuf>),
 
     // Code Generation
-    GenerateCode(String, CodeGenTarget),
-    CopyToClipboard(String),
-    SaveGeneratedCode(PathBuf, String),
+    _GenerateCode(String, CodeGenTarget),
+    _CopyToClipboard(String),
+    _SaveGeneratedCode(PathBuf, String),
 
     // Configuration
-    UpdateConfig(super::models::GuiConfig),
-    SaveConfig,
-    LoadConfig,
+    _UpdateConfig(super::models::GuiConfig),
+    _SaveConfig,
+    _LoadConfig,
 }
 
 /// Events sent from background tasks to the GUI (System Events)
@@ -75,17 +75,17 @@ pub struct CapturedRequest {
 /// Export format options
 #[derive(Debug, Clone)]
 pub enum ExportFormat {
-    Yaml,
-    Json,
-    Postman,
+    _Yaml,
+    _Json,
+    _Postman,
 }
 
 /// Code generation target options
 #[derive(Debug, Clone)]
 pub enum CodeGenTarget {
-    TypeScript,
-    JavaScript,
-    Python,
-    Go,
-    Rust,
+    _TypeScript,
+    _JavaScript,
+    _Python,
+    _Go,
+    _Rust,
 }

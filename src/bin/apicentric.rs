@@ -142,8 +142,14 @@ async fn main() {
 ///
 /// * `cli` - The parsed command-line arguments.
 async fn run(cli: Cli) -> ApicentricResult<()> {
+    // Load config from file
     let config_path = std::path::Path::new(&cli.config);
     let mut cfg = apicentric::config::load_config(config_path)?;
+
+    // Apply environment variables overrides
+    if let Ok(env_cfg) = apicentric::env_config::EnvConfig::load(false) {
+        env_cfg.apply(&mut cfg);
+    }
 
     // Override config with CLI args
     if let Commands::Simulator {
