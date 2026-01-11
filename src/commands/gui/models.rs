@@ -3,6 +3,7 @@
 //! This module contains all the data structures used by the GUI.
 
 #![allow(unused_imports)]
+#![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -229,8 +230,9 @@ pub struct EndpointInfo {
 
 /// Recording session state
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RecordingSession {
-    pub _id: String,
+    pub id: String,
     pub target_url: String,
     pub proxy_port: u16,
     pub is_active: bool,
@@ -284,9 +286,10 @@ pub struct GuiCodegenState {
 
 /// Captured HTTP request data for recording sessions
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RecordedRequest {
     pub method: String,
     pub url: String,
-    pub _headers: Vec<(String, String)>,
+    pub headers: Vec<(String, String)>,
     pub body: Option<String>,
 }

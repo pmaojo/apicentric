@@ -4,6 +4,7 @@
 //! Data models are defined in the `models` module.
 
 #![cfg(feature = "gui")]
+#![allow(dead_code)]
 
 use std::collections::VecDeque;
 use tokio::sync::broadcast;
@@ -50,9 +51,9 @@ pub struct GuiAppState {
     pub config: GuiConfig,
     
     // UI state
-    pub _show_ai_window: bool,
+    pub show_ai_window: bool,
     pub show_editor_window: bool,
-    pub _show_config_window: bool,
+    pub show_config_window: bool,
 
     // Simulator status
     pub is_simulator_running: bool,
@@ -124,9 +125,6 @@ impl GuiAppState {
             show_ai_window: false,
             show_editor_window: false,
             show_config_window: false,
-            _show_ai_window: false,
-            show_editor_window: false,
-            _show_config_window: false,
             is_simulator_running: false,
         }
     }

@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         Commands::Version => {
-            println!("{}", "apicentric CLI v0.2.6 (minimal build)".green().bold());
+            println!("{}", "apicentric CLI v0.2.7 (minimal build)".green().bold());
             println!("✅ All heavy dependencies removed for faster compilation!");
             println!("🚀 Core CLI functionality working");
         }

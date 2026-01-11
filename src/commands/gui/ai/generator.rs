@@ -3,6 +3,7 @@
 //! Handles the generation of service definitions using AI providers.
 
 #![cfg(feature = "gui")]
+#![allow(dead_code)]
 
 use apicentric::ai::{AiProvider, GeminiAiProvider, LocalAiProvider, OpenAiProvider};
 use apicentric::config::AiProviderKind;
