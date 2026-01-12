@@ -29,11 +29,19 @@ pub struct TemplateEngine {
 /// the dependency inversion principle.
 pub trait TemplateRenderer: Send + Sync {
     /// Render the given template with the provided context
-    fn render_template(&self, template: &str, context: &TemplateContext) -> ApicentricResult<String>;
+    fn render_template(
+        &self,
+        template: &str,
+        context: &TemplateContext,
+    ) -> ApicentricResult<String>;
 }
 
 impl TemplateRenderer for TemplateEngine {
-    fn render_template(&self, template: &str, context: &TemplateContext) -> ApicentricResult<String> {
+    fn render_template(
+        &self,
+        template: &str,
+        context: &TemplateContext,
+    ) -> ApicentricResult<String> {
         self.render(template, context)
     }
 }
@@ -196,7 +204,11 @@ impl TemplateEngine {
     }
 
     /// Render a pre-compiled template
-    pub fn render_compiled(&self, name: &str, context: &TemplateContext) -> ApicentricResult<String> {
+    pub fn render_compiled(
+        &self,
+        name: &str,
+        context: &TemplateContext,
+    ) -> ApicentricResult<String> {
         let json_context = self.context_to_json(context)?;
 
         self.handlebars.render(name, &json_context).map_err(|e| {

@@ -6,8 +6,11 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use rustls::client::danger::{ServerCertVerifier, ServerCertVerified, HandshakeSignatureValid};
-use rustls::{pki_types::{CertificateDer, ServerName, UnixTime}, DigitallySignedStruct};
+use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
+use rustls::{
+    pki_types::{CertificateDer, ServerName, UnixTime},
+    DigitallySignedStruct,
+};
 
 #[derive(Debug)]
 struct NoCertificateVerification;
@@ -65,8 +68,8 @@ use hyper::body::Incoming;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{HeaderMap, Request, Response, Uri};
-use std::error::Error;
 use hyper_rustls::HttpsConnectorBuilder;
+use std::error::Error;
 // use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};

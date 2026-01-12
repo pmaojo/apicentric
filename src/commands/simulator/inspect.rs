@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use chrono::{DateTime, Utc};
 use apicentric::simulator::log::RequestLogEntry;
-use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
+use apicentric::{ApicentricError, ApicentricResult, Context, ExecutionContext};
+use chrono::{DateTime, Utc};
 
 use crate::commands::shared::{find_yaml_files, validate_yaml_file};
 
@@ -90,8 +90,9 @@ pub async fn handle_contract_test(
     let spec_loader = YamlServiceSpecLoader::new();
     let spec_validator = SpecValidationUseCase::new(spec_loader);
 
-    let contract_id = ContractId::new(path.to_string())
-        .map_err(|e| ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>))?;
+    let contract_id = ContractId::new(path.to_string()).map_err(|e| {
+        ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>)
+    })?;
     let contract = Contract::new(
         contract_id.clone(),
         "service".to_string(), // This should ideally come from the spec
@@ -120,9 +121,13 @@ pub async fn handle_contract_test(
 
     let real_api_config = RealApiConfig::new(
         env.to_string(),
-        apicentric::ApiUrl::new(url.to_string()) .map_err(|e| ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>))?,
+        apicentric::ApiUrl::new(url.to_string()).map_err(|e| {
+            ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>)
+        })?,
         None,
-        RetryAttempts::new(0).map_err(|e| ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>))?,
+        RetryAttempts::new(0).map_err(|e| {
+            ApicentricError::validation_error(e.to_string(), None::<&str>, None::<&str>)
+        })?,
     );
 
     let policy = apicentric::domain::contract_testing::CompatibilityPolicy::strict();
@@ -165,7 +170,11 @@ fn print_result(result: &ContractValidationResult) {
         println!("\n✅ All scenarios passed!");
     } else {
         println!("\n❌ Some scenarios failed:");
-        for scenario_result in result.scenario_results.iter().filter(|r| r.compliance_issue.is_some()) {
+        for scenario_result in result
+            .scenario_results
+            .iter()
+            .filter(|r| r.compliance_issue.is_some())
+        {
             if let Some(issue) = &scenario_result.compliance_issue {
                 println!("   - Path:     {}", issue.scenario_path);
                 println!("     Severity: {:?}", issue.severity);
@@ -218,7 +227,10 @@ pub async fn handle_logs(
                 url.push_str(&s.to_string());
             }
             let resp = reqwest::get(&url).await.map_err(|e| {
-                ApicentricError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Failed to fetch logs: {}", e),
+                    None::<String>,
+                )
             })?;
             if !resp.status().is_success() {
                 return Err(ApicentricError::runtime_error(
@@ -227,7 +239,10 @@ pub async fn handle_logs(
                 ));
             }
             let logs: Vec<RequestLogEntry> = resp.json().await.map_err(|e| {
-                ApicentricError::runtime_error(format!("Failed to parse logs: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Failed to parse logs: {}", e),
+                    None::<String>,
+                )
             })?;
             if logs.is_empty() {
                 println!("No logs available for service '{}'.", service);
@@ -321,7 +336,10 @@ pub async fn handle_monitor(
             }
             url.push_str("__apicentric/logs?limit=100");
             let resp = reqwest::get(&url).await.map_err(|e| {
-                ApicentricError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Failed to fetch logs: {}", e),
+                    None::<String>,
+                )
             })?;
             if !resp.status().is_success() {
                 return Err(ApicentricError::runtime_error(
@@ -330,7 +348,10 @@ pub async fn handle_monitor(
                 ));
             }
             let entries: Vec<RequestLogEntry> = resp.json().await.map_err(|e| {
-                ApicentricError::runtime_error(format!("Failed to parse logs: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Failed to parse logs: {}", e),
+                    None::<String>,
+                )
             })?;
             let last = last_seen.get(&svc.name).copied();
             let new_entries: Vec<RequestLogEntry> = match last {

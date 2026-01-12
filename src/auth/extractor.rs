@@ -4,11 +4,15 @@
 //! in Axum handlers to authenticate users from a JWT in the `Authorization`
 //! header.
 
-use axum::{async_trait, extract::FromRequestParts, http::{request::Parts, StatusCode}};
+use super::handlers::AuthState;
 use crate::auth::jwt::{validate_token, Claims};
 use axum::extract::Extension;
+use axum::{
+    async_trait,
+    extract::FromRequestParts,
+    http::{request::Parts, StatusCode},
+};
 use std::sync::Arc;
-use super::handlers::AuthState;
 
 /// An extractor for authenticating users from JWTs.
 pub struct AuthUser(pub Claims);
@@ -36,17 +40,35 @@ where
         // Get auth state
         let Extension(auth_state) = Extension::<Arc<AuthState>>::from_request_parts(parts, state)
             .await
-            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Missing auth state".to_string()))?;
+            .map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Missing auth state".to_string(),
+                )
+            })?;
         // Read header
-        let header = parts.headers.get(axum::http::header::AUTHORIZATION).and_then(|h| h.to_str().ok()).ok_or((StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()))?;
-        let token = header.strip_prefix("Bearer ").ok_or((StatusCode::UNAUTHORIZED, "Invalid auth scheme".to_string()))?;
-        
+        let header = parts
+            .headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|h| h.to_str().ok())
+            .ok_or((
+                StatusCode::UNAUTHORIZED,
+                "Missing Authorization header".to_string(),
+            ))?;
+        let token = header
+            .strip_prefix("Bearer ")
+            .ok_or((StatusCode::UNAUTHORIZED, "Invalid auth scheme".to_string()))?;
+
         // Check if token is blacklisted
         if auth_state.blacklist.is_blacklisted(token).await {
-            return Err((StatusCode::UNAUTHORIZED, "Token has been revoked".to_string()));
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                "Token has been revoked".to_string(),
+            ));
         }
-        
-        let claims = validate_token(token, &auth_state.keys).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token".to_string()))?;
+
+        let claims = validate_token(token, &auth_state.keys)
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token".to_string()))?;
         Ok(AuthUser(claims))
     }
 }

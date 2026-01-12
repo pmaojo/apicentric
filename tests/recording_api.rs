@@ -1,11 +1,11 @@
+use apicentric::cloud::CloudServer;
 use apicentric::simulator::{
     config::{
-        EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
-        SimulatorConfig, PortRange,
+        EndpointDefinition, EndpointKind, PortRange, ResponseDefinition, ServerConfig,
+        ServiceDefinition, SimulatorConfig,
     },
     manager::ApiSimulatorManager,
 };
-use apicentric::cloud::CloudServer;
 use std::collections::HashMap;
 use tokio::time::{sleep, Duration};
 
@@ -59,7 +59,7 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
 async fn test_recording_start_stop_status() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a test service to act as the target
     let service_def = create_test_service_definition("target-service", Some(9876));
     let service_path = services_dir.path().join("target-service.yaml");
@@ -69,27 +69,30 @@ async fn test_recording_start_stop_status() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 9876, end: 9900 };
+    config.port_range = PortRange {
+        start: 9876,
+        end: 9900,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
-    
+
     // Give the service time to start
     sleep(Duration::from_millis(500)).await;
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(9877).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
     let client = reqwest::Client::new();
-    
+
     // Test 1: Check initial recording status (should be inactive)
     let res = client
         .get("http://localhost:9877/api/recording/status")
@@ -105,7 +108,7 @@ async fn test_recording_start_stop_status() {
         "target_url": "http://localhost:9876",
         "port": 9878
     });
-    
+
     let res = client
         .post("http://localhost:9877/api/recording/start")
         .json(&start_req)
@@ -172,7 +175,7 @@ async fn test_recording_start_stop_status() {
 async fn test_recording_generate_service() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a test service to act as the target
     let service_def = create_test_service_definition("target-service-2", Some(9880));
     let service_path = services_dir.path().join("target-service-2.yaml");
@@ -182,33 +185,36 @@ async fn test_recording_generate_service() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 9880, end: 9900 };
+    config.port_range = PortRange {
+        start: 9880,
+        end: 9900,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
-    
+
     // Give the service time to start
     sleep(Duration::from_millis(500)).await;
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(9881).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
     let client = reqwest::Client::new();
-    
+
     // Start recording
     let start_req = serde_json::json!({
         "target_url": "http://localhost:9880",
         "port": 9882
     });
-    
+
     let res = client
         .post("http://localhost:9881/api/recording/start")
         .json(&start_req)
@@ -236,7 +242,7 @@ async fn test_recording_generate_service() {
         "service_name": "generated-service",
         "description": "Generated from recording"
     });
-    
+
     let res = client
         .post("http://localhost:9881/api/recording/generate")
         .json(&generate_req)
@@ -245,22 +251,33 @@ async fn test_recording_generate_service() {
         .unwrap();
     assert_eq!(res.status(), 200);
     let generate_response: serde_json::Value = res.json().await.unwrap();
-    
+
     // In test environment, applying the generated service might fail because target-service-2 is already running
     // and apply_service_definition tries to reload all services. This is expected behavior.
     // The important part is that recording worked and captured the request.
     if generate_response["success"] == false {
         let error = generate_response["error"].as_str().unwrap_or("");
         // Accept "already running" errors as expected in test environment
-        assert!(error.contains("already running"), 
-                "Expected 'already running' error in test, got: {}", error);
+        assert!(
+            error.contains("already running"),
+            "Expected 'already running' error in test, got: {}",
+            error
+        );
         // Even though apply failed, we verified that recording captured the request
-        println!("✓ Recording captured requests successfully (apply failed due to test environment)");
+        println!(
+            "✓ Recording captured requests successfully (apply failed due to test environment)"
+        );
     } else {
         // If it succeeded, verify the file exists and contains expected data
-        assert!(generate_response["data"].as_str().unwrap().contains("generated successfully"));
+        assert!(generate_response["data"]
+            .as_str()
+            .unwrap()
+            .contains("generated successfully"));
         let generated_file = services_dir.path().join("generated-service.yaml");
-        assert!(generated_file.exists(), "Service file should exist when generation succeeds");
+        assert!(
+            generated_file.exists(),
+            "Service file should exist when generation succeeds"
+        );
     }
 
     // Cleanup

@@ -82,7 +82,12 @@ where
 
         let validation_result = self
             .executor
-            .execute(&contract, &real_api_config, &scenarios, &compatibility_policy)
+            .execute(
+                &contract,
+                &real_api_config,
+                &scenarios,
+                &compatibility_policy,
+            )
             .await
             .map_err(|e| OrchestrationError::ValidationError(e.to_string()))?;
 

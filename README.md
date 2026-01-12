@@ -14,6 +14,7 @@ Apicentric is a **Rust-based CLI tool and API simulator platform** that helps de
 - ✅ **Test API contracts** between services
 - 🔄 **Generate code** (TypeScript types, React Query hooks)
 - ✨ **MCP** Power your agent with API mocking tools
+- 🏭 **IoT Digital Twins** Simulate industrial devices with MQTT and Modbus
 - 🖥️ **TUI (Terminal User Interface)** for visual service management
 
 Perfect for frontend developers who need backend APIs, teams doing contract testing, or anyone who loves working in the terminal.
@@ -26,6 +27,7 @@ Apicentric is built around a few core concepts:
 - **Simulator**: A local server that serves the mock APIs defined in your service definitions.
 - **Contract Testing**: A feature that allows you to validate that your mock APIs match the real APIs they are mocking.
 - **Code Generation**: A feature that allows you to generate client code from your service definitions.
+- **Digital Twin**: An actor-based simulation of a physical device with state, physics, and network protocols.
 - **TUI**: A terminal user interface that provides a visual way to manage your services.
 
 ## Real-World Example: E-commerce API
@@ -698,6 +700,41 @@ MCP is an open protocol that enables AI models to securely access external tools
 - **Automated Testing Setup**: AI handles service creation and configuration
 - **Integrated Development**: Seamless workflow between AI assistance and API development
 - **Rapid Prototyping**: Go from idea to working mock API in seconds
+
+### 🏭 IoT Digital Twins
+
+Transform Apicentric into a multi-protocol simulation engine for IoT and Industrial devices.
+
+- **Actor Model**: Each twin runs as an independent lightweight process with its own state loop.
+- **Physics Simulation**: Define variable behaviors using strategies (e.g., sine waves, noise) or custom Rhai scripts.
+- **Protocol Support**:
+  - **MQTT**: Publish simulated telemetry to any MQTT broker.
+  - **Modbus TCP**: Act as a Modbus server exposing registers.
+
+#### Example Device Definition
+
+```yaml
+twin:
+  name: "Sensor_Presion_01"
+  physics:
+    - variable: "pressure"
+      strategy: "script"
+      params:
+        code: "value + 1.5"
+
+  transports:
+    - type: "mqtt"
+      broker_url: "localhost"
+      port: 1883
+      topic_prefix: "sensors/pressure"
+      client_id: "sensor_01"
+```
+
+#### Running a Twin
+
+```bash
+apicentric twin run --device assets/library/demo_device.yaml
+```
 
 ### 🌐 Advanced Features (Optional)
 

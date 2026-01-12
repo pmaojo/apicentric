@@ -131,7 +131,9 @@ fn parse_env(json: &str) -> Result<MockoonEnvironment, Box<dyn std::error::Error
 }
 
 /// Parse a Mockoon JSON export from a `serde_json::Value` into a [`ServiceDefinition`]
-pub fn from_json(value: &serde_json::Value) -> Result<ServiceDefinition, Box<dyn std::error::Error>> {
+pub fn from_json(
+    value: &serde_json::Value,
+) -> Result<ServiceDefinition, Box<dyn std::error::Error>> {
     let json_str = serde_json::to_string(value)?;
     from_str(&json_str)
 }

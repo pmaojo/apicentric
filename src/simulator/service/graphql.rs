@@ -3,13 +3,13 @@ use async_graphql::Request as GraphQLRequest;
 #[cfg(feature = "graphql")]
 use async_graphql_parser::parse_schema;
 
+#[cfg(feature = "graphql")]
+use super::routing::PathParameters;
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::GraphQLConfig;
 use crate::simulator::template::TemplateEngine;
 #[cfg(feature = "graphql")]
-use crate::simulator::template::{TemplateContext, RequestContext};
-#[cfg(feature = "graphql")]
-use super::routing::PathParameters;
+use crate::simulator::template::{RequestContext, TemplateContext};
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::Response;
@@ -37,7 +37,10 @@ pub struct GraphQLMocks {
 pub fn load_graphql_mocks(gql_cfg: &GraphQLConfig) -> ApicentricResult<GraphQLMocks> {
     let schema = fs::read_to_string(&gql_cfg.schema_path).map_err(|e| {
         ApicentricError::config_error(
-            format!("Failed to read GraphQL schema {}: {}", gql_cfg.schema_path, e),
+            format!(
+                "Failed to read GraphQL schema {}: {}",
+                gql_cfg.schema_path, e
+            ),
             Some("Check that the schema file exists and is readable"),
         )
     })?;
@@ -132,10 +135,7 @@ pub async fn handle_graphql_request(
                                         e
                                     ))))
                                     .unwrap();
-                                return Some((
-                                    resp,
-                                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                                ));
+                                return Some((resp, StatusCode::INTERNAL_SERVER_ERROR.as_u16()));
                             }
                         }
                     } else {

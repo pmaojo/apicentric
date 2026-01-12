@@ -28,9 +28,9 @@ impl SimulatorManagerAdapter {
 #[async_trait]
 impl ContractMockApiRunner for SimulatorManagerAdapter {
     async fn start(&self, path: &str) -> Result<MockApiHandle, MockApiError> {
-        let yaml_content = fs::read_to_string(path)
-            .await
-            .map_err(|e| MockApiError::StartupError(format!("Failed to read service file: {}", e)))?;
+        let yaml_content = fs::read_to_string(path).await.map_err(|e| {
+            MockApiError::StartupError(format!("Failed to read service file: {}", e))
+        })?;
 
         self.manager
             .apply_service_yaml(&yaml_content)
@@ -47,7 +47,9 @@ impl ContractMockApiRunner for SimulatorManagerAdapter {
 
         let status = self.manager.get_status().await;
         let service_info = status.active_services.first().ok_or_else(|| {
-            MockApiError::StartupError("Simulator started, but no active services found".to_string())
+            MockApiError::StartupError(
+                "Simulator started, but no active services found".to_string(),
+            )
         })?;
 
         Ok(MockApiHandle {

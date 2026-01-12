@@ -2,16 +2,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-pub mod server;
 pub mod endpoint;
+pub mod server;
 pub mod validation;
 
-pub use server::{ServerConfig, CorsConfig};
 pub use endpoint::{
-    EndpointKind, StreamConfig, PeriodicMessage, EndpointDefinition,
-    ParameterDefinition, ParameterLocation, RequestBodyDefinition, ResponseDefinition,
-    SideEffect, ScenarioDefinition, ScenarioStrategy, ScenarioConditions, ScenarioResponse,
+    EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, PeriodicMessage,
+    RequestBodyDefinition, ResponseDefinition, ScenarioConditions, ScenarioDefinition,
+    ScenarioResponse, ScenarioStrategy, SideEffect, StreamConfig,
 };
+pub use server::{CorsConfig, ServerConfig};
 pub use validation::{ConfigLoader, LoadError, LoadErrorType, LoadResult, ValidationSummary};
 
 fn default_db_path() -> PathBuf {
@@ -55,7 +55,10 @@ impl SimulatorConfig {
         Self {
             enabled: false,
             services_dir: PathBuf::from("services"),
-            port_range: PortRange { start: 8000, end: 8999 },
+            port_range: PortRange {
+                start: 8000,
+                end: 8999,
+            },
             db_path: default_db_path(),
             admin_port: None,
             global_behavior: None,
@@ -73,7 +76,10 @@ impl Default for SimulatorConfig {
         Self {
             enabled: false,
             services_dir: PathBuf::from("services"),
-            port_range: PortRange { start: 8000, end: 8999 },
+            port_range: PortRange {
+                start: 8000,
+                end: 8999,
+            },
             db_path: default_db_path(),
             admin_port: None,
             global_behavior: None,

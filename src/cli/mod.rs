@@ -4,6 +4,8 @@
 //! the main `Cli` struct and the `Commands` enum.
 
 use crate::config::ExecutionMode;
+#[cfg(feature = "iot")]
+use crate::iot::args::TwinCommands;
 use clap::{Parser, Subcommand, ValueEnum};
 
 /// The command-line interface for `apicentric`.
@@ -263,6 +265,13 @@ pub enum Commands {
     ///
     /// Example: apicentric cloud
     Cloud,
+
+    /// Manage IoT Digital Twins
+    #[cfg(feature = "iot")]
+    Twin {
+        #[command(subcommand)]
+        command: TwinCommands,
+    },
 }
 
 /// Parses the command-line arguments into a `Cli` instance.

@@ -6,7 +6,8 @@ use apicentric::Context;
 use rmcp::{
     handler::server::{tool::ToolRouter, wrapper::Parameters, ServerHandler},
     model::{
-        CallToolResult, Content, ErrorCode, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
+        CallToolResult, Content, ErrorCode, Implementation, ProtocolVersion, ServerCapabilities,
+        ServerInfo,
     },
     schemars, tool, tool_handler, tool_router, ErrorData as McpError,
 };
@@ -90,7 +91,10 @@ impl ApicentricMcpService {
                 endpoint.response.status,
                 ResponseDefinition {
                     condition: None,
-                    content_type: endpoint.response.headers.get("Content-Type")
+                    content_type: endpoint
+                        .response
+                        .headers
+                        .get("Content-Type")
                         .cloned()
                         .unwrap_or_else(|| "application/json".to_string()),
                     body: endpoint.response.body_template,
@@ -118,7 +122,8 @@ impl ApicentricMcpService {
 
         // Convert fixtures from Value to HashMap if it's an object
         let fixtures = if spec.fixtures.is_object() {
-            spec.fixtures.as_object()
+            spec.fixtures
+                .as_object()
                 .unwrap()
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
@@ -165,18 +170,26 @@ impl ApicentricMcpService {
         if let Some(manager) = self.context.api_simulator() {
             // Load services from directory if not loaded
             if let Err(e) = manager.load_services().await {
-                 tracing::warn!("Failed to load services: {}", e);
-                 // We don't return error here, just return empty list or partial list
+                tracing::warn!("Failed to load services: {}", e);
+                // We don't return error here, just return empty list or partial list
             }
 
             let registry = manager.service_registry().read().await;
             let service_infos = registry.list_services().await;
-            let services = service_infos.into_iter().map(|s| s.name).collect::<Vec<_>>();
+            let services = service_infos
+                .into_iter()
+                .map(|s| s.name)
+                .collect::<Vec<_>>();
             let content = services.into_iter().map(Content::text).collect();
             Ok(CallToolResult::success(content))
         } else {
             tracing::warn!("API Simulator not available");
-            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+            Err(McpError::new(
+                ErrorCode(-32603),
+                "API Simulator not available - ensure the 'simulator' feature is enabled"
+                    .to_string(),
+                None,
+            ))
         }
     }
 
@@ -193,10 +206,19 @@ impl ApicentricMcpService {
                     let response = format!("Service '{}' started successfully.", service_name);
                     Ok(CallToolResult::success(vec![Content::text(response)]))
                 }
-                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to start service '{}': {}", service_name, e), None)),
+                Err(e) => Err(McpError::new(
+                    ErrorCode(-32603),
+                    format!("Failed to start service '{}': {}", service_name, e),
+                    None,
+                )),
             }
         } else {
-            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+            Err(McpError::new(
+                ErrorCode(-32603),
+                "API Simulator not available - ensure the 'simulator' feature is enabled"
+                    .to_string(),
+                None,
+            ))
         }
     }
 
@@ -213,10 +235,19 @@ impl ApicentricMcpService {
                     let response = format!("Service '{}' stopped successfully.", service_name);
                     Ok(CallToolResult::success(vec![Content::text(response)]))
                 }
-                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to stop service '{}': {}", service_name, e), None)),
+                Err(e) => Err(McpError::new(
+                    ErrorCode(-32603),
+                    format!("Failed to stop service '{}': {}", service_name, e),
+                    None,
+                )),
             }
         } else {
-            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+            Err(McpError::new(
+                ErrorCode(-32603),
+                "API Simulator not available - ensure the 'simulator' feature is enabled"
+                    .to_string(),
+                None,
+            ))
         }
     }
 
@@ -239,13 +270,23 @@ impl ApicentricMcpService {
         if let Some(manager) = self.context.api_simulator() {
             match manager.reload_services().await {
                 Ok(_) => {
-                    let response = "All services reloaded successfully from services directory.".to_string();
+                    let response =
+                        "All services reloaded successfully from services directory.".to_string();
                     Ok(CallToolResult::success(vec![Content::text(response)]))
                 }
-                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to reload services: {}", e), None)),
+                Err(e) => Err(McpError::new(
+                    ErrorCode(-32603),
+                    format!("Failed to reload services: {}", e),
+                    None,
+                )),
             }
         } else {
-            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+            Err(McpError::new(
+                ErrorCode(-32603),
+                "API Simulator not available - ensure the 'simulator' feature is enabled"
+                    .to_string(),
+                None,
+            ))
         }
     }
 
@@ -276,10 +317,19 @@ impl ApicentricMcpService {
                 );
                 Ok(CallToolResult::success(vec![Content::text(response)]))
             } else {
-                Err(McpError::new(ErrorCode(-32603), format!("Service '{}' not found", service_name), None))
+                Err(McpError::new(
+                    ErrorCode(-32603),
+                    format!("Service '{}' not found", service_name),
+                    None,
+                ))
             }
         } else {
-            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+            Err(McpError::new(
+                ErrorCode(-32603),
+                "API Simulator not available - ensure the 'simulator' feature is enabled"
+                    .to_string(),
+                None,
+            ))
         }
     }
 
@@ -301,10 +351,19 @@ impl ApicentricMcpService {
                     let response = format!("Service '{}' deleted successfully.", service_name);
                     Ok(CallToolResult::success(vec![Content::text(response)]))
                 }
-                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to delete service '{}': {}", service_name, e), None)),
+                Err(e) => Err(McpError::new(
+                    ErrorCode(-32603),
+                    format!("Failed to delete service '{}': {}", service_name, e),
+                    None,
+                )),
             }
         } else {
-            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+            Err(McpError::new(
+                ErrorCode(-32603),
+                "API Simulator not available - ensure the 'simulator' feature is enabled"
+                    .to_string(),
+                None,
+            ))
         }
     }
 
@@ -326,7 +385,12 @@ impl ApicentricMcpService {
             );
             Ok(CallToolResult::success(vec![Content::text(response)]))
         } else {
-            Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+            Err(McpError::new(
+                ErrorCode(-32603),
+                "API Simulator not available - ensure the 'simulator' feature is enabled"
+                    .to_string(),
+                None,
+            ))
         }
     }
 
@@ -346,17 +410,23 @@ impl ApicentricMcpService {
                             match registry.register_service(service_def.clone()).await {
                                 Ok(_) => {
                                     // Persist the service to disk
-                                    let services_dir = if let Some(config) = &self.context.config().simulator {
-                                        config.services_dir.clone()
-                                    } else {
-                                        std::path::PathBuf::from("services")
-                                    };
+                                    let services_dir =
+                                        if let Some(config) = &self.context.config().simulator {
+                                            config.services_dir.clone()
+                                        } else {
+                                            std::path::PathBuf::from("services")
+                                        };
 
                                     if let Err(e) = fs::create_dir_all(&services_dir) {
-                                        return Err(McpError::new(ErrorCode(-32603), format!("Failed to create services directory: {}", e), None));
+                                        return Err(McpError::new(
+                                            ErrorCode(-32603),
+                                            format!("Failed to create services directory: {}", e),
+                                            None,
+                                        ));
                                     }
 
-                                    let file_path = services_dir.join(format!("{}.yaml", service_def.name));
+                                    let file_path =
+                                        services_dir.join(format!("{}.yaml", service_def.name));
 
                                     // Serialize the definition to YAML
                                     match serde_yaml::to_string(&service_def) {
@@ -364,24 +434,49 @@ impl ApicentricMcpService {
                                             match fs::write(&file_path, yaml_content) {
                                                 Ok(_) => {
                                                     let response = format!("Service '{}' created, registered, and saved to {}.", service_def.name, file_path.display());
-                                                    Ok(CallToolResult::success(vec![Content::text(response)]))
-                                                },
-                                                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to write service file: {}", e), None)),
+                                                    Ok(CallToolResult::success(vec![
+                                                        Content::text(response),
+                                                    ]))
+                                                }
+                                                Err(e) => Err(McpError::new(
+                                                    ErrorCode(-32603),
+                                                    format!("Failed to write service file: {}", e),
+                                                    None,
+                                                )),
                                             }
-                                        },
-                                        Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to serialize service definition: {}", e), None)),
+                                        }
+                                        Err(e) => Err(McpError::new(
+                                            ErrorCode(-32603),
+                                            format!(
+                                                "Failed to serialize service definition: {}",
+                                                e
+                                            ),
+                                            None,
+                                        )),
                                     }
                                 }
-                                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to register service: {}", e), None)),
+                                Err(e) => Err(McpError::new(
+                                    ErrorCode(-32603),
+                                    format!("Failed to register service: {}", e),
+                                    None,
+                                )),
                             }
                         } else {
                             Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
                         }
                     }
-                    Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to convert service spec: {}", e), None)),
+                    Err(e) => Err(McpError::new(
+                        ErrorCode(-32603),
+                        format!("Failed to convert service spec: {}", e),
+                        None,
+                    )),
                 }
             }
-            Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Invalid YAML definition: {}", e), None)),
+            Err(e) => Err(McpError::new(
+                ErrorCode(-32603),
+                format!("Invalid YAML definition: {}", e),
+                None,
+            )),
         }
     }
 
@@ -398,24 +493,37 @@ impl ApicentricMcpService {
                     match manager.apply_service_yaml(&yaml).await {
                         Ok(service_name) => {
                             // Persist the service to disk
-                            let services_dir = if let Some(config) = &self.context.config().simulator {
-                                config.services_dir.clone()
-                            } else {
-                                std::path::PathBuf::from("services")
-                            };
+                            let services_dir =
+                                if let Some(config) = &self.context.config().simulator {
+                                    config.services_dir.clone()
+                                } else {
+                                    std::path::PathBuf::from("services")
+                                };
 
                             if let Err(e) = fs::create_dir_all(&services_dir) {
-                                return Err(McpError::new(ErrorCode(-32603), format!("Failed to create services directory: {}", e), None));
+                                return Err(McpError::new(
+                                    ErrorCode(-32603),
+                                    format!("Failed to create services directory: {}", e),
+                                    None,
+                                ));
                             }
 
                             let file_path = services_dir.join(format!("{}.yaml", service_name));
 
                             match fs::write(&file_path, &yaml) {
                                 Ok(_) => {
-                                    let response = format!("Service '{}' generated, started, and saved to {}.", service_name, file_path.display());
+                                    let response = format!(
+                                        "Service '{}' generated, started, and saved to {}.",
+                                        service_name,
+                                        file_path.display()
+                                    );
                                     Ok(CallToolResult::success(vec![Content::text(response)]))
-                                },
-                                Err(e) => Err(McpError::new(ErrorCode(-32603), format!("Failed to write service file: {}", e), None)),
+                                }
+                                Err(e) => Err(McpError::new(
+                                    ErrorCode(-32603),
+                                    format!("Failed to write service file: {}", e),
+                                    None,
+                                )),
                             }
                         }
                         Err(e) => Err(McpError::new(

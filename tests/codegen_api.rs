@@ -1,11 +1,11 @@
+use apicentric::cloud::CloudServer;
 use apicentric::simulator::{
     config::{
-        EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
-        SimulatorConfig, PortRange,
+        EndpointDefinition, EndpointKind, PortRange, ResponseDefinition, ServerConfig,
+        ServiceDefinition, SimulatorConfig,
     },
     manager::ApiSimulatorManager,
 };
-use apicentric::cloud::CloudServer;
 use std::collections::HashMap;
 use tokio::time::{sleep, Duration};
 
@@ -87,7 +87,7 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
 async fn test_typescript_generation() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a test service
     let service_def = create_test_service_definition("test-service", Some(9990));
     let service_path = services_dir.path().join("test-service.yaml");
@@ -97,44 +97,47 @@ async fn test_typescript_generation() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 9990, end: 9999 };
+    config.port_range = PortRange {
+        start: 9990,
+        end: 9999,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
-    
+
     // Give the service time to start
     sleep(Duration::from_millis(500)).await;
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(9991).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
     let client = reqwest::Client::new();
-    
+
     // Test TypeScript generation
     let req = serde_json::json!({
         "service_name": "test-service"
     });
-    
+
     let res = client
         .post("http://localhost:9991/api/codegen/typescript")
         .json(&req)
         .send()
         .await
         .unwrap();
-    
+
     assert_eq!(res.status(), 200);
     let response: serde_json::Value = res.json().await.unwrap();
     assert_eq!(response["success"], true);
     assert!(response["data"]["code"].is_string());
-    
+
     let code = response["data"]["code"].as_str().unwrap();
     // TypeScript generation requires npx, so it might fail in CI
     // Just verify we got a response
@@ -148,7 +151,7 @@ async fn test_typescript_generation() {
 async fn test_react_query_generation() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a test service
     let service_def = create_test_service_definition("test-service-rq", Some(9992));
     let service_path = services_dir.path().join("test-service-rq.yaml");
@@ -158,44 +161,47 @@ async fn test_react_query_generation() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 9992, end: 9999 };
+    config.port_range = PortRange {
+        start: 9992,
+        end: 9999,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
-    
+
     // Give the service time to start
     sleep(Duration::from_millis(500)).await;
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(9993).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
     let client = reqwest::Client::new();
-    
+
     // Test React Query generation
     let req = serde_json::json!({
         "service_name": "test-service-rq"
     });
-    
+
     let res = client
         .post("http://localhost:9993/api/codegen/react-query")
         .json(&req)
         .send()
         .await
         .unwrap();
-    
+
     assert_eq!(res.status(), 200);
     let response: serde_json::Value = res.json().await.unwrap();
     assert_eq!(response["success"], true);
     assert!(response["data"]["code"].is_string());
-    
+
     let code = response["data"]["code"].as_str().unwrap();
     assert!(code.contains("useQuery") || code.contains("useMutation"));
     assert!(code.contains("useUsersQuery"));
@@ -209,7 +215,7 @@ async fn test_react_query_generation() {
 async fn test_axios_generation() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a test service
     let service_def = create_test_service_definition("test-service-axios", Some(9994));
     let service_path = services_dir.path().join("test-service-axios.yaml");
@@ -219,44 +225,47 @@ async fn test_axios_generation() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 9994, end: 9999 };
+    config.port_range = PortRange {
+        start: 9994,
+        end: 9999,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
-    
+
     // Give the service time to start
     sleep(Duration::from_millis(500)).await;
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(9995).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
     let client = reqwest::Client::new();
-    
+
     // Test Axios generation
     let req = serde_json::json!({
         "service_name": "test-service-axios"
     });
-    
+
     let res = client
         .post("http://localhost:9995/api/codegen/axios")
         .json(&req)
         .send()
         .await
         .unwrap();
-    
+
     assert_eq!(res.status(), 200);
     let response: serde_json::Value = res.json().await.unwrap();
     assert_eq!(response["success"], true);
     assert!(response["data"]["code"].is_string());
-    
+
     let code = response["data"]["code"].as_str().unwrap();
     assert!(code.contains("class"));
     assert!(code.contains("axios"));
@@ -271,7 +280,7 @@ async fn test_axios_generation() {
 async fn test_codegen_service_not_found() {
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
-    
+
     // Create a dummy service so the manager can start
     let dummy_service = create_test_service_definition("dummy-service", Some(9996));
     let dummy_path = services_dir.path().join("dummy-service.yaml");
@@ -281,47 +290,55 @@ async fn test_codegen_service_not_found() {
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     config.services_dir = services_dir.path().to_path_buf();
-    config.port_range = PortRange { start: 9996, end: 9999 };
+    config.port_range = PortRange {
+        start: 9996,
+        end: 9999,
+    };
 
     let manager = ApiSimulatorManager::new(config);
     manager.start().await.unwrap();
-    
+
     // Give the service time to start
     sleep(Duration::from_millis(500)).await;
 
     // Create cloud server
     let cloud_server = CloudServer::new(manager);
-    
+
     // Start cloud server in background
     let cloud_handle = tokio::spawn(async move {
         cloud_server.start(9997).await.ok();
     });
-    
+
     // Give the cloud server time to start
     sleep(Duration::from_millis(500)).await;
 
     let client = reqwest::Client::new();
-    
+
     // Test with non-existent service
     let req = serde_json::json!({
         "service_name": "non-existent-service"
     });
-    
+
     let res = client
         .post("http://localhost:9997/api/codegen/axios")
         .json(&req)
         .send()
         .await
         .unwrap();
-    
+
     // Should return 404 for non-existent service
     assert_eq!(res.status(), 404);
     let response: serde_json::Value = res.json().await.unwrap();
     // Check that the error message contains "not found"
-    let error_msg = response["message"].as_str()
+    let error_msg = response["message"]
+        .as_str()
         .or_else(|| response["error"].as_str())
         .expect("Response should have error message");
-    assert!(error_msg.contains("not found"), "Error message should contain 'not found', got: {}", error_msg);
+    assert!(
+        error_msg.contains("not found"),
+        "Error message should contain 'not found', got: {}",
+        error_msg
+    );
 
     // Cleanup
     cloud_handle.abort();

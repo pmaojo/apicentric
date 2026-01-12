@@ -76,7 +76,9 @@ fn generated_view_compiles_and_composes_with_hooks() {
             }
         }
         Err(err) if err.kind() == ErrorKind::NotFound => {
-            eprintln!("Skipping react view generation test: TypeScript compiler not available ({err})");
+            eprintln!(
+                "Skipping react view generation test: TypeScript compiler not available ({err})"
+            );
             return;
         }
         Err(err) => panic!("failed to run tsc: {err}"),

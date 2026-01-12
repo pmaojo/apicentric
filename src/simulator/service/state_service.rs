@@ -15,7 +15,9 @@ pub struct StateService {
 
 impl StateService {
     pub fn new(state: ServiceState) -> Self {
-        Self { inner: Arc::new(RwLock::new(state)) }
+        Self {
+            inner: Arc::new(RwLock::new(state)),
+        }
     }
 
     pub async fn update(&self, key: &str, value: Value) {
@@ -78,13 +80,12 @@ mod tests {
 
     #[tokio::test]
     async fn state_roundtrip() {
-        let service = StateService::new(ServiceState::new(
-            None,
-            None,
-            Arc::new(DummyStorage),
-            None,
-        ));
+        let service =
+            StateService::new(ServiceState::new(None, None, Arc::new(DummyStorage), None));
         service.update("key", Value::String("value".into())).await;
-        assert_eq!(service.get("key").await, Some(Value::String("value".into())));
+        assert_eq!(
+            service.get("key").await,
+            Some(Value::String("value".into()))
+        );
     }
 }

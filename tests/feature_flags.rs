@@ -1,7 +1,7 @@
 //! Tests for feature flag combinations
 //!
 //! These tests verify that different feature combinations compile and work correctly.
-//! 
+//!
 //! Feature combinations tested by CI:
 //! - minimal: --no-default-features --features minimal
 //! - default: (default features)

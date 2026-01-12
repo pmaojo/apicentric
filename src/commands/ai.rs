@@ -24,7 +24,7 @@ pub async fn ai_command(
             }
 
             println!("🤖 Generating service from: \"{}\"...", prompt);
-            
+
             match ai::generate_service(context, prompt).await {
                 Ok(yaml) => {
                     if let Some(sim) = context.api_simulator() {
@@ -34,7 +34,7 @@ pub async fn ai_command(
                                     "✅ Generated service '{}' applied to simulator",
                                     service_name
                                 );
-                            },
+                            }
                             Err(e) => {
                                 println!("❌ Failed to apply generated service: {}", e);
                             }
@@ -42,7 +42,7 @@ pub async fn ai_command(
                     } else {
                         println!("{}", yaml);
                     }
-                },
+                }
                 Err(e) => {
                     let err_msg = e.to_string();
                     if err_msg.contains("401") || err_msg.contains("Unauthorized") {
@@ -50,7 +50,7 @@ pub async fn ai_command(
                         println!("👉 Please set the OPENAI_API_KEY environment variable to use AI features.");
                         println!("   Example: export OPENAI_API_KEY=sk-...");
                     } else {
-                         println!("❌ AI Generation Failed: {}", e);
+                        println!("❌ AI Generation Failed: {}", e);
                     }
                 }
             }

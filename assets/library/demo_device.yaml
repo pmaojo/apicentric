@@ -1,0 +1,14 @@
+twin:
+  name: "Sensor_Presion_01"
+  physics:
+    - variable: "pressure"
+      strategy: "script"
+      params:
+        code: "value + 1.5"
+
+  transports:
+    - type: "mqtt"
+      broker_url: "localhost"
+      port: 1883
+      topic_prefix: "sensors/pressure"
+      client_id: "sensor_01"

@@ -8,10 +8,10 @@ fn build() -> (apicentric::Context, ExecutionContext) {
     let temp = TempDir::new().unwrap();
     let services = temp.path().join("services");
     fs::create_dir_all(&services).unwrap();
-    
+
     // Create a minimal config with the new structure
     let config = ApicentricConfig::default();
-    
+
     let builder = ContextBuilder::new(config);
     let context = builder.build().unwrap();
     let exec = ExecutionContext::new().with_dry_run(true);
@@ -55,11 +55,7 @@ async fn dockerize_runs() {
     let exec = ExecutionContext::new().with_dry_run(false);
     let temp = TempDir::new().unwrap();
     let service_path = temp.path().join("service.yaml");
-    fs::write(
-        &service_path,
-        "name: test-service\nserver:\n  port: 8080",
-    )
-    .unwrap();
+    fs::write(&service_path, "name: test-service\nserver:\n  port: 8080").unwrap();
 
     simulator_command(
         &SimulatorAction::Dockerize {

@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-pub mod validation;
 pub mod repository;
+pub mod validation;
 
-pub use repository::{ConfigRepository, FileConfigRepository, init_config, load_config, save_config};
+pub use repository::{
+    init_config, load_config, save_config, ConfigRepository, FileConfigRepository,
+};
 
 /// Main configuration structure for Apicentric
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -98,4 +100,3 @@ mod tests {
         assert!(config.simulator.is_some());
     }
 }
-

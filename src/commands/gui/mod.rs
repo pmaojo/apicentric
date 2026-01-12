@@ -10,19 +10,19 @@ use std::sync::Arc;
 use apicentric::simulator::manager::ApiSimulatorManager;
 
 #[cfg(feature = "gui")]
-pub mod models;
-#[cfg(feature = "gui")]
-pub mod messages;
-#[cfg(feature = "gui")]
-pub mod state;
-#[cfg(feature = "gui")]
-pub mod render;
+pub mod ai;
 #[cfg(feature = "gui")]
 pub mod events;
 #[cfg(feature = "gui")]
-pub mod style;
+pub mod messages;
 #[cfg(feature = "gui")]
-pub mod ai;
+pub mod models;
+#[cfg(feature = "gui")]
+pub mod render;
+#[cfg(feature = "gui")]
+pub mod state;
+#[cfg(feature = "gui")]
+pub mod style;
 
 #[cfg(all(feature = "gui", test))]
 pub mod test_utils;
@@ -30,15 +30,15 @@ pub mod test_utils;
 #[cfg(feature = "gui")]
 pub use messages::*;
 #[cfg(feature = "gui")]
-pub use state::GuiAppState;
-#[cfg(feature = "gui")]
 pub use render::*;
+#[cfg(feature = "gui")]
+pub use state::GuiAppState;
 
 /// Launch the egui GUI application
 #[cfg(feature = "gui")]
 pub async fn gui_command() -> crate::ApicentricResult<()> {
+    use apicentric::simulator::config::{PortRange, SimulatorConfig};
     use apicentric::simulator::manager::ApiSimulatorManager;
-    use apicentric::simulator::config::{SimulatorConfig, PortRange};
     use std::sync::Arc;
     use tokio::sync::broadcast;
 
@@ -46,7 +46,10 @@ pub async fn gui_command() -> crate::ApicentricResult<()> {
     let config = SimulatorConfig {
         enabled: true,
         services_dir: std::path::PathBuf::from("services"),
-        port_range: PortRange { start: 9000, end: 9099 },
+        port_range: PortRange {
+            start: 9000,
+            end: 9099,
+        },
         db_path: std::path::PathBuf::from("apicentric.db"),
         admin_port: Some(8080),
         global_behavior: None,
@@ -61,10 +64,10 @@ pub async fn gui_command() -> crate::ApicentricResult<()> {
     let mut gui_state = state::GuiAppState::new(log_receiver);
 
     // Load initial services
-    if let Err(e) = events::EventHandler::new(manager.clone()).handle_message(
-        messages::GuiMessage::RefreshServices,
-        &mut gui_state
-    ).await {
+    if let Err(e) = events::EventHandler::new(manager.clone())
+        .handle_message(messages::GuiMessage::RefreshServices, &mut gui_state)
+        .await
+    {
         eprintln!("Failed to refresh services: {}", e);
     }
 
@@ -89,8 +92,11 @@ async fn run_gui_application(
 
     eframe::run_simple_native("Apicentric GUI", options, move |ctx, _frame| {
         render::render(ctx, &mut gui_state, &manager);
-    }).map_err(|e| crate::ApicentricError::runtime_error(
-        format!("GUI application failed: {}", e),
-        None::<String>
-    ))
+    })
+    .map_err(|e| {
+        crate::ApicentricError::runtime_error(
+            format!("GUI application failed: {}", e),
+            None::<String>,
+        )
+    })
 }

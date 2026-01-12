@@ -180,10 +180,15 @@ impl FileSystemUtils {
         let stem = path.file_stem().and_then(|s| s.to_str());
 
         let valid = matches!(extension, Some("ts" | "js" | "rs"))
-            && stem.map(|s| s.contains("test") || s.contains("spec")).unwrap_or(false);
+            && stem
+                .map(|s| s.contains("test") || s.contains("spec"))
+                .unwrap_or(false);
 
         if !valid {
-            return Err("Invalid test file. Expected test or spec files with .ts, .js, or .rs extensions".to_string());
+            return Err(
+                "Invalid test file. Expected test or spec files with .ts, .js, or .rs extensions"
+                    .to_string(),
+            );
         }
 
         // Skip non-test directories
@@ -238,8 +243,6 @@ impl FileSystemUtils {
                     .to_string(),
             );
         }
-
-
 
         if pattern.contains("/test/") || pattern.contains("/__tests__/") {
             suggestions

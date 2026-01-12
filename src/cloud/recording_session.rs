@@ -11,7 +11,9 @@ use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 use crate::errors::{ApicentricError, ApicentricResult};
-use crate::simulator::config::{EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, ResponseDefinition};
+use crate::simulator::config::{
+    EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, ResponseDefinition,
+};
 use hyper::{HeaderMap, Method};
 
 /// A recording session that captures HTTP traffic.
@@ -61,24 +63,21 @@ impl RecordingSessionManager {
 
         let session_id = Uuid::new_v4().to_string();
         let proxy_url = format!("http://0.0.0.0:{}", port);
-        
+
         let endpoints: Arc<Mutex<HashMap<(String, String), EndpointDefinition>>> =
             Arc::new(Mutex::new(HashMap::new()));
-        
+
         let (shutdown_tx, mut shutdown_rx) = tokio::sync::mpsc::channel::<()>(1);
-        
+
         // Clone for the task
         let endpoints_clone = endpoints.clone();
         let target_url_clone = target_url.clone();
-        
+
         // Start the proxy task
         let task_handle = tokio::spawn(async move {
-            if let Err(e) = run_recording_proxy(
-                target_url_clone,
-                port,
-                endpoints_clone,
-                &mut shutdown_rx,
-            ).await {
+            if let Err(e) =
+                run_recording_proxy(target_url_clone, port, endpoints_clone, &mut shutdown_rx).await
+            {
                 eprintln!("Recording proxy error: {}", e);
             }
         });
@@ -100,21 +99,21 @@ impl RecordingSessionManager {
     /// Stops the active recording session and returns captured endpoints.
     pub async fn stop_recording(&self) -> ApicentricResult<(String, Vec<EndpointDefinition>)> {
         let mut session_lock = self.active_session.write().await;
-        
+
         if let Some(session) = session_lock.take() {
             // Send shutdown signal
             let _ = session.shutdown_tx.send(()).await;
-            
+
             // Wait a bit for graceful shutdown
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            
+
             // Abort the task if it's still running
             session.task_handle.abort();
-            
+
             // Get the captured endpoints
             let endpoints_map = session.endpoints.lock().await;
             let endpoints: Vec<EndpointDefinition> = endpoints_map.values().cloned().collect();
-            
+
             Ok((session.session_id, endpoints))
         } else {
             Err(ApicentricError::runtime_error(
@@ -125,13 +124,22 @@ impl RecordingSessionManager {
     }
 
     /// Gets the status of the current recording session.
-    pub async fn get_status(&self) -> (bool, Option<String>, Option<String>, Option<u16>, Option<String>, usize) {
+    pub async fn get_status(
+        &self,
+    ) -> (
+        bool,
+        Option<String>,
+        Option<String>,
+        Option<u16>,
+        Option<String>,
+        usize,
+    ) {
         let session_lock = self.active_session.read().await;
-        
+
         if let Some(session) = session_lock.as_ref() {
             let endpoints = session.endpoints.lock().await;
             let count = endpoints.len();
-            
+
             (
                 true,
                 Some(session.session_id.clone()),
@@ -153,6 +161,8 @@ async fn run_recording_proxy(
     endpoints: Arc<Mutex<HashMap<(String, String), EndpointDefinition>>>,
     shutdown_rx: &mut tokio::sync::mpsc::Receiver<()>,
 ) -> ApicentricResult<()> {
+    use bytes::Bytes;
+    use http_body_util::{BodyExt, Full};
     use hyper::body::Incoming;
     use hyper::server::conn::http1;
     use hyper::service::service_fn;
@@ -160,17 +170,15 @@ async fn run_recording_proxy(
     use hyper_util::client::legacy::connect::HttpConnector;
     use hyper_util::client::legacy::Client;
     use hyper_util::rt::{TokioExecutor, TokioIo};
-    use tokio::net::TcpListener;
-    use bytes::Bytes;
-    use http_body_util::{BodyExt, Full};
     use std::convert::Infallible;
+    use tokio::net::TcpListener;
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    
+
     let connector = HttpConnector::new();
     let client: Client<HttpConnector, Full<Bytes>> =
         Client::builder(TokioExecutor::new()).build(connector);
-    
+
     let listener = TcpListener::bind(addr).await.map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to bind recording proxy: {}", e),
@@ -192,18 +200,18 @@ async fn run_recording_proxy(
                         None::<String>,
                     )
                 })?;
-                
+
                 let io = TokioIo::new(stream);
                 let client = client.clone();
                 let target = target.clone();
                 let endpoints = endpoints.clone();
-                
+
                 tokio::spawn(async move {
                     let service = service_fn(move |req: Request<Incoming>| {
                         let client = client.clone();
                         let target = target.clone();
                         let endpoints = endpoints.clone();
-                        
+
                         async move {
                             let method = req.method().clone();
                             let headers = req.headers().clone();
@@ -241,7 +249,7 @@ async fn run_recording_proxy(
                                     return Ok::<_, Infallible>(err_resp);
                                 }
                             };
-                            
+
                             let (parts, body) = resp.into_parts();
                             let resp_bytes = match BodyExt::collect(body).await {
                                 Ok(col) => col.to_bytes(),
@@ -259,7 +267,7 @@ async fn run_recording_proxy(
                                 .and_then(|v| v.to_str().ok())
                                 .unwrap_or("application/json")
                                 .to_string();
-                            
+
                             {
                                 let mut map = endpoints.lock().await;
                                 upsert_recorded_endpoint(
@@ -280,7 +288,7 @@ async fn run_recording_proxy(
                             Ok::<_, Infallible>(client_resp)
                         }
                     });
-                    
+
                     if let Err(err) = http1::Builder::new().serve_connection(io, service).await {
                         eprintln!("Proxy connection error: {err}");
                     }

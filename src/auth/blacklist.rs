@@ -63,7 +63,7 @@ impl TokenBlacklist {
     fn hash_token(token: &str) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         token.hash(&mut hasher);
         format!("{:x}", hasher.finish())
@@ -86,9 +86,9 @@ mod tests {
         let token = "test.token.here";
 
         assert!(!blacklist.is_blacklisted(token).await);
-        
+
         blacklist.add(token).await;
-        
+
         assert!(blacklist.is_blacklisted(token).await);
     }
 
@@ -99,7 +99,7 @@ mod tests {
         let token2 = "token2";
 
         blacklist.add(token1).await;
-        
+
         assert!(blacklist.is_blacklisted(token1).await);
         assert!(!blacklist.is_blacklisted(token2).await);
     }

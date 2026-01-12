@@ -35,7 +35,12 @@ impl SqliteStorage {
             "CREATE TABLE IF NOT EXISTS services (name TEXT PRIMARY KEY, definition TEXT NOT NULL)",
             [],
         )
-        .map_err(|e| ApicentricError::runtime_error(format!("Failed to create services table: {}", e), None::<String>))?;
+        .map_err(|e| {
+            ApicentricError::runtime_error(
+                format!("Failed to create services table: {}", e),
+                None::<String>,
+            )
+        })?;
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS logs (
@@ -49,26 +54,38 @@ impl SqliteStorage {
             )",
             [],
         )
-        .map_err(|e| ApicentricError::runtime_error(format!("Failed to create logs table: {}", e), None::<String>))?;
+        .map_err(|e| {
+            ApicentricError::runtime_error(
+                format!("Failed to create logs table: {}", e),
+                None::<String>,
+            )
+        })?;
 
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 }
 
 impl Storage for SqliteStorage {
     fn save_service(&self, service: &ServiceDefinition) -> ApicentricResult<()> {
         let json = serde_json::to_string(service).map_err(|e| {
-            ApicentricError::runtime_error(format!("Failed to serialize service: {}", e), None::<String>)
+            ApicentricError::runtime_error(
+                format!("Failed to serialize service: {}", e),
+                None::<String>,
+            )
         })?;
         let conn = self
             .conn
             .lock()
             .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
         conn.execute(
-                "INSERT OR REPLACE INTO services (name, definition) VALUES (?1, ?2)",
-                params![service.name, json],
-            )
-            .map_err(|e| ApicentricError::runtime_error(format!("Failed to save service: {}", e), None::<String>))?;
+            "INSERT OR REPLACE INTO services (name, definition) VALUES (?1, ?2)",
+            params![service.name, json],
+        )
+        .map_err(|e| {
+            ApicentricError::runtime_error(format!("Failed to save service: {}", e), None::<String>)
+        })?;
         Ok(())
     }
 
@@ -79,18 +96,32 @@ impl Storage for SqliteStorage {
             .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
         let mut stmt = conn
             .prepare("SELECT definition FROM services WHERE name = ?1")
-            .map_err(|e| ApicentricError::runtime_error(format!("Failed to prepare query: {}", e), None::<String>))?;
-        let mut rows = stmt
-            .query(params![name])
-            .map_err(|e| ApicentricError::runtime_error(format!("Failed to query service: {}", e), None::<String>))?;
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to prepare query: {}", e),
+                    None::<String>,
+                )
+            })?;
+        let mut rows = stmt.query(params![name]).map_err(|e| {
+            ApicentricError::runtime_error(
+                format!("Failed to query service: {}", e),
+                None::<String>,
+            )
+        })?;
         if let Some(row) = rows.next().map_err(|e| {
             ApicentricError::runtime_error(format!("Failed to read row: {}", e), None::<String>)
         })? {
             let json: String = row.get(0).map_err(|e| {
-                ApicentricError::runtime_error(format!("Failed to get column: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Failed to get column: {}", e),
+                    None::<String>,
+                )
             })?;
             let service = serde_json::from_str(&json).map_err(|e| {
-                ApicentricError::runtime_error(format!("Failed to deserialize service: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Failed to deserialize service: {}", e),
+                    None::<String>,
+                )
             })?;
             Ok(Some(service))
         } else {
@@ -126,9 +157,8 @@ impl Storage for SqliteStorage {
         status: Option<u16>,
         limit: usize,
     ) -> ApicentricResult<Vec<RequestLogEntry>> {
-        let mut sql = String::from(
-            "SELECT timestamp, service, endpoint, method, path, status FROM logs",
-        );
+        let mut sql =
+            String::from("SELECT timestamp, service, endpoint, method, path, status FROM logs");
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<Box<dyn ToSql>> = Vec::new();
 
@@ -159,27 +189,42 @@ impl Storage for SqliteStorage {
             .conn
             .lock()
             .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
-        let mut stmt = conn
-            .prepare(&sql)
-            .map_err(|e| {
-                ApicentricError::runtime_error(format!("Failed to prepare log query: {}", e), None::<String>)
-            })?;
+        let mut stmt = conn.prepare(&sql).map_err(|e| {
+            ApicentricError::runtime_error(
+                format!("Failed to prepare log query: {}", e),
+                None::<String>,
+            )
+        })?;
         let mapped = stmt
-            .query_map(rusqlite::params_from_iter(params.iter().map(|p| &**p)), |row| {
-                let ts: String = row.get(0)?;
-                let timestamp = chrono::DateTime::parse_from_rfc3339(&ts)
-                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e)))?
-                    .with_timezone(&chrono::Utc);
-                Ok(RequestLogEntry {
-                    timestamp,
-                    service: row.get(1)?,
-                    endpoint: row.get::<_, Option<i64>>(2)?.map(|v| v as usize),
-                    method: row.get(3)?,
-                    path: row.get(4)?,
-                    status: row.get::<_, i64>(5)? as u16,
-                })
-            })
-            .map_err(|e| ApicentricError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>))?;
+            .query_map(
+                rusqlite::params_from_iter(params.iter().map(|p| &**p)),
+                |row| {
+                    let ts: String = row.get(0)?;
+                    let timestamp = chrono::DateTime::parse_from_rfc3339(&ts)
+                        .map_err(|e| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                0,
+                                rusqlite::types::Type::Text,
+                                Box::new(e),
+                            )
+                        })?
+                        .with_timezone(&chrono::Utc);
+                    Ok(RequestLogEntry {
+                        timestamp,
+                        service: row.get(1)?,
+                        endpoint: row.get::<_, Option<i64>>(2)?.map(|v| v as usize),
+                        method: row.get(3)?,
+                        path: row.get(4)?,
+                        status: row.get::<_, i64>(5)? as u16,
+                    })
+                },
+            )
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to fetch logs: {}", e),
+                    None::<String>,
+                )
+            })?;
         let mut entries: Vec<RequestLogEntry> = Vec::new();
         for item in mapped {
             if let Ok(entry) = item {
@@ -195,8 +240,9 @@ impl Storage for SqliteStorage {
             .conn
             .lock()
             .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
-        conn.execute("DELETE FROM logs", [])
-            .map_err(|e| ApicentricError::runtime_error(format!("Failed to clear logs: {}", e), None::<String>))?;
+        conn.execute("DELETE FROM logs", []).map_err(|e| {
+            ApicentricError::runtime_error(format!("Failed to clear logs: {}", e), None::<String>)
+        })?;
         Ok(())
     }
 }

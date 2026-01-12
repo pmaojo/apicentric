@@ -39,14 +39,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Validate { path } => {
             println!("{} {}", "🔍 Validating:".blue().bold(), path);
-            
+
             match std::fs::read_to_string(&path) {
-                Ok(content) => {
-                    match serde_yaml::from_str::<serde_json::Value>(&content) {
-                        Ok(_) => println!("{}", "✅ Valid YAML structure".green()),
-                        Err(e) => println!("{} {}", "❌ Invalid YAML:".red(), e),
-                    }
-                }
+                Ok(content) => match serde_yaml::from_str::<serde_json::Value>(&content) {
+                    Ok(_) => println!("{}", "✅ Valid YAML structure".green()),
+                    Err(e) => println!("{} {}", "❌ Invalid YAML:".red(), e),
+                },
                 Err(e) => println!("{} {}", "❌ Cannot read file:".red(), e),
             }
         }

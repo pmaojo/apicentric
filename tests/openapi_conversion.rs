@@ -83,5 +83,8 @@ fn export_service_to_openapi() {
     };
     assert!(ops.get.is_some());
     let op = ops.get.as_ref().unwrap();
-    assert!(op.responses.responses.contains_key(&openapiv3::StatusCode::Code(200)));
+    assert!(op
+        .responses
+        .responses
+        .contains_key(&openapiv3::StatusCode::Code(200)));
 }

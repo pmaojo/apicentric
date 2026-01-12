@@ -3,8 +3,8 @@
 //! This module provides functions for hashing and verifying passwords using
 //! the Argon2 password hashing algorithm.
 
+use argon2::password_hash::{Error as PasswordError, SaltString};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use argon2::password_hash::{SaltString, Error as PasswordError};
 use rand::rngs::OsRng;
 
 /// Hashes a password using the Argon2 password hashing algorithm.

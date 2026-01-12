@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use http::{Request, Response};
 use apicentric::app::PluginManager;
 use apicentric::domain::ports::plugin::Plugin;
+use async_trait::async_trait;
+use http::{Request, Response};
 use std::fs;
 use std::path::PathBuf;
 

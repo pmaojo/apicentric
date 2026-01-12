@@ -52,8 +52,16 @@ pub fn contains_helper(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
-    let hay = h.param(0).map(|p| p.value()).cloned().unwrap_or(Value::Null);
-    let needle = h.param(1).map(|p| p.value()).cloned().unwrap_or(Value::Null);
+    let hay = h
+        .param(0)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
+    let needle = h
+        .param(1)
+        .map(|p| p.value())
+        .cloned()
+        .unwrap_or(Value::Null);
     let result = match (hay, needle) {
         (Value::String(s), Value::String(n)) => s.contains(&n),
         (Value::Array(arr), v) => arr.iter().any(|e| e == &v),
@@ -102,4 +110,3 @@ pub fn regex_match_helper(
     out.write(if result { "true" } else { "false" })?;
     Ok(())
 }
-

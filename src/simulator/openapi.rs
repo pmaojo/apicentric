@@ -1,10 +1,10 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
 use indexmap::IndexMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use openapiv3::{
-    Info, OpenAPI, Operation, Parameter, ParameterData, ParameterSchemaOrContent,
-    PathItem, Paths, ReferenceOr, RequestBody, Response, Responses,
-    Schema, SchemaKind, StatusCode, Type, ArrayType, QueryStyle, PathStyle, HeaderStyle,
+    ArrayType, HeaderStyle, Info, OpenAPI, Operation, Parameter, ParameterData,
+    ParameterSchemaOrContent, PathItem, PathStyle, Paths, QueryStyle, ReferenceOr, RequestBody,
+    Response, Responses, Schema, SchemaKind, StatusCode, Type,
 };
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -20,7 +20,6 @@ use crate::simulator::config::{
 pub fn from_openapi(doc: &Value) -> ServiceDefinition {
     from_openapi_v3(doc)
 }
-
 
 fn from_openapi_v3(raw: &Value) -> ServiceDefinition {
     match serde_yaml::from_value::<OpenApi3Document>(raw.clone()) {
@@ -184,9 +183,6 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
         behavior: None,
     }
 }
-
-
-
 
 fn format_json_value(value: &JsonValue) -> String {
     match value {
@@ -587,13 +583,14 @@ pub fn to_openapi(service: &ServiceDefinition) -> OpenAPI {
         }
 
         if let Some(body) = &ep.request_body {
-            let content_type = body.content_type.clone().unwrap_or_else(|| "application/json".to_string());
+            let content_type = body
+                .content_type
+                .clone()
+                .unwrap_or_else(|| "application/json".to_string());
             let mut content = IndexMap::new();
             let media_type = openapiv3::MediaType {
-                schema: body.schema.as_ref().map(|s| {
-                    ReferenceOr::Reference {
-                        reference: format!("#/components/schemas/{}", s),
-                    }
+                schema: body.schema.as_ref().map(|s| ReferenceOr::Reference {
+                    reference: format!("#/components/schemas/{}", s),
                 }),
                 ..Default::default()
             };
@@ -644,7 +641,10 @@ pub fn to_openapi(service: &ServiceDefinition) -> OpenAPI {
     };
 
     let openapi_paths = Paths {
-        paths: paths.into_iter().map(|(k, v)| (k, ReferenceOr::Item(v))).collect::<IndexMap<_, _>>(),
+        paths: paths
+            .into_iter()
+            .map(|(k, v)| (k, ReferenceOr::Item(v)))
+            .collect::<IndexMap<_, _>>(),
         extensions: IndexMap::new(),
     };
 

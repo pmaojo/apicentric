@@ -131,33 +131,33 @@ impl AiServiceGenerator {
     pub fn validate_yaml(&self, yaml: &str) -> ApicentricResult<ValidationResult> {
         // Parse YAML to check syntax
         let parsed: Result<serde_yaml::Value, _> = serde_yaml::from_str(yaml);
-        
+
         match parsed {
             Ok(value) => {
                 // Check for required fields
                 let mut errors = Vec::new();
-                
+
                 if value.get("name").is_none() {
                     errors.push(ValidationError {
                         line: None,
                         message: "Missing required field: 'name'".to_string(),
                     });
                 }
-                
+
                 if value.get("server").is_none() {
                     errors.push(ValidationError {
                         line: None,
                         message: "Missing required field: 'server'".to_string(),
                     });
                 }
-                
+
                 if value.get("endpoints").is_none() {
                     errors.push(ValidationError {
                         line: None,
                         message: "Missing required field: 'endpoints'".to_string(),
                     });
                 }
-                
+
                 if errors.is_empty() {
                     Ok(ValidationResult {
                         valid: true,
@@ -174,7 +174,7 @@ impl AiServiceGenerator {
                 // Parse error - extract line number if available
                 let error_msg = e.to_string();
                 let line = extract_line_number(&error_msg);
-                
+
                 Ok(ValidationResult {
                     valid: false,
                     errors: vec![ValidationError {
@@ -197,7 +197,7 @@ impl AiServiceGenerator {
     /// A user-friendly error message with suggestions
     pub fn format_error_message(error: &ApicentricError) -> String {
         let error_str = error.to_string();
-        
+
         if error_str.contains("AI provider not configured") {
             format!(
                 "❌ AI Provider Not Configured\n\n\

@@ -1,4 +1,4 @@
-use super::{ApicentricConfig, generate_default_config};
+use super::{generate_default_config, ApicentricConfig};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::validation::ConfigValidator;
 use std::fs;
@@ -147,4 +147,3 @@ mod tests {
         assert!(loaded.simulator.is_some());
     }
 }
-

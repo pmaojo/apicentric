@@ -11,11 +11,11 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::simulator::{ApiSimulatorManager, ServiceDefinition, ServiceInfo};
-use crate::simulator::log::RequestLogEntry;
-use crate::simulator::config::{EndpointDefinition, ServerConfig};
+use crate::cloud::error::{validation, ApiError, ApiErrorCode, ErrorResponse};
 use crate::cloud::recording_session::RecordingSessionManager;
-use crate::cloud::error::{ApiError, ApiErrorCode, ErrorResponse, validation};
+use crate::simulator::config::{EndpointDefinition, ServerConfig};
+use crate::simulator::log::RequestLogEntry;
+use crate::simulator::{ApiSimulatorManager, ServiceDefinition, ServiceInfo};
 use crate::validation::ConfigValidator;
 
 /// A generic API response.
@@ -195,16 +195,12 @@ pub async fn load_service(
     Json(request): Json<LoadServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     match std::fs::File::open(&request.path) {
-        Ok(file) => {
-            match serde_yaml::from_reader::<_, ServiceDefinition>(file) {
-                Ok(def) => {
-                    match serde_yaml::to_string(&def) {
-                        Ok(yaml) => Ok(Json(ApiResponse::success(yaml))),
-                        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-                    }
-                },
+        Ok(file) => match serde_yaml::from_reader::<_, ServiceDefinition>(file) {
+            Ok(def) => match serde_yaml::to_string(&def) {
+                Ok(yaml) => Ok(Json(ApiResponse::success(yaml))),
                 Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-            }
+            },
+            Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
         },
         Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
     }
@@ -220,16 +216,12 @@ pub async fn save_service(
     Json(request): Json<SaveServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     match serde_yaml::from_str::<ServiceDefinition>(&request.yaml) {
-        Ok(def) => {
-            match std::fs::File::create(&request.path) {
-                Ok(file) => {
-                    match serde_yaml::to_writer(file, &def) {
-                        Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
-                        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-                    }
-                },
+        Ok(def) => match std::fs::File::create(&request.path) {
+            Ok(file) => match serde_yaml::to_writer(file, &def) {
+                Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
                 Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-            }
+            },
+            Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
         },
         Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
     }
@@ -247,11 +239,13 @@ pub async fn start_service(
     State(simulator): State<Arc<ApiSimulatorManager>>,
 ) -> Result<Json<ApiResponse<String>>, ApiError> {
     // Validate service name
-    validation::validate_service_name(&name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&name).map_err(ApiError::from)?;
+
     match simulator.start_service(&name).await {
-        Ok(_) => Ok(Json(ApiResponse::success(format!("Service '{}' started successfully", name)))),
+        Ok(_) => Ok(Json(ApiResponse::success(format!(
+            "Service '{}' started successfully",
+            name
+        )))),
         Err(e) => {
             let error_msg = e.to_string();
             if error_msg.contains("not found") {
@@ -259,7 +253,10 @@ pub async fn start_service(
             } else if error_msg.contains("already running") {
                 Err(ErrorResponse::service_already_running(&name).into())
             } else {
-                Err(ApiError::internal_server_error(format!("Failed to start service: {}", error_msg)))
+                Err(ApiError::internal_server_error(format!(
+                    "Failed to start service: {}",
+                    error_msg
+                )))
             }
         }
     }
@@ -277,17 +274,22 @@ pub async fn stop_service(
     State(simulator): State<Arc<ApiSimulatorManager>>,
 ) -> Result<Json<ApiResponse<String>>, ApiError> {
     // Validate service name
-    validation::validate_service_name(&name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&name).map_err(ApiError::from)?;
+
     match simulator.stop_service(&name).await {
-        Ok(_) => Ok(Json(ApiResponse::success(format!("Service '{}' stopped successfully", name)))),
+        Ok(_) => Ok(Json(ApiResponse::success(format!(
+            "Service '{}' stopped successfully",
+            name
+        )))),
         Err(e) => {
             let error_msg = e.to_string();
             if error_msg.contains("not found") {
                 Err(ErrorResponse::service_not_found(&name).into())
             } else {
-                Err(ApiError::internal_server_error(format!("Failed to stop service: {}", error_msg)))
+                Err(ApiError::internal_server_error(format!(
+                    "Failed to stop service: {}",
+                    error_msg
+                )))
             }
         }
     }
@@ -303,7 +305,9 @@ pub async fn reload_services(
     State(simulator): State<Arc<ApiSimulatorManager>>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     match simulator.reload_services().await {
-        Ok(_) => Ok(Json(ApiResponse::success("Services reloaded successfully".to_string()))),
+        Ok(_) => Ok(Json(ApiResponse::success(
+            "Services reloaded successfully".to_string(),
+        ))),
         Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
     }
 }
@@ -333,17 +337,20 @@ pub async fn get_service_status(
     State(simulator): State<Arc<ApiSimulatorManager>>,
 ) -> Result<Json<ApiResponse<ServiceStatusResponse>>, ApiError> {
     // Validate service name
-    validation::validate_service_name(&name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&name).map_err(ApiError::from)?;
+
     let registry = simulator.service_registry().read().await;
-    
+
     if let Some(service_arc) = registry.get_service(&name) {
         let service = service_arc.read().await;
         let response = ServiceStatusResponse {
             name: name.clone(),
             is_running: service.is_running(),
-            port: if service.is_running() { Some(service.port()) } else { None },
+            port: if service.is_running() {
+                Some(service.port())
+            } else {
+                None
+            },
             endpoint_count: service.definition().endpoints.len(),
         };
         Ok(Json(ApiResponse::success(response)))
@@ -373,15 +380,14 @@ pub async fn get_service(
     State(simulator): State<Arc<ApiSimulatorManager>>,
 ) -> Result<Json<ApiResponse<ServiceDetailResponse>>, ApiError> {
     // Validate service name
-    validation::validate_service_name(&name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&name).map_err(ApiError::from)?;
+
     let registry = simulator.service_registry().read().await;
-    
+
     if let Some(service_arc) = registry.get_service(&name) {
         let service = service_arc.read().await;
         let definition = service.definition();
-        
+
         match serde_yaml::to_string(&definition) {
             Ok(yaml) => {
                 let info = ServiceInfo {
@@ -391,11 +397,14 @@ pub async fn get_service(
                     endpoints_count: definition.endpoints.len(),
                     is_running: service.is_running(),
                 };
-                
+
                 let response = ServiceDetailResponse { info, yaml };
                 Ok(Json(ApiResponse::success(response)))
-            },
-            Err(e) => Err(ApiError::internal_server_error(format!("Failed to serialize service: {}", e))),
+            }
+            Err(e) => Err(ApiError::internal_server_error(format!(
+                "Failed to serialize service: {}",
+                e
+            ))),
         }
     } else {
         Err(ErrorResponse::service_not_found(&name).into())
@@ -414,29 +423,30 @@ pub async fn create_service(
     Json(request): Json<CreateServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, ApiError> {
     // Validate YAML size
-    validation::validate_yaml_size(&request.yaml)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_yaml_size(&request.yaml).map_err(ApiError::from)?;
+
     // Parse the YAML to get the service name
     let definition: ServiceDefinition = match serde_yaml::from_str(&request.yaml) {
         Ok(def) => def,
         Err(e) => return Err(ErrorResponse::invalid_yaml(e).into()),
     };
-    
+
     // Validate service name
-    validation::validate_service_name(&definition.name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&definition.name).map_err(ApiError::from)?;
+
     // Determine the filename
-    let filename = request.filename.unwrap_or_else(|| format!("{}.yaml", definition.name));
-    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let filename = request
+        .filename
+        .unwrap_or_else(|| format!("{}.yaml", definition.name));
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
     let file_path = std::path::Path::new(&services_dir).join(&filename);
-    
+
     // Check if file already exists
     if file_path.exists() {
         return Err(ErrorResponse::service_already_exists(&filename).into());
     }
-    
+
     // Create services directory if it doesn't exist
     if let Err(e) = std::fs::create_dir_all(&services_dir) {
         return Err(ApiError::new(
@@ -445,7 +455,7 @@ pub async fn create_service(
             format!("Failed to create services directory: {}", e),
         ));
     }
-    
+
     // Write the service definition to file
     match std::fs::write(&file_path, &request.yaml) {
         Ok(_) => {
@@ -459,9 +469,12 @@ pub async fn create_service(
                     format!("Failed to apply service: {}", e),
                 ));
             }
-            
-            Ok(Json(ApiResponse::success(format!("Service '{}' created successfully", filename))))
-        },
+
+            Ok(Json(ApiResponse::success(format!(
+                "Service '{}' created successfully",
+                filename
+            ))))
+        }
         Err(e) => Err(ApiError::new(
             StatusCode::INTERNAL_SERVER_ERROR,
             ApiErrorCode::FileWriteError,
@@ -484,35 +497,37 @@ pub async fn update_service(
     Json(request): Json<UpdateServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, ApiError> {
     // Validate service name
-    validation::validate_service_name(&name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&name).map_err(ApiError::from)?;
+
     // Validate YAML size
-    validation::validate_yaml_size(&request.yaml)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_yaml_size(&request.yaml).map_err(ApiError::from)?;
+
     // Parse the YAML
     let definition: ServiceDefinition = match serde_yaml::from_str(&request.yaml) {
         Ok(def) => def,
         Err(e) => return Err(ErrorResponse::invalid_yaml(e).into()),
     };
-    
+
     // Verify the service name matches
     if definition.name != name {
         return Err(ApiError::bad_request(
             ApiErrorCode::ServiceNameMismatch,
-            format!("Service name mismatch: expected '{}', got '{}'", name, definition.name),
+            format!(
+                "Service name mismatch: expected '{}', got '{}'",
+                name, definition.name
+            ),
         ));
     }
-    
+
     // Find the service file
-    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
     let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", name));
-    
+
     if !file_path.exists() {
         return Err(ErrorResponse::service_not_found(&name).into());
     }
-    
+
     // Write the updated definition
     match std::fs::write(&file_path, &request.yaml) {
         Ok(_) => {
@@ -524,9 +539,12 @@ pub async fn update_service(
                     format!("Failed to apply updated service: {}", e),
                 ));
             }
-            
-            Ok(Json(ApiResponse::success(format!("Service '{}' updated successfully", name))))
-        },
+
+            Ok(Json(ApiResponse::success(format!(
+                "Service '{}' updated successfully",
+                name
+            ))))
+        }
         Err(e) => Err(ApiError::new(
             StatusCode::INTERNAL_SERVER_ERROR,
             ApiErrorCode::FileWriteError,
@@ -547,22 +565,25 @@ pub async fn delete_service(
     State(simulator): State<Arc<ApiSimulatorManager>>,
 ) -> Result<Json<ApiResponse<String>>, ApiError> {
     // Validate service name
-    validation::validate_service_name(&name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&name).map_err(ApiError::from)?;
+
     // Stop the service if it's running
     let _ = simulator.stop_service(&name).await;
-    
+
     // Find and delete the service file
-    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
     let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", name));
-    
+
     if !file_path.exists() {
         return Err(ErrorResponse::service_not_found(&name).into());
     }
-    
+
     match std::fs::remove_file(&file_path) {
-        Ok(_) => Ok(Json(ApiResponse::success(format!("Service '{}' deleted successfully", name)))),
+        Ok(_) => Ok(Json(ApiResponse::success(format!(
+            "Service '{}' deleted successfully",
+            name
+        )))),
         Err(e) => Err(ApiError::new(
             StatusCode::INTERNAL_SERVER_ERROR,
             ApiErrorCode::FileWriteError,
@@ -584,17 +605,19 @@ pub async fn query_logs(
 ) -> Result<Json<ApiResponse<Vec<RequestLogEntry>>>, StatusCode> {
     let registry = simulator.service_registry().read().await;
     let storage = registry.storage();
-    
+
     let limit = query.limit.unwrap_or(100).min(1000); // Cap at 1000 entries
-    
-    let logs = storage.query_logs(
-        query.service.as_deref(),
-        query.route.as_deref(),
-        query.method.as_deref(),
-        query.status,
-        limit,
-    ).unwrap_or_default();
-    
+
+    let logs = storage
+        .query_logs(
+            query.service.as_deref(),
+            query.route.as_deref(),
+            query.method.as_deref(),
+            query.status,
+            limit,
+        )
+        .unwrap_or_default();
+
     Ok(Json(ApiResponse::success(logs)))
 }
 
@@ -609,10 +632,15 @@ pub async fn clear_logs(
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     let registry = simulator.service_registry().read().await;
     let storage = registry.storage();
-    
+
     match storage.clear_logs() {
-        Ok(_) => Ok(Json(ApiResponse::success("Logs cleared successfully".to_string()))),
-        Err(e) => Ok(Json(ApiResponse::error(format!("Failed to clear logs: {}", e)))),
+        Ok(_) => Ok(Json(ApiResponse::success(
+            "Logs cleared successfully".to_string(),
+        ))),
+        Err(e) => Ok(Json(ApiResponse::error(format!(
+            "Failed to clear logs: {}",
+            e
+        )))),
     }
 }
 
@@ -629,12 +657,14 @@ pub async fn export_logs(
 ) -> Result<axum::response::Response, StatusCode> {
     let registry = simulator.service_registry().read().await;
     let storage = registry.storage();
-    
+
     let limit = query.limit.unwrap_or(1000).min(10000); // Cap at 10000 for export
-    let logs = storage.query_logs(None, None, None, None, limit).unwrap_or_default();
-    
+    let logs = storage
+        .query_logs(None, None, None, None, limit)
+        .unwrap_or_default();
+
     let format = query.format.as_deref().unwrap_or("json");
-    
+
     match format {
         "csv" => {
             // Generate CSV
@@ -649,17 +679,17 @@ pub async fn export_logs(
                     log.status
                 ));
             }
-            
+
             Ok(axum::response::Response::builder()
                 .header("Content-Type", "text/csv")
                 .header("Content-Disposition", "attachment; filename=\"logs.csv\"")
                 .body(csv.into())
                 .unwrap())
-        },
+        }
         _ => {
             // Default to JSON
             let json = serde_json::to_string_pretty(&logs).unwrap_or_default();
-            
+
             Ok(axum::response::Response::builder()
                 .header("Content-Type", "application/json")
                 .header("Content-Disposition", "attachment; filename=\"logs.json\"")
@@ -726,9 +756,9 @@ pub async fn ai_generate(
     Json(request): Json<AiGenerateRequest>,
 ) -> Result<Json<ApiResponse<AiGenerateResponse>>, ApiError> {
     use crate::ai::{AiProvider, GeminiAiProvider, LocalAiProvider, OpenAiProvider};
-    use crate::config::{AiProviderKind, load_config};
+    use crate::config::{load_config, AiProviderKind};
     use std::path::Path;
-    
+
     // Validate prompt is not empty
     if request.prompt.trim().is_empty() {
         return Err(ApiError::bad_request(
@@ -736,7 +766,7 @@ pub async fn ai_generate(
             "Prompt cannot be empty",
         ));
     }
-    
+
     // Load configuration
     let cfg = match load_config(Path::new("apicentric.json")) {
         Ok(cfg) => cfg,
@@ -754,7 +784,7 @@ pub async fn ai_generate(
             return Err(ErrorResponse::ai_not_configured().into());
         }
     };
-    
+
     // Determine which provider to use (from request or config)
     let provider_kind = if let Some(ref provider_str) = request.provider {
         match provider_str.to_lowercase().as_str() {
@@ -764,14 +794,17 @@ pub async fn ai_generate(
             _ => {
                 return Err(ApiError::bad_request(
                     ApiErrorCode::InvalidAiProvider,
-                    format!("Unknown AI provider: {}. Use 'openai', 'gemini', or 'local'", provider_str),
+                    format!(
+                        "Unknown AI provider: {}. Use 'openai', 'gemini', or 'local'",
+                        provider_str
+                    ),
                 ));
             }
         }
     } else {
         ai_cfg.provider.clone()
     };
-    
+
     // Build provider based on configuration
     let provider: Box<dyn AiProvider> = match provider_kind {
         AiProviderKind::Local => {
@@ -811,7 +844,7 @@ pub async fn ai_generate(
             Box::new(GeminiAiProvider::new(key, model))
         }
     };
-    
+
     // Generate YAML from prompt
     let yaml = match provider.generate_yaml(&request.prompt).await {
         Ok(yaml) => yaml,
@@ -823,24 +856,27 @@ pub async fn ai_generate(
             ));
         }
     };
-    
+
     // Validate the generated YAML
     let validation_errors = match serde_yaml::from_str::<ServiceDefinition>(&yaml) {
         Ok(def) => {
             // Validate the service definition
             match def.validate() {
                 Ok(_) => Vec::new(),
-                Err(errors) => errors.iter().map(|e| format!("{}: {}", e.field, e.message)).collect(),
+                Err(errors) => errors
+                    .iter()
+                    .map(|e| format!("{}: {}", e.field, e.message))
+                    .collect(),
             }
         }
         Err(e) => vec![format!("YAML parsing error: {}", e)],
     };
-    
+
     let response = AiGenerateResponse {
         yaml,
         validation_errors,
     };
-    
+
     Ok(Json(ApiResponse::success(response)))
 }
 
@@ -854,7 +890,7 @@ pub async fn ai_validate(
     Json(request): Json<AiValidateRequest>,
 ) -> Result<Json<ApiResponse<AiValidateResponse>>, StatusCode> {
     use crate::validation::ConfigValidator;
-    
+
     let errors = match serde_yaml::from_str::<ServiceDefinition>(&request.yaml) {
         Ok(def) => {
             // Validate the service definition
@@ -868,32 +904,32 @@ pub async fn ai_validate(
         }
         Err(e) => vec![format!("YAML parsing error: {}", e)],
     };
-    
+
     let response = AiValidateResponse {
         is_valid: errors.is_empty(),
         errors,
     };
-    
+
     Ok(Json(ApiResponse::success(response)))
 }
 
 /// Checks the AI configuration status.
 #[axum::debug_handler]
 pub async fn ai_config_status() -> Result<Json<ApiResponse<AiConfigResponse>>, StatusCode> {
-    use crate::config::{AiProviderKind, load_config};
+    use crate::config::{load_config, AiProviderKind};
     use std::path::Path;
-    
+
     // Load configuration
     let cfg = match load_config(Path::new("apicentric.json")) {
         Ok(cfg) => cfg,
         Err(_) => {
             return Ok(Json(ApiResponse::error(
-                "Failed to load configuration file apicentric.json".to_string()
+                "Failed to load configuration file apicentric.json".to_string(),
             )));
         }
     };
     let mut issues = Vec::new();
-    
+
     let (is_configured, provider, model) = match &cfg.ai {
         Some(ai_cfg) => {
             let provider_str = match ai_cfg.provider {
@@ -901,7 +937,7 @@ pub async fn ai_config_status() -> Result<Json<ApiResponse<AiConfigResponse>>, S
                 AiProviderKind::Gemini => "gemini",
                 AiProviderKind::Local => "local",
             };
-            
+
             // Check for provider-specific configuration issues
             match ai_cfg.provider {
                 AiProviderKind::Openai => {
@@ -911,7 +947,10 @@ pub async fn ai_config_status() -> Result<Json<ApiResponse<AiConfigResponse>>, S
                 }
                 AiProviderKind::Gemini => {
                     if ai_cfg.api_key.is_none() && std::env::var("GEMINI_API_KEY").is_err() {
-                        issues.push("Gemini API key not configured (set GEMINI_API_KEY or ai.api_key)".to_string());
+                        issues.push(
+                            "Gemini API key not configured (set GEMINI_API_KEY or ai.api_key)"
+                                .to_string(),
+                        );
                     }
                 }
                 AiProviderKind::Local => {
@@ -924,7 +963,7 @@ pub async fn ai_config_status() -> Result<Json<ApiResponse<AiConfigResponse>>, S
                     }
                 }
             }
-            
+
             (
                 issues.is_empty(),
                 Some(provider_str.to_string()),
@@ -936,14 +975,14 @@ pub async fn ai_config_status() -> Result<Json<ApiResponse<AiConfigResponse>>, S
             (false, None, None)
         }
     };
-    
+
     let response = AiConfigResponse {
         is_configured,
         provider,
         model,
         issues,
     };
-    
+
     Ok(Json(ApiResponse::success(response)))
 }
 
@@ -959,8 +998,11 @@ pub async fn start_recording(
     Json(request): Json<StartRecordingRequest>,
 ) -> Result<Json<ApiResponse<StartRecordingResponse>>, StatusCode> {
     let port = request.port.unwrap_or(8888);
-    
-    match recording_manager.start_recording(request.target_url.clone(), port).await {
+
+    match recording_manager
+        .start_recording(request.target_url.clone(), port)
+        .await
+    {
         Ok((session_id, proxy_url, proxy_port)) => {
             let response = StartRecordingResponse {
                 session_id,
@@ -969,7 +1011,7 @@ pub async fn start_recording(
                 target_url: request.target_url,
             };
             Ok(Json(ApiResponse::success(response)))
-        },
+        }
         Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
     }
 }
@@ -991,7 +1033,7 @@ pub async fn stop_recording(
                 endpoints,
             };
             Ok(Json(ApiResponse::success(response)))
-        },
+        }
         Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
     }
 }
@@ -1005,9 +1047,9 @@ pub async fn stop_recording(
 pub async fn get_recording_status(
     Extension(recording_manager): Extension<Arc<RecordingSessionManager>>,
 ) -> Result<Json<ApiResponse<RecordingStatusResponse>>, StatusCode> {
-    let (is_active, session_id, proxy_url, proxy_port, target_url, captured_count) = 
+    let (is_active, session_id, proxy_url, proxy_port, target_url, captured_count) =
         recording_manager.get_status().await;
-    
+
     let response = RecordingStatusResponse {
         is_active,
         session_id,
@@ -1016,7 +1058,7 @@ pub async fn get_recording_status(
         target_url,
         captured_count,
     };
-    
+
     Ok(Json(ApiResponse::success(response)))
 }
 
@@ -1038,18 +1080,23 @@ pub async fn generate_service_from_recording(
         Ok(result) => result,
         Err(e) => return Ok(Json(ApiResponse::error(e.to_string()))),
     };
-    
+
     if endpoints.is_empty() {
-        return Ok(Json(ApiResponse::error("No requests were captured during recording".to_string())));
+        return Ok(Json(ApiResponse::error(
+            "No requests were captured during recording".to_string(),
+        )));
     }
-    
+
     let endpoint_count = endpoints.len();
-    
+
     // Create a service definition from the captured endpoints
     let service_def = ServiceDefinition {
         name: request.service_name.clone(),
         version: Some("1.0.0".to_string()),
-        description: request.description.or(Some(format!("Service generated from recording session {}", session_id))),
+        description: request.description.or(Some(format!(
+            "Service generated from recording session {}",
+            session_id
+        ))),
         server: ServerConfig {
             port: None,
             base_path: "/".to_string(),
@@ -1064,27 +1111,40 @@ pub async fn generate_service_from_recording(
         graphql: None,
         behavior: None,
     };
-    
+
     // Convert to YAML
     let yaml = match serde_yaml::to_string(&service_def) {
         Ok(y) => y,
-        Err(e) => return Ok(Json(ApiResponse::error(format!("Failed to serialize service: {}", e)))),
+        Err(e) => {
+            return Ok(Json(ApiResponse::error(format!(
+                "Failed to serialize service: {}",
+                e
+            ))))
+        }
     };
-    
+
     // Save the service file
-    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", request.service_name));
-    
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let file_path =
+        std::path::Path::new(&services_dir).join(format!("{}.yaml", request.service_name));
+
     // Check if file already exists
     if file_path.exists() {
-        return Ok(Json(ApiResponse::error(format!("Service file '{}' already exists", request.service_name))));
+        return Ok(Json(ApiResponse::error(format!(
+            "Service file '{}' already exists",
+            request.service_name
+        ))));
     }
-    
+
     // Create services directory if it doesn't exist
     if let Err(e) = std::fs::create_dir_all(&services_dir) {
-        return Ok(Json(ApiResponse::error(format!("Failed to create services directory: {}", e))));
+        return Ok(Json(ApiResponse::error(format!(
+            "Failed to create services directory: {}",
+            e
+        ))));
     }
-    
+
     // Write the service definition to file
     match std::fs::write(&file_path, &yaml) {
         Ok(_) => {
@@ -1092,12 +1152,21 @@ pub async fn generate_service_from_recording(
             if let Err(e) = simulator.apply_service_definition(service_def).await {
                 // Clean up the file if applying fails
                 let _ = std::fs::remove_file(&file_path);
-                return Ok(Json(ApiResponse::error(format!("Failed to apply service: {}", e))));
+                return Ok(Json(ApiResponse::error(format!(
+                    "Failed to apply service: {}",
+                    e
+                ))));
             }
-            
-            Ok(Json(ApiResponse::success(format!("Service '{}' generated successfully from {} captured endpoints", request.service_name, endpoint_count))))
-        },
-        Err(e) => Ok(Json(ApiResponse::error(format!("Failed to write service file: {}", e)))),
+
+            Ok(Json(ApiResponse::success(format!(
+                "Service '{}' generated successfully from {} captured endpoints",
+                request.service_name, endpoint_count
+            ))))
+        }
+        Err(e) => Ok(Json(ApiResponse::error(format!(
+            "Failed to write service file: {}",
+            e
+        )))),
     }
 }
 
@@ -1155,37 +1224,34 @@ pub async fn generate_typescript(
     Json(request): Json<TypeScriptGenerateRequest>,
 ) -> Result<Json<ApiResponse<TypeScriptGenerateResponse>>, ApiError> {
     use crate::simulator::typescript::to_typescript;
-    
+
     // Validate service name
-    validation::validate_service_name(&request.service_name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&request.service_name).map_err(ApiError::from)?;
+
     // Get the service definition
     let registry = simulator.service_registry().read().await;
-    
+
     let service_arc = match registry.get_service(&request.service_name) {
         Some(s) => s,
         None => {
             return Err(ErrorResponse::service_not_found(&request.service_name).into());
         }
     };
-    
+
     let service = service_arc.read().await;
     let definition = service.definition();
-    
+
     // Generate TypeScript types
     match to_typescript(&definition) {
         Ok(code) => {
             let response = TypeScriptGenerateResponse { code };
             Ok(Json(ApiResponse::success(response)))
         }
-        Err(e) => {
-            Err(ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ApiErrorCode::CodeGenerationFailed,
-                format!("Failed to generate TypeScript types: {}", e),
-            ))
-        }
+        Err(e) => Err(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorCode::CodeGenerationFailed,
+            format!("Failed to generate TypeScript types: {}", e),
+        )),
     }
 }
 
@@ -1201,37 +1267,34 @@ pub async fn generate_react_query(
     Json(request): Json<ReactQueryGenerateRequest>,
 ) -> Result<Json<ApiResponse<ReactQueryGenerateResponse>>, ApiError> {
     use crate::simulator::react_query::to_react_query;
-    
+
     // Validate service name
-    validation::validate_service_name(&request.service_name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&request.service_name).map_err(ApiError::from)?;
+
     // Get the service definition
     let registry = simulator.service_registry().read().await;
-    
+
     let service_arc = match registry.get_service(&request.service_name) {
         Some(s) => s,
         None => {
             return Err(ErrorResponse::service_not_found(&request.service_name).into());
         }
     };
-    
+
     let service = service_arc.read().await;
     let definition = service.definition();
-    
+
     // Generate React Query hooks
     match to_react_query(&definition) {
         Ok(code) => {
             let response = ReactQueryGenerateResponse { code };
             Ok(Json(ApiResponse::success(response)))
         }
-        Err(e) => {
-            Err(ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ApiErrorCode::CodeGenerationFailed,
-                format!("Failed to generate React Query hooks: {}", e),
-            ))
-        }
+        Err(e) => Err(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorCode::CodeGenerationFailed,
+            format!("Failed to generate React Query hooks: {}", e),
+        )),
     }
 }
 
@@ -1247,37 +1310,34 @@ pub async fn generate_axios(
     Json(request): Json<AxiosGenerateRequest>,
 ) -> Result<Json<ApiResponse<AxiosGenerateResponse>>, ApiError> {
     use crate::simulator::axios_client::to_axios_client;
-    
+
     // Validate service name
-    validation::validate_service_name(&request.service_name)
-        .map_err(ApiError::from)?;
-    
+    validation::validate_service_name(&request.service_name).map_err(ApiError::from)?;
+
     // Get the service definition
     let registry = simulator.service_registry().read().await;
-    
+
     let service_arc = match registry.get_service(&request.service_name) {
         Some(s) => s,
         None => {
             return Err(ErrorResponse::service_not_found(&request.service_name).into());
         }
     };
-    
+
     let service = service_arc.read().await;
     let definition = service.definition();
-    
+
     // Generate Axios client
     match to_axios_client(&definition) {
         Ok(code) => {
             let response = AxiosGenerateResponse { code };
             Ok(Json(ApiResponse::success(response)))
         }
-        Err(e) => {
-            Err(ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ApiErrorCode::CodeGenerationFailed,
-                format!("Failed to generate Axios client: {}", e),
-            ))
-        }
+        Err(e) => Err(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorCode::CodeGenerationFailed,
+            format!("Failed to generate Axios client: {}", e),
+        )),
     }
 }
 
@@ -1302,23 +1362,25 @@ pub struct ValidateConfigResponse {
 pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, StatusCode> {
     use crate::config::load_config;
     use std::path::Path;
-    
-    let config_path = std::env::var("APICENTRIC_CONFIG_PATH")
-        .unwrap_or_else(|_| "apicentric.json".to_string());
-    
+
+    let config_path =
+        std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
+
     match load_config(Path::new(&config_path)) {
         Ok(config) => {
             // Convert to JSON for easier manipulation in the frontend
             match serde_json::to_value(&config) {
                 Ok(json) => Ok(Json(ApiResponse::success(json))),
-                Err(e) => Ok(Json(ApiResponse::error(
-                    format!("Failed to serialize configuration: {}", e)
-                ))),
+                Err(e) => Ok(Json(ApiResponse::error(format!(
+                    "Failed to serialize configuration: {}",
+                    e
+                )))),
             }
         }
-        Err(e) => Ok(Json(ApiResponse::error(
-            format!("Failed to load configuration: {}", e)
-        ))),
+        Err(e) => Ok(Json(ApiResponse::error(format!(
+            "Failed to load configuration: {}",
+            e
+        )))),
     }
 }
 
@@ -1331,42 +1393,45 @@ pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, Status
 pub async fn update_config(
     Json(request): Json<UpdateConfigRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    use crate::config::{ApicentricConfig, save_config};
+    use crate::config::{save_config, ApicentricConfig};
     use crate::validation::ConfigValidator;
     use std::path::Path;
-    
-    let config_path = std::env::var("APICENTRIC_CONFIG_PATH")
-        .unwrap_or_else(|_| "apicentric.json".to_string());
-    
+
+    let config_path =
+        std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
+
     // Parse the JSON into ApicentricConfig
     let config: ApicentricConfig = match serde_json::from_value(request.config) {
         Ok(cfg) => cfg,
         Err(e) => {
-            return Ok(Json(ApiResponse::error(
-                format!("Invalid configuration format: {}", e)
-            )));
+            return Ok(Json(ApiResponse::error(format!(
+                "Invalid configuration format: {}",
+                e
+            ))));
         }
     };
-    
+
     // Validate the configuration
     if let Err(validation_errors) = config.validate() {
         let error_messages: Vec<String> = validation_errors
             .iter()
             .map(|e| format!("{}: {}", e.field, e.message))
             .collect();
-        return Ok(Json(ApiResponse::error(
-            format!("Configuration validation failed:\n{}", error_messages.join("\n"))
-        )));
+        return Ok(Json(ApiResponse::error(format!(
+            "Configuration validation failed:\n{}",
+            error_messages.join("\n")
+        ))));
     }
-    
+
     // Save the configuration
     match save_config(&config, Path::new(&config_path)) {
         Ok(_) => Ok(Json(ApiResponse::success(
-            "Configuration updated successfully".to_string()
+            "Configuration updated successfully".to_string(),
         ))),
-        Err(e) => Ok(Json(ApiResponse::error(
-            format!("Failed to save configuration: {}", e)
-        ))),
+        Err(e) => Ok(Json(ApiResponse::error(format!(
+            "Failed to save configuration: {}",
+            e
+        )))),
     }
 }
 
@@ -1381,7 +1446,7 @@ pub async fn validate_config(
 ) -> Result<Json<ApiResponse<ValidateConfigResponse>>, StatusCode> {
     use crate::config::ApicentricConfig;
     use crate::validation::ConfigValidator;
-    
+
     // Parse the JSON into ApicentricConfig
     let config: ApicentricConfig = match serde_json::from_value(request.config) {
         Ok(cfg) => cfg,
@@ -1393,7 +1458,7 @@ pub async fn validate_config(
             return Ok(Json(ApiResponse::success(response)));
         }
     };
-    
+
     // Validate the configuration
     let errors = match config.validate() {
         Ok(_) => Vec::new(),
@@ -1402,12 +1467,12 @@ pub async fn validate_config(
             .map(|e| format!("{}: {}", e.field, e.message))
             .collect(),
     };
-    
+
     let response = ValidateConfigResponse {
         is_valid: errors.is_empty(),
         errors,
     };
-    
+
     Ok(Json(ApiResponse::success(response)))
 }
 
@@ -1512,7 +1577,7 @@ pub struct LegacyServiceInfo {
 }
 
 /// Gets the simulator status (legacy endpoint for old frontend)
-/// 
+///
 /// GET /status
 #[axum::debug_handler]
 pub async fn get_simulator_status(
@@ -1520,8 +1585,9 @@ pub async fn get_simulator_status(
 ) -> Result<Json<ApiResponse<LegacySimulatorStatus>>, StatusCode> {
     // Get simulator status
     let status = simulator.get_status().await;
-    
-    let active_services: Vec<LegacyServiceInfo> = status.active_services
+
+    let active_services: Vec<LegacyServiceInfo> = status
+        .active_services
         .into_iter()
         .map(|s| LegacyServiceInfo {
             name: s.name,
@@ -1530,7 +1596,7 @@ pub async fn get_simulator_status(
             endpoints_count: s.endpoints_count,
         })
         .collect();
-    
+
     Ok(Json(ApiResponse::success(LegacySimulatorStatus {
         active_services,
         is_running: status.is_active,
@@ -1538,14 +1604,16 @@ pub async fn get_simulator_status(
 }
 
 /// Starts the simulator (legacy endpoint)
-/// 
+///
 /// POST /start
 #[axum::debug_handler]
 pub async fn start_simulator(
     State(simulator): State<Arc<ApiSimulatorManager>>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     match simulator.start().await {
-        Ok(_) => Ok(Json(ApiResponse::success("Simulator started successfully".to_string()))),
+        Ok(_) => Ok(Json(ApiResponse::success(
+            "Simulator started successfully".to_string(),
+        ))),
         Err(e) => {
             log::error!("Failed to start simulator: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -1554,14 +1622,16 @@ pub async fn start_simulator(
 }
 
 /// Stops the simulator (legacy endpoint)
-/// 
+///
 /// POST /stop
 #[axum::debug_handler]
 pub async fn stop_simulator(
     State(simulator): State<Arc<ApiSimulatorManager>>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     match simulator.stop().await {
-        Ok(_) => Ok(Json(ApiResponse::success("Simulator stopped successfully".to_string()))),
+        Ok(_) => Ok(Json(ApiResponse::success(
+            "Simulator stopped successfully".to_string(),
+        ))),
         Err(e) => {
             log::error!("Failed to stop simulator: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)

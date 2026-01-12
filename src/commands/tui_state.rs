@@ -1,5 +1,5 @@
 //! TUI state management structures for the enhanced terminal interface
-//! 
+//!
 //! This module is only available when the `tui` feature is enabled.
 
 #![cfg(feature = "tui")]
@@ -128,20 +128,18 @@ impl ServiceListState {
     /// Preserves request statistics for existing services
     pub fn update_from_service_info(&mut self, services: Vec<ServiceInfo>) {
         // Create a map of existing services to preserve their statistics
-        let existing_stats: HashMap<String, (usize, Option<DateTime<Utc>>)> =
-            self.items
-                .iter()
-                .map(|s| (s.name.clone(), (s.request_count, s.last_request)))
-                .collect();
+        let existing_stats: HashMap<String, (usize, Option<DateTime<Utc>>)> = self
+            .items
+            .iter()
+            .map(|s| (s.name.clone(), (s.request_count, s.last_request)))
+            .collect();
 
         self.items = services
             .into_iter()
             .map(|info| {
                 // Preserve statistics if service already existed
-                let (request_count, last_request) = existing_stats
-                    .get(&info.name)
-                    .copied()
-                    .unwrap_or((0, None));
+                let (request_count, last_request) =
+                    existing_stats.get(&info.name).copied().unwrap_or((0, None));
 
                 ServiceStatus {
                     name: info.name,
@@ -452,8 +450,8 @@ impl Default for InputState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
     use apicentric::simulator::log::RequestLogEntry;
+    use chrono::Utc;
 
     #[test]
     fn test_log_filter_matches_method() {
@@ -596,7 +594,10 @@ mod tests {
         assert_eq!(filter.description(), "Method: GET, Status: 200");
 
         filter.service = Some("api".to_string());
-        assert_eq!(filter.description(), "Method: GET, Status: 200, Service: api");
+        assert_eq!(
+            filter.description(),
+            "Method: GET, Status: 200, Service: api"
+        );
 
         filter.clear();
         assert_eq!(filter.description(), "No filters");

@@ -266,7 +266,12 @@ where
 
         if let Some(status) = scenario.expected_status {
             let mut response = expected.unwrap_or_else(|| {
-                ApiResponse::new(status, scenario.expected_headers.clone(), ResponseBody::Text("".into()), 0)
+                ApiResponse::new(
+                    status,
+                    scenario.expected_headers.clone(),
+                    ResponseBody::Text("".into()),
+                    0,
+                )
             });
             response.status_code = status;
 

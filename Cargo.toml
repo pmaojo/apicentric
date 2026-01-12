@@ -11,7 +11,7 @@ crate-type = ["rlib"]
 
 [features]
 # Default includes TUI and WebUI for backward compatibility, but excludes P2P and desktop GUI
-default = ["tui", "webui", "simulator", "contract-testing", "mock-data", "database", "file-watch", "websockets", "scripting"]
+default = ["tui", "webui", "simulator", "contract-testing", "mock-data", "database", "file-watch", "websockets", "scripting", "iot"]
 
 # Core features
 simulator = []
@@ -46,6 +46,9 @@ scripting = ["deno_core"]
 # MCP: Model Context Protocol for AI agent interaction
 mcp = ["dep:rmcp", "simulator"]
 
+# IoT: Digital Twin capabilities
+iot = ["dep:rumqttc", "dep:tokio-modbus", "dep:rhai"]
+
 # Convenience bundles
 # cli-tools: Essential CLI functionality with TUI but without desktop GUI/WebUI
 cli-tools = ["simulator", "contract-testing", "tui"]
@@ -54,10 +57,10 @@ cli-tools = ["simulator", "contract-testing", "tui"]
 minimal = ["simulator"]
 
 # full: All features including P2P, desktop GUI, and WebUI
-full = ["p2p", "gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql"]
+full = ["p2p", "gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql", "iot"]
 
 # no-p2p: Everything except P2P (useful for lightweight deployments)
-no-p2p = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting"]
+no-p2p = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "iot"]
 
 [dependencies]
 indexmap = "2.12.0"
@@ -158,6 +161,11 @@ egui = { version = "0.33.0", optional = true }
 
 # MCP: Model Context Protocol (optional)
 rmcp = { version = "0.8.5", features = ["server"], optional = true }
+
+# IoT / Digital Twin
+rumqttc = { version = "0.24", optional = true }
+tokio-modbus = { version = "0.14", default-features = false, features = ["tcp", "server", "tcp-server"], optional = true }
+rhai = { version = "1.17", features = ["sync"], optional = true }
 
 [dev-dependencies]
 assert_cmd = "2.0"

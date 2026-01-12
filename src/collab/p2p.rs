@@ -7,6 +7,7 @@
 
 use std::error::Error;
 
+use libp2p::swarm::NetworkBehaviour;
 use libp2p::{
     futures::StreamExt,
     gossipsub::{self, IdentTopic, MessageAuthenticity, ValidationMode},
@@ -14,7 +15,6 @@ use libp2p::{
     swarm::SwarmEvent,
     PeerId, SwarmBuilder,
 };
-use libp2p::swarm::NetworkBehaviour;
 use tokio::sync::mpsc;
 
 /// The combined network behaviour for collaboration, consisting of gossipsub
@@ -51,16 +51,21 @@ impl From<mdns::Event> for CollabBehaviourEvent {
 /// A `Result` containing a sender for local messages and a receiver for
 /// messages coming from peers. Messages are plain byte vectors that higher
 /// layers interpret as [`crate::collab::crdt::CrdtMessage`].
-pub async fn spawn()
-    -> Result<(mpsc::UnboundedSender<Vec<u8>>, mpsc::UnboundedReceiver<Vec<u8>>), Box<dyn Error + Send + Sync>>
-{
+pub async fn spawn() -> Result<
+    (
+        mpsc::UnboundedSender<Vec<u8>>,
+        mpsc::UnboundedReceiver<Vec<u8>>,
+    ),
+    Box<dyn Error + Send + Sync>,
+> {
     // Generate a random peer id based on an Ed25519 key pair.
     let local_key = identity::Keypair::generate_ed25519();
     let peer_id = PeerId::from(local_key.public());
 
     // Build gossipsub behaviour.
-    let gossipsub_config =
-        gossipsub::ConfigBuilder::default().validation_mode(ValidationMode::None).build()?;
+    let gossipsub_config = gossipsub::ConfigBuilder::default()
+        .validation_mode(ValidationMode::None)
+        .build()?;
     let gossipsub = gossipsub::Behaviour::new(
         MessageAuthenticity::Signed(local_key.clone()),
         gossipsub_config,

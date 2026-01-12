@@ -1,5 +1,5 @@
 use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_definition};
-use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
+use apicentric::{ApicentricError, ApicentricResult, Context, ExecutionContext};
 
 #[cfg(feature = "p2p")]
 use apicentric::collab::share;
@@ -45,30 +45,35 @@ pub async fn handle_share(
         println!("🏃 Dry run: Would share service '{}'", service);
         return Ok(());
     }
-    
+
     // For now, we'll use a default port. In a full implementation, this would
     // query the running service from the simulator to get its actual port.
     // This is a simplified implementation for the P2P feature gate demonstration.
     let port = 8080; // Default port - should be retrieved from running service
-    
+
     println!("📡 Sharing service '{}' over P2P...", service);
-    println!("   Note: Using default port {}. Ensure service is running on this port.", port);
-    
+    println!(
+        "   Note: Using default port {}. Ensure service is running on this port.",
+        port
+    );
+
     let (peer_id, token) = share::share_service(port).await.map_err(|e| {
         ApicentricError::config_error(
             &format!("Failed to share service: {}", e),
             Some("Check network connectivity and firewall settings"),
         )
     })?;
-    
+
     println!("✅ Service shared successfully!");
     println!("   Peer ID: {}", peer_id);
     println!("   Token: {}", token);
     println!("   Port: {}", port);
     println!("\nOthers can connect with:");
-    println!("   apicentric simulator connect --peer {} --service {} --port <local-port> --token {}", 
-             peer_id, service, token);
-    
+    println!(
+        "   apicentric simulator connect --peer {} --service {} --port <local-port> --token {}",
+        peer_id, service, token
+    );
+
     Ok(())
 }
 
@@ -82,12 +87,12 @@ pub async fn handle_share(
         println!("🏃 Dry run: Would share service '{}'", service);
         return Ok(());
     }
-    
+
     println!("📡 P2P sharing is not available in this build");
     println!("   Service: {}", service);
     println!("\n💡 To enable P2P features, rebuild with:");
     println!("   cargo build --release --features p2p");
-    
+
     Err(ApicentricError::config_error(
         "P2P features not available",
         Some("Rebuild with --features p2p to enable collaboration"),
@@ -109,24 +114,27 @@ pub async fn handle_connect(
         );
         return Ok(());
     }
-    
+
     let token = token.ok_or_else(|| {
         ApicentricError::config_error(
             "Authentication token is required",
             Some("Use --token <TOKEN> to provide the token from the sharing peer"),
         )
     })?;
-    
+
     let peer_id = peer.parse::<PeerId>().map_err(|e| {
         ApicentricError::config_error(
             &format!("Invalid peer ID: {}", e),
             Some("Check the peer ID format from the sharing peer"),
         )
     })?;
-    
-    println!("🔗 Connecting to peer '{}' for service '{}'...", peer, service);
+
+    println!(
+        "🔗 Connecting to peer '{}' for service '{}'...",
+        peer, service
+    );
     println!("   Local port: {}", port);
-    
+
     share::connect_service(peer_id, token.to_string(), service.to_string(), port)
         .await
         .map_err(|e| {
@@ -135,7 +143,7 @@ pub async fn handle_connect(
                 Some("Check network connectivity and verify peer ID and token"),
             )
         })?;
-    
+
     Ok(())
 }
 
@@ -154,7 +162,7 @@ pub async fn handle_connect(
         );
         return Ok(());
     }
-    
+
     println!("🔗 P2P connection is not available in this build");
     println!("   Peer: {}", peer);
     println!("   Service: {}", service);
@@ -164,7 +172,7 @@ pub async fn handle_connect(
     }
     println!("\n💡 To enable P2P features, rebuild with:");
     println!("   cargo build --release --features p2p");
-    
+
     Err(ApicentricError::config_error(
         "P2P features not available",
         Some("Rebuild with --features p2p to enable collaboration"),
@@ -254,7 +262,10 @@ pub async fn handle_new_graphql(
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
-        println!("🏃 Dry run: Would create new GraphQL service '{}' in {}", name, output);
+        println!(
+            "🏃 Dry run: Would create new GraphQL service '{}' in {}",
+            name, output
+        );
         return Ok(());
     }
 
@@ -291,7 +302,10 @@ pub async fn handle_new_graphql(
     });
 
     tokio::fs::create_dir_all(output).await.map_err(|e| {
-        ApicentricError::fs_error(format!("Failed to create directory {}: {}", output, e), None::<String>)
+        ApicentricError::fs_error(
+            format!("Failed to create directory {}: {}", output, e),
+            None::<String>,
+        )
     })?;
 
     let yaml_path = std::path::Path::new(output).join(format!("{}.yaml", service_name));
@@ -310,19 +324,32 @@ pub async fn handle_new_graphql(
         ));
     }
 
-    let yaml = serde_yaml::to_string(&service).map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
-    tokio::fs::write(&yaml_path, yaml).await.map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
-    println!("✅ Created GraphQL service definition at {}", yaml_path.display());
+    let yaml = serde_yaml::to_string(&service)
+        .map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
+    tokio::fs::write(&yaml_path, yaml)
+        .await
+        .map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
+    println!(
+        "✅ Created GraphQL service definition at {}",
+        yaml_path.display()
+    );
 
     let schema_path = std::path::Path::new(output).join(gql_schema_filename);
     let schema_content = "type Query {\n  hello: String\n}";
-    tokio::fs::write(&schema_path, schema_content).await.map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
+    tokio::fs::write(&schema_path, schema_content)
+        .await
+        .map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
     println!("✅ Created GraphQL schema at {}", schema_path.display());
 
     let mock_path = std::path::Path::new(output).join(example_query_filename);
     let mock_content = "{\n  \"data\": {\n    \"hello\": \"world\"\n  }\n}";
-    tokio::fs::write(&mock_path, mock_content).await.map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
-    println!("✅ Created example mock response at {}", mock_path.display());
+    tokio::fs::write(&mock_path, mock_content)
+        .await
+        .map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
+    println!(
+        "✅ Created example mock response at {}",
+        mock_path.display()
+    );
 
     Ok(())
 }

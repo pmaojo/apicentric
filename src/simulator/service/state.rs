@@ -160,7 +160,10 @@ impl ServiceState {
                     Ok(arr.remove(index))
                 } else {
                     Err(ApicentricError::runtime_error(
-                        format!("Index {} out of bounds for fixture array '{}'", index, fixture_key),
+                        format!(
+                            "Index {} out of bounds for fixture array '{}'",
+                            index, fixture_key
+                        ),
                         Some("Check array length before removing items"),
                     ))
                 }
@@ -190,7 +193,10 @@ impl ServiceState {
                     Ok(())
                 } else {
                     Err(ApicentricError::runtime_error(
-                        format!("Index {} out of bounds for fixture array '{}'", index, fixture_key),
+                        format!(
+                            "Index {} out of bounds for fixture array '{}'",
+                            index, fixture_key
+                        ),
                         Some("Check array length before updating items"),
                     ))
                 }

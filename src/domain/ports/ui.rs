@@ -22,4 +22,3 @@ pub trait UserInterfacePort {
     /// Create a progress reporter for a task of the given length.
     fn create_progress_bar(&self, len: u64, message: &str) -> Box<dyn ProgressPort>;
 }
-

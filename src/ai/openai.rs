@@ -3,11 +3,11 @@
 //! This module provides an `OpenAiProvider` that can be used to generate YAML
 //! from a prompt using the OpenAI API.
 
+use super::AiProvider;
+use crate::errors::{ApicentricError, ApicentricResult};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
-use crate::errors::{ApicentricError, ApicentricResult};
-use super::AiProvider;
 
 /// An AI provider that uses the OpenAI API.
 pub struct OpenAiProvider {
@@ -24,7 +24,11 @@ impl OpenAiProvider {
     /// * `api_key` - The OpenAI API key.
     /// * `model` - The name of the model to use.
     pub fn new(api_key: String, model: String) -> Self {
-        Self { client: Client::new(), api_key, model }
+        Self {
+            client: Client::new(),
+            api_key,
+            model,
+        }
     }
 }
 

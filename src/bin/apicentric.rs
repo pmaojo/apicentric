@@ -3,10 +3,10 @@
 //! This module is responsible for parsing command-line arguments, initializing
 //! the application context, and dispatching to the appropriate command handler.
 
-use clap::{Parser, Subcommand, ValueEnum};
 use apicentric::context::init;
-use apicentric::{ContextBuilder, ExecutionContext, ApicentricResult};
 pub use apicentric::{ApicentricError, ApicentricResult as _ApicentricResult};
+use apicentric::{ApicentricResult, ContextBuilder, ExecutionContext};
+use clap::{Parser, Subcommand, ValueEnum};
 #[path = "../commands/ai.rs"]
 mod ai_cmd;
 #[path = "../commands/shared.rs"]
@@ -18,14 +18,14 @@ mod simulator_cmd;
 #[path = "../commands/tui.rs"]
 mod tui_cmd;
 #[cfg(feature = "tui")]
-#[path = "../commands/tui_state.rs"]
-mod tui_state;
-#[cfg(feature = "tui")]
 #[path = "../commands/tui_events.rs"]
 mod tui_events;
 #[cfg(feature = "tui")]
 #[path = "../commands/tui_render.rs"]
 mod tui_render;
+#[cfg(feature = "tui")]
+#[path = "../commands/tui_state.rs"]
+mod tui_state;
 
 #[cfg(feature = "gui")]
 #[path = "../commands/gui/mod.rs"]
@@ -38,6 +38,13 @@ mod cloud_cmd;
 #[cfg(feature = "mcp")]
 #[path = "../commands/mcp/mod.rs"]
 mod mcp_cmd;
+
+#[cfg(feature = "iot")]
+use apicentric::iot::args::TwinCommands;
+
+#[cfg(feature = "iot")]
+#[path = "../commands/twin.rs"]
+mod twin_cmd;
 
 mod commands {
     pub mod shared {
@@ -120,6 +127,12 @@ enum Commands {
     /// Starts the MCP server for AI agent interaction (requires the 'mcp' feature).
     #[cfg(feature = "mcp")]
     Mcp(mcp_cmd::Mcp),
+    /// Manage IoT Digital Twins (requires the 'iot' feature).
+    #[cfg(feature = "iot")]
+    Twin {
+        #[command(subcommand)]
+        command: TwinCommands,
+    },
 }
 
 /// The entry point for the `apicentric` CLI.
@@ -241,5 +254,20 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Cloud => cloud_cmd::cloud_command().await,
         #[cfg(feature = "mcp")]
         Commands::Mcp(mcp) => mcp_cmd::mcp_command(&mcp, &context, &exec_ctx).await,
+        #[cfg(feature = "iot")]
+        Commands::Twin { command } => match command {
+            TwinCommands::Run(args) => {
+                if exec_ctx.dry_run {
+                    println!("🏃 Dry run: Would start Digital Twin from {}", args.device);
+                    return Ok(());
+                }
+                twin_cmd::run(args)
+                    .await
+                    .map_err(|e| ApicentricError::Runtime {
+                        message: e.to_string(),
+                        suggestion: None,
+                    })
+            }
+        },
     }
 }

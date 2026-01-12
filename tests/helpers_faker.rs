@@ -1,6 +1,6 @@
+use apicentric::simulator::template::helpers::faker;
 use chrono::DateTime;
 use handlebars::Handlebars;
-use apicentric::simulator::template::helpers::faker;
 use serde_json::json;
 
 #[test]
@@ -15,7 +15,8 @@ fn now_generates_timestamp() {
 fn random_string_length() {
     let mut h = Handlebars::new();
     faker::register(&mut h);
-    let out = h.render_template("{{random_string 5}}", &json!({})).unwrap();
+    let out = h
+        .render_template("{{random_string 5}}", &json!({}))
+        .unwrap();
     assert_eq!(out.len(), 5);
 }
-

@@ -1,5 +1,5 @@
-use apicentric::simulator::{ApiSimulatorManager, config::SimulatorConfig};
 use apicentric::cloud::CloudServer;
+use apicentric::simulator::{config::SimulatorConfig, ApiSimulatorManager};
 use apicentric::{ApicentricError, ApicentricResult};
 use std::path::PathBuf;
 
@@ -23,7 +23,9 @@ pub async fn cloud_command() -> ApicentricResult<()> {
 
     println!("🚀 Starting Apicentric Cloud Server on port 8080...");
     println!("📝 API Documentation: http://localhost:8080/health");
-    println!("🔐 Authentication is optional (set APICENTRIC_PROTECT_SERVICES=true to require auth)");
+    println!(
+        "🔐 Authentication is optional (set APICENTRIC_PROTECT_SERVICES=true to require auth)"
+    );
 
     if let Err(e) = server.start(8080).await {
         return Err(ApicentricError::runtime_error(

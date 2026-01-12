@@ -1,5 +1,5 @@
 //! Terminal User Interface module
-//! 
+//!
 //! This module is only available when the `tui` feature is enabled.
 
 #![cfg(feature = "tui")]
@@ -23,11 +23,16 @@ use ratatui::{
     Terminal,
 };
 
+use apicentric::simulator::{config::SimulatorConfig, manager::ApiSimulatorManager};
 use apicentric::{ApicentricError, ApicentricResult};
-use apicentric::simulator::{manager::ApiSimulatorManager, config::SimulatorConfig};
 
-use super::tui_events::{poll_events, handle_key_event, update_service_status, poll_log_entries, Action};
-use super::tui_render::{render_service_list, render_log_view, render_actions_panel_with_metrics, render_filter_dialog, render_search_dialog, render_help_dialog};
+use super::tui_events::{
+    handle_key_event, poll_events, poll_log_entries, update_service_status, Action,
+};
+use super::tui_render::{
+    render_actions_panel_with_metrics, render_filter_dialog, render_help_dialog, render_log_view,
+    render_search_dialog, render_service_list,
+};
 use super::tui_state::{TuiAppState, ViewMode};
 
 /// Launch the enhanced terminal dashboard with service list, logs and actions panes.
@@ -48,23 +53,23 @@ pub async fn tui_command() -> ApicentricResult<()> {
     enable_raw_mode().map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to enable raw mode: {}", e),
-            Some("Try running in a different terminal or check terminal permissions")
+            Some("Try running in a different terminal or check terminal permissions"),
         )
     })?;
-    
+
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to initialize terminal: {}", e),
-            Some("Ensure your terminal supports alternate screen mode")
+            Some("Ensure your terminal supports alternate screen mode"),
         )
     })?;
-    
+
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to create terminal backend: {}", e),
-            Some("Try using a different terminal emulator or check terminal compatibility")
+            Some("Try using a different terminal emulator or check terminal compatibility"),
         )
     })?;
 
@@ -75,22 +80,26 @@ pub async fn tui_command() -> ApicentricResult<()> {
     disable_raw_mode().map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to disable raw mode: {}", e),
-            Some("Terminal may be in an inconsistent state. Try closing and reopening your terminal")
+            Some(
+                "Terminal may be in an inconsistent state. Try closing and reopening your terminal",
+            ),
         )
     })?;
-    
+
     let mut stdout = io::stdout();
     execute!(stdout, LeaveAlternateScreen, DisableMouseCapture).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to restore terminal: {}", e),
-            Some("Terminal may be in an inconsistent state. Try closing and reopening your terminal")
+            Some(
+                "Terminal may be in an inconsistent state. Try closing and reopening your terminal",
+            ),
         )
     })?;
-    
+
     terminal.show_cursor().map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to show cursor: {}", e),
-            Some("Run 'tput cnorm' to restore cursor visibility")
+            Some("Run 'tput cnorm' to restore cursor visibility"),
         )
     })?;
 
@@ -111,7 +120,7 @@ async fn run_app(
 ) -> ApicentricResult<()> {
     // Initialize state
     let mut state = TuiAppState::new();
-    
+
     // Subscribe to log events
     let mut log_receiver = manager.subscribe_logs();
 
@@ -140,9 +149,9 @@ async fn run_app(
                 let chunks = Layout::default()
                     .direction(Direction::Horizontal)
                     .constraints([
-                        Constraint::Percentage(25),  // Services
-                        Constraint::Percentage(50),  // Logs
-                        Constraint::Percentage(25),  // Actions
+                        Constraint::Percentage(25), // Services
+                        Constraint::Percentage(50), // Logs
+                        Constraint::Percentage(25), // Actions
                     ])
                     .split(size);
 
@@ -151,13 +160,13 @@ async fn run_app(
                     f,
                     chunks[0],
                     &state.services,
-                    state.focused_panel == super::tui_state::FocusedPanel::Services
+                    state.focused_panel == super::tui_state::FocusedPanel::Services,
                 );
                 render_log_view(
                     f,
                     chunks[1],
                     &state,
-                    state.focused_panel == super::tui_state::FocusedPanel::Logs
+                    state.focused_panel == super::tui_state::FocusedPanel::Logs,
                 );
                 // Calculate average input latency for display
                 let avg_input_latency = if !input_latencies.is_empty() {
@@ -171,8 +180,16 @@ async fn run_app(
                     f,
                     chunks[2],
                     &state,
-                    if avg_input_latency > Duration::ZERO { Some(avg_input_latency) } else { None },
-                    if max_input_latency > Duration::ZERO { Some(max_input_latency) } else { None },
+                    if avg_input_latency > Duration::ZERO {
+                        Some(avg_input_latency)
+                    } else {
+                        None
+                    },
+                    if max_input_latency > Duration::ZERO {
+                        Some(max_input_latency)
+                    } else {
+                        None
+                    },
                 );
 
                 // Render dialogs on top if active
@@ -180,13 +197,13 @@ async fn run_app(
                     ViewMode::FilterDialog => render_filter_dialog(f, &state),
                     ViewMode::SearchDialog => render_search_dialog(f, &state),
                     ViewMode::HelpDialog => render_help_dialog(f),
-                    ViewMode::Normal => {},
+                    ViewMode::Normal => {}
                 }
             })
             .map_err(|e| {
                 ApicentricError::runtime_error(
                     format!("Render error: {}", e),
-                    Some("Terminal size may be too small. Try resizing your terminal window")
+                    Some("Terminal size may be too small. Try resizing your terminal window"),
                 )
             })?;
         let _render_time = render_start.elapsed();

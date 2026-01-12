@@ -345,4 +345,3 @@ pub enum ConfigError {
     #[error("File read error: {0}")]
     FileReadError(String),
 }
-

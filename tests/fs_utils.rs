@@ -26,14 +26,20 @@ fn test_resolve_glob_pattern_success() {
     assert!(result.is_ok());
     let paths = result.unwrap();
     assert_eq!(paths.len(), 1);
-    assert!(paths.iter().any(|p| p.to_string_lossy().contains("login.test.ts")));
+    assert!(paths
+        .iter()
+        .any(|p| p.to_string_lossy().contains("login.test.ts")));
 }
 
 #[test]
 fn test_resolve_glob_pattern_invalid_syntax() {
     let result = FileSystemUtils::resolve_glob_pattern("[invalid", None);
     assert!(result.is_err());
-    if let Err(apicentric::errors::ApicentricError::FileSystem { message, suggestion }) = result {
+    if let Err(apicentric::errors::ApicentricError::FileSystem {
+        message,
+        suggestion,
+    }) = result
+    {
         assert!(message.contains("Invalid glob pattern syntax"));
         assert!(suggestion.is_some());
     } else {
@@ -47,7 +53,11 @@ fn test_resolve_glob_pattern_no_matches() {
     let pattern = format!("{}/**/nonexistent/*.test.ts", temp_dir.path().display());
     let result = FileSystemUtils::resolve_glob_pattern(&pattern, None);
     assert!(result.is_err());
-    if let Err(apicentric::errors::ApicentricError::FileSystem { message, suggestion: _ }) = result {
+    if let Err(apicentric::errors::ApicentricError::FileSystem {
+        message,
+        suggestion: _,
+    }) = result
+    {
         assert!(message.contains("No valid files found"));
     }
 }
@@ -82,7 +92,9 @@ fn test_validate_single_test_file_posix() {
 #[test]
 fn test_validate_single_test_file_windows() {
     let temp_dir = create_test_structure();
-    let valid_file = temp_dir.path().join("app\\routes\\login\\test\\login.test.ts");
+    let valid_file = temp_dir
+        .path()
+        .join("app\\routes\\login\\test\\login.test.ts");
     assert!(FileSystemUtils::validate_single_test_file(&valid_file).is_ok());
     let invalid_file = temp_dir.path().join("app\\routes\\login\\route.tsx");
     assert!(FileSystemUtils::validate_single_test_file(&invalid_file).is_err());

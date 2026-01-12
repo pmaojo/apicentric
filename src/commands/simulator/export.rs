@@ -1,5 +1,5 @@
-use apicentric::{ExecutionContext, ApicentricError, ApicentricResult};
 use super::ExportFormat;
+use apicentric::{ApicentricError, ApicentricResult, ExecutionContext};
 
 pub async fn handle_export(
     input: &str,
@@ -8,7 +8,10 @@ pub async fn handle_export(
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
-        println!("🏃 Dry run: Would export service '{}' to '{}' in {:?} format", input, output, format);
+        println!(
+            "🏃 Dry run: Would export service '{}' to '{}' in {:?} format",
+            input, output, format
+        );
         return Ok(());
     }
 
@@ -24,18 +27,27 @@ pub async fn handle_export(
         ExportFormat::Openapi => {
             let spec = apicentric::simulator::openapi::to_openapi(&service);
             serde_json::to_string_pretty(&spec).map_err(|e| {
-                ApicentricError::runtime_error(format!("Failed to serialize OpenAPI: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Failed to serialize OpenAPI: {}", e),
+                    None::<String>,
+                )
             })?
         }
         ExportFormat::Postman => {
             apicentric::simulator::postman::to_string(&service).map_err(|e| {
-                ApicentricError::runtime_error(format!("Failed to serialize Postman: {}", e), None::<String>)
+                ApicentricError::runtime_error(
+                    format!("Failed to serialize Postman: {}", e),
+                    None::<String>,
+                )
             })?
         }
     };
 
     std::fs::write(output, output_content).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to write exported file: {}", e), None::<String>)
+        ApicentricError::runtime_error(
+            format!("Failed to write exported file: {}", e),
+            None::<String>,
+        )
     })?;
 
     println!("✅ Exported service to {} in {:?} format", output, format);
@@ -48,7 +60,10 @@ pub async fn handle_export_types(
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
-        println!("🏃 Dry run: Would export TypeScript types from '{}' to '{}'", input, output);
+        println!(
+            "🏃 Dry run: Would export TypeScript types from '{}' to '{}'",
+            input, output
+        );
         return Ok(());
     }
     let yaml = std::fs::read_to_string(input).map_err(|e| {
@@ -74,7 +89,10 @@ pub async fn handle_export_query(
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
-        println!("🏃 Dry run: Would export React Query hooks from '{}' to '{}'", input, output);
+        println!(
+            "🏃 Dry run: Would export React Query hooks from '{}' to '{}'",
+            input, output
+        );
         return Ok(());
     }
     let yaml = std::fs::read_to_string(input).map_err(|e| {
@@ -100,7 +118,10 @@ pub async fn handle_export_view(
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
-        println!("🏃 Dry run: Would export React view from '{}' to '{}'", input, output);
+        println!(
+            "🏃 Dry run: Would export React view from '{}' to '{}'",
+            input, output
+        );
         return Ok(());
     }
     let yaml = std::fs::read_to_string(input).map_err(|e| {

@@ -28,10 +28,16 @@ impl EnvConfig {
             .unwrap_or_else(|_| PathBuf::from("apicentric.json"));
 
         let services_dir = env::var("APICENTRIC_SERVICES_DIR").ok().map(PathBuf::from);
-        let port_start = env::var("APICENTRIC_PORT_START").ok().and_then(|v| v.parse().ok());
-        let port_end = env::var("APICENTRIC_PORT_END").ok().and_then(|v| v.parse().ok());
+        let port_start = env::var("APICENTRIC_PORT_START")
+            .ok()
+            .and_then(|v| v.parse().ok());
+        let port_end = env::var("APICENTRIC_PORT_END")
+            .ok()
+            .and_then(|v| v.parse().ok());
         let db_path = env::var("APICENTRIC_DB_PATH").ok().map(PathBuf::from);
-        let admin_port = env::var("APICENTRIC_ADMIN_PORT").ok().and_then(|v| v.parse().ok());
+        let admin_port = env::var("APICENTRIC_ADMIN_PORT")
+            .ok()
+            .and_then(|v| v.parse().ok());
         let enable_simulator = env::var("APICENTRIC_SIMULATOR_ENABLED")
             .ok()
             .and_then(|v| v.parse().ok());

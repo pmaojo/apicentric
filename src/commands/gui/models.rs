@@ -124,7 +124,10 @@ impl ServiceInfo {
     /// Transition to starting state
     pub fn start(&mut self) -> Result<(), String> {
         if !self.status.can_start() {
-            return Err(format!("Cannot start service in {} state", self.status.display_string()));
+            return Err(format!(
+                "Cannot start service in {} state",
+                self.status.display_string()
+            ));
         }
         self.status = ServiceStatus::Starting;
         Ok(())
@@ -138,7 +141,10 @@ impl ServiceInfo {
     /// Transition to stopping state
     pub fn stop(&mut self) -> Result<(), String> {
         if !self.status.can_stop() {
-            return Err(format!("Cannot stop service in {} state", self.status.display_string()));
+            return Err(format!(
+                "Cannot stop service in {} state",
+                self.status.display_string()
+            ));
         }
         self.status = ServiceStatus::Stopping;
         Ok(())
