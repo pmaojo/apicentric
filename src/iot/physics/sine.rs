@@ -3,6 +3,7 @@ use crate::iot::traits::SimulationStrategy;
 use async_trait::async_trait;
 use std::time::SystemTime;
 
+/// A simulation strategy that generates values based on a sine wave.
 pub struct SineWaveStrategy {
     variable_name: String,
     min: f64,
@@ -11,6 +12,7 @@ pub struct SineWaveStrategy {
 }
 
 impl SineWaveStrategy {
+    /// Create a new sine wave strategy
     pub fn new(variable_name: String, min: f64, max: f64, frequency: f64) -> Self {
         Self {
             variable_name,

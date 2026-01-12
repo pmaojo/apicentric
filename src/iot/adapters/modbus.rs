@@ -2,8 +2,7 @@ use crate::iot::config::AdapterConfig;
 use crate::iot::model::VariableValue;
 use crate::iot::traits::ProtocolAdapter;
 use async_trait::async_trait;
-use log::info; // removed warn
-               // Removed tokio-modbus imports to avoid unused warnings since we are using raw TCP for MVP
+use log::{error, info};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -43,42 +42,22 @@ impl ProtocolAdapter for ModbusAdapter {
             .unwrap_or(5020) as u16;
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-        let _store = self.store.clone();
+        let store = self.store.clone();
 
         tokio::spawn(async move {
             match tokio::net::TcpListener::bind(addr).await {
                 Ok(listener) => {
                     info!("Modbus TCP Server listening on {}", addr);
                     loop {
-                        if let Ok((mut stream, peer)) = listener.accept().await {
+                        if let Ok((socket, peer)) = listener.accept().await {
                             info!("Modbus connection from {}", peer);
-                            tokio::spawn(async move {
-                                let mut buf = [0u8; 1024];
-                                loop {
-                                    match stream.read(&mut buf).await {
-                                        Ok(0) => break, // Connection closed
-                                        Ok(_n) => {
-                                            // Echo back a dummy exception response for any request
-                                            // to verify connectivity without full protocol logic.
-                                            // Modbus Error: [TransactionID][ProtocolID][Length][UnitID][ErrorFuncCode][ExceptionCode]
-                                            // Minimal implementation to keep connection alive or respond.
-                                            let response = [
-                                                0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x81,
-                                                0x01,
-                                            ];
-                                            if let Err(_) = stream.write_all(&response).await {
-                                                break;
-                                            }
-                                        }
-                                        Err(_) => break,
-                                    }
-                                }
-                            });
+                            let store_clone = store.clone();
+                            tokio::spawn(handle_connection(socket, store_clone));
                         }
                     }
                 }
                 Err(e) => {
-                    log::error!("Failed to bind Modbus TCP listener: {}", e);
+                    error!("Failed to bind Modbus TCP listener: {}", e);
                 }
             }
         });
@@ -93,6 +72,7 @@ impl ProtocolAdapter for ModbusAdapter {
                 let val_u16 = match value {
                     VariableValue::Integer(i) => *i as u16,
                     VariableValue::Float(f) => *f as u16,
+                    VariableValue::Boolean(b) => if *b { 1 } else { 0 },
                     _ => 0,
                 };
                 let mut store = self.store.lock().unwrap();
@@ -100,5 +80,127 @@ impl ProtocolAdapter for ModbusAdapter {
             }
         }
         Ok(())
+    }
+}
+
+async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<ModbusStore>>) {
+    let mut buffer = Vec::with_capacity(1024);
+    let mut temp_buf = [0u8; 1024];
+
+    loop {
+        // 1. Try to process existing buffer
+        loop {
+            if buffer.len() < 7 {
+                break; // Need more data for header
+            }
+
+            // Parse MBAP Header
+            // Transaction ID (0-1), Protocol ID (2-3), Length (4-5), Unit ID (6)
+            let proto_id = u16::from_be_bytes([buffer[2], buffer[3]]);
+            let length_field = u16::from_be_bytes([buffer[4], buffer[5]]) as usize;
+
+            // Total frame size = 6 (header excluding unit_id which is counted in length) + length
+            // MBAP Header is 7 bytes: Trans(2) + Proto(2) + Len(2) + Unit(1)
+            // The 'Length' field counts bytes following the Length field itself (UnitID + PDU)
+            // So total bytes required = 6 + length_field
+            let total_required = 6 + length_field;
+
+            if buffer.len() < total_required {
+                break; // Need more data for full frame
+            }
+
+            // We have a full frame
+            let frame = &buffer[0..total_required];
+            let unit_id = frame[6];
+            let func_code = frame[7];
+
+            if proto_id != 0 {
+                // Not Modbus TCP, drop frame or close?
+                // We'll just drop this frame and continue
+                buffer.drain(0..total_required);
+                continue;
+            }
+
+            let mut response = Vec::with_capacity(32);
+             // Copy Transaction ID and Protocol ID
+            response.extend_from_slice(&frame[0..4]);
+            // Placeholder for Length (2 bytes)
+            response.push(0);
+            response.push(0);
+            // Unit ID
+            response.push(unit_id);
+
+            match func_code {
+                 0x03 => { // Read Holding Registers
+                    if frame.len() >= 12 {
+                        let start_addr = u16::from_be_bytes([frame[8], frame[9]]);
+                        let count = u16::from_be_bytes([frame[10], frame[11]]);
+
+                        let mut byte_count = 0;
+                        let mut data = Vec::new();
+
+                        {
+                            let store = store.lock().unwrap();
+                            for i in 0..count {
+                                let addr = start_addr.wrapping_add(i);
+                                let val = store.holding_registers.get(&addr).copied().unwrap_or(0);
+                                data.extend_from_slice(&val.to_be_bytes());
+                                byte_count += 2;
+                            }
+                        }
+
+                        response.push(0x03);
+                        response.push(byte_count);
+                        response.extend_from_slice(&data);
+                    } else {
+                        // Should not happen if length check passed, but just in case
+                        response.push(0x03 | 0x80);
+                        response.push(0x03);
+                    }
+                }
+                0x06 => { // Write Single Register
+                     if frame.len() >= 12 {
+                        let addr = u16::from_be_bytes([frame[8], frame[9]]);
+                        let val = u16::from_be_bytes([frame[10], frame[11]]);
+
+                        {
+                            let mut store = store.lock().unwrap();
+                            store.holding_registers.insert(addr, val);
+                        }
+
+                        // Echo request
+                        response.push(0x06);
+                        response.extend_from_slice(&frame[8..12]);
+                     }
+                }
+                _ => {
+                    // Exception: Illegal Function
+                    response.push(func_code | 0x80);
+                    response.push(0x01);
+                }
+            }
+
+            // Fill Length
+            let payload_len = (response.len() - 6) as u16;
+            let len_bytes = payload_len.to_be_bytes();
+            response[4] = len_bytes[0];
+            response[5] = len_bytes[1];
+
+            if let Err(_) = stream.write_all(&response).await {
+                return; // Connection error
+            }
+
+            // Remove processed frame
+            buffer.drain(0..total_required);
+        }
+
+        // 2. Read more data
+        match stream.read(&mut temp_buf).await {
+            Ok(0) => return, // Closed
+            Ok(n) => {
+                buffer.extend_from_slice(&temp_buf[0..n]);
+            }
+            Err(_) => return,
+        }
     }
 }

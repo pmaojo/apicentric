@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Represents a value for a device variable
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VariableValue {
     Integer(i64),
@@ -10,6 +11,7 @@ pub enum VariableValue {
 }
 
 impl VariableValue {
+    /// Try to convert the value to f64
     pub fn as_f64(&self) -> Option<f64> {
         match self {
             VariableValue::Integer(i) => Some(*i as f64),
@@ -19,6 +21,7 @@ impl VariableValue {
     }
 }
 
+/// The state of a digital twin, containing all variables
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DigitalTwinState {
     pub variables: HashMap<String, VariableValue>,
@@ -32,6 +35,7 @@ impl Default for DigitalTwinState {
     }
 }
 
+/// A Digital Twin instance
 pub struct DigitalTwin {
     pub id: String,
     pub state: DigitalTwinState,
