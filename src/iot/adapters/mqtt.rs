@@ -6,12 +6,14 @@ use log::info;
 use rumqttc::{AsyncClient, MqttOptions, QoS};
 use std::time::Duration;
 
+/// An adapter that publishes digital twin state changes to an MQTT broker.
 pub struct MqttAdapter {
     client: Option<AsyncClient>,
     topic_prefix: String,
 }
 
 impl MqttAdapter {
+    /// Create a new MQTT Adapter instance
     pub fn new() -> Self {
         Self {
             client: None,

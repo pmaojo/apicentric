@@ -5,6 +5,7 @@ use log::error;
 use rhai::{Engine, Scope, AST};
 use std::sync::{Arc, Mutex};
 
+/// A simulation strategy that executes Rhai scripts to determine variable values.
 pub struct RhaiScriptStrategy {
     // Engine must be thread-safe. Rhai Engine is Send+Sync with 'sync' feature,
     // but to be safe and avoid feature hell, wrapping in Arc<Mutex> works.
@@ -18,6 +19,7 @@ pub struct RhaiScriptStrategy {
 }
 
 impl RhaiScriptStrategy {
+    /// Create a new script strategy from a script string
     pub fn new(script: &str, variable_name: String) -> anyhow::Result<Self> {
         let engine = Engine::new();
         let ast = engine.compile(script)?;
