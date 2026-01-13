@@ -111,6 +111,9 @@ impl CloudServer {
                 "/api/services",
                 get(handlers::list_services).post(handlers::create_service),
             )
+            // Marketplace and Import routes
+            .route("/api/marketplace", get(handlers::marketplace_list))
+            .route("/api/import/url", post(handlers::import_from_url))
             .route("/api/services/load", post(handlers::load_service))
             .route("/api/services/save", post(handlers::save_service))
             .route("/api/services/reload", post(handlers::reload_services))

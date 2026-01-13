@@ -1537,6 +1537,151 @@ pub async fn get_metrics(
     Ok(Json(ApiResponse::success(metrics)))
 }
 
+// ============================================
+// Marketplace and Import Endpoints
+// ============================================
+
+/// Request to import from URL
+#[derive(Deserialize)]
+pub struct ImportUrlRequest {
+    pub url: String,
+    pub format: Option<String>, // "openapi", "wiremock", etc.
+}
+
+/// Response for import
+#[derive(Serialize)]
+pub struct ImportUrlResponse {
+    pub service_name: String,
+    pub yaml: String,
+}
+
+use crate::simulator::marketplace::{get_marketplace_items, MarketplaceItem};
+
+/// Import a service definition from a URL.
+///
+/// # Arguments
+///
+/// * `request` - The request containing the URL.
+/// * `simulator` - The API simulator manager.
+#[axum::debug_handler]
+pub async fn import_from_url(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
+    Json(request): Json<ImportUrlRequest>,
+) -> Result<Json<ApiResponse<ImportUrlResponse>>, ApiError> {
+    use crate::simulator::openapi::from_openapi;
+
+    // Fetch the content from URL
+    let content = match reqwest::get(&request.url).await {
+        Ok(res) => match res.text().await {
+            Ok(text) => text,
+            Err(e) => {
+                return Err(ApiError::new(
+                    StatusCode::BAD_REQUEST,
+                    ApiErrorCode::ImportFailed,
+                    format!("Failed to read content from URL: {}", e),
+                ));
+            }
+        },
+        Err(e) => {
+            return Err(ApiError::new(
+                StatusCode::BAD_REQUEST,
+                ApiErrorCode::ImportFailed,
+                format!("Failed to fetch URL: {}", e),
+            ));
+        }
+    };
+
+    // Try to parse as YAML/JSON
+    let value: serde_yaml::Value = match serde_yaml::from_str(&content) {
+        Ok(v) => v,
+        Err(e) => {
+            return Err(ApiError::new(
+                StatusCode::BAD_REQUEST,
+                ApiErrorCode::InvalidYaml,
+                format!("Failed to parse content as YAML/JSON: {}", e),
+            ));
+        }
+    };
+
+    // Determine if it's OpenAPI
+    let definition = if value.get("openapi").is_some() || value.get("swagger").is_some() {
+        // Convert OpenAPI to ServiceDefinition
+        from_openapi(&value)
+    } else {
+        // Try to parse as ServiceDefinition directly
+        match serde_yaml::from_value::<ServiceDefinition>(value) {
+            Ok(def) => def,
+            Err(_) => {
+                return Err(ApiError::new(
+                    StatusCode::BAD_REQUEST,
+                    ApiErrorCode::InvalidServiceDefinition,
+                    "Content is neither a valid OpenAPI spec nor an Apicentric ServiceDefinition".to_string(),
+                ));
+            }
+        }
+    };
+
+    // Validate service name
+    validation::validate_service_name(&definition.name).map_err(ApiError::from)?;
+
+    // Generate YAML
+    let yaml = match serde_yaml::to_string(&definition) {
+        Ok(y) => y,
+        Err(e) => {
+            return Err(ApiError::internal_server_error(format!(
+                "Failed to serialize service: {}",
+                e
+            )));
+        }
+    };
+
+    // Save to file
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let file_path =
+        std::path::Path::new(&services_dir).join(format!("{}.yaml", definition.name));
+
+    // Create services directory if it doesn't exist
+    if let Err(e) = std::fs::create_dir_all(&services_dir) {
+        return Err(ApiError::internal_server_error(format!(
+            "Failed to create services directory: {}",
+            e
+        )));
+    }
+
+    match std::fs::write(&file_path, &yaml) {
+        Ok(_) => {
+            // Apply the service to the running simulator
+            if let Err(e) = simulator.apply_service_definition(definition.clone()).await {
+                // Clean up the file if applying fails
+                let _ = std::fs::remove_file(&file_path);
+                return Err(ApiError::internal_server_error(format!(
+                    "Failed to apply service: {}",
+                    e
+                )));
+            }
+
+            let response = ImportUrlResponse {
+                service_name: definition.name,
+                yaml,
+            };
+
+            Ok(Json(ApiResponse::success(response)))
+        }
+        Err(e) => Err(ApiError::internal_server_error(format!(
+            "Failed to write service file: {}",
+            e
+        ))),
+    }
+}
+
+/// Lists available marketplace items.
+#[axum::debug_handler]
+pub async fn marketplace_list() -> Result<Json<ApiResponse<Vec<MarketplaceItem>>>, StatusCode> {
+    let items = get_marketplace_items();
+    Ok(Json(ApiResponse::success(items)))
+}
+
 /// Gets current memory usage (Linux only)
 fn get_memory_usage() -> Option<u64> {
     #[cfg(target_os = "linux")]

@@ -1,0 +1,26 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.68s
+     Running `target/debug/apicentric cloud`
+  [2m2026-01-13T02:37:45.799364Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:65
+
+🚀 Starting Apicentric Cloud Server on port 8080...
+📝 API Documentation: http://localhost:8080/health
+🔐 Authentication is optional (set APICENTRIC_PROTECT_SERVICES=true to require auth)
+🚀 Apicentric Cloud Server listening on http://0.0.0.0:8080
+  [2m2026-01-13T02:40:08.439450Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client 57c492f6-48da-4ca0-bb73-8c15260100a2 connected[0m
+    [2;3mat[0m src/cloud/websocket.rs:135
+
+  [2m2026-01-13T02:40:38.260421Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mClient 57c492f6-48da-4ca0-bb73-8c15260100a2 requested close[0m
+    [2;3mat[0m src/cloud/websocket.rs:222
+
+  [2m2026-01-13T02:40:38.260745Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client 57c492f6-48da-4ca0-bb73-8c15260100a2 disconnected[0m
+    [2;3mat[0m src/cloud/websocket.rs:252
+
+  [2m2026-01-13T02:41:36.401740Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client eaf69d7a-f4fa-4250-a8e0-a0e585fb323f connected[0m
+    [2;3mat[0m src/cloud/websocket.rs:135
+
+  [2m2026-01-13T02:41:36.616522Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mClient eaf69d7a-f4fa-4250-a8e0-a0e585fb323f requested close[0m
+    [2;3mat[0m src/cloud/websocket.rs:222
+
+  [2m2026-01-13T02:41:36.616827Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client eaf69d7a-f4fa-4250-a8e0-a0e585fb323f disconnected[0m
+    [2;3mat[0m src/cloud/websocket.rs:252

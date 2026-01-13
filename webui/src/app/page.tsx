@@ -19,6 +19,7 @@ const CodeGenerator = lazy(() => import('@/components/features/code-generator').
 const ContractTesting = lazy(() => import('@/components/features/contract-testing').then(m => ({ default: m.ContractTesting })));
 const Recording = lazy(() => import('@/components/features/recording').then(m => ({ default: m.Recording })));
 const Configuration = lazy(() => import('@/components/features/configuration').then(m => ({ default: m.Configuration })));
+const Marketplace = lazy(() => import('@/components/features/marketplace').then(m => ({ default: m.Marketplace })));
 
 // Loading fallback component
 const ComponentLoader = () => (
@@ -308,6 +309,12 @@ function AppContent() {
             <Configuration />
           </Suspense>
         );
+      case 'marketplace':
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <Marketplace onAddService={handleAddService} />
+          </Suspense>
+        );
       default:
         return <Dashboard services={services} onToggleService={handleToggleService} />;
     }
@@ -327,6 +334,7 @@ function AppContent() {
     'code-generator': 'Client Code Generator',
     logs: 'Simulator Logs',
     configuration: 'Configuration',
+    marketplace: 'Marketplace',
   };
 
   return (

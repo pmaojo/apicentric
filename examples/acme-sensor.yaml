@@ -1,0 +1,85 @@
+name: Acme Smart Sensor
+version: 1.0.0
+description: A mock API for an IoT sensor device (Acme Sensor 2000).
+server:
+  port: 3000
+  base_path: /api/v1
+endpoints:
+  - method: GET
+    path: /status
+    description: Get device status
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "device_id": "sensor-12345",
+            "status": "online",
+            "battery_level": 85,
+            "firmware_version": "2.1.0",
+            "uptime_seconds": 12050
+          }
+  - method: GET
+    path: /metrics
+    description: Get current sensor readings
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "temperature_c": 22.5,
+            "humidity_percent": 45.0,
+            "pressure_hpa": 1013.25,
+            "timestamp": "2023-10-27T10:30:00Z"
+          }
+  - method: POST
+    path: /calibrate
+    description: Trigger sensor calibration
+    request_body:
+      required: true
+      content_type: application/json
+      schema: CalibrateRequest
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "status": "calibration_started",
+            "estimated_duration_seconds": 30
+          }
+      400:
+        content_type: application/json
+        body: |
+          {
+            "error": "Invalid calibration parameters"
+          }
+  - method: PUT
+    path: /config
+    description: Update device configuration
+    request_body:
+      required: true
+      content_type: application/json
+      schema: DeviceConfig
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "status": "config_updated"
+          }
+models:
+  CalibrateRequest:
+    type: object
+    properties:
+      mode:
+        type: string
+        enum: [fast, precise]
+      target_value:
+        type: number
+  DeviceConfig:
+    type: object
+    properties:
+      update_interval_ms:
+        type: integer
+      alert_threshold:
+        type: number

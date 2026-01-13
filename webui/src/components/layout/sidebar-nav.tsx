@@ -19,6 +19,7 @@ import {
   Wrench,
   Asterisk,
   Settings,
+  ShoppingBag,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 
@@ -45,6 +46,7 @@ type SidebarNavProps = {
 const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'services', label: 'Services', icon: Server },
+    { id: 'marketplace', label: 'Marketplace', icon: ShoppingBag },
     { id: 'recording', label: 'Recording', icon: RadioTower },
     { id: 'ai-generator', label: 'AI Generator', icon: Sparkles },
     { id: 'plugin-generator', label: 'Plugin Generator', icon: Wrench },

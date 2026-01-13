@@ -9,6 +9,7 @@ pub mod config;
 pub mod lifecycle;
 pub mod log;
 pub mod manager;
+pub mod marketplace;
 pub mod mockoon;
 pub mod openapi;
 pub mod postman;

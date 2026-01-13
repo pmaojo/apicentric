@@ -1,0 +1,333 @@
+   Compiling cfg-if v1.0.4
+   Compiling libc v0.2.177
+   Compiling smallvec v1.15.1
+   Compiling log v0.4.28
+   Compiling itoa v1.0.15
+   Compiling memchr v2.7.6
+   Compiling bytes v1.10.1
+   Compiling pin-project-lite v0.2.16
+   Compiling scopeguard v1.2.0
+   Compiling lock_api v0.4.14
+   Compiling serde_core v1.0.228
+   Compiling portable-atomic v1.11.1
+   Compiling fnv v1.0.7
+   Compiling getrandom v0.2.16
+   Compiling signal-hook-registry v1.4.6
+   Compiling parking_lot_core v0.9.12
+   Compiling parking_lot v0.12.5
+   Compiling futures-core v0.3.31
+   Compiling once_cell v1.21.3
+   Compiling mio v1.1.0
+   Compiling futures-sink v0.3.31
+   Compiling socket2 v0.6.1
+   Compiling zerocopy v0.8.27
+   Compiling tokio v1.48.0
+   Compiling equivalent v1.0.2
+   Compiling slab v0.4.11
+   Compiling futures-channel v0.3.31
+   Compiling pin-utils v0.1.0
+   Compiling zerofrom v0.1.6
+   Compiling futures-task v0.3.31
+   Compiling serde v1.0.228
+   Compiling hashbrown v0.16.0
+   Compiling futures-io v0.3.31
+   Compiling stable_deref_trait v1.2.1
+   Compiling yoke v0.8.1
+   Compiling futures-util v0.3.31
+   Compiling indexmap v2.12.0
+   Compiling bitflags v2.10.0
+   Compiling untrusted v0.9.0
+   Compiling subtle v2.6.1
+   Compiling ring v0.17.14
+   Compiling zerovec v0.11.5
+   Compiling ppv-lite86 v0.2.21
+   Compiling getrandom v0.3.4
+   Compiling tracing-core v0.1.34
+   Compiling rand_core v0.6.4
+   Compiling http v1.3.1
+   Compiling ryu v1.0.20
+   Compiling typenum v1.19.0
+   Compiling tinystr v0.8.2
+   Compiling litemap v0.8.1
+   Compiling zeroize v1.8.2
+   Compiling writeable v0.6.2
+   Compiling generic-array v0.14.7
+   Compiling tokio-util v0.7.17
+   Compiling icu_locale_core v2.1.1
+   Compiling rustls-pki-types v1.13.0
+   Compiling tracing v0.1.41
+   Compiling thiserror v1.0.69
+   Compiling httparse v1.10.1
+   Compiling rand_chacha v0.3.1
+   Compiling zerotrie v0.2.3
+   Compiling potential_utf v0.1.4
+   Compiling strsim v0.11.1
+   Compiling icu_collections v2.1.1
+   Compiling icu_provider v2.1.1
+   Compiling rand v0.8.5
+   Compiling tower-service v0.3.3
+   Compiling percent-encoding v2.3.2
+   Compiling icu_properties_data v2.1.1
+   Compiling icu_normalizer_data v2.1.1
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling darling_core v0.20.11
+   Compiling digest v0.10.7
+   Compiling icu_properties v2.1.1
+   Compiling icu_normalizer v2.1.1
+   Compiling form_urlencoded v1.2.2
+   Compiling num-traits v0.2.19
+   Compiling serde_json v1.0.145
+   Compiling try-lock v0.2.5
+   Compiling httpdate v1.0.3
+   Compiling want v0.3.1
+   Compiling idna_adapter v1.2.1
+   Compiling http-body v1.0.1
+   Compiling utf8_iter v1.0.4
+   Compiling cpufeatures v0.2.17
+   Compiling data-encoding v2.9.0
+   Compiling idna v1.1.0
+   Compiling darling_macro v0.20.11
+   Compiling const-random-macro v0.1.16
+   Compiling rustix v0.38.44
+   Compiling crc32fast v1.5.0
+   Compiling darling v0.20.11
+   Compiling byteorder v1.5.0
+   Compiling const-random v0.1.18
+   Compiling gzip-header v1.0.0
+   Compiling signal-hook v0.3.18
+   Compiling url v2.5.7
+   Compiling sha1 v0.10.6
+   Compiling num-integer v0.1.46
+   Compiling http v0.2.12
+   Compiling mio v0.8.11
+   Compiling aho-corasick v1.1.4
+   Compiling mime v0.3.17
+   Compiling which v5.0.0
+   Compiling atomic-waker v1.1.2
+   Compiling ucd-trie v0.1.7
+   Compiling utf-8 v0.7.6
+   Compiling regex-syntax v0.8.8
+   Compiling tower-layer v0.3.3
+   Compiling static_assertions v1.1.0
+   Compiling pest v2.8.3
+   Compiling v8 v0.89.0
+   Compiling h2 v0.4.12
+   Compiling regex-automata v0.4.13
+   Compiling signal-hook-mio v0.2.5
+   Compiling num-bigint v0.4.6
+   Compiling ahash v0.8.12
+   Compiling rustls-webpki v0.101.7
+   Compiling sct v0.7.1
+   Compiling socket2 v0.5.10
+   Compiling outref v0.1.0
+   Compiling lazy_static v1.5.0
+   Compiling powerfmt v0.2.0
+   Compiling utf8parse v0.2.2
+   Compiling time-core v0.1.6
+   Compiling num-conv v0.1.0
+   Compiling openssl-probe v0.1.6
+   Compiling unicode-segmentation v1.12.0
+   Compiling unicase v2.8.1
+   Compiling either v1.15.0
+   Compiling mime_guess v2.0.5
+   Compiling time-macros v0.2.24
+   Compiling deranged v0.5.5
+   Compiling anstyle-parse v0.2.7
+   Compiling simd-abstraction v0.7.1
+   Compiling thiserror v2.0.17
+   Compiling rustls v0.21.12
+   Compiling hyper v1.8.0
+   Compiling pest_meta v2.8.3
+   Compiling h2 v0.3.27
+   Compiling http-body v0.4.6
+   Compiling derive_builder_core v0.20.2
+   Compiling http-body-util v0.1.3
+   Compiling rustls-webpki v0.102.8
+   Compiling rustls-webpki v0.103.8
+   Compiling rand_core v0.9.3
+   Compiling uuid v1.18.1
+   Compiling anstyle-query v1.1.5
+   Compiling unicode-width v0.1.14
+   Compiling base64 v0.22.1
+   Compiling colorchoice v1.0.4
+   Compiling allocator-api2 v0.2.21
+   Compiling anstyle v1.0.13
+   Compiling sync_wrapper v1.0.2
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling foldhash v0.1.5
+   Compiling anstream v0.6.21
+   Compiling hyper v0.14.32
+   Compiling hashbrown v0.15.5
+   Compiling debugid v0.8.0
+   Compiling rand_chacha v0.9.0
+   Compiling rustls v0.23.35
+   Compiling derive_builder_macro v0.20.2
+   Compiling rustls v0.22.4
+   Compiling tokio-rustls v0.24.1
+   Compiling hyper-util v0.1.18
+   Compiling pest_generator v2.8.3
+   Compiling time v0.3.44
+   Compiling base64-simd v0.7.0
+   Compiling itertools v0.13.0
+   Compiling hashbrown v0.14.5
+   Compiling tungstenite v0.24.0
+   Compiling serde_urlencoded v0.7.1
+   Compiling castaway v0.2.4
+   Compiling rustls-pemfile v2.2.0
+   Compiling futures-executor v0.3.31
+   Compiling inotify-sys v0.1.5
+   Compiling spin v0.9.8
+   Compiling clap_lex v0.7.6
+   Compiling base64ct v1.8.0
+   Compiling bit-vec v0.8.0
+   Compiling linux-raw-sys v0.11.0
+   Compiling base64 v0.21.7
+   Compiling if_chain v1.0.3
+   Compiling num-modular v0.6.1
+   Compiling unicode-id-start v1.4.0
+   Compiling bitflags v1.3.2
+   Compiling same-file v1.0.6
+   Compiling rustix v1.1.2
+   Compiling walkdir v2.5.0
+   Compiling rustls-pemfile v1.0.4
+   Compiling crossterm v0.25.0
+   Compiling num-order v1.2.0
+   Compiling sourcemap v7.1.1
+   Compiling password-hash v0.5.0
+   Compiling bit-set v0.8.0
+   Compiling clap_builder v4.5.51
+   Compiling flume v0.11.1
+   Compiling futures v0.3.31
+   Compiling pin-project v1.1.10
+   Compiling inotify v0.11.0
+   Compiling rustls-native-certs v0.7.3
+   Compiling compact_str v0.7.1
+   Compiling tokio-tungstenite v0.24.0
+   Compiling unicode-truncate v1.1.0
+   Compiling simple_asn1 v0.6.3
+   Compiling strum v0.26.3
+   Compiling hashlink v0.9.1
+   Compiling libsqlite3-sys v0.28.0
+   Compiling deno_ops v0.148.0
+   Compiling pest_derive v2.8.3
+   Compiling tokio-rustls v0.26.4
+   Compiling tokio-rustls v0.25.0
+   Compiling serde_v8 v0.181.0
+   Compiling hyper-rustls v0.24.2
+   Compiling derive_builder v0.20.2
+   Compiling lru v0.12.5
+   Compiling rand v0.9.2
+   Compiling memoffset v0.9.1
+   Compiling smartstring v1.0.1
+   Compiling anyhow v1.0.100
+   Compiling axum-core v0.4.5
+   Compiling tower v0.5.2
+   Compiling pem v3.0.6
+   Compiling itertools v0.12.1
+   Compiling newline-converter v0.2.2
+   Compiling regex v1.12.2
+   Compiling matchers v0.2.0
+   Compiling rustls-native-certs v0.8.2
+   Compiling sharded-slab v0.1.7
+   Compiling crossterm v0.27.0
+   Compiling tungstenite v0.21.0
+   Compiling dummy v0.11.0
+   Compiling blake2 v0.10.6
+   Compiling deno_unsync v0.3.10
+   Compiling tracing-log v0.2.0
+   Compiling tracing-serde v0.2.0
+   Compiling bincode v1.3.3
+   Compiling serde_path_to_error v0.1.20
+   Compiling console v0.15.11
+   Compiling is-terminal v0.4.17
+   Compiling thread_local v1.1.9
+   Compiling encoding_rs v0.8.35
+   Compiling deunicode v1.6.2
+   Compiling dyn-clone v1.0.20
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling humantime v2.3.0
+   Compiling http-range-header v0.4.2
+   Compiling nu-ansi-term v0.50.3
+   Compiling fallible-iterator v0.3.0
+   Compiling cassowary v0.3.0
+   Compiling notify-types v2.0.0
+   Compiling fastrand v2.3.0
+   Compiling webpki-roots v0.25.4
+   Compiling iana-time-zone v0.1.64
+   Compiling sync_wrapper v0.1.2
+   Compiling cooked-waker v5.0.0
+   Compiling number_prefix v0.4.0
+   Compiling unsafe-libyaml v0.2.11
+   Compiling deno_core_icudata v0.0.73
+   Compiling thin-vec v0.2.14
+   Compiling ipnet v2.11.0
+   Compiling termcolor v1.4.1
+   Compiling matchit v0.7.3
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling axum v0.7.9
+   Compiling env_logger v0.10.2
+   Compiling reqwest v0.11.27
+   Compiling rhai v1.23.6
+   Compiling deno_core v0.272.0
+   Compiling indicatif v0.17.11
+   Compiling chrono v0.4.42
+   Compiling tempfile v3.23.0
+   Compiling notify v8.2.0
+   Compiling rusqlite v0.31.0
+   Compiling ratatui v0.26.3
+   Compiling tracing-subscriber v0.3.20
+   Compiling tower-http v0.5.2
+   Compiling inquire v0.6.2
+   Compiling fake v4.4.0
+   Compiling argon2 v0.5.3
+   Compiling tokio-tungstenite v0.21.0
+   Compiling clap v4.5.51
+   Compiling hyper-rustls v0.27.7
+   Compiling jsonwebtoken v9.3.1
+   Compiling handlebars v6.3.2
+   Compiling rumqttc v0.24.0
+   Compiling tokio-modbus v0.14.0
+   Compiling colored v2.2.0
+   Compiling tower v0.4.13
+   Compiling openapiv3 v2.2.0
+   Compiling tokio-stream v0.1.17
+   Compiling libloading v0.8.9
+   Compiling glob v0.3.3
+   Compiling dotenvy v0.15.7
+   Compiling apicentric v0.2.8 (/app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 34s
+     Running `target/debug/apicentric cloud`
+  [2m2026-01-13T02:32:28.437197Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:65
+
+🚀 Starting Apicentric Cloud Server on port 8080...
+📝 API Documentation: http://localhost:8080/health
+🔐 Authentication is optional (set APICENTRIC_PROTECT_SERVICES=true to require auth)
+🚀 Apicentric Cloud Server listening on http://0.0.0.0:8080
+  [2m2026-01-13T02:33:31.713414Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client c298b4c3-431d-44d6-b508-ce2885b287f9 connected[0m
+    [2;3mat[0m src/cloud/websocket.rs:135
+
+  [2m2026-01-13T02:34:01.461006Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mClient c298b4c3-431d-44d6-b508-ce2885b287f9 requested close[0m
+    [2;3mat[0m src/cloud/websocket.rs:222
+
+  [2m2026-01-13T02:34:01.461294Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client c298b4c3-431d-44d6-b508-ce2885b287f9 disconnected[0m
+    [2;3mat[0m src/cloud/websocket.rs:252
+
+  [2m2026-01-13T02:34:31.492951Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client 70299fae-f367-41a5-b2c2-f3ead90b7a23 connected[0m
+    [2;3mat[0m src/cloud/websocket.rs:135
+
+  [2m2026-01-13T02:34:31.714288Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mClient 70299fae-f367-41a5-b2c2-f3ead90b7a23 requested close[0m
+    [2;3mat[0m src/cloud/websocket.rs:222
+
+  [2m2026-01-13T02:34:31.714453Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client 70299fae-f367-41a5-b2c2-f3ead90b7a23 disconnected[0m
+    [2;3mat[0m src/cloud/websocket.rs:252
+
+  [2m2026-01-13T02:35:35.199999Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client 34054ba8-3dfa-4636-9e44-76baae433cac connected[0m
+    [2;3mat[0m src/cloud/websocket.rs:135
+
+  [2m2026-01-13T02:36:05.032190Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mClient 34054ba8-3dfa-4636-9e44-76baae433cac requested close[0m
+    [2;3mat[0m src/cloud/websocket.rs:222
+
+  [2m2026-01-13T02:36:05.032333Z[0m [32m INFO[0m [1;32mapicentric::cloud::websocket[0m[32m: [32mWebSocket client 34054ba8-3dfa-4636-9e44-76baae433cac disconnected[0m
+    [2;3mat[0m src/cloud/websocket.rs:252

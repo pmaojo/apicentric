@@ -713,6 +713,37 @@ export async function validateConfig(config: Record<string, any>): Promise<Valid
 }
 
 // ============================================================================
+// Marketplace and Import API
+// ============================================================================
+
+import type { ImportUrlPayload, MarketplaceItem } from '@/lib/types';
+
+/**
+ * Fetches the list of marketplace items.
+ */
+export async function fetchMarketplace(): Promise<MarketplaceItem[]> {
+  const response = await apiRequest<{ success: boolean; data: MarketplaceItem[] }>(
+    '/api/marketplace'
+  );
+  return response.data;
+}
+
+/**
+ * Imports a service from a URL.
+ */
+export async function importFromUrl(url: string, format?: string): Promise<{ service_name: string; yaml: string }> {
+  const payload: ImportUrlPayload = { url, format };
+  const response = await apiRequest<{ success: boolean; data: { service_name: string; yaml: string } }>(
+    '/api/import/url',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  );
+  return response.data;
+}
+
+// ============================================================================
 // Legacy API (for backward compatibility)
 // ============================================================================
 
