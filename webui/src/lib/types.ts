@@ -100,7 +100,28 @@ export type View =
   | 'contract-testing'
   | 'code-generator'
   | 'logs'
-  | 'configuration';
+  | 'configuration'
+  | 'marketplace';
+
+/**
+ * Represents a marketplace item.
+ */
+export interface MarketplaceItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  logo_url?: string;
+  definition_url: string;
+}
+
+/**
+ * Payload for importing from URL.
+ */
+export interface ImportUrlPayload {
+  url: string;
+  format?: string;
+}
 
 /**
  * Represents a service as fetched from the API.

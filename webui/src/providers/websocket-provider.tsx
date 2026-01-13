@@ -19,19 +19,26 @@ export interface ServiceStatusUpdate {
   timestamp: string;
 }
 
-export interface RequestLogEntry {
+// Re-export type from api.ts to avoid conflicts
+import type { RequestLogEntry as ApiRequestLogEntry } from '@/services/api';
+
+// Extend the API type if needed, or just use it directly
+// The WebSocket version has some different fields naming
+export interface WebSocketRequestLogEntry {
   id: string;
   timestamp: string;
   method: string;
   path: string;
   status: number;
-  response_time: number;
-  service_name: string;
-  headers?: Record<string, string>;
-  body?: string;
+  duration_ms: number; // Renamed from response_time to match ApiRequestLogEntry
+  service: string; // Renamed from service_name
+  request_headers?: Record<string, string>; // Renamed from headers
+  request_body?: string; // Renamed from body
   response_headers?: Record<string, string>;
   response_body?: string;
 }
+
+export type RequestLogEntry = WebSocketRequestLogEntry;
 
 export interface RecordingCapture {
   method: string;

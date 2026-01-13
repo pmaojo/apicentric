@@ -35,13 +35,12 @@ else
     elif [ "$ARCH" == "aarch64" ]; then
       ASSET_NAME="apicentric-aarch64-unknown-linux-gnu.tar.gz"
     fi
-  elif [ "$OS" == "darwin" ]; {
+  elif [ "$OS" == "darwin" ]; then
     if [ "$ARCH" == "x86_64" ]; then
       ASSET_NAME="apicentric-x86_64-apple-darwin.tar.gz"
     elif [ "$ARCH" == "arm64" ]; then
       ASSET_NAME="apicentric-aarch64-apple-darwin.tar.gz"
     fi
-  }
   fi
 
   if [ -z "$ASSET_NAME" ]; then

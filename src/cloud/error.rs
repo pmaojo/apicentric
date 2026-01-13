@@ -37,6 +37,8 @@ pub enum ApiErrorCode {
     ValidationFailed,
     YamlTooLarge,
     ServiceNameMismatch,
+    InvalidServiceDefinition,
+    ImportFailed,
 
     // Recording errors
     RecordingNotActive,
@@ -91,6 +93,8 @@ impl fmt::Display for ApiErrorCode {
             Self::ValidationFailed => write!(f, "VALIDATION_FAILED"),
             Self::YamlTooLarge => write!(f, "YAML_TOO_LARGE"),
             Self::ServiceNameMismatch => write!(f, "SERVICE_NAME_MISMATCH"),
+            Self::InvalidServiceDefinition => write!(f, "INVALID_SERVICE_DEFINITION"),
+            Self::ImportFailed => write!(f, "IMPORT_FAILED"),
             Self::RecordingNotActive => write!(f, "RECORDING_NOT_ACTIVE"),
             Self::RecordingAlreadyActive => write!(f, "RECORDING_ALREADY_ACTIVE"),
             Self::RecordingStartFailed => write!(f, "RECORDING_START_FAILED"),
@@ -303,6 +307,8 @@ impl From<ErrorResponse> for ApiError {
             | ApiErrorCode::ValidationFailed
             | ApiErrorCode::YamlTooLarge
             | ApiErrorCode::ServiceNameMismatch
+            | ApiErrorCode::InvalidServiceDefinition
+            | ApiErrorCode::ImportFailed
             | ApiErrorCode::InvalidRequest
             | ApiErrorCode::InvalidParameter
             | ApiErrorCode::MissingParameter

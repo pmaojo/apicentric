@@ -1,6 +1,7 @@
 pub mod contract_demo;
 pub mod gui;
 pub mod mcp;
+pub mod new;
 pub mod simulator;
 pub mod tui;
 pub mod tui_render;

@@ -266,6 +266,19 @@ pub enum Commands {
     /// Example: apicentric cloud
     Cloud,
 
+    /// Creates a new service from a template.
+    ///
+    /// Downloads and installs a service definition from the marketplace templates.
+    ///
+    /// Example: apicentric new my-service --template stripe
+    New {
+        /// The name of the new service.
+        name: String,
+        /// The template ID to use (e.g., stripe, slack, petstore).
+        #[arg(long, short)]
+        template: String,
+    },
+
     /// Manage IoT Digital Twins
     #[cfg(feature = "iot")]
     Twin {

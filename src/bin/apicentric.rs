@@ -39,6 +39,9 @@ mod cloud_cmd;
 #[path = "../commands/mcp/mod.rs"]
 mod mcp_cmd;
 
+#[path = "../commands/new.rs"]
+mod new_cmd;
+
 #[cfg(feature = "iot")]
 use apicentric::iot::args::TwinCommands;
 
@@ -124,6 +127,16 @@ enum Commands {
     /// Launches the cloud API server (requires the 'webui' feature).
     #[cfg(feature = "webui")]
     Cloud,
+    /// Creates a new service from a template.
+    ///
+    /// Downloads and installs a service definition from the marketplace templates.
+    New {
+        /// The name of the new service.
+        name: String,
+        /// The template ID to use (e.g., stripe, slack, petstore).
+        #[arg(long, short)]
+        template: String,
+    },
     /// Starts the MCP server for AI agent interaction (requires the 'mcp' feature).
     #[cfg(feature = "mcp")]
     Mcp(mcp_cmd::Mcp),
@@ -252,6 +265,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Gui => gui_cmd::gui_command().await,
         #[cfg(feature = "webui")]
         Commands::Cloud => cloud_cmd::cloud_command().await,
+        Commands::New { name, template } => new_cmd::new_command(name.clone(), template.clone()).await,
         #[cfg(feature = "mcp")]
         Commands::Mcp(mcp) => mcp_cmd::mcp_command(&mcp, &context, &exec_ctx).await,
         #[cfg(feature = "iot")]
