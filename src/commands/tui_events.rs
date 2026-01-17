@@ -225,6 +225,17 @@ async fn handle_normal_mode_key(
             Ok(Action::Continue)
         }
 
+        // Toggle dashboard
+        KeyCode::Char('d') => {
+            state.dashboard.toggle();
+            if state.dashboard.active {
+                state.set_status("Switched to Dashboard view".to_string());
+            } else {
+                state.set_status("Switched to Logs view".to_string());
+            }
+            Ok(Action::Continue)
+        }
+
         _ => Ok(Action::Continue),
     }
 }
