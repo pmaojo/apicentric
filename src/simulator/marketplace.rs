@@ -79,5 +79,65 @@ pub fn get_marketplace_items() -> Vec<MarketplaceItem> {
             // Pointing to the file we are about to create in the repo
             definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/acme-sensor.yaml".to_string(),
         },
+        MarketplaceItem {
+            id: "smart-thermostat".to_string(),
+            name: "Smart Thermostat".to_string(),
+            description: "Digital Twin of a smart thermostat (temperature, humidity). MQTT.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/smart-thermostat.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "industrial-pump".to_string(),
+            name: "Industrial Pump".to_string(),
+            description: "Digital Twin of an industrial pump (RPM, flow, temp). Modbus TCP.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/industrial-pump.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "solar-inverter".to_string(),
+            name: "Solar Inverter".to_string(),
+            description: "Digital Twin of a solar inverter (power, voltage). Modbus TCP.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/solar-inverter.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "weather-station".to_string(),
+            name: "Weather Station".to_string(),
+            description: "Digital Twin of a weather station (wind, temp, humidity). MQTT.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/weather-station.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "smart-meter".to_string(),
+            name: "Smart Meter".to_string(),
+            description: "Digital Twin of a smart energy meter. MQTT.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/smart-meter.yaml".to_string(),
+        },
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_marketplace_items() {
+        let items = get_marketplace_items();
+        assert!(!items.is_empty());
+
+        // Check for IoT items
+        let iot_items: Vec<_> = items.iter().filter(|i| i.category == "IoT Twin").collect();
+        assert_eq!(iot_items.len(), 5);
+
+        for item in iot_items {
+            assert!(item.definition_url.starts_with("https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/"));
+            assert!(item.definition_url.ends_with(".yaml"));
+        }
+    }
 }
