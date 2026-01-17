@@ -591,6 +591,7 @@ fn save_logs_to_file(state: &mut TuiAppState) -> ApicentricResult<()> {
 }
 
 /// Poll for keyboard events with timeout
+#[allow(dead_code)]
 pub fn poll_events(timeout: Duration) -> ApicentricResult<Option<Event>> {
     if event::poll(timeout).map_err(|e| {
         apicentric::ApicentricError::runtime_error(

@@ -24,17 +24,17 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
         name: name.to_string(),
         version: Some("1.0.0".to_string()),
         description: Some("Test service".to_string()),
-        server: ServerConfig {
+        server: Some(ServerConfig {
             port,
             base_path: "/".to_string(),
             proxy_base_url: None,
             cors: None,
             record_unknown: false,
-        },
+        }),
         models: None,
         fixtures: None,
         bucket: None,
-        endpoints: vec![EndpointDefinition {
+        endpoints: Some(vec![EndpointDefinition {
             kind: EndpointKind::Http,
             method: "GET".to_string(),
             path: "/test".to_string(),
@@ -59,9 +59,10 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
             },
             scenarios: None,
             stream: None,
-        }],
+        }]),
         graphql: None,
         behavior: None,
+        twin: None,
     }
 }
 

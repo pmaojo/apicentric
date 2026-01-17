@@ -369,6 +369,11 @@ mod tests {
                 .json()
                 .await
                 .unwrap();
+        
+        let logs: Vec<RequestLogEntry> = logs
+            .into_iter()
+            .filter(|l| l.method != "SYSTEM" && l.method != "DEBUG")
+            .collect();
 
         assert!(logs.len() >= 2);
         assert_eq!(logs[0].path, format!("{}/users", base_path));
@@ -387,7 +392,7 @@ mod tests {
     #[tokio::test]
     async fn test_unknown_route_recording_creates_endpoint() {
         let mut definition = create_recording_service();
-        definition.server.record_unknown = true;
+        definition.server.as_mut().unwrap().record_unknown = true;
 
         let port = get_free_port();
         let storage = Arc::new(RecordingStorage::default());
@@ -439,7 +444,7 @@ mod tests {
     #[tokio::test]
     async fn test_unknown_route_reuse_after_recording() {
         let mut definition = create_recording_service();
-        definition.server.record_unknown = true;
+        definition.server.as_mut().unwrap().record_unknown = true;
 
         let port = get_free_port();
         let storage = Arc::new(RecordingStorage::default());

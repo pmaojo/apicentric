@@ -2424,14 +2424,16 @@ mod tests {
         let service = ServiceInstance::new(definition, 8010, storage, tx).unwrap();
 
         let mut headers = HashMap::new();
-        // Missing header should not match
-        let endpoint = service.find_endpoint("GET", "/protected", &headers);
-        assert!(endpoint.is_none());
-
-        // Correct header should match
-        headers.insert("x-api-key".to_string(), "secret".to_string());
-        let endpoint = service.find_endpoint("GET", "/protected", &headers);
+        // Without specific header, it should match the fallback
+        let endpoint = service.find_endpoint("GET", "/headers", &headers);
         assert!(endpoint.is_some());
+        assert_eq!(endpoint.unwrap().description, Some("Get without header match".to_string()));
+
+        // Correct header should match the restricted endpoint
+        headers.insert("x-test".to_string(), "true".to_string());
+        let endpoint = service.find_endpoint("GET", "/headers", &headers);
+        assert!(endpoint.is_some());
+        assert_eq!(endpoint.unwrap().description, Some("Get with header match".to_string()));
     }
 
     #[test]
@@ -2675,7 +2677,7 @@ mod tests {
         let mut definition = create_test_service_definition();
 
         // Add duplicate endpoint
-        definition.endpoints.push(EndpointDefinition {
+        definition.endpoints.as_mut().unwrap().push(EndpointDefinition {
             kind: EndpointKind::Http,
             method: "GET".to_string(),
             path: "/users".to_string(), // Duplicate path with same method
@@ -3054,7 +3056,7 @@ mod tests {
         let upstream_handle = spawn_upstream_server(upstream_port);
 
         let mut definition = create_test_service_definition();
-        definition.server.proxy_base_url = Some(format!("http://127.0.0.1:{}", upstream_port));
+        definition.server.as_mut().unwrap().proxy_base_url = Some(format!("http://127.0.0.1:{}", upstream_port));
 
         let service_port = {
             let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -3096,7 +3098,7 @@ mod tests {
     #[tokio::test]
     async fn test_proxy_disabled_returns_not_found() {
         let mut definition = create_test_service_definition();
-        definition.server.proxy_base_url = None; // ensure proxy disabled
+        definition.server.as_mut().unwrap().proxy_base_url = None; // ensure proxy disabled
 
         let service_port = {
             let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();

@@ -617,7 +617,7 @@ mod tests {
             endpoint: None,
             method: "GET".to_string(),
             path: "/api/test".to_string(),
-            status: 200,
+            status: 200, payload: None,
         };
 
         assert!(filter.matches(&entry));
@@ -629,6 +629,7 @@ mod tests {
             method: "POST".to_string(),
             path: "/api/test".to_string(),
             status: 200,
+            payload: None,
         };
 
         assert!(!filter.matches(&entry_post));
@@ -645,7 +646,7 @@ mod tests {
             endpoint: None,
             method: "GET".to_string(),
             path: "/api/test".to_string(),
-            status: 200,
+            status: 200, payload: None,
         };
 
         assert!(filter.matches(&entry));
@@ -657,6 +658,7 @@ mod tests {
             method: "GET".to_string(),
             path: "/api/test".to_string(),
             status: 404,
+            payload: None,
         };
 
         assert!(!filter.matches(&entry_404));
@@ -674,6 +676,7 @@ mod tests {
             method: "GET".to_string(),
             path: "/api/test".to_string(),
             status: 200,
+            payload: None,
         };
 
         assert!(filter.matches(&entry));
@@ -685,6 +688,7 @@ mod tests {
             method: "GET".to_string(),
             path: "/api/test".to_string(),
             status: 200,
+            payload: None,
         };
 
         assert!(!filter.matches(&entry_other));
@@ -704,6 +708,7 @@ mod tests {
             method: "POST".to_string(),
             path: "/api/users".to_string(),
             status: 201,
+            payload: None,
         };
 
         assert!(filter.matches(&entry_match));
@@ -715,6 +720,7 @@ mod tests {
             method: "GET".to_string(),
             path: "/api/users".to_string(),
             status: 201,
+            payload: None,
         };
 
         assert!(!filter.matches(&entry_wrong_method));
@@ -768,6 +774,7 @@ mod tests {
             method: "GET".to_string(),
             path: "/users".to_string(),
             status: 200,
+            payload: None,
         });
 
         log_view.add_entry(RequestLogEntry {
@@ -777,6 +784,7 @@ mod tests {
             method: "POST".to_string(),
             path: "/users".to_string(),
             status: 201,
+            payload: None,
         });
 
         log_view.add_entry(RequestLogEntry {
@@ -786,6 +794,7 @@ mod tests {
             method: "GET".to_string(),
             path: "/login".to_string(),
             status: 200,
+            payload: None,
         });
 
         // No filter - should return all entries
