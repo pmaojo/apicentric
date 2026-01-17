@@ -363,8 +363,17 @@ pub fn render_actions_panel_with_metrics(
         create_action_line("Tab", ": Switch"),
         create_action_line("?", ": Help"),
         create_action_line("m", ": Market"),
-        Line::from(""),
+        Line::from(""), // Spacer
     ];
+
+    // Show Dashboard hint
+    let dashboard_hint = if state.dashboard.active {
+        "d: Logs"
+    } else {
+        "d: Dashboard"
+    };
+    lines.push(Line::from(vec![Span::styled(dashboard_hint, Style::default().fg(Color::Cyan))]));
+    lines.push(Line::from(""));
 
     // Show filter status if active
     if state.logs.filter.is_active() {
@@ -446,6 +455,86 @@ pub fn render_actions_panel_with_metrics(
     );
 
     f.render_widget(paragraph, area);
+}
+
+/// Render the retro telemetry dashboard
+pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
+    use ratatui::widgets::{Sparkline, Gauge};
+    use ratatui::layout::{Constraint, Direction, Layout};
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Telemetry Dashboard ")
+        .border_type(ratatui::widgets::BorderType::Double) // Retro look
+        .border_style(Style::default().fg(Color::Cyan));
+
+    f.render_widget(block.clone(), area);
+
+    // Inner area for grid
+    let inner_area = block.inner(area);
+
+    // Get active service metrics
+    let active_services: Vec<(&String, &super::tui_state::ServiceMetrics)> = state.dashboard.metrics.iter().collect();
+    
+    if active_services.is_empty() {
+        let text = Paragraph::new("Waiting for data emitters...")
+            .alignment(ratatui::layout::Alignment::Center)
+            .style(Style::default().fg(Color::DarkGray));
+        f.render_widget(text, inner_area);
+        return;
+    }
+
+    // Create grid layout (simple rows for now)
+    let rows = active_services.len().max(1);
+    let constraints: Vec<Constraint> = (0..rows).map(|_| Constraint::Length(4)).collect(); // 4 lines per service
+    
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(constraints)
+        .split(inner_area);
+
+    for (i, (service_name, metrics)) in active_services.iter().enumerate() {
+        if i >= chunks.len() { break; }
+        
+        // Service Row Layout: Name/Status | Sparkline | Stats
+        let row_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(20),
+                Constraint::Percentage(60),
+                Constraint::Percentage(20),
+            ])
+            .split(chunks[i]);
+
+        // 1. Name
+        let name_widget = Paragraph::new(Line::from(vec![
+            Span::styled("● ", Style::default().fg(Color::Green)), // LED
+            Span::styled(*service_name, Style::default().add_modifier(Modifier::BOLD)),
+        ]))
+        .block(Block::default().borders(Borders::RIGHT).border_style(Style::default().fg(Color::DarkGray)));
+        f.render_widget(name_widget, row_chunks[0]);
+
+        // 2. Sparkline
+        let data: Vec<u64> = metrics.request_history.iter().copied().collect();
+        // Determine max for scaling (local max or global?) - Local looks cooler "auto range"
+        let max = data.iter().max().copied().unwrap_or(1).max(1);
+        
+        let sparkline = Sparkline::default()
+            .block(Block::default().title("Activity").borders(Borders::NONE))
+            .data(&data)
+            .max(max)
+            .style(Style::default().fg(Color::Yellow));
+        f.render_widget(sparkline, row_chunks[1]);
+
+        // 3. Stats (Gauge or Value)
+        let last_val = metrics.request_history.back().copied().unwrap_or(0);
+        let gauge = Gauge::default()
+            .block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(Color::DarkGray)))
+            .gauge_style(Style::default().fg(Color::Red))
+            .ratio( (last_val as f64 / (max as f64).max(1.0)).min(1.0) )
+            .label(format!("{} rps", last_val)); // Using ticks as RPS approximation if 1 tick = 1 sec
+        f.render_widget(gauge, row_chunks[2]);
+    }
 }
 
 /// Render the marketplace dialog

@@ -41,9 +41,16 @@ pub fn poll_log_entries(
     state: &mut TuiAppState,
     log_receiver: &mut broadcast::Receiver<RequestLogEntry>,
 ) {
-    // Try to receive all available log entries without blocking
-    while let Ok(entry) = log_receiver.try_recv() {
-        state.logs.add_entry(entry);
+    // Try to receive up to 10 entries per poll to avoid blocking too long
+    for _ in 0..10 {
+        match log_receiver.try_recv() {
+            Ok(entry) => {
+                // Update dashboard metrics (retro telemetry)
+                state.dashboard.record_request(entry.service.clone());
+                state.logs.add_entry(entry);
+            }
+            Err(_) => break, // Empty or lagging
+        }
     }
 
     // Update service statistics based on logs

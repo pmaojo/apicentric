@@ -31,6 +31,8 @@ pub struct TuiAppState {
     pub is_loading: bool,
     /// Currently focused panel
     pub focused_panel: FocusedPanel,
+    /// Dashboard state for retro telemetry
+    pub dashboard: DashboardState,
 }
 
 impl TuiAppState {
@@ -46,6 +48,7 @@ impl TuiAppState {
             error_message: None,
             is_loading: false,
             focused_panel: FocusedPanel::Services,
+            dashboard: DashboardState::new(),
         }
     }
 
@@ -130,6 +133,53 @@ pub struct MarketplaceItem {
     pub definition_url: String,
 }
 
+/// State for the retro telemetry dashboard
+#[derive(Debug)]
+pub struct DashboardState {
+    /// Whether the dashboard is active (replaces logs view)
+    pub active: bool,
+    /// Metrics per service
+    pub metrics: HashMap<String, ServiceMetrics>,
+}
+
+#[derive(Debug)]
+pub struct ServiceMetrics {
+    /// History of request counts per tick (for sparkline)
+    pub request_history: VecDeque<u64>,
+    /// Request count in current tick
+    pub current_tick_count: u64,
+}
+
+impl DashboardState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            metrics: HashMap::new(),
+        }
+    }
+
+    pub fn toggle(&mut self) {
+        self.active = !self.active;
+    }
+
+    pub fn record_request(&mut self, service: String) {
+        let metrics = self.metrics.entry(service).or_insert_with(|| ServiceMetrics {
+            request_history: VecDeque::from(vec![0; 50]),
+            current_tick_count: 0,
+        });
+        metrics.current_tick_count += 1;
+    }
+
+    pub fn tick(&mut self) {
+        for metrics in self.metrics.values_mut() {
+            metrics.request_history.push_back(metrics.current_tick_count);
+            if metrics.request_history.len() > 50 {
+                metrics.request_history.pop_front();
+            }
+            metrics.current_tick_count = 0;
+        }
+    }
+}
 impl MarketplaceState {
     /// Create a new marketplace state with items loaded
     pub fn new() -> Self {

@@ -32,8 +32,10 @@ use super::tui_events::{
 use super::tui_render::{
     render_actions_panel_with_metrics, render_filter_dialog, render_help_dialog, render_log_view,
     render_marketplace_dialog, render_search_dialog, render_service_list,
+    render_dashboard_view,
 };
 use super::tui_state::{TuiAppState, ViewMode};
+
 
 /// Launch the enhanced terminal dashboard with service list, logs and actions panes.
 ///
@@ -177,12 +179,18 @@ async fn run_app(
                     &state.services,
                     state.focused_panel == super::tui_state::FocusedPanel::Services,
                 );
-                render_log_view(
-                    f,
-                    chunks[1],
-                    &state,
-                    state.focused_panel == super::tui_state::FocusedPanel::Logs,
-                );
+                // Render logs or dashboard based on active view
+                if state.dashboard.active {
+                    render_dashboard_view(f, chunks[1], &state);
+                } else {
+                    render_log_view(
+                        f,
+                        chunks[1],
+                        &state,
+                        state.focused_panel == super::tui_state::FocusedPanel::Logs,
+                    );
+                }
+
                 // Calculate average input latency for display
                 let avg_input_latency = if !input_latencies.is_empty() {
                     let sum: Duration = input_latencies.iter().sum();
@@ -233,6 +241,10 @@ async fn run_app(
         let _status_update_time = if last_status_update.elapsed() >= status_update_interval {
             let update_start = std::time::Instant::now();
             let _ = update_service_status(&mut state, &manager).await;
+            
+            // Update dashboard metrics (move sparkline)
+            state.dashboard.tick();
+
             last_status_update = std::time::Instant::now();
             update_start.elapsed()
         } else {
