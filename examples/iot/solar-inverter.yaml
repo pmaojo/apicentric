@@ -1,0 +1,16 @@
+twin:
+  name: solar-inverter-x1
+  physics:
+    - variable: addr_10
+      strategy: sine
+      params:
+        min: 0.0
+        max: 5000.0
+    - variable: addr_11
+      strategy: sine
+      params:
+        min: 220.0
+        max: 240.0
+  transports:
+    - type: modbus
+      port: 5021

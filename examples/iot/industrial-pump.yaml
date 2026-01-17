@@ -1,0 +1,21 @@
+twin:
+  name: industrial-pump-01
+  physics:
+    - variable: addr_100
+      strategy: sine
+      params:
+        min: 1200.0
+        max: 1800.0
+    - variable: addr_101
+      strategy: sine
+      params:
+        min: 40.0
+        max: 55.0
+    - variable: addr_102
+      strategy: sine
+      params:
+        min: 60.0
+        max: 85.0
+  transports:
+    - type: modbus
+      port: 5020
