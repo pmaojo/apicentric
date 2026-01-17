@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use std::collections::{HashMap, VecDeque};
 
 use apicentric::simulator::log::RequestLogEntry;
+use apicentric::simulator::manager::TestResult;
 use apicentric::simulator::ServiceInfo;
 
 /// Main application state for the TUI
@@ -33,6 +34,10 @@ pub struct TuiAppState {
     pub focused_panel: FocusedPanel,
     /// Dashboard state for retro telemetry
     pub dashboard: DashboardState,
+    /// Config view state
+    pub config_view: ConfigViewState,
+    /// Endpoint explorer state
+    pub endpoint_explorer: EndpointExplorerState,
 }
 
 impl TuiAppState {
@@ -49,6 +54,17 @@ impl TuiAppState {
             is_loading: false,
             focused_panel: FocusedPanel::Services,
             dashboard: DashboardState::new(),
+            config_view: ConfigViewState {
+                content: String::new(),
+                scroll: 0,
+            },
+            endpoint_explorer: EndpointExplorerState {
+                endpoints: Vec::new(),
+                selected: 0,
+                scroll: 0,
+                last_test_result: None,
+                is_testing: false,
+            },
         }
     }
 
@@ -103,6 +119,25 @@ pub enum ViewMode {
     HelpDialog,
     /// Marketplace dialog is open
     MarketplaceDialog,
+    /// Service configuration view is open
+    ConfigView,
+    /// Endpoint explorer is open
+    EndpointExplorer,
+}
+
+#[derive(Debug, Clone)]
+pub struct EndpointExplorerState {
+    pub endpoints: Vec<apicentric::simulator::config::EndpointDefinition>,
+    pub selected: usize,
+    pub scroll: u16,
+    pub last_test_result: Option<TestResult>,
+    pub is_testing: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConfigViewState {
+    pub content: String,
+    pub scroll: u16,
 }
 
 /// Which panel is currently focused
@@ -128,6 +163,7 @@ pub struct MarketplaceState {
 pub struct MarketplaceItem {
     pub id: String,
     pub name: String,
+    #[allow(dead_code)]
     pub description: String,
     pub category: String,
     pub definition_url: String,

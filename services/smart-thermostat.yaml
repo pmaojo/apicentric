@@ -1,0 +1,18 @@
+twin:
+  name: smart-thermostat
+  physics:
+    - variable: temperature
+      strategy: sine
+      params:
+        min: 18.0
+        max: 26.0
+    - variable: humidity
+      strategy: sine
+      params:
+        min: 40.0
+        max: 60.0
+  transports:
+    - type: mqtt
+      broker_url: localhost
+      port: 1883
+      topic_prefix: home/living-room

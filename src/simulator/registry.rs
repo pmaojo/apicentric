@@ -108,8 +108,13 @@ impl ServiceRegistry {
             ));
         }
 
-        // Assign port for the service
-        let port = self.port_manager.assign_port(definition.server.port)?;
+        // Assign port for the service (HTTP only)
+        let port = if let Some(server) = &definition.server {
+            self.port_manager.assign_port(server.port)?
+        } else {
+            // For twins, use a dummy port or let it be 0 (they manage their own ports/protocols)
+            0
+        };
 
         // Create service instance
         let service_instance = ServiceInstance::new(
@@ -294,17 +299,17 @@ mod tests {
             name: name.to_string(),
             version: Some("1.0.0".to_string()),
             description: Some("Test service".to_string()),
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port,
                 base_path: format!("/api/{}", name),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: vec![EndpointDefinition {
+            endpoints: Some(vec![EndpointDefinition {
                 kind: EndpointKind::Http,
                 method: "GET".to_string(),
                 path: "/test".to_string(),
@@ -329,9 +334,10 @@ mod tests {
                 },
                 scenarios: None,
                 stream: None,
-            }],
+            }]),
             graphql: None,
             behavior: None,
+            twin: None,
         }
     }
 

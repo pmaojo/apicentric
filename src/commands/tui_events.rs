@@ -5,14 +5,19 @@ use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use tokio::sync::broadcast;
+use tokio::sync::mpsc::UnboundedSender;
 
-use apicentric::simulator::{log::RequestLogEntry, manager::ApiSimulatorManager};
+use apicentric::simulator::{log::RequestLogEntry, manager::ApiSimulatorManager, manager::TestResult};
 use apicentric::ApicentricResult;
 
 use super::tui_state::{FocusedPanel, TuiAppState, ViewMode};
 use std::time::{SystemTime, UNIX_EPOCH}; // For random port generation
-use std::fs;
-use std::path::Path; // Ensure Path is imported
+
+/// Messages passed from async tasks to the main TUI loop
+#[derive(Debug)]
+pub enum TuiMessage {
+    EndpointTestCompleted(Option<TestResult>),
+}
 
 /// Action to take after handling an event
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +67,7 @@ pub async fn handle_key_event(
     key: event::KeyEvent,
     state: &mut TuiAppState,
     manager: &Arc<ApiSimulatorManager>,
+    tx: &UnboundedSender<TuiMessage>,
 ) -> ApicentricResult<Action> {
     match state.mode {
         ViewMode::Normal => handle_normal_mode_key(key, state, manager).await,
@@ -69,6 +75,83 @@ pub async fn handle_key_event(
         ViewMode::SearchDialog => handle_search_dialog_key(key, state),
         ViewMode::HelpDialog => handle_help_dialog_key(key, state),
         ViewMode::MarketplaceDialog => handle_marketplace_dialog_key(key, state, manager).await,
+        ViewMode::ConfigView => handle_config_view_key(key, state),
+        ViewMode::EndpointExplorer => handle_endpoint_explorer_key(key, state, manager, tx).await,
+    }
+}
+
+/// Handle keys in endpoint explorer mode
+async fn handle_endpoint_explorer_key(
+    key: event::KeyEvent,
+    state: &mut TuiAppState,
+    manager: &Arc<ApiSimulatorManager>,
+    tx: &UnboundedSender<TuiMessage>,
+) -> ApicentricResult<Action> {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('e') => {
+            state.mode = ViewMode::Normal;
+            state.endpoint_explorer.last_test_result = None;
+            Ok(Action::Continue)
+        }
+        KeyCode::Up => {
+            if !state.endpoint_explorer.endpoints.is_empty() {
+                state.endpoint_explorer.selected = 
+                    state.endpoint_explorer.selected.saturating_sub(1);
+                 // Clear result on selection change
+                 state.endpoint_explorer.last_test_result = None;
+            }
+            Ok(Action::Continue)
+        }
+        KeyCode::Down => {
+             if !state.endpoint_explorer.endpoints.is_empty() {
+                let max = state.endpoint_explorer.endpoints.len().saturating_sub(1);
+                state.endpoint_explorer.selected = 
+                    (state.endpoint_explorer.selected + 1).min(max);
+                // Clear result on selection change
+                state.endpoint_explorer.last_test_result = None;
+            }
+            Ok(Action::Continue)
+        }
+        KeyCode::Enter | KeyCode::Char('t') => {
+            // Trigger test
+             if let Some(service) = state.services.items.get(state.services.selected) {
+                 if let Some(endpoint) = state.endpoint_explorer.endpoints.get(state.endpoint_explorer.selected) {
+                    state.endpoint_explorer.is_testing = true;
+                    let port = service.port;
+                    let method = endpoint.method.clone();
+                    let path = endpoint.path.clone();
+                    let manager = manager.clone();
+                    let tx = tx.clone();
+
+                    // Spawn background task
+                    tokio::spawn(async move {
+                        let result = manager.test_endpoint(port, &method, &path).await.ok();
+                        let _ = tx.send(TuiMessage::EndpointTestCompleted(result));
+                    });
+                 }
+             }
+            Ok(Action::Continue)
+        }
+        _ => Ok(Action::Continue),
+    }
+}
+
+/// Handle keys in config view mode
+fn handle_config_view_key(key: event::KeyEvent, state: &mut TuiAppState) -> ApicentricResult<Action> {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('v') => {
+            state.mode = ViewMode::Normal;
+            Ok(Action::Continue)
+        }
+        KeyCode::Up => {
+                state.config_view.scroll = state.config_view.scroll.saturating_sub(1);
+                Ok(Action::Continue)
+        }
+        KeyCode::Down => {
+                state.config_view.scroll = state.config_view.scroll.saturating_add(1);
+                Ok(Action::Continue)
+        }
+            _ => Ok(Action::Continue),
     }
 }
 
@@ -169,6 +252,47 @@ async fn handle_normal_mode_key(
         // Save logs
         KeyCode::Char('s') => {
             save_logs_to_file(state)?;
+            Ok(Action::Continue)
+        }
+
+        // Open endpoint explorer
+        KeyCode::Char('e') => {
+            // View endpoints of selected service
+            if let Some(service) = state
+                .services
+                .items
+                .get(state.services.selected)
+            {
+                if let Some(endpoints) = manager.get_service_endpoints(&service.name).await {
+                    // Initialize endpoint explorer
+                    state.endpoint_explorer.endpoints = endpoints;
+                    state.endpoint_explorer.selected = 0;
+                    state.endpoint_explorer.scroll = 0;
+                    state.endpoint_explorer.last_test_result = None;
+                    state.endpoint_explorer.is_testing = false;
+                    state.mode = ViewMode::EndpointExplorer;
+                } else {
+                     state.set_error("Service has no endpoints defined".to_string());
+                }
+            }
+            Ok(Action::Continue)
+        }
+
+        // Open config view
+        KeyCode::Char('v') => {
+            // View configuration of selected service
+            if let Some(service) = state
+                .services
+                .items
+                .get(state.services.selected)
+            {
+                if let Some(config) = manager.get_service_config(&service.name).await {
+                        // Initialize config view
+                    state.config_view.content = config;
+                    state.config_view.scroll = 0;
+                    state.mode = ViewMode::ConfigView;
+                }
+            }
             Ok(Action::Continue)
         }
 
@@ -501,9 +625,10 @@ async fn download_marketplace_item(item_id: &str, url: &str) -> Result<String, S
     
     let file_path = services_dir.join(format!("{}.yaml", item_id));
     
-    // Check if already installed
+    // Check if already installed - for now, we'll allow overwriting or just return success
     if file_path.exists() {
-        return Err(format!("'{}' is already installed", item_id));
+        // If it exists, we just return the path so the simulator can try loading it
+        return Ok(file_path.to_string_lossy().to_string());
     }
     
     // Download the YAML content
@@ -528,7 +653,7 @@ async fn download_marketplace_item(item_id: &str, url: &str) -> Result<String, S
     {
         // Add user agent
         let client = reqwest::Client::builder()
-            .user_agent("Apicentric-TUI/0.2.9")
+            .user_agent("Apicentric-TUI/0.3.1")
             .build()
             .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 
@@ -544,48 +669,42 @@ async fn download_marketplace_item(item_id: &str, url: &str) -> Result<String, S
         // This prevents conflicts if multiple services default to 8080
         let mut final_content = content.clone();
         if let Ok(mut yaml) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
-            // Generate random port (8000-9000)
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-            let port = 8000 + (now % 1000) as u16;
+            // Skip port injection for Digital Twins
+            if yaml.get("twin").is_none() {
+                // Generate random port (8000-9000)
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+                let port = 8000 + (now % 1000) as u16;
 
-            // Helper to insert port
-            if let Some(mapping) = yaml.as_mapping_mut() {
-                let port_val = serde_yaml::Value::Number(serde_yaml::Number::from(port));
-                let base_path_val = serde_yaml::Value::String("/api".to_string());
-                
-                // If "server" key exists, update it. If not, insert it (best effort for OpenAPI compatibility)
-                let server_key = serde_yaml::Value::String("server".to_string());
-                
-                if let Some(server) = mapping.get_mut(&server_key) {
-                    if let Some(server_map) = server.as_mapping_mut() {
+                // Helper to insert port
+                if let Some(mapping) = yaml.as_mapping_mut() {
+                    let port_val = serde_yaml::Value::Number(serde_yaml::Number::from(port));
+                    let base_path_val = serde_yaml::Value::String("/api".to_string());
+                    
+                    let server_key = serde_yaml::Value::String("server".to_string());
+                    
+                    if let Some(server) = mapping.get_mut(&server_key) {
+                        if let Some(server_map) = server.as_mapping_mut() {
+                            server_map.insert(serde_yaml::Value::String("port".to_string()), port_val);
+                        }
+                    } else {
+                        let mut server_map = serde_yaml::Mapping::new();
                         server_map.insert(serde_yaml::Value::String("port".to_string()), port_val);
+                        server_map.insert(serde_yaml::Value::String("base_path".to_string()), base_path_val);
+                        mapping.insert(server_key, serde_yaml::Value::Mapping(server_map));
                     }
-                } else {
-                    // Create new server block
-                    let mut server_map = serde_yaml::Mapping::new();
-                    server_map.insert(serde_yaml::Value::String("port".to_string()), port_val);
-                    // Add base_path if missing
-                    server_map.insert(serde_yaml::Value::String("base_path".to_string()), base_path_val);
-                    mapping.insert(server_key, serde_yaml::Value::Mapping(server_map));
-                }
-                
-                // Check if it's OpenAPI and try to help it too
-                // (Usually Apicentric loader respects the top-level 'server' override if present)
-                
-                if let Ok(modified) = serde_yaml::to_string(&yaml) {
-                    final_content = modified;
+                    
+                    if let Ok(modified) = serde_yaml::to_string(&yaml) {
+                        final_content = modified;
+                    }
                 }
             }
         }
 
         // Save to file
-        fs::write(&file_path, final_content).map_err(|e| format!("Failed to write file: {}", e))?;
-        return Ok(file_path.to_string_lossy().to_string());
+        fs::write(&file_path, final_content).map_err(|e| format!("Failed to save service: {}", e))?;
+        Ok(file_path.to_string_lossy().to_string())
     }
-
+    
     #[cfg(not(feature = "reqwest"))]
-    {
-        return Err("HTTP download requires 'reqwest' feature (included in 'full' or updated 'tui')".to_string());
-    }
+    Err("HTTP client (reqwest) is not enabled".to_string())
 }
-

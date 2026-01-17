@@ -227,19 +227,20 @@ impl RecordingProxy for ProxyRecorder {
             name: "recorded_service".to_string(),
             version: None,
             description: Some("Recorded service".to_string()),
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: None,
                 base_path: "/".to_string(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: map.values().cloned().collect(),
+            endpoints: Some(map.values().cloned().collect()),
             graphql: None,
             behavior: None,
+            twin: None,
         };
 
         std::fs::create_dir_all(&output_dir).map_err(|e| {
@@ -550,19 +551,20 @@ mod tests {
             name: "test".to_string(),
             version: None,
             description: None,
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: None,
                 base_path: "/".to_string(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: map.values().cloned().collect(),
+            endpoints: Some(map.values().cloned().collect()),
             graphql: None,
             behavior: None,
+            twin: None,
         };
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());

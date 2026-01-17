@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 /// Represents a value for a device variable
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum VariableValue {
     Integer(i64),
     Float(f64),

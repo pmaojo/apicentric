@@ -1,0 +1,19 @@
+twin:
+  name: smart-meter-01
+  physics:
+    - variable: current_load
+      strategy: sine
+      params:
+        min: 0.5
+        max: 4.5
+    - variable: total_kwh
+      strategy: script
+      params:
+        code: |
+          // Accumulate usage
+          value + 0.01
+  transports:
+    - type: mqtt
+      broker_url: localhost
+      port: 1883
+      topic_prefix: energy/home

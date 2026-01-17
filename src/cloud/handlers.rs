@@ -351,7 +351,7 @@ pub async fn get_service_status(
             } else {
                 None
             },
-            endpoint_count: service.definition().endpoints.len(),
+            endpoint_count: service.definition().endpoints.as_ref().map(|e| e.len()).unwrap_or(0),
         };
         Ok(Json(ApiResponse::success(response)))
     } else {
@@ -393,8 +393,8 @@ pub async fn get_service(
                 let info = ServiceInfo {
                     name: definition.name.clone(),
                     port: service.port(),
-                    base_path: definition.server.base_path.clone(),
-                    endpoints_count: definition.endpoints.len(),
+                    base_path: definition.server.as_ref().map(|s| s.base_path.clone()).unwrap_or_else(|| "/".to_string()),
+                    endpoints_count: definition.endpoints.as_ref().map(|e| e.len()).unwrap_or(0),
                     is_running: service.is_running(),
                 };
 
@@ -1097,19 +1097,20 @@ pub async fn generate_service_from_recording(
             "Service generated from recording session {}",
             session_id
         ))),
-        server: ServerConfig {
+        server: Some(ServerConfig {
             port: None,
             base_path: "/".to_string(),
             proxy_base_url: None,
             cors: None,
             record_unknown: false,
-        },
+        }),
         models: None,
         fixtures: None,
         bucket: None,
-        endpoints,
+        endpoints: Some(endpoints),
         graphql: None,
         behavior: None,
+        twin: None,
     };
 
     // Convert to YAML

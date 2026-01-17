@@ -80,13 +80,16 @@ impl ConfigRepository for ConfigFileLoader {
                 Some("Check file permissions and ensure the file exists"),
             )
         })?;
-        let service: ServiceDefinition = serde_yaml::from_str(&content).map_err(|e| {
+
+        // Use UnifiedConfig to support both standard services and digital twins
+        let unified: super::super::UnifiedConfig = serde_yaml::from_str(&content).map_err(|e| {
             ApicentricError::config_error(
                 format!("Invalid YAML in service file {}: {}", path.display(), e),
                 Some("Check YAML syntax and ensure all required fields are present"),
             )
         })?;
-        Ok(service)
+
+        Ok(ServiceDefinition::from(unified))
     }
 }
 

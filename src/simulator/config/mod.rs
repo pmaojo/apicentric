@@ -14,6 +14,9 @@ pub use endpoint::{
 pub use server::{CorsConfig, ServerConfig};
 pub use validation::{ConfigLoader, LoadError, LoadErrorType, LoadResult, ValidationSummary};
 
+// Import IoT types
+use crate::iot::config::TwinDefinition;
+
 fn default_db_path() -> PathBuf {
     PathBuf::from("apicentric.db")
 }
@@ -100,16 +103,53 @@ pub struct ServiceDefinition {
     pub name: String,
     pub version: Option<String>,
     pub description: Option<String>,
-    pub server: ServerConfig,
+    pub server: Option<ServerConfig>,
     pub models: Option<HashMap<String, serde_json::Value>>, // JSON Schema definitions
     pub fixtures: Option<HashMap<String, serde_json::Value>>,
     #[serde(default)]
     pub bucket: Option<HashMap<String, serde_json::Value>>,
-    pub endpoints: Vec<EndpointDefinition>,
+    #[serde(default)]
+    pub endpoints: Option<Vec<EndpointDefinition>>,
     #[serde(default)]
     pub graphql: Option<GraphQLConfig>,
     #[serde(default)]
     pub behavior: Option<BehaviorConfig>,
+    // Digital Twin support
+    #[serde(default)]
+    pub twin: Option<TwinDefinition>,
+}
+
+/// Helper for untagged deserialization of service files
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum UnifiedConfig {
+    /// Standard service with name at top level
+    Service(ServiceDefinition),
+    /// Digital twin with 'twin' key at top level
+    Twin {
+        twin: TwinDefinition,
+    },
+}
+
+impl From<UnifiedConfig> for ServiceDefinition {
+    fn from(config: UnifiedConfig) -> Self {
+        match config {
+            UnifiedConfig::Service(def) => def,
+            UnifiedConfig::Twin { twin } => ServiceDefinition {
+                name: twin.name.clone(),
+                version: None,
+                description: Some("Digital Twin".to_string()),
+                server: None,
+                models: None,
+                fixtures: None,
+                bucket: None,
+                endpoints: None,
+                graphql: None,
+                behavior: None,
+                twin: Some(twin),
+            },
+        }
+    }
 }
 
 /// GraphQL configuration for a service

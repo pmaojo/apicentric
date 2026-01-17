@@ -14,7 +14,8 @@ pub fn to_react_view(service: &ServiceDefinition) -> Result<String> {
 
     // Collect hooks required for this component
     let mut hooks = Vec::new();
-    for ep in &service.endpoints {
+    let endpoints = service.endpoints.as_ref().cloned().unwrap_or_default();
+    for ep in &endpoints {
         if ep.kind != EndpointKind::Http {
             continue;
         }
@@ -154,17 +155,17 @@ mod tests {
             name: "Test".into(),
             version: None,
             description: None,
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: None,
                 base_path: "/api".into(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: vec![
+            endpoints: Some(vec![
                 EndpointDefinition {
                     kind: EndpointKind::Http,
                     method: "GET".into(),
@@ -189,9 +190,10 @@ mod tests {
                     scenarios: None,
                     stream: None,
                 },
-            ],
+            ]),
             graphql: None,
             behavior: None,
+            twin: None,
         };
         let tsx = to_react_view(&service).unwrap();
         assert!(tsx.contains("ServiceView"));

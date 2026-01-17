@@ -123,25 +123,26 @@ fn convert(stubs: &[WiremockStub], meta: Option<&WiremockMeta>) -> ServiceDefini
         .or_else(|| stubs.iter().find_map(|s| s.name.clone()))
         .unwrap_or_else(|| "WireMock Service".to_string());
 
-    let endpoints = stubs.iter().map(convert_stub).collect();
+    let endpoints = Some(stubs.iter().map(convert_stub).collect());
 
     ServiceDefinition {
         name,
         version: None,
         description: None,
-        server: ServerConfig {
+        server: Some(ServerConfig {
             port: None,
             base_path: "/".into(),
             proxy_base_url: None,
             cors: None,
             record_unknown: false,
-        },
+        }),
         models: None,
         fixtures: None,
         bucket: None,
         endpoints,
         graphql: None,
         behavior: None,
+        twin: None,
     }
 }
 
@@ -381,8 +382,9 @@ mod tests {
 
         let service = from_str(json).expect("wiremock conversion should succeed");
         assert_eq!(service.name, "Payments");
-        assert_eq!(service.endpoints.len(), 1);
-        let endpoint = &service.endpoints[0];
+        let endpoints = service.endpoints.as_ref().unwrap();
+        assert_eq!(endpoints.len(), 1);
+        let endpoint = &endpoints[0];
         assert_eq!(endpoint.method, "POST");
         assert_eq!(endpoint.path, "/payments");
         let header_match = endpoint.header_match.as_ref().expect("header match");
@@ -429,7 +431,8 @@ mod tests {
 
         let service = from_str(json).expect("wiremock conversion should succeed");
         assert_eq!(service.name, "WireMock Service");
-        let endpoint = &service.endpoints[0];
+        let endpoints = service.endpoints.as_ref().unwrap();
+        let endpoint = &endpoints[0];
         let scenarios = endpoint.scenarios.as_ref().expect("sequential scenarios");
         assert_eq!(scenarios.len(), 2);
         assert_eq!(scenarios[0].response.status, 200);
