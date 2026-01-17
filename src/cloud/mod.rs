@@ -6,6 +6,7 @@ pub mod api;
 pub mod cors;
 pub mod error;
 pub mod handlers;
+pub mod iot_handlers;
 pub mod monitoring;
 pub mod recording_session;
 pub mod server;

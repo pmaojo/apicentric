@@ -47,7 +47,7 @@ scripting = ["deno_core"]
 mcp = ["dep:rmcp", "simulator"]
 
 # IoT: Digital Twin capabilities
-iot = ["dep:rumqttc", "dep:tokio-modbus", "dep:rhai"]
+iot = ["dep:rumqttc", "dep:tokio-modbus", "dep:rhai", "dep:csv"]
 
 # Convenience bundles
 # cli-tools: Essential CLI functionality with TUI but without desktop GUI/WebUI
@@ -95,7 +95,7 @@ http-body-util = "0.1"
 bytes = "1.0"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tokio-stream = { version = "0.1", default-features = false, features = ["sync"] }
-axum = { version = "0.7", default-features = false, features = ["macros", "tokio", "http1", "http2", "json", "matched-path", "original-uri", "query", "ws"] }
+axum = { version = "0.7", default-features = false, features = ["macros", "tokio", "http1", "http2", "json", "matched-path", "original-uri", "query", "ws", "multipart"] }
 tower = { version = "0.4", default-features = false }
 tower-http = { version = "0.5", default-features = false, features = ["cors", "fs"] }
 argon2 = "0.5"
@@ -166,6 +166,7 @@ rmcp = { version = "0.8.5", features = ["server"], optional = true }
 rumqttc = { version = "0.24", optional = true }
 tokio-modbus = { version = "0.14", default-features = false, features = ["tcp", "server", "tcp-server"], optional = true }
 rhai = { version = "1.17", features = ["sync"], optional = true }
+csv = { version = "1.3", optional = true }
 
 [dev-dependencies]
 assert_cmd = "2.0"

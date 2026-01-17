@@ -101,7 +101,26 @@ export type View =
   | 'code-generator'
   | 'logs'
   | 'configuration'
-  | 'marketplace';
+  | 'marketplace'
+  | 'iot';
+
+/**
+ * Represents an IoT Twin configuration.
+ */
+export interface TwinConfig {
+  twin: {
+    name: string;
+    physics: Array<{
+      variable: string;
+      strategy: string;
+      params: Record<string, any>;
+    }>;
+    transports: Array<{
+      type: string;
+      [key: string]: any;
+    }>;
+  };
+}
 
 /**
  * Represents a marketplace item.

@@ -20,6 +20,7 @@ const ContractTesting = lazy(() => import('@/components/features/contract-testin
 const Recording = lazy(() => import('@/components/features/recording').then(m => ({ default: m.Recording })));
 const Configuration = lazy(() => import('@/components/features/configuration').then(m => ({ default: m.Configuration })));
 const Marketplace = lazy(() => import('@/components/features/marketplace').then(m => ({ default: m.Marketplace })));
+const IoTManagement = lazy(() => import('@/components/features/iot-management').then(m => ({ default: m.IoTManagement })));
 
 // Loading fallback component
 const ComponentLoader = () => (
@@ -315,6 +316,12 @@ function AppContent() {
             <Marketplace onAddService={handleAddService} />
           </Suspense>
         );
+      case 'iot':
+        return (
+          <Suspense fallback={<ComponentLoader />}>
+            <IoTManagement />
+          </Suspense>
+        );
       default:
         return <Dashboard services={services} onToggleService={handleToggleService} />;
     }
@@ -335,6 +342,7 @@ function AppContent() {
     logs: 'Simulator Logs',
     configuration: 'Configuration',
     marketplace: 'Marketplace',
+    iot: 'IoT Twins',
   };
 
   return (
