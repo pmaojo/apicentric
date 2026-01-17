@@ -1,0 +1,16 @@
+twin:
+  name: "Heater"
+  physics:
+    - variable: "status_val"
+      strategy: "script"
+      params:
+        code: |
+          // Simple toggle: 1.0 (ON) -> 0.0 (OFF)
+          if value < 0.5 { 1.0 } else { 0.0 }
+  transports:
+    - type: "mqtt"
+      params:
+        topic_prefix: "devices/heater"
+        client_id: "heater_01"
+        broker_url: "localhost"
+        port: 1883

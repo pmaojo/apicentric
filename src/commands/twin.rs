@@ -82,6 +82,20 @@ pub async fn run(args: TwinRunArgs) -> anyhow::Result<()> {
     let mut next_tick = Instant::now();
 
     loop {
+        // 0. Poll Adapters for Incoming Data
+        for adapter in &mut adapters {
+            match adapter.poll().await {
+                Ok(messages) => {
+                    for (key, value) in messages {
+                        // Update state with incoming data
+                        // This allows subscribed variables to be available to physics strategies
+                        twin.state.variables.insert(key, value);
+                    }
+                }
+                Err(e) => error!("Adapter poll error: {}", e),
+            }
+        }
+
         // 1. Tick Physics
         for strategy in &mut strategies {
             if let Err(e) = strategy.tick(&mut twin.state).await {

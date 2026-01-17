@@ -14,6 +14,8 @@ use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
 
 use super::handlers;
+#[cfg(feature = "iot")]
+use super::iot_handlers;
 use crate::auth::jwt::JwtKeys;
 use crate::auth::repository::AuthRepository;
 use crate::auth::{handlers as auth_handlers, handlers::AuthState};
@@ -99,7 +101,7 @@ impl CloudServer {
             .route("/api/auth/login", post(auth_handlers::login));
 
         // Protected routes (may require authentication based on config)
-        let protected_routes = Router::new()
+        let mut protected_routes = Router::new()
             // Auth endpoints that require existing token
             .route("/api/auth/me", get(auth_handlers::me))
             .route("/api/auth/refresh", post(auth_handlers::refresh))
@@ -165,6 +167,12 @@ impl CloudServer {
             .route("/api/config/validate", post(handlers::validate_config))
             // Monitoring and metrics routes
             .route("/api/metrics", get(handlers::get_metrics));
+
+        // Add IoT routes if feature enabled
+        #[cfg(feature = "iot")]
+        {
+            protected_routes = protected_routes.route("/api/v1/iot/graph", get(iot_handlers::get_iot_graph));
+        }
 
         // Apply authentication middleware to protected routes if enabled
         let protected_routes = if self.protect_services {

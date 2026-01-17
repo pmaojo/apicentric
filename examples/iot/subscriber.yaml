@@ -1,0 +1,36 @@
+twin:
+  name: "Thermostat"
+  physics:
+    - variable: "temperature"
+      strategy: "script"
+      params:
+        code: |
+          // Default to 20.0 if starting
+          let current = value;
+          if current == 0.0 { current = 20.0; }
+
+          // Check heater status from subscription
+          let heater = 0.0;
+
+          // Safe access to state map
+          let h_val = state["heater_status"];
+
+          if h_val != () {
+             heater = h_val;
+          }
+
+          if heater > 0.5 {
+            current + 0.5
+          } else {
+            current - 0.1
+          }
+  transports:
+    - type: "mqtt"
+      params:
+        topic_prefix: "devices/thermostat"
+        client_id: "thermostat_01"
+        broker_url: "localhost"
+        port: 1883
+        subscriptions:
+          - topic: "devices/heater/status_val"
+            variable: "heater_status"
