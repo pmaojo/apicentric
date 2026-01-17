@@ -66,7 +66,7 @@ impl MetricsCollector {
         let mut metrics = self.metrics.write().await;
         metrics.total_requests += 1;
 
-        if status_code >= 200 && status_code < 300 {
+        if (200..300).contains(&status_code) {
             metrics.successful_requests += 1;
         } else if status_code >= 400 {
             metrics.failed_requests += 1;

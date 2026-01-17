@@ -226,10 +226,8 @@ impl Storage for SqliteStorage {
                 )
             })?;
         let mut entries: Vec<RequestLogEntry> = Vec::new();
-        for item in mapped {
-            if let Ok(entry) = item {
-                entries.push(entry);
-            }
+        for entry in mapped.flatten() {
+            entries.push(entry);
         }
         entries.reverse();
         Ok(entries)

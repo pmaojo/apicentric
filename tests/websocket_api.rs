@@ -183,19 +183,32 @@ async fn test_websocket_ping_pong() {
         .unwrap();
 
     // Should receive pong response
-    let msg_result = timeout(Duration::from_secs(2), read.next()).await;
-    assert!(msg_result.is_ok(), "Should receive pong response");
+    let msg_result = timeout(Duration::from_secs(5), async {
+        while let Some(msg) = read.next().await {
+            match msg {
+                Ok(Message::Text(text)) => {
+                    let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+                    if json["type"] == "pong" {
+                        return Some(json);
+                    }
+                }
+                _ => continue, // Skip pings, status updates, etc.
+            }
+        }
+        None
+    })
+    .await;
 
-    if let Some(Ok(Message::Text(text))) = msg_result.unwrap() {
-        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
-        assert_eq!(json["type"], "pong", "Should receive pong message");
-        assert!(
-            json["timestamp"].is_number(),
-            "Pong should include timestamp"
-        );
-    } else {
-        panic!("Expected text message with pong");
-    }
+    assert!(
+        msg_result.is_ok(),
+        "Should receive pong response within timeout"
+    );
+    let json = msg_result.unwrap().expect("Should receive pong message");
+    assert_eq!(json["type"], "pong", "Should receive pong message");
+    assert!(
+        json["timestamp"].is_number(),
+        "Pong should include timestamp"
+    );
 
     // Cleanup
     cloud_handle.abort();

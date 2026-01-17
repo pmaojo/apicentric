@@ -7,6 +7,12 @@ pub struct PathParameters {
     params: HashMap<String, String>,
 }
 
+impl Default for PathParameters {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PathParameters {
     pub fn new() -> Self {
         Self {

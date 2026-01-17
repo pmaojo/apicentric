@@ -55,7 +55,7 @@ impl TemplateEngine {
 
         Ok(Self {
             handlebars,
-            preprocessor: TemplatePreprocessor::default(),
+            preprocessor: TemplatePreprocessor,
         })
     }
 

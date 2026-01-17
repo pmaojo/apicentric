@@ -15,6 +15,12 @@ pub struct PluginManager {
     _libraries: Vec<Library>,
 }
 
+impl Default for PluginManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginManager {
     /// Creates an empty `PluginManager` with no plugins loaded.
     pub fn new() -> Self {

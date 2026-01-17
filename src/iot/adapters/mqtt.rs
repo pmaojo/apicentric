@@ -12,6 +12,12 @@ pub struct MqttAdapter {
     topic_prefix: String,
 }
 
+impl Default for MqttAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MqttAdapter {
     /// Create a new MQTT Adapter instance
     pub fn new() -> Self {

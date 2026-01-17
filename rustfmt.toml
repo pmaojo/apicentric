@@ -17,28 +17,28 @@ edition = "2021"
 reorder_imports = true
 
 # Group imports
-group_imports = "StdExternalCrate"
+# group_imports = "StdExternalCrate"
 
 # Format strings
-format_strings = true
+# format_strings = true
 
 # Format macro bodies
-format_macro_bodies = true
+# format_macro_bodies = true
 
 # Format macro matchers
-format_macro_matchers = true
+# format_macro_matchers = true
 
 # Merge imports
-merge_imports = true
+# merge_imports = true
 
 # Normalize comments
-normalize_comments = true
+# normalize_comments = true
 
 # Wrap comments
-wrap_comments = true
+# wrap_comments = true
 
 # Comment width
-comment_width = 100
+# comment_width = 100
 
 # License template (if applicable)
 # license_template_path = ""

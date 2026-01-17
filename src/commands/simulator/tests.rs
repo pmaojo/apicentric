@@ -59,7 +59,7 @@ async fn dockerize_runs() {
 
     simulator_command(
         &SimulatorAction::Dockerize {
-            services: vec![service_path.to_str().unwrap().to_string()],
+            file: vec![service_path.to_str().unwrap().to_string()],
             output: temp.path().to_str().unwrap().to_string(),
         },
         &ctx,
@@ -78,7 +78,7 @@ async fn validate_runs() {
     let (ctx, exec) = build();
     simulator_command(
         &SimulatorAction::Validate {
-            path: "services".into(),
+            file: "services".into(),
             recursive: false,
             verbose: false,
         },
@@ -94,7 +94,7 @@ async fn import_runs() {
     let (ctx, exec) = build();
     simulator_command(
         &SimulatorAction::Import {
-            input: "api.yaml".into(),
+            file: "api.yaml".into(),
             output: "out.yaml".into(),
         },
         &ctx,
@@ -109,7 +109,7 @@ async fn export_runs() {
     let (ctx, exec) = build();
     simulator_command(
         &SimulatorAction::Export {
-            input: "service.yaml".into(),
+            file: "service.yaml".into(),
             output: "openapi.yaml".into(),
             format: ExportFormat::Openapi,
         },

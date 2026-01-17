@@ -353,15 +353,16 @@ pub fn render_actions_panel_with_metrics(
 ) {
     let mut lines = vec![
         create_action_line("q", ": Quit"),
-        create_action_line("↑↓", ": Navigate"),
-        create_action_line("Enter", ": Start/Stop"),
+        create_action_line("↑↓", ": Nav"),
+        create_action_line("Enter", ": Toggle"),
         create_action_line("f", ": Filter"),
         create_action_line("r", ": Refresh"),
-        create_action_line("c", ": Clear logs"),
-        create_action_line("s", ": Save logs"),
+        create_action_line("c", ": Clear"),
+        create_action_line("s", ": Save"),
         create_action_line("/", ": Search"),
-        create_action_line("Tab", ": Switch panel"),
+        create_action_line("Tab", ": Switch"),
         create_action_line("?", ": Help"),
+        create_action_line("m", ": Market"),
         Line::from(""),
     ];
 
@@ -446,3 +447,71 @@ pub fn render_actions_panel_with_metrics(
 
     f.render_widget(paragraph, area);
 }
+
+/// Render the marketplace dialog
+pub fn render_marketplace_dialog(f: &mut Frame, state: &TuiAppState) {
+    use ratatui::{layout::Alignment, widgets::Clear};
+
+    let dialog_area = calculate_dialog_area(f, 70, 20);
+
+    // Clear the area behind the dialog
+    f.render_widget(Clear, dialog_area);
+
+    let mut lines = vec![Line::from("")];
+    
+    for (idx, item) in state.marketplace.items.iter().enumerate() {
+        let is_selected = idx == state.marketplace.selected;
+        
+        let indicator = if is_selected { "▶ " } else { "  " };
+        let style = if is_selected {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        
+        let category_color = match item.category.as_str() {
+            "SaaS" => Color::Cyan,
+            "Device" => Color::Green,
+            "IoT Twin" => Color::Magenta,
+            "Template" => Color::Blue,
+            _ => Color::White,
+        };
+        
+        lines.push(Line::from(vec![
+            Span::styled(indicator, style),
+            Span::styled(
+                format!("[{}] ", item.category),
+                Style::default().fg(category_color),
+            ),
+            Span::styled(&item.name, style),
+        ]));
+    }
+    
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::styled("Enter", Style::default().fg(Color::Green)),
+        Span::raw(" to install, "),
+        Span::styled("↑↓", Style::default().fg(Color::Yellow)),
+        Span::raw(" to navigate, "),
+        Span::styled("Esc", Style::default().fg(Color::Red)),
+        Span::raw(" to close"),
+    ]));
+
+    let paragraph = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .title(format!(
+                    " 🛒 Marketplace ({}/{}) ",
+                    state.marketplace.selected + 1,
+                    state.marketplace.items.len()
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        )
+        .alignment(Alignment::Left);
+
+    f.render_widget(paragraph, dialog_area);
+}
+

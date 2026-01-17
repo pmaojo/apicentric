@@ -22,17 +22,9 @@ impl VariableValue {
 }
 
 /// The state of a digital twin, containing all variables
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DigitalTwinState {
     pub variables: HashMap<String, VariableValue>,
-}
-
-impl Default for DigitalTwinState {
-    fn default() -> Self {
-        Self {
-            variables: HashMap::new(),
-        }
-    }
 }
 
 /// A Digital Twin instance

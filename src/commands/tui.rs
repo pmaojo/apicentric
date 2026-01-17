@@ -31,7 +31,7 @@ use super::tui_events::{
 };
 use super::tui_render::{
     render_actions_panel_with_metrics, render_filter_dialog, render_help_dialog, render_log_view,
-    render_search_dialog, render_service_list,
+    render_marketplace_dialog, render_search_dialog, render_service_list,
 };
 use super::tui_state::{TuiAppState, ViewMode};
 
@@ -45,9 +45,24 @@ use super::tui_state::{TuiAppState, ViewMode};
 ///
 /// The interface exits gracefully when `Ctrl+C` or `q` is pressed.
 pub async fn tui_command() -> ApicentricResult<()> {
-    // Initialize the simulator manager
-    let config = SimulatorConfig::default();
+    // Suppress all logging during TUI mode to prevent log bleed
+    // We try to initialize a silent subscriber. If one is already set, this will fail safely.
+    // If none is set (because we skipped init in main/logging), this will set a silent one.
+    use tracing_subscriber::{fmt, EnvFilter};
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::new("off"))
+        .with_writer(std::io::sink)
+        .try_init();
+
+    std::env::set_var("RUST_LOG", "off");
+    
+    // Initialize the simulator manager with services enabled
+    let mut config = SimulatorConfig::default_config();
+    config.enabled = true;
     let manager = Arc::new(ApiSimulatorManager::new(config));
+    
+    // Start the simulator to load services
+    manager.start().await?;
 
     // Set up terminal
     enable_raw_mode().map_err(|e| {
@@ -197,6 +212,7 @@ async fn run_app(
                     ViewMode::FilterDialog => render_filter_dialog(f, &state),
                     ViewMode::SearchDialog => render_search_dialog(f, &state),
                     ViewMode::HelpDialog => render_help_dialog(f),
+                    ViewMode::MarketplaceDialog => render_marketplace_dialog(f, &state),
                     ViewMode::Normal => {}
                 }
             })
@@ -227,22 +243,20 @@ async fn run_app(
         let event_start = std::time::Instant::now();
         let event_timeout = Duration::from_millis(50); // Reduced from 250ms for better responsiveness
         let mut _input_detected = false;
-        if let Some(event) = poll_events(event_timeout)? {
-            if let Event::Key(key) = event {
-                _input_detected = true;
-                let key_press_time = event_start.elapsed();
+        if let Some(Event::Key(key)) = poll_events(event_timeout)? {
+            _input_detected = true;
+            let key_press_time = event_start.elapsed();
 
-                // Track input latency (time from event detection to processing)
-                input_latencies.push(key_press_time);
-                if key_press_time > max_input_latency {
-                    max_input_latency = key_press_time;
-                }
+            // Track input latency (time from event detection to processing)
+            input_latencies.push(key_press_time);
+            if key_press_time > max_input_latency {
+                max_input_latency = key_press_time;
+            }
 
-                let action = handle_key_event(key, &mut state, &manager).await?;
+            let action = handle_key_event(key, &mut state, &manager).await?;
 
-                if action == Action::Quit {
-                    break;
-                }
+            if action == Action::Quit {
+                break;
             }
         }
         let _event_time = event_start.elapsed();

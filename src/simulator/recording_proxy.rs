@@ -401,7 +401,7 @@ fn merge_recorded_values(
         .unwrap_or_default();
 
     for (name, value) in new_values {
-        let entry = aggregated.entry(name.clone()).or_insert_with(Vec::new);
+        let entry = aggregated.entry(name.clone()).or_default();
         if !entry.contains(value) {
             entry.push(value.clone());
         }

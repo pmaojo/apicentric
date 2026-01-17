@@ -105,7 +105,7 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                     Some(
                         op.parameters
                             .iter()
-                            .map(|param| convert_openapi3_parameter(param))
+                            .map(convert_openapi3_parameter)
                             .collect(),
                     )
                 };
@@ -117,7 +117,7 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                             .as_ref()
                             .and_then(|schema| schema.get("$ref"))
                             .and_then(|r| r.as_str())
-                            .and_then(|r| r.split('/').last())
+                            .and_then(|r| r.split('/').next_back())
                             .map(|s| s.to_string());
                         RequestBodyDefinition {
                             required: body.required,
@@ -288,7 +288,7 @@ fn generate_example_from_schema_v3(
     }
 
     if let Some(ref_path) = schema.get("$ref").and_then(|r| r.as_str()) {
-        if let Some(name) = ref_path.split('/').last() {
+        if let Some(name) = ref_path.split('/').next_back() {
             if !visited.insert(name.to_string()) {
                 return JsonValue::Object(Default::default());
             }

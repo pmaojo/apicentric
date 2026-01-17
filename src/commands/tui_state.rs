@@ -19,6 +19,8 @@ pub struct TuiAppState {
     pub services: ServiceListState,
     /// Log view state
     pub logs: LogViewState,
+    /// Marketplace state
+    pub marketplace: MarketplaceState,
     /// Input state for dialogs
     pub input: InputState,
     /// Status message to display
@@ -38,6 +40,7 @@ impl TuiAppState {
             mode: ViewMode::Normal,
             services: ServiceListState::new(),
             logs: LogViewState::new(),
+            marketplace: MarketplaceState::new(),
             input: InputState::new(),
             status_message: None,
             error_message: None,
@@ -95,6 +98,8 @@ pub enum ViewMode {
     SearchDialog,
     /// Help dialog is open
     HelpDialog,
+    /// Marketplace dialog is open
+    MarketplaceDialog,
 }
 
 /// Which panel is currently focused
@@ -104,6 +109,68 @@ pub enum FocusedPanel {
     Services,
     /// Logs panel is focused
     Logs,
+}
+
+/// State for the marketplace dialog
+#[derive(Debug)]
+pub struct MarketplaceState {
+    /// List of marketplace items
+    pub items: Vec<MarketplaceItem>,
+    /// Index of the selected item
+    pub selected: usize,
+}
+
+/// A marketplace item for display in TUI
+#[derive(Debug, Clone)]
+pub struct MarketplaceItem {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub category: String,
+    pub definition_url: String,
+}
+
+impl MarketplaceState {
+    /// Create a new marketplace state with items loaded
+    pub fn new() -> Self {
+        use apicentric::simulator::marketplace::get_marketplace_items;
+        let items: Vec<MarketplaceItem> = get_marketplace_items()
+            .into_iter()
+            .map(|item| MarketplaceItem {
+                id: item.id,
+                name: item.name,
+                description: item.description,
+                category: item.category,
+                definition_url: item.definition_url,
+            })
+            .collect();
+        Self { items, selected: 0 }
+    }
+
+    /// Get the currently selected item
+    pub fn selected_item(&self) -> Option<&MarketplaceItem> {
+        self.items.get(self.selected)
+    }
+
+    /// Move selection up
+    pub fn select_previous(&mut self) {
+        if self.selected > 0 {
+            self.selected -= 1;
+        }
+    }
+
+    /// Move selection down
+    pub fn select_next(&mut self) {
+        if self.selected < self.items.len().saturating_sub(1) {
+            self.selected += 1;
+        }
+    }
+}
+
+impl Default for MarketplaceState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// State for the service list panel

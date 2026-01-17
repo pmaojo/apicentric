@@ -29,7 +29,6 @@ pub struct FileSystemContractRepository {
 impl FileSystemContractRepository {
     /// Creates a new `FileSystemContractRepository`.
     ///
-
     /// # Arguments
     ///
     /// * `storage_path` - The path to the directory where contracts will be

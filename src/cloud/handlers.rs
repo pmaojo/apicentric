@@ -1615,7 +1615,8 @@ pub async fn import_from_url(
                 return Err(ApiError::new(
                     StatusCode::BAD_REQUEST,
                     ApiErrorCode::InvalidServiceDefinition,
-                    "Content is neither a valid OpenAPI spec nor an Apicentric ServiceDefinition".to_string(),
+                    "Content is neither a valid OpenAPI spec nor an Apicentric ServiceDefinition"
+                        .to_string(),
                 ));
             }
         }
@@ -1638,8 +1639,7 @@ pub async fn import_from_url(
     // Save to file
     let services_dir =
         std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path =
-        std::path::Path::new(&services_dir).join(format!("{}.yaml", definition.name));
+    let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", definition.name));
 
     // Create services directory if it doesn't exist
     if let Err(e) = std::fs::create_dir_all(&services_dir) {

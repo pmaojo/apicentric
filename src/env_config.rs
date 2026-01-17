@@ -106,15 +106,17 @@ mod tests {
     }
 
     #[test]
-    fn load_defaults_when_env_missing() {
+    fn test_env_loading_and_logic() {
+        // Since environment variables are global to the process, we run these sequentially
+        // in a single test to avoid race conditions with parallel execution.
+
+        // 1. Test defaults
         clear_env();
-        let env_cfg = EnvConfig::load(true).unwrap(); // Ignore local .env
+        let env_cfg = EnvConfig::load(true).unwrap();
         assert_eq!(env_cfg.config_path, PathBuf::from("apicentric.json"));
         assert!(env_cfg.services_dir.is_none());
-    }
 
-    #[test]
-    fn load_overrides_and_apply() {
+        // 2. Test overrides and apply
         clear_env();
         env::set_var("APICENTRIC_SERVICES_DIR", "/tmp/services");
         env::set_var("APICENTRIC_PORT_START", "8100");
@@ -123,7 +125,7 @@ mod tests {
         env::set_var("APICENTRIC_ADMIN_PORT", "9999");
         env::set_var("APICENTRIC_SIMULATOR_ENABLED", "true");
 
-        let env_cfg = EnvConfig::load(true).unwrap(); // Ignore local .env
+        let env_cfg = EnvConfig::load(true).unwrap();
         let mut cfg = ApicentricConfig::default();
         env_cfg.apply(&mut cfg);
 
@@ -134,14 +136,15 @@ mod tests {
         assert_eq!(simulator.db_path, PathBuf::from("./test.db"));
         assert_eq!(simulator.admin_port, Some(9999));
         assert!(simulator.enabled);
-    }
 
-    #[test]
-    fn invalid_range_is_rejected() {
+        // 3. Test invalid range
         clear_env();
         env::set_var("APICENTRIC_PORT_START", "9000");
         env::set_var("APICENTRIC_PORT_END", "8000");
-        let result = EnvConfig::load(true); // Ignore local .env
+        let result = EnvConfig::load(true);
         assert!(result.is_err());
+
+        // Final cleanup
+        clear_env();
     }
 }

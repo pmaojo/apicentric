@@ -136,7 +136,9 @@ mod tests {
         assert_eq!(iot_items.len(), 5);
 
         for item in iot_items {
-            assert!(item.definition_url.starts_with("https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/"));
+            assert!(item.definition_url.starts_with(
+                "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/"
+            ));
             assert!(item.definition_url.ends_with(".yaml"));
         }
     }

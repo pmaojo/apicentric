@@ -541,10 +541,9 @@ impl ServiceInstance {
         for endpoint in &definition.endpoints {
             if endpoint.method.to_uppercase() == method.to_uppercase()
                 && Self::headers_match(endpoint, headers)
+                && self.extract_path_parameters(&endpoint.path, path).is_some()
             {
-                if self.extract_path_parameters(&endpoint.path, path).is_some() {
-                    return Some(endpoint.clone());
-                }
+                return Some(endpoint.clone());
             }
         }
         None
