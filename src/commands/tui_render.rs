@@ -473,11 +473,13 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
     // Inner area for grid
     let inner_area = block.inner(area);
 
-    // Get active service metrics
-    let active_services: Vec<(&String, &super::tui_state::ServiceMetrics)> = state.dashboard.metrics.iter().collect();
+    // Get running services
+    let running_services: Vec<_> = state.services.items.iter()
+        .filter(|s| s.is_running)
+        .collect();
     
-    if active_services.is_empty() {
-        let text = Paragraph::new("Waiting for data emitters...")
+    if running_services.is_empty() {
+        let text = Paragraph::new("No running services...")
             .alignment(ratatui::layout::Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(text, inner_area);
@@ -485,7 +487,7 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
     }
 
     // Create grid layout (simple rows for now)
-    let rows = active_services.len().max(1);
+    let rows = running_services.len().max(1);
     let constraints: Vec<Constraint> = (0..rows).map(|_| Constraint::Length(4)).collect(); // 4 lines per service
     
     let chunks = Layout::default()
@@ -493,9 +495,11 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
         .constraints(constraints)
         .split(inner_area);
 
-    for (i, (service_name, metrics)) in active_services.iter().enumerate() {
+    for (i, service) in running_services.iter().enumerate() {
         if i >= chunks.len() { break; }
         
+        let metrics_opt = state.dashboard.metrics.get(&service.name);
+
         // Service Row Layout: Name/Status | Sparkline | Stats
         let row_chunks = Layout::default()
             .direction(Direction::Horizontal)
@@ -509,14 +513,18 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
         // 1. Name
         let name_widget = Paragraph::new(Line::from(vec![
             Span::styled("● ", Style::default().fg(Color::Green)), // LED
-            Span::styled(*service_name, Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(service.name.clone(), Style::default().add_modifier(Modifier::BOLD)),
         ]))
         .block(Block::default().borders(Borders::RIGHT).border_style(Style::default().fg(Color::DarkGray)));
         f.render_widget(name_widget, row_chunks[0]);
 
         // 2. Sparkline
-        let data: Vec<u64> = metrics.request_history.iter().copied().collect();
-        // Determine max for scaling (local max or global?) - Local looks cooler "auto range"
+        let empty_data = vec![0u64; 50];
+        let data: Vec<u64> = metrics_opt
+            .map(|m| m.request_history.iter().copied().collect())
+            .unwrap_or_else(|| empty_data.clone());
+            
+        // Determine max for scaling
         let max = data.iter().max().copied().unwrap_or(1).max(1);
         
         let sparkline = Sparkline::default()
@@ -527,12 +535,12 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
         f.render_widget(sparkline, row_chunks[1]);
 
         // 3. Stats (Gauge or Value)
-        let last_val = metrics.request_history.back().copied().unwrap_or(0);
+        let last_val = metrics_opt.and_then(|m| m.request_history.back().copied()).unwrap_or(0);
         let gauge = Gauge::default()
             .block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(Color::DarkGray)))
             .gauge_style(Style::default().fg(Color::Red))
             .ratio( (last_val as f64 / (max as f64).max(1.0)).min(1.0) )
-            .label(format!("{} rps", last_val)); // Using ticks as RPS approximation if 1 tick = 1 sec
+            .label(format!("{} rps", last_val)); 
         f.render_widget(gauge, row_chunks[2]);
     }
 }

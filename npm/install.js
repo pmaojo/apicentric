@@ -4,7 +4,7 @@ const https = require('https');
 const { execSync } = require('child_process');
 const os = require('os');
 
-const PACKAGE_VERSION = "0.3.0"; // Sync with package.json
+const PACKAGE_VERSION = "0.3.1"; // Sync with package.json
 const BIN_DIR = path.join(__dirname, 'bin');
 const BIN_NAME = process.platform === 'win32' ? 'apicentric.exe' : 'apicentric';
 const BIN_PATH = path.join(BIN_DIR, BIN_NAME);
