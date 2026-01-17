@@ -332,6 +332,8 @@ mod tests {
             }],
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
+            twin: None,
         }
     }
 

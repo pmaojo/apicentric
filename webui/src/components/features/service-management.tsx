@@ -44,6 +44,7 @@ import {
   Square,
   Trash2,
   Loader2,
+  Cpu,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreateServiceDialog } from './create-service-dialog';
@@ -386,7 +387,17 @@ export function ServiceManagement({
                               aria-label={`Select ${service.name}`}
                             />
                           </TableCell>
-                          <TableCell className="font-medium">{service.name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {service.name}
+                              {service.twin && (
+                                <Badge variant="secondary" className="gap-1 px-1.5 py-0.5 h-5 text-[10px]">
+                                  <Cpu className="h-3 w-3" />
+                                  IoT
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                               <Badge
                                 variant={service.status === 'running' ? 'default' : 'destructive'}

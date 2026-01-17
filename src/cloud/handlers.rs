@@ -1110,6 +1110,8 @@ pub async fn generate_service_from_recording(
         endpoints,
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
+        twin: None,
     };
 
     // Convert to YAML

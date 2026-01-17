@@ -2,11 +2,12 @@ use apicentric::iot::adapters::modbus::ModbusAdapter;
 use apicentric::iot::adapters::mqtt::MqttAdapter;
 use apicentric::iot::args::TwinRunArgs;
 use apicentric::iot::config::TwinConfig;
-use apicentric::iot::model::DigitalTwin;
+use apicentric::iot::model::{DigitalTwin, VariableValue};
 use apicentric::iot::physics::scripting::RhaiScriptStrategy;
 use apicentric::iot::physics::sine::SineWaveStrategy;
 use apicentric::iot::traits::{ProtocolAdapter, SimulationStrategy};
 use log::{error, info};
+use rand::Rng;
 use std::path::Path;
 use tokio::time::{sleep, Duration, Instant};
 
@@ -89,8 +90,38 @@ pub async fn run(args: TwinRunArgs) -> anyhow::Result<()> {
             }
         }
 
+        // 1.5 Apply Drift Fault
+        if let Some(faults) = &config.twin.faults {
+            if let Some(drift_map) = &faults.drift {
+                for (var_name, increment) in drift_map {
+                    if let Some(value) = twin.state.variables.get_mut(var_name) {
+                        match value {
+                            VariableValue::Float(v) => *v += increment,
+                            VariableValue::Integer(v) => *v += *increment as i64,
+                            _ => {} // Ignore string/bool
+                        }
+                    }
+                }
+            }
+        }
+
         // 2. Publish State to Adapters
         for (key, value) in &twin.state.variables {
+            // Apply Dropout Fault
+            if let Some(faults) = &config.twin.faults {
+                if let Some(dropout) = &faults.dropout {
+                    if rand::thread_rng().gen_bool(dropout.rate.clamp(0.0, 1.0)) {
+                        continue; // Skip publishing this variable
+                    }
+                }
+
+                // Apply Jitter Fault
+                if let Some(jitter) = &faults.jitter {
+                    let delay_ms = rand::thread_rng().gen_range(jitter.min_ms..=jitter.max_ms);
+                    sleep(Duration::from_millis(delay_ms)).await;
+                }
+            }
+
             for adapter in &adapters {
                 if let Err(_e) = adapter.publish(key, value).await {
                     // Log but don't crash

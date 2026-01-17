@@ -11,6 +11,26 @@ pub struct TwinDefinition {
     pub name: String,
     pub physics: Vec<PhysicsConfig>,
     pub transports: Vec<AdapterConfig>,
+    #[serde(default)]
+    pub faults: Option<FaultsConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FaultsConfig {
+    pub jitter: Option<JitterConfig>,
+    pub dropout: Option<DropoutConfig>,
+    pub drift: Option<HashMap<String, f64>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JitterConfig {
+    pub min_ms: u64,
+    pub max_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DropoutConfig {
+    pub rate: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

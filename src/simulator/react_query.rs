@@ -165,6 +165,8 @@ mod tests {
             ],
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
+            twin: None,
         };
         let ts = to_react_query(&service).unwrap();
         assert!(ts.contains("usePetsQuery"));

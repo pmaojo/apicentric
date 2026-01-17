@@ -47,7 +47,7 @@ scripting = ["deno_core"]
 mcp = ["dep:rmcp", "simulator"]
 
 # IoT: Digital Twin capabilities
-iot = ["dep:rumqttc", "dep:tokio-modbus", "dep:rhai"]
+iot = ["dep:rumqttc", "dep:tokio-modbus", "dep:rhai", "rand"]
 
 # Convenience bundles
 # cli-tools: Essential CLI functionality with TUI but without desktop GUI/WebUI

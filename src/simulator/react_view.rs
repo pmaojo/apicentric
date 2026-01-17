@@ -192,6 +192,8 @@ mod tests {
             ],
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
+            twin: None,
         };
         let tsx = to_react_view(&service).unwrap();
         assert!(tsx.contains("ServiceView"));

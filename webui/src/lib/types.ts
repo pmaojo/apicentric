@@ -12,6 +12,28 @@ export type Endpoint = {
   operationId?: string;
 };
 
+export interface JitterConfig {
+  min_ms: number;
+  max_ms: number;
+}
+
+export interface DropoutConfig {
+  rate: number;
+}
+
+export interface FaultsConfig {
+  jitter?: JitterConfig;
+  dropout?: DropoutConfig;
+  drift?: Record<string, number>;
+}
+
+export interface TwinDefinition {
+  name: string;
+  physics: any[];
+  transports: any[];
+  faults?: FaultsConfig;
+}
+
 /**
  * Validation result for service definitions
  */
@@ -57,6 +79,7 @@ export type Service = {
   version: string;
   definition: string;
   endpoints: Endpoint[];
+  twin?: TwinDefinition;
 };
 
 /**
@@ -142,6 +165,7 @@ export type ApiService = {
   }[];
   is_running: boolean;
   endpoints_count: number;
+  twin?: TwinDefinition;
 };
 
 /**

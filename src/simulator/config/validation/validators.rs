@@ -198,6 +198,8 @@ mod tests {
             endpoints: vec![endpoint],
             graphql: None,
             behavior: None,
+        #[cfg(feature = "iot")]
+        twin: None,
         };
         let mut names = HashSet::new();
         validate_unique_name(&service, &mut names).unwrap();

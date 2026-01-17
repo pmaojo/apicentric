@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+#[cfg(feature = "iot")]
+use crate::iot::config::TwinDefinition;
+
 pub mod endpoint;
 pub mod server;
 pub mod validation;
@@ -110,6 +113,9 @@ pub struct ServiceDefinition {
     pub graphql: Option<GraphQLConfig>,
     #[serde(default)]
     pub behavior: Option<BehaviorConfig>,
+    #[cfg(feature = "iot")]
+    #[serde(default)]
+    pub twin: Option<TwinDefinition>,
 }
 
 /// GraphQL configuration for a service

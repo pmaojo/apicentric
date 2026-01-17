@@ -1,0 +1,26 @@
+twin:
+  name: "FaultySensor"
+  physics:
+    - variable: "temperature"
+      strategy: "sine"
+      params:
+        min: 20.0
+        max: 30.0
+    - variable: "pressure"
+      strategy: "sine"
+      params:
+        min: 1000.0
+        max: 1010.0
+  transports:
+    - type: "mqtt"
+      broker_url: "localhost"
+      port: 1883
+      topic_prefix: "faulty/sensors"
+  faults:
+    jitter:
+      min_ms: 100
+      max_ms: 500
+    dropout:
+      rate: 0.2
+    drift:
+      temperature: 0.5
