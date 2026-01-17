@@ -2,7 +2,7 @@ use crate::iot::model::{DigitalTwinState, VariableValue};
 use crate::iot::traits::SimulationStrategy;
 use async_trait::async_trait;
 use log::error;
-use rhai::{Engine, Scope, AST};
+use rhai::{Engine, Scope, AST, Map, Dynamic};
 use std::sync::{Arc, Mutex};
 
 /// A simulation strategy that executes Rhai scripts to determine variable values.
@@ -44,6 +44,19 @@ impl SimulationStrategy for RhaiScriptStrategy {
             .unwrap_or(0.0);
         scope.push("value", current_val);
 
+        // Expose full state as a map
+        let mut state_map = Map::new();
+        for (key, val) in &state.variables {
+            let dynamic_val: Dynamic = match val {
+                 VariableValue::Integer(i) => (*i).into(),
+                 VariableValue::Float(f) => (*f).into(),
+                 VariableValue::String(s) => s.clone().into(),
+                 VariableValue::Boolean(b) => (*b).into(),
+            };
+            state_map.insert(key.clone().into(), dynamic_val);
+        }
+        scope.push("state", state_map);
+
         // Execute script
         // Lock engine
         let engine = self.engine.lock().unwrap();
@@ -60,5 +73,34 @@ impl SimulationStrategy for RhaiScriptStrategy {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::iot::model::{DigitalTwinState, VariableValue};
+
+    #[tokio::test]
+    async fn test_rhai_access_state() {
+        let mut state = DigitalTwinState::default();
+        state.variables.insert("heater_status".to_string(), VariableValue::Float(1.0));
+        state.variables.insert("temp".to_string(), VariableValue::Float(20.0));
+
+        // Script accesses 'heater_status' from state map
+        let script = r#"
+            let h = state["heater_status"];
+            if h == 1.0 {
+                value + 1.0
+            } else {
+                value
+            }
+        "#;
+
+        let strategy = RhaiScriptStrategy::new(script, "temp".to_string()).unwrap();
+        strategy.tick(&mut state).await.unwrap();
+
+        let new_temp = state.variables.get("temp").unwrap().as_f64().unwrap();
+        assert_eq!(new_temp, 21.0);
     }
 }
