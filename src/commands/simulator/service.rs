@@ -287,6 +287,8 @@ pub async fn handle_new_graphql(
         endpoints: Vec::new(),
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
+        twin: None,
     };
 
     let gql_schema_filename = format!("{}.gql", service_name);

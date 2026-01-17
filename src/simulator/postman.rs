@@ -61,6 +61,8 @@ fn convert_postman(v: &Value) -> ServiceDefinition {
         endpoints,
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
+        twin: None,
     }
 }
 
@@ -255,6 +257,8 @@ fn convert_insomnia(v: &Value) -> ServiceDefinition {
         endpoints,
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
+        twin: None,
     }
 }
 

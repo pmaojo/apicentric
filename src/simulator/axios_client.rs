@@ -191,6 +191,8 @@ mod tests {
             ],
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
+            twin: None,
         };
         let ts = to_axios_client(&service).unwrap();
         assert!(ts.contains("class PetClient"));

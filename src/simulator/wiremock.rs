@@ -142,6 +142,8 @@ fn convert(stubs: &[WiremockStub], meta: Option<&WiremockMeta>) -> ServiceDefini
         endpoints,
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
+        twin: None,
     }
 }
 

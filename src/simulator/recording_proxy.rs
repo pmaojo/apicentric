@@ -240,6 +240,8 @@ impl RecordingProxy for ProxyRecorder {
             endpoints: map.values().cloned().collect(),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
+            twin: None,
         };
 
         std::fs::create_dir_all(&output_dir).map_err(|e| {
@@ -563,6 +565,8 @@ mod tests {
             endpoints: map.values().cloned().collect(),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
+            twin: None,
         };
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());

@@ -165,6 +165,8 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
         endpoints,
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
+        twin: None,
     })
 }
 

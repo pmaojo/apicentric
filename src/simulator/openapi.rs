@@ -50,6 +50,8 @@ fn from_openapi_v3(raw: &Value) -> ServiceDefinition {
             endpoints: Vec::new(),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
+            twin: None,
         },
     }
 }
@@ -181,6 +183,8 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
         endpoints,
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
+        twin: None,
     }
 }
 

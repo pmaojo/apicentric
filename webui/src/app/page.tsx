@@ -74,6 +74,7 @@ function AppContent() {
         ...ep,
         method: ep.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
       })) || [],
+      twin: apiService.twin,
     }));
   }, [simulatorStatus]);
 
@@ -159,6 +160,7 @@ function AppContent() {
           path: ep.path || '/',
           description: ep.description || '',
         })) || [],
+        twin: doc.twin,
       };
 
       setServices(prevServices => [...prevServices, newService]);
@@ -197,6 +199,7 @@ function AppContent() {
                   path: ep.path || '/',
                   description: ep.description || '',
                 })) || [],
+                twin: doc.twin,
             }
         }
         return service;
