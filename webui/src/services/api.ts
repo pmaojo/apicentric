@@ -886,3 +886,90 @@ export async function generateCode(definition: string, target: 'typescript' | 'r
 
     return result.code;
 }
+
+// ============================================================================
+// IoT Twins API
+// ============================================================================
+
+export interface TwinDetailResponse {
+  name: string;
+  yaml: string;
+  config: any;
+}
+
+/**
+ * Lists all available IoT twins.
+ */
+export async function listTwins(): Promise<string[]> {
+  const response = await apiRequest<{ success: boolean; data: string[] }>('/api/iot/twins');
+  return response.data;
+}
+
+/**
+ * Gets a specific twin definition.
+ */
+export async function getTwin(name: string): Promise<TwinDetailResponse> {
+  const response = await apiRequest<{ success: boolean; data: TwinDetailResponse }>(
+    `/api/iot/twins/${encodeURIComponent(name)}`
+  );
+  return response.data;
+}
+
+/**
+ * Saves (creates or updates) a twin.
+ */
+export async function saveTwin(name: string, yaml: string): Promise<void> {
+  await apiRequest<{ success: boolean; data: string }>(
+    `/api/iot/twins/${encodeURIComponent(name)}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ yaml }),
+    }
+  );
+}
+
+/**
+ * Deletes a twin.
+ */
+export async function deleteTwin(name: string): Promise<void> {
+  await apiRequest<{ success: boolean; data: string }>(
+    `/api/iot/twins/${encodeURIComponent(name)}`,
+    {
+      method: 'DELETE',
+    }
+  );
+}
+
+/**
+ * Uploads a CSV file for replay.
+ */
+export async function uploadReplayData(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${getApiUrl()}/api/iot/upload`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+     const errorData = await response.json().catch(() => ({
+      error: response.statusText,
+    }));
+    throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  if (!result.success) {
+      throw new Error(result.error || 'Upload failed');
+  }
+
+  return result.data;
+}

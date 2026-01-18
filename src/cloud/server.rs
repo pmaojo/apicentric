@@ -14,6 +14,7 @@ use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
 
 use super::handlers;
+use super::iot_handlers;
 use crate::auth::jwt::JwtKeys;
 use crate::auth::repository::AuthRepository;
 use crate::auth::{handlers as auth_handlers, handlers::AuthState};
@@ -147,6 +148,15 @@ impl CloudServer {
             .route("/api/ai/generate", post(handlers::ai_generate))
             .route("/api/ai/validate", post(handlers::ai_validate))
             .route("/api/ai/config", get(handlers::ai_config_status))
+            // IoT Twin routes
+            .route("/api/iot/twins", get(iot_handlers::list_twins))
+            .route(
+                "/api/iot/twins/:name",
+                get(iot_handlers::get_twin)
+                    .post(iot_handlers::save_twin)
+                    .delete(iot_handlers::delete_twin),
+            )
+            .route("/api/iot/upload", post(iot_handlers::upload_replay_data))
             // Code generation routes
             .route(
                 "/api/codegen/typescript",

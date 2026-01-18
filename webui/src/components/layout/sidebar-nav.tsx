@@ -20,6 +20,7 @@ import {
   Asterisk,
   Settings,
   ShoppingBag,
+  Cpu,
 } from 'lucide-react';
 import { useSidebar } from '@/components/ui/sidebar';
 
@@ -46,6 +47,7 @@ type SidebarNavProps = {
 const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'services', label: 'Services', icon: Server },
+    { id: 'iot', label: 'IoT Twins', icon: Cpu },
     { id: 'marketplace', label: 'Marketplace', icon: ShoppingBag },
     { id: 'recording', label: 'Recording', icon: RadioTower },
     { id: 'ai-generator', label: 'AI Generator', icon: Sparkles },
