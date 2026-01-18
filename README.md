@@ -215,6 +215,25 @@ docker build -t ecommerce-api .
 docker run -p 9002:9002 ecommerce-api
 ```
 
+## Protocol-Agnostic Server SDK
+
+Apicentric is not just a CLI tool; it is a powerful **Protocol-Agnostic Server SDK**. You can embed it directly into your Rust applications to programmatically create and run servers for various protocols using a unified API.
+
+This allows you to:
+- **Embed API Mocking**: Run an HTTP mock server inside your integration tests or dev tools.
+- **Simulate IoT Devices**: Create thousands of Digital Twins (MQTT, Modbus) programmatically to load test your IoT platforms.
+- **Unified Management**: Manage HTTP, MQTT, and Modbus services with the same `ApiSimulatorManager`.
+
+### Examples
+
+**1. Embedded HTTP Server**
+Create REST endpoints programmatically without YAML files.
+[View Example](examples/embedded_api_server.rs)
+
+**2. Embedded IoT Twin (MQTT)**
+Simulate a smart device with physics (e.g., sine wave temperature) and MQTT transport.
+[View Example](examples/embedded_iot_twin.rs)
+
 ## Installation
 
 Apicentric provides multiple installation methods to suit your workflow. Choose the one that works best for you.
