@@ -9,7 +9,10 @@ pub trait ProtocolAdapter: Send + Sync {
     async fn init(&mut self, config: &AdapterConfig) -> anyhow::Result<()>;
     /// Publish a value change to the adapter
     async fn publish(&self, key: &str, value: &VariableValue) -> anyhow::Result<()>;
-    // async fn on_command(&self) -> Option<Command>; // Simplified for now
+    /// Subscribe to a topic/variable
+    async fn subscribe(&mut self, topic: &str) -> anyhow::Result<()>;
+    /// Poll for new messages
+    async fn poll(&mut self) -> Option<(String, VariableValue)>;
 }
 
 /// Trait for physics simulation strategies

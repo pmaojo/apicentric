@@ -1,0 +1,19 @@
+twin:
+  name: subscriber
+  physics:
+    - variable: target_temp
+      strategy: script
+      params:
+        code: |
+          if state["external_temp"] > 25.0 {
+            50.0
+          } else {
+            0.0
+          }
+  transports:
+    - type: mqtt
+      broker_url: localhost
+      port: 1883
+      topic_prefix: iot/subscriber
+      subscriptions:
+        - iot/publisher/temperature
