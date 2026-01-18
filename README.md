@@ -826,4 +826,20 @@ The crate follows hexagonal architecture principles and exposes the following mo
 
 Refer to the module documentation for deeper implementation details.
 
+## Recording View Walkthrough
+
+Here is a visual walkthrough of the recording feature:
+
+### 1. Initial State
+![Initial View](assets/screenshots/recording-view-initial.png)
+
+### 2. Recording Active
+![Recording Active](assets/screenshots/recording-view-active.png)
+
+### 3. Captured Requests
+![Captured Requests](assets/screenshots/recording-view-captured.png)
+
+### 4. Recording Stopped
+![Recording Stopped](assets/screenshots/recording-view-stopped.png)
+
 <!-- cargo-rdme end -->
