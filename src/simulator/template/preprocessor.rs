@@ -138,7 +138,7 @@ impl TemplatePreprocessor {
             let processed = random_regex.replace_all(content, "random_string $1");
             format!("{{{{{}}}}}", processed)
         } else if content == "now()" {
-            format!("{{{{now}}}}")
+            "{{now}}".to_string()
         } else {
             format!("{{{{{}}}}}", content)
         }

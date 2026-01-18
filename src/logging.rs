@@ -17,7 +17,14 @@ use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, util::Subscrib
 /// - RUST_LOG environment variable (e.g., "apicentric=debug,simulator=info")
 /// - APICENTRIC_LOG_FORMAT environment variable ("json" or "pretty")
 /// - Default level is INFO for production, DEBUG for development
+/// Initialize structured logging
 pub fn init() {
+    // Fail-safe: Check for TUI mode here as well
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "tui") {
+        return;
+    }
+
     let filter = EnvFilter::try_from_env("RUST_LOG").unwrap_or_else(|_| {
         // Default filter: info level, debug for development
         if cfg!(debug_assertions) {

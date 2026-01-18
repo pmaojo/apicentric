@@ -14,9 +14,9 @@ fn import_openapi_to_service() {
     let service = from_openapi(&spec);
     assert_eq!(service.name, "Test Service");
     // OpenAPI v3 importer uses `servers` for base path; when missing, defaults to "/"
-    assert_eq!(service.server.base_path, "/");
-    assert_eq!(service.endpoints.len(), 1);
-    let ep = &service.endpoints[0];
+    assert_eq!(service.server.as_ref().unwrap().base_path, "/");
+    assert_eq!(service.endpoints.as_ref().unwrap().len(), 1);
+    let ep = &service.endpoints.as_ref().unwrap()[0];
     assert_eq!(ep.method, "GET");
     assert_eq!(ep.path, "/pets");
 }
@@ -25,7 +25,7 @@ mod response_examples {
     use super::*;
 
     fn response_body(service: &ServiceDefinition) -> &str {
-        service.endpoints[0]
+        service.endpoints.as_ref().unwrap()[0]
             .responses
             .get(&200)
             .unwrap()

@@ -24,6 +24,12 @@ pub struct ModbusAdapter {
     store: Arc<Mutex<ModbusStore>>,
 }
 
+impl Default for ModbusAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModbusAdapter {
     pub fn new() -> Self {
         Self {
@@ -72,7 +78,13 @@ impl ProtocolAdapter for ModbusAdapter {
                 let val_u16 = match value {
                     VariableValue::Integer(i) => *i as u16,
                     VariableValue::Float(f) => *f as u16,
-                    VariableValue::Boolean(b) => if *b { 1 } else { 0 },
+                    VariableValue::Boolean(b) => {
+                        if *b {
+                            1
+                        } else {
+                            0
+                        }
+                    }
                     _ => 0,
                 };
                 let mut store = self.store.lock().unwrap();
@@ -122,7 +134,7 @@ async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<M
             }
 
             let mut response = Vec::with_capacity(32);
-             // Copy Transaction ID and Protocol ID
+            // Copy Transaction ID and Protocol ID
             response.extend_from_slice(&frame[0..4]);
             // Placeholder for Length (2 bytes)
             response.push(0);
@@ -131,7 +143,8 @@ async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<M
             response.push(unit_id);
 
             match func_code {
-                 0x03 => { // Read Holding Registers
+                0x03 => {
+                    // Read Holding Registers
                     if frame.len() >= 12 {
                         let start_addr = u16::from_be_bytes([frame[8], frame[9]]);
                         let count = u16::from_be_bytes([frame[10], frame[11]]);
@@ -158,8 +171,9 @@ async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<M
                         response.push(0x03);
                     }
                 }
-                0x06 => { // Write Single Register
-                     if frame.len() >= 12 {
+                0x06 => {
+                    // Write Single Register
+                    if frame.len() >= 12 {
                         let addr = u16::from_be_bytes([frame[8], frame[9]]);
                         let val = u16::from_be_bytes([frame[10], frame[11]]);
 
@@ -171,7 +185,7 @@ async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<M
                         // Echo request
                         response.push(0x06);
                         response.extend_from_slice(&frame[8..12]);
-                     }
+                    }
                 }
                 _ => {
                     // Exception: Illegal Function
@@ -186,7 +200,7 @@ async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<M
             response[4] = len_bytes[0];
             response[5] = len_bytes[1];
 
-            if let Err(_) = stream.write_all(&response).await {
+            if (stream.write_all(&response).await).is_err() {
                 return; // Connection error
             }
 

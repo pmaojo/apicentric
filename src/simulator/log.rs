@@ -21,6 +21,8 @@ pub struct RequestLogEntry {
     pub path: String,
     /// Response status code
     pub status: u16,
+    /// Optional payload (e.g. JSON for telemetry or request body)
+    pub payload: Option<String>,
 }
 
 impl RequestLogEntry {
@@ -31,6 +33,7 @@ impl RequestLogEntry {
         method: String,
         path: String,
         status: u16,
+        payload: Option<String>,
     ) -> Self {
         Self {
             timestamp: Utc::now(),
@@ -39,6 +42,7 @@ impl RequestLogEntry {
             method,
             path,
             status,
+            payload,
         }
     }
 }

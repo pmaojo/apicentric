@@ -11,14 +11,16 @@ pub fn to_react_query(service: &ServiceDefinition) -> Result<String> {
     let mut out = String::new();
     out.push_str("import { useQuery, useMutation } from '@tanstack/react-query';\n\n");
 
-    for ep in &service.endpoints {
+    let endpoints = service.endpoints.as_ref().cloned().unwrap_or_default();
+    let base_path = service.server.as_ref().map(|s| s.base_path.as_str()).unwrap_or("/");
+    for ep in &endpoints {
         if ep.kind != EndpointKind::Http {
             continue;
         }
         if ep.method.eq_ignore_ascii_case("GET") {
-            out.push_str(&generate_query_hook(ep, &service.server.base_path));
+            out.push_str(&generate_query_hook(ep, base_path));
         } else {
-            out.push_str(&generate_mutation_hook(ep, &service.server.base_path));
+            out.push_str(&generate_mutation_hook(ep, base_path));
         }
         out.push('\n');
     }
@@ -127,17 +129,17 @@ mod tests {
             name: "Test".into(),
             version: None,
             description: None,
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: None,
                 base_path: "/api".into(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: vec![
+            endpoints: Some(vec![
                 EndpointDefinition {
                     kind: EndpointKind::Http,
                     method: "GET".into(),
@@ -162,9 +164,10 @@ mod tests {
                     scenarios: None,
                     stream: None,
                 },
-            ],
+            ]),
             graphql: None,
             behavior: None,
+            twin: None,
         };
         let ts = to_react_query(&service).unwrap();
         assert!(ts.contains("usePetsQuery"));

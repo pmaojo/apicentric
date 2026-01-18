@@ -7,6 +7,7 @@ pub mod routing;
 pub mod scenario;
 pub mod state;
 pub mod state_service;
+pub mod twin_runner;
 
 pub use graphql::*;
 pub use http_server::HttpServer;
@@ -98,7 +99,7 @@ impl ServiceInstance {
         })
     }
 
-    /// Start the service HTTP server
+    /// Start the service (HTTP server or Digital Twin runner)
     pub async fn start(&mut self) -> ApicentricResult<()> {
         if self.is_running {
             return Err(ApicentricError::runtime_error(
@@ -110,6 +111,30 @@ impl ServiceInstance {
             ));
         }
 
+        let (twin_def, server_cfg, service_name) = {
+            let definition_guard = self.definition.read().unwrap();
+            (
+                definition_guard.twin.clone(),
+                definition_guard.server.clone(),
+                definition_guard.name.clone(),
+            )
+        };
+
+        // Check if it's a digital twin
+        if let Some(twin_def) = twin_def {
+            return self.start_twin_runner(twin_def).await;
+        }
+
+        // Standard HTTP service
+        let server_cfg = server_cfg.ok_or_else(|| {
+            ApicentricError::config_error(
+                format!("Service '{}' has no server configuration", service_name),
+                Some("Add a 'server' block or a 'twin' block to the configuration"),
+            )
+        })?;
+
+        let base_path = server_cfg.base_path.clone();
+
         // Create TCP listener for the service
         let addr = SocketAddr::from(([127, 0, 0, 1], self.port));
         let listener = TcpListener::bind(addr).await.map_err(|e| {
@@ -120,10 +145,6 @@ impl ServiceInstance {
         })?;
 
         // Clone necessary data for the server task
-        let (service_name, base_path) = {
-            let def = self.definition.read().unwrap();
-            (def.name.clone(), def.server.base_path.clone())
-        };
         let definition = Arc::clone(&self.definition);
         let state = Arc::clone(&self.state);
         let template_engine = Arc::clone(&self.template_engine);
@@ -133,12 +154,15 @@ impl ServiceInstance {
 
         // Spawn the HTTP server task
         let server_handle = tokio::spawn(async move {
-            println!(
-                "🚀 Started service '{}' on port {} at {}",
-                service_name,
-                addr.port(),
-                base_path
-            );
+            Self::record_log(
+                &state,
+                &service_name,
+                None,
+                "SYSTEM",
+                &format!("Started on port {} at {}", addr.port(), base_path),
+                200,
+                None,
+            ).await;
 
             loop {
                 match listener.accept().await {
@@ -287,7 +311,9 @@ impl ServiceInstance {
 
     /// Get the service base path
     pub fn base_path(&self) -> String {
-        self.definition.read().unwrap().server.base_path.clone()
+        self.definition.read().unwrap().server.as_ref()
+            .map(|s| s.base_path.clone())
+            .unwrap_or_else(|| "/".to_string())
     }
 
     /// Get the service name
@@ -297,12 +323,14 @@ impl ServiceInstance {
 
     /// Get the number of endpoints defined for this service
     pub fn endpoints_count(&self) -> usize {
-        self.definition.read().unwrap().endpoints.len()
+        self.definition.read().unwrap().endpoints.as_ref()
+            .map(|e| e.len())
+            .unwrap_or(0)
     }
 
     /// Get all endpoint definitions
     pub fn endpoints(&self) -> Vec<EndpointDefinition> {
-        self.definition.read().unwrap().endpoints.clone()
+        self.definition.read().unwrap().endpoints.clone().unwrap_or_default()
     }
 
     /// Get the service definition
@@ -363,6 +391,7 @@ impl ServiceInstance {
         method: &str,
         path: &str,
         status: u16,
+        payload: Option<String>,
     ) {
         let mut guard = state.write().await;
         guard.add_log_entry(RequestLogEntry::new(
@@ -371,6 +400,7 @@ impl ServiceInstance {
             method.to_string(),
             path.to_string(),
             status,
+            payload,
         ));
     }
 
@@ -500,8 +530,8 @@ impl ServiceInstance {
         crate::simulator::ServiceInfo {
             name: def.name.clone(),
             port: self.port,
-            base_path: def.server.base_path.clone(),
-            endpoints_count: def.endpoints.len(),
+            base_path: def.server.as_ref().map(|s| s.base_path.clone()).unwrap_or_else(|| "/".to_string()),
+            endpoints_count: def.endpoints.as_ref().map(|e| e.len()).unwrap_or(0),
             is_running: self.is_running,
         }
     }
@@ -514,16 +544,18 @@ impl ServiceInstance {
         headers: &HashMap<String, String>,
     ) -> Option<RouteMatch> {
         let definition = self.definition.read().unwrap();
-        for (index, endpoint) in definition.endpoints.iter().enumerate() {
-            if endpoint.method.to_uppercase() == method.to_uppercase()
-                && Self::headers_match(endpoint, headers)
-            {
-                if let Some(path_params) = self.extract_path_parameters(&endpoint.path, path) {
-                    return Some(RouteMatch {
-                        endpoint: endpoint.clone(),
-                        endpoint_index: index,
-                        path_params,
-                    });
+        if let Some(endpoints) = &definition.endpoints {
+            for (index, endpoint) in endpoints.iter().enumerate() {
+                if endpoint.method.to_uppercase() == method.to_uppercase()
+                    && Self::headers_match(endpoint, headers)
+                {
+                    if let Some(path_params) = self.extract_path_parameters(&endpoint.path, path) {
+                        return Some(RouteMatch {
+                            endpoint: endpoint.clone(),
+                            endpoint_index: index,
+                            path_params,
+                        });
+                    }
                 }
             }
         }
@@ -538,11 +570,12 @@ impl ServiceInstance {
         headers: &HashMap<String, String>,
     ) -> Option<EndpointDefinition> {
         let definition = self.definition.read().unwrap();
-        for endpoint in &definition.endpoints {
-            if endpoint.method.to_uppercase() == method.to_uppercase()
-                && Self::headers_match(endpoint, headers)
-            {
-                if self.extract_path_parameters(&endpoint.path, path).is_some() {
+        if let Some(endpoints) = &definition.endpoints {
+            for endpoint in endpoints {
+                if endpoint.method.to_uppercase() == method.to_uppercase()
+                    && Self::headers_match(endpoint, headers)
+                    && self.extract_path_parameters(&endpoint.path, path).is_some()
+                {
                     return Some(endpoint.clone());
                 }
             }
@@ -617,13 +650,19 @@ impl ServiceInstance {
     ) -> ApicentricResult<Response<Full<Bytes>>> {
         let (service_name, base_path, endpoints, cors_cfg, proxy_base_url, record_unknown) = {
             let def = definition.read().unwrap();
+            let (base_path, cors_cfg, proxy_cfg, record_unknown) = if let Some(server) = &def.server {
+                (server.base_path.clone(), server.cors.clone(), server.proxy_base_url.clone(), server.record_unknown)
+            } else {
+                ("/".to_string(), None, None, false)
+            };
+
             (
                 def.name.clone(),
-                def.server.base_path.clone(),
-                def.endpoints.clone(),
-                def.server.cors.clone(),
-                def.server.proxy_base_url.clone(),
-                def.server.record_unknown,
+                base_path,
+                def.endpoints.clone().unwrap_or_default(),
+                cors_cfg,
+                proxy_cfg,
+                record_unknown,
             )
         };
 
@@ -632,26 +671,27 @@ impl ServiceInstance {
         let path = parts.uri.path();
 
         // Log incoming request
-        println!(
-            "🌐 [{}] {} {} - Origin: {}",
-            service_name,
-            method,
-            path,
-            parts
-                .headers
-                .get("origin")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("none")
-        );
+        Self::record_log(
+            &state,
+            &service_name,
+            None,
+            "DEBUG",
+            &format!("Request Origin: {}", parts.headers.get("origin").and_then(|v| v.to_str().ok()).unwrap_or("none")),
+            200,
+            None,
+        ).await;
 
         // Log CORS configuration
-        if let Some(ref cors) = cors_cfg {
-            println!(
-                "🔧 [{}] CORS enabled - Origins: {:?}, Methods: {:?}",
-                service_name, cors.origins, cors.methods
-            );
+        if let Some(ref _cors) = cors_cfg {
+            // println!(
+            //     "🔧 [{}] CORS enabled - Origins: {:?}, Methods: {:?}",
+            //     service_name, cors.origins, cors.methods
+            // );
         } else {
-            println!("⚠️ [{}] CORS not configured", service_name);
+            // println!(
+            //     "⚠️ [{}] CORS not configured for this service",
+            //     service_name
+            // );
         }
 
         // Parse query parameters
@@ -680,36 +720,32 @@ impl ServiceInstance {
 
         // Handle CORS preflight
         if method == "OPTIONS" {
-            println!("✈️ [{}] Handling CORS preflight for {}", service_name, path);
 
             let origin = headers.get("origin").cloned().unwrap_or_default();
-            println!("🔍 [{}] Request origin: '{}'", service_name, origin);
 
             let allow_origin = match &cors_cfg {
                 Some(cfg) => {
-                    println!("✅ [{}] CORS config found: {:?}", service_name, cfg);
                     if cfg.origins.iter().any(|o| o == "*") {
-                        println!("🌍 [{}] Wildcard origin allowed", service_name);
                         "*".to_string()
                     } else if cfg.origins.iter().any(|o| o.eq_ignore_ascii_case(&origin)) {
-                        println!(
-                            "✅ [{}] Origin '{}' explicitly allowed",
-                            service_name, origin
-                        );
+                        // println!(
+                        //     "✅ [{}] Origin '{}' explicitly allowed",
+                        //     service_name, origin
+                        // );
                         origin.clone()
                     } else {
-                        println!(
-                            "⚠️ [{}] Origin '{}' not in allowed list, defaulting to wildcard",
-                            service_name, origin
-                        );
+                        // println!(
+                        //     "⚠️ [{}] Origin '{}' not in allowed list, defaulting to wildcard",
+                        //     service_name, origin
+                        // );
                         "*".to_string()
                     }
                 }
                 None => {
-                    println!(
-                        "⚠️ [{}] No CORS config, defaulting to wildcard",
-                        service_name
-                    );
+                    // println!(
+                    //     "⚠️ [{}] No CORS config, defaulting to wildcard",
+                    //     service_name
+                    // );
                     "*".to_string()
                 }
             };
@@ -729,10 +765,6 @@ impl ServiceInstance {
                 .map(|v| v.join(", "))
                 .unwrap_or_else(|| "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string());
 
-            println!("📤 [{}] CORS preflight response:", service_name);
-            println!("   🌍 Access-Control-Allow-Origin: {}", allow_origin);
-            println!("   🛠️ Access-Control-Allow-Methods: {}", allow_methods);
-            println!("   📋 Access-Control-Allow-Headers: {}", req_headers);
 
             let resp = Response::builder()
                 .status(StatusCode::NO_CONTENT)
@@ -748,10 +780,15 @@ impl ServiceInstance {
                     )
                 })?;
 
-            println!(
-                "✅ [{}] CORS preflight response sent with status 204",
-                service_name
-            );
+            Self::record_log(
+                &state,
+                &service_name,
+                None,
+                "DEBUG",
+                "CORS preflight response sent",
+                204,
+                None,
+            ).await;
             Self::record_log(
                 &state,
                 &service_name,
@@ -759,6 +796,7 @@ impl ServiceInstance {
                 method,
                 path,
                 StatusCode::NO_CONTENT.as_u16(),
+                None,
             )
             .await;
             return Ok(resp);
@@ -787,6 +825,7 @@ impl ServiceInstance {
                     method,
                     path,
                     StatusCode::BAD_REQUEST.as_u16(),
+                    None,
                 )
                 .await;
                 return Ok(resp);
@@ -795,7 +834,15 @@ impl ServiceInstance {
 
         let request_body = if !body_bytes.is_empty() {
             let body_str = String::from_utf8_lossy(&body_bytes);
-            println!("📦 [{}] Request body received: {}", service_name, body_str);
+            Self::record_log(
+                &state,
+                &service_name,
+                None,
+                "DEBUG",
+                &format!("Request body: {}", body_str),
+                200,
+                None,
+            ).await;
 
             // Determine content type
             let content_type = parts
@@ -850,7 +897,7 @@ impl ServiceInstance {
             )
             .await
             {
-                Self::record_log(&state, &service_name, None, method, path, status).await;
+                Self::record_log(&state, &service_name, None, method, path, status, None).await;
                 return Ok(resp);
             }
         }
@@ -887,7 +934,7 @@ impl ServiceInstance {
                         None::<String>,
                     )
                 })?;
-            Self::record_log(&state, &service_name, None, method, path, 200).await;
+            Self::record_log(&state, &service_name, None, method, path, 200, None).await;
             return Ok(resp);
         }
 
@@ -1094,20 +1141,20 @@ impl ServiceInstance {
                             .map(|v| v.join(", "))
                             .unwrap_or_else(|| "Content-Type, Authorization".to_string());
 
-                        println!("🔧 [{}] Adding CORS headers to response:", service_name);
-                        println!("   🌍 Access-Control-Allow-Origin: {}", allow_origin);
-                        println!("   🛠️ Access-Control-Allow-Methods: {}", allow_methods);
-                        println!("   📋 Access-Control-Allow-Headers: {}", allow_headers);
+                        // println!("🔧 [{}] Adding CORS headers to response:", service_name);
+                        // println!("   🌍 Access-Control-Allow-Origin: {}", allow_origin);
+                        // println!("   🛠️ Access-Control-Allow-Methods: {}", allow_methods);
+                        // println!("   📋 Access-Control-Allow-Headers: {}", allow_headers);
 
                         response = response
                             .header("access-control-allow-origin", &allow_origin)
                             .header("access-control-allow-methods", &allow_methods)
                             .header("access-control-allow-headers", &allow_headers);
                     } else {
-                        println!(
-                            "⚠️ [{}] No CORS config, adding wildcard origin",
-                            service_name
-                        );
+                        // println!(
+                        //     "⚠️ [{}] No CORS config, adding wildcard origin",
+                        //     service_name
+                        // );
                         response = response.header("access-control-allow-origin", "*");
                     }
 
@@ -1120,10 +1167,6 @@ impl ServiceInstance {
                             )
                         })?;
 
-                    println!(
-                        "📤 [{}] Sending response with status {}",
-                        service_name, selected_status
-                    );
                     Self::record_log(
                         &state,
                         &service_name,
@@ -1131,6 +1174,7 @@ impl ServiceInstance {
                         method,
                         path,
                         selected_status,
+                        None,
                     )
                     .await;
                     Ok(final_response)
@@ -1155,6 +1199,7 @@ impl ServiceInstance {
                         method,
                         path,
                         StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                        None,
                     )
                     .await;
                     Ok(resp)
@@ -1219,6 +1264,7 @@ impl ServiceInstance {
                                 method,
                                 path,
                                 status.as_u16(),
+                                None,
                             )
                             .await;
                             Ok(final_resp)
@@ -1244,6 +1290,7 @@ impl ServiceInstance {
                                 method,
                                 path,
                                 StatusCode::BAD_GATEWAY.as_u16(),
+                                None,
                             )
                             .await;
                             Ok(resp)
@@ -1255,7 +1302,10 @@ impl ServiceInstance {
 
                     let saved_definition = {
                         let mut def = definition.write().unwrap();
-                        def.endpoints.push(placeholder_endpoint);
+                        match def.endpoints.as_mut() {
+                            Some(endpoints) => endpoints.push(placeholder_endpoint),
+                            None => def.endpoints = Some(vec![placeholder_endpoint]),
+                        }
                         def.clone()
                     };
 
@@ -1332,6 +1382,7 @@ impl ServiceInstance {
                         method,
                         path,
                         StatusCode::CONFLICT.as_u16(),
+                        None,
                     )
                     .await;
                     Ok(resp)
@@ -1356,6 +1407,7 @@ impl ServiceInstance {
                         method,
                         path,
                         StatusCode::NOT_FOUND.as_u16(),
+                        None,
                     )
                     .await;
                     Ok(resp)
@@ -1808,21 +1860,16 @@ impl ServiceInstance {
         self.definition.read().unwrap().behavior.clone()
     }
 
-    /// Check if the service has CORS enabled
-    pub fn has_cors(&self) -> bool {
-        self.definition
-            .read()
-            .unwrap()
-            .server
-            .cors
-            .as_ref()
-            .map(|cors| cors.enabled)
-            .unwrap_or(false)
-    }
-
     /// Get CORS configuration
     pub fn cors_config(&self) -> Option<crate::simulator::config::CorsConfig> {
-        self.definition.read().unwrap().server.cors.clone()
+        self.definition.read().unwrap().server.as_ref().and_then(|s| s.cors.clone())
+    }
+
+    /// Check if the service has CORS enabled
+    pub fn has_cors(&self) -> bool {
+        self.cors_config()
+            .map(|cors| cors.enabled)
+            .unwrap_or(false)
     }
 
     /// Validate that the service definition is consistent
@@ -1831,31 +1878,35 @@ impl ServiceInstance {
         // Check for duplicate endpoint paths with same method
         let mut seen_endpoints = std::collections::HashSet::new();
 
-        for endpoint in &definition.endpoints {
-            let key = format!("{}:{}", endpoint.method.to_uppercase(), endpoint.path);
-            if seen_endpoints.contains(&key) {
-                return Err(ApicentricError::config_error(
-                    format!(
-                        "Duplicate endpoint found: {} {}",
-                        endpoint.method, endpoint.path
-                    ),
-                    Some("Each endpoint must have a unique method-path combination"),
-                ));
+        if let Some(endpoints) = &definition.endpoints {
+            for endpoint in endpoints {
+                let key = format!("{}:{}", endpoint.method.to_uppercase(), endpoint.path);
+                if seen_endpoints.contains(&key) {
+                    return Err(ApicentricError::config_error(
+                        format!(
+                            "Duplicate endpoint found: {} {}",
+                            endpoint.method, endpoint.path
+                        ),
+                        Some("Each endpoint must have a unique method-path combination"),
+                    ));
+                }
+                seen_endpoints.insert(key);
             }
-            seen_endpoints.insert(key);
         }
 
         // Validate that referenced models exist if request body schemas are specified
         if let Some(ref models) = definition.models {
-            for endpoint in &definition.endpoints {
-                if let Some(ref request_body) = endpoint.request_body {
-                    if let Some(ref schema) = request_body.schema {
-                        if !models.contains_key(schema) {
-                            return Err(ApicentricError::config_error(
-                                format!("Referenced model '{}' not found in service '{}'",
-                                    schema, definition.name),
-                                Some("Define the model in the models section or remove the schema reference")
-                            ));
+            if let Some(endpoints) = &definition.endpoints {
+                for endpoint in endpoints {
+                    if let Some(ref request_body) = endpoint.request_body {
+                        if let Some(ref schema) = request_body.schema {
+                            if !models.contains_key(schema) {
+                                return Err(ApicentricError::config_error(
+                                    format!("Referenced model '{}' not found in service '{}'",
+                                        schema, definition.name),
+                                    Some("Define the model in the models section or remove the schema reference")
+                                ));
+                            }
                         }
                     }
                 }
@@ -1977,13 +2028,13 @@ mod tests {
             name: "test-service".to_string(),
             version: Some("1.0.0".to_string()),
             description: Some("Test service".to_string()),
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: Some(8001),
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: {
                 let mut fixtures = HashMap::new();
@@ -1997,7 +2048,7 @@ mod tests {
                 Some(fixtures)
             },
             bucket: None,
-            endpoints: vec![
+            endpoints: Some(vec![
                 EndpointDefinition {
                     kind: EndpointKind::Http,
                     method: "GET".to_string(),
@@ -2050,9 +2101,10 @@ mod tests {
                     scenarios: None,
                     stream: None,
                 },
-            ],
+            ]),
             graphql: None,
             behavior: None,
+            twin: None,
         }
     }
 
@@ -2372,14 +2424,16 @@ mod tests {
         let service = ServiceInstance::new(definition, 8010, storage, tx).unwrap();
 
         let mut headers = HashMap::new();
-        // Missing header should not match
-        let endpoint = service.find_endpoint("GET", "/protected", &headers);
-        assert!(endpoint.is_none());
-
-        // Correct header should match
-        headers.insert("x-api-key".to_string(), "secret".to_string());
-        let endpoint = service.find_endpoint("GET", "/protected", &headers);
+        // Without specific header, it should match the fallback
+        let endpoint = service.find_endpoint("GET", "/headers", &headers);
         assert!(endpoint.is_some());
+        assert_eq!(endpoint.unwrap().description, Some("Get without header match".to_string()));
+
+        // Correct header should match the restricted endpoint
+        headers.insert("x-test".to_string(), "true".to_string());
+        let endpoint = service.find_endpoint("GET", "/headers", &headers);
+        assert!(endpoint.is_some());
+        assert_eq!(endpoint.unwrap().description, Some("Get with header match".to_string()));
     }
 
     #[test]
@@ -2434,7 +2488,6 @@ mod tests {
         let result = engine.render(template, &template_context);
 
         // Debug print to see what we got
-        println!("Template result: {:?}", result);
 
         let result = result.unwrap();
         assert!(result.contains(r#""user_id": "123""#));
@@ -2445,13 +2498,13 @@ mod tests {
             name: "test-service-params".to_string(),
             version: Some("1.0.0".to_string()),
             description: Some("Test service with parameters".to_string()),
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: Some(8001),
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: {
                 let mut fixtures = HashMap::new();
@@ -2465,7 +2518,7 @@ mod tests {
                 Some(fixtures)
             },
             bucket: None,
-            endpoints: vec![
+            endpoints: Some(vec![
                 EndpointDefinition {
                     kind: EndpointKind::Http,
                     method: "GET".to_string(),
@@ -2504,58 +2557,108 @@ mod tests {
                     request_body: None,
                     responses: {
                         let mut responses = HashMap::new();
-                        responses.insert(200, ResponseDefinition {
-                            condition: None,
-                            content_type: "application/json".to_string(),
-                            body: r#"{"userId": "{{ params.userId }}", "orderId": "{{ params.orderId }}"}"#.to_string(),
-                            script: None,
-                            headers: None,
-                            side_effects: None,
-                        });
+                        responses.insert(
+                            200,
+                            ResponseDefinition {
+                                condition: None,
+                                content_type: "application/json".to_string(),
+                                body:
+                                    r#"{"userId": "{{ params.userId }}", "orderId": "{{ params.orderId }}", "status": "found"}"#
+                                        .to_string(),
+                                script: None,
+                                headers: None,
+                                side_effects: None,
+                            },
+                        );
                         responses
                     },
                     scenarios: None,
                     stream: None,
                 },
-            ],
+            ]),
             graphql: None,
             behavior: None,
+            twin: None,
         }
     }
 
     fn create_test_service_definition_with_header_match() -> ServiceDefinition {
-        let mut definition = create_test_service_definition();
-        // Add an endpoint that requires a specific header
-        definition.endpoints.push(EndpointDefinition {
-            kind: EndpointKind::Http,
-            method: "GET".to_string(),
-            path: "/protected".to_string(),
-            description: Some("Requires header".to_string()),
-            header_match: Some(HashMap::from([(
-                "x-api-key".to_string(),
-                "secret".to_string(),
-            )])),
-            parameters: None,
-            request_body: None,
-            responses: {
-                let mut responses = HashMap::new();
-                responses.insert(
-                    200,
-                    ResponseDefinition {
-                        condition: None,
-                        content_type: "application/json".to_string(),
-                        body: "{\"status\":\"ok\"}".to_string(),
-                        script: None,
-                        headers: None,
-                        side_effects: None,
+        ServiceDefinition {
+            name: "test-service-headers".to_string(),
+            version: Some("1.0.0".to_string()),
+            description: Some("Test service with header match".to_string()),
+            server: Some(ServerConfig {
+                port: Some(8001),
+                base_path: "/api/v1".to_string(),
+                proxy_base_url: None,
+                cors: None,
+                record_unknown: false,
+            }),
+            models: None,
+            fixtures: None,
+            bucket: None,
+            endpoints: Some(vec![
+                EndpointDefinition {
+                    kind: EndpointKind::Http,
+                    method: "GET".to_string(),
+                    path: "/headers".to_string(),
+                    header_match: Some({
+                        let mut headers = HashMap::new();
+                        headers.insert("X-Test".to_string(), "true".to_string());
+                        headers
+                    }),
+                    description: Some("Get with header match".to_string()),
+                    parameters: None,
+                    request_body: None,
+                    responses: {
+                        let mut responses = HashMap::new();
+                        responses.insert(
+                            200,
+                            ResponseDefinition {
+                                condition: None,
+                                content_type: "application/json".to_string(),
+                                body: r#"{"msg": "header matched"}"#.to_string(),
+                                script: None,
+                                headers: None,
+                                side_effects: None,
+                            },
+                        );
+                        responses
                     },
-                );
-                responses
-            },
-            scenarios: None,
-            stream: None,
-        });
-        definition
+                    scenarios: None,
+                    stream: None,
+                },
+                EndpointDefinition {
+                    kind: EndpointKind::Http,
+                    method: "GET".to_string(),
+                    path: "/headers".to_string(),
+                    header_match: None,
+                    description: Some("Get without header match".to_string()),
+                    parameters: None,
+                    request_body: None,
+                    responses: {
+                        let mut responses = HashMap::new();
+                        responses.insert(
+                            200,
+                            ResponseDefinition {
+                                condition: None,
+                                content_type: "application/json".to_string(),
+                                body: r#"{"msg": "default response"}"#.to_string(),
+                                script: None,
+                                headers: None,
+                                side_effects: None,
+                            },
+                        );
+                        responses
+                    },
+                    scenarios: None,
+                    stream: None,
+                },
+            ]),
+            graphql: None,
+            behavior: None,
+            twin: None,
+        }
     }
 
     #[tokio::test]
@@ -2574,7 +2677,7 @@ mod tests {
         let mut definition = create_test_service_definition();
 
         // Add duplicate endpoint
-        definition.endpoints.push(EndpointDefinition {
+        definition.endpoints.as_mut().unwrap().push(EndpointDefinition {
             kind: EndpointKind::Http,
             method: "GET".to_string(),
             path: "/users".to_string(), // Duplicate path with same method
@@ -2953,7 +3056,7 @@ mod tests {
         let upstream_handle = spawn_upstream_server(upstream_port);
 
         let mut definition = create_test_service_definition();
-        definition.server.proxy_base_url = Some(format!("http://127.0.0.1:{}", upstream_port));
+        definition.server.as_mut().unwrap().proxy_base_url = Some(format!("http://127.0.0.1:{}", upstream_port));
 
         let service_port = {
             let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -2995,7 +3098,7 @@ mod tests {
     #[tokio::test]
     async fn test_proxy_disabled_returns_not_found() {
         let mut definition = create_test_service_definition();
-        definition.server.proxy_base_url = None; // ensure proxy disabled
+        definition.server.as_mut().unwrap().proxy_base_url = None; // ensure proxy disabled
 
         let service_port = {
             let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();

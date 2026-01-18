@@ -50,7 +50,8 @@ impl SqliteStorage {
                 endpoint INTEGER,
                 method TEXT NOT NULL,
                 path TEXT NOT NULL,
-                status INTEGER NOT NULL
+                status INTEGER NOT NULL,
+                payload TEXT
             )",
             [],
         )
@@ -135,14 +136,15 @@ impl Storage for SqliteStorage {
             .lock()
             .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
         conn.execute(
-                "INSERT INTO logs (timestamp, service, endpoint, method, path, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO logs (timestamp, service, endpoint, method, path, status, payload) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
                     entry.timestamp.to_rfc3339(),
                     entry.service,
                     entry.endpoint.map(|v| v as i64),
                     entry.method,
                     entry.path,
-                    entry.status as i64
+                    entry.status as i64,
+                    entry.payload
                 ],
             )
             .map_err(|e| ApicentricError::runtime_error(format!("Failed to insert log: {}", e), None::<String>))?;
@@ -158,7 +160,7 @@ impl Storage for SqliteStorage {
         limit: usize,
     ) -> ApicentricResult<Vec<RequestLogEntry>> {
         let mut sql =
-            String::from("SELECT timestamp, service, endpoint, method, path, status FROM logs");
+            String::from("SELECT timestamp, service, endpoint, method, path, status, payload FROM logs");
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<Box<dyn ToSql>> = Vec::new();
 
@@ -216,6 +218,7 @@ impl Storage for SqliteStorage {
                         method: row.get(3)?,
                         path: row.get(4)?,
                         status: row.get::<_, i64>(5)? as u16,
+                        payload: row.get(6)?,
                     })
                 },
             )
@@ -226,10 +229,8 @@ impl Storage for SqliteStorage {
                 )
             })?;
         let mut entries: Vec<RequestLogEntry> = Vec::new();
-        for item in mapped {
-            if let Ok(entry) = item {
-                entries.push(entry);
-            }
+        for entry in mapped.flatten() {
+            entries.push(entry);
         }
         entries.reverse();
         Ok(entries)

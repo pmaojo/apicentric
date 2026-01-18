@@ -37,19 +37,20 @@ fn from_openapi_v3(raw: &Value) -> ServiceDefinition {
                 .and_then(|v| v.as_str())
                 .map(|v| v.to_string()),
             description: None,
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: None,
                 base_path: "/".to_string(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: Vec::new(),
+            endpoints: Some(Vec::new()),
             graphql: None,
             behavior: None,
+            twin: None,
         },
     }
 }
@@ -105,7 +106,7 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                     Some(
                         op.parameters
                             .iter()
-                            .map(|param| convert_openapi3_parameter(param))
+                            .map(convert_openapi3_parameter)
                             .collect(),
                     )
                 };
@@ -117,7 +118,7 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                             .as_ref()
                             .and_then(|schema| schema.get("$ref"))
                             .and_then(|r| r.as_str())
-                            .and_then(|r| r.split('/').last())
+                            .and_then(|r| r.split('/').next_back())
                             .map(|s| s.to_string());
                         RequestBodyDefinition {
                             required: body.required,
@@ -174,13 +175,14 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
         name: doc.info.title.clone(),
         version: Some(doc.info.version.clone()),
         description: None,
-        server,
+        server: Some(server),
         models,
         fixtures: None,
         bucket: None,
-        endpoints,
+        endpoints: Some(endpoints),
         graphql: None,
         behavior: None,
+        twin: None,
     }
 }
 
@@ -288,7 +290,7 @@ fn generate_example_from_schema_v3(
     }
 
     if let Some(ref_path) = schema.get("$ref").and_then(|r| r.as_str()) {
-        if let Some(name) = ref_path.split('/').last() {
+        if let Some(name) = ref_path.split('/').next_back() {
             if !visited.insert(name.to_string()) {
                 return JsonValue::Object(Default::default());
             }
@@ -550,7 +552,8 @@ struct OpenApi3Components {
 pub fn to_openapi(service: &ServiceDefinition) -> OpenAPI {
     let mut paths: IndexMap<String, PathItem> = IndexMap::new();
 
-    for ep in &service.endpoints {
+    let endpoints = service.endpoints.as_ref().cloned().unwrap_or_default();
+    for ep in &endpoints {
         let path_item = paths.entry(ep.path.clone()).or_insert_with(|| PathItem {
             get: None,
             post: None,
@@ -658,7 +661,7 @@ pub fn to_openapi(service: &ServiceDefinition) -> OpenAPI {
             ..Default::default()
         },
         servers: vec![openapiv3::Server {
-            url: service.server.base_path.clone(),
+            url: service.server.as_ref().map(|s| s.base_path.clone()).unwrap_or_else(|| "/".into()),
             description: None,
             variables: None,
             ..Default::default()

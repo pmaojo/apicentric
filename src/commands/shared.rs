@@ -152,19 +152,20 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
         name,
         version: None,
         description: description.filter(|s| !s.is_empty()),
-        server: ServerConfig {
+        server: Some(ServerConfig {
             port: Some(port),
             base_path,
             proxy_base_url: None,
             cors: None,
             record_unknown: false,
-        },
+        }),
         models: None,
         fixtures: None,
         bucket: None,
-        endpoints,
+        endpoints: Some(endpoints),
         graphql: None,
         behavior: None,
+        twin: None,
     })
 }
 

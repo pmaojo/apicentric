@@ -21,6 +21,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, RwLock};
 use tracing::info;
+use std::time::Instant;
+
+/// Result of an endpoint test
+#[derive(Debug, Clone)]
+pub struct TestResult {
+    pub status: u16,
+    pub body: String,
+    pub duration_ms: u64,
+}
 
 /// Central coordinator for the API simulator functionality
 pub struct ApiSimulatorManager {
@@ -192,13 +201,14 @@ impl ApiSimulatorManager {
 
     /// Apply a YAML service definition string to the running simulator and CRDT.
     pub async fn apply_service_yaml(&self, yaml: &str) -> ApicentricResult<String> {
-        let def: ServiceDefinition = serde_yaml::from_str(yaml).map_err(|e| {
+        let unified: crate::simulator::config::UnifiedConfig = serde_yaml::from_str(yaml).map_err(|e| {
             ApicentricError::validation_error(
                 format!("Invalid service YAML: {}", e),
                 None::<String>,
                 None::<String>,
             )
         })?;
+        let def = ServiceDefinition::from(unified);
         let service_name = def.name.clone();
         self.apply_service_definition(def).await?;
         Ok(service_name)
@@ -325,6 +335,66 @@ impl ApiSimulatorManager {
                 Some("Check that the service is registered"),
             ))
         }
+    }
+
+    /// Get the configuration of a specific service as YAML
+    pub async fn get_service_config(&self, service_name: &str) -> Option<String> {
+        let registry = self.service_registry.read().await;
+        if let Some(service_arc) = registry.get_service(service_name) {
+            let service = service_arc.read().await;
+            let definition = service.definition();
+            serde_yaml::to_string(&definition).ok()
+        } else {
+            None
+        }
+    }
+
+    /// Get the endpoints of a specific service
+    pub async fn get_service_endpoints(&self, service_name: &str) -> Option<Vec<crate::simulator::config::EndpointDefinition>> {
+        let registry = self.service_registry.read().await;
+        if let Some(service_arc) = registry.get_service(service_name) {
+            let service = service_arc.read().await;
+            Some(service.endpoints())
+        } else {
+            None
+        }
+    }
+
+    /// Test an endpoint by sending a request
+    pub async fn test_endpoint(&self, port: u16, method: &str, path: &str) -> ApicentricResult<TestResult> {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .map_err(|e| ApicentricError::runtime_error(format!("Failed to create client: {}", e), None::<String>))?;
+
+        let url = format!("http://localhost:{}{}", port, path);
+        let start = Instant::now();
+
+        let response = client
+            .request(
+                method.parse().unwrap_or(reqwest::Method::GET),
+                &url
+            )
+            .send()
+            .await
+            .map_err(|e| ApicentricError::runtime_error(format!("Request failed: {}", e), None::<String>))?;
+
+        let status = response.status().as_u16();
+        let body = response.text().await
+            .map_err(|e| ApicentricError::runtime_error(format!("Failed to read body: {}", e), None::<String>))?;
+        
+        // Truncate body if too long
+        let body = if body.len() > 1000 {
+            format!("{}... (truncated)", &body[..1000])
+        } else {
+            body
+        };
+
+        Ok(TestResult {
+            status,
+            body,
+            duration_ms: start.elapsed().as_millis() as u64,
+        })
     }
 
     /// Load services from the configured directory

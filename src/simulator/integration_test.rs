@@ -68,13 +68,13 @@ mod tests {
             name: "integration-test-service".to_string(),
             version: Some("1.0.0".to_string()),
             description: Some("Integration test service".to_string()),
-            server: super::super::config::ServerConfig {
+            server: Some(super::super::config::ServerConfig {
                 port: Some(8100),
                 base_path: "/api/v1".to_string(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: {
                 let mut fixtures = HashMap::new();
@@ -88,7 +88,7 @@ mod tests {
                 Some(fixtures)
             },
             bucket: None,
-            endpoints: vec![
+            endpoints: Some(vec![
                 EndpointDefinition {
                     kind: EndpointKind::Http,
                     method: "GET".to_string(),
@@ -161,9 +161,10 @@ mod tests {
                     scenarios: None,
                     stream: None,
                 },
-            ],
+            ]),
             graphql: None,
             behavior: None,
+            twin: None,
         }
     }
 
@@ -172,19 +173,20 @@ mod tests {
             name: "recording-test-service".to_string(),
             version: Some("1.0.0".to_string()),
             description: Some("Integration test service".to_string()),
-            server: super::super::config::ServerConfig {
+            server: Some(super::super::config::ServerConfig {
                 port: Some(8200),
                 base_path: "/api".to_string(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: Vec::new(),
+            endpoints: Some(Vec::new()),
             graphql: None,
             behavior: None,
+            twin: None,
         }
     }
 
@@ -339,7 +341,7 @@ mod tests {
     #[tokio::test]
     async fn test_request_logging_and_retrieval() {
         let definition = create_test_service_with_params();
-        let base_path = definition.server.base_path.clone();
+        let base_path = definition.server.as_ref().unwrap().base_path.clone();
 
         // Use a free port
         let free_port = {
@@ -367,6 +369,11 @@ mod tests {
                 .json()
                 .await
                 .unwrap();
+        
+        let logs: Vec<RequestLogEntry> = logs
+            .into_iter()
+            .filter(|l| l.method != "SYSTEM" && l.method != "DEBUG")
+            .collect();
 
         assert!(logs.len() >= 2);
         assert_eq!(logs[0].path, format!("{}/users", base_path));
@@ -385,7 +392,7 @@ mod tests {
     #[tokio::test]
     async fn test_unknown_route_recording_creates_endpoint() {
         let mut definition = create_recording_service();
-        definition.server.record_unknown = true;
+        definition.server.as_mut().unwrap().record_unknown = true;
 
         let port = get_free_port();
         let storage = Arc::new(RecordingStorage::default());
@@ -414,6 +421,8 @@ mod tests {
         let updated_definition = service.definition();
         let recorded = updated_definition
             .endpoints
+            .as_ref()
+            .unwrap()
             .iter()
             .find(|ep| ep.path == "/orders/{param1}" && ep.method == "GET");
         assert!(recorded.is_some(), "expected recorded endpoint in service");
@@ -422,6 +431,8 @@ mod tests {
         assert!(
             saved.iter().any(|service| service
                 .endpoints
+                .as_ref()
+                .unwrap()
                 .iter()
                 .any(|ep| ep.path == "/orders/{param1}" && ep.method == "GET")),
             "expected persisted definition with recorded endpoint"
@@ -433,7 +444,7 @@ mod tests {
     #[tokio::test]
     async fn test_unknown_route_reuse_after_recording() {
         let mut definition = create_recording_service();
-        definition.server.record_unknown = true;
+        definition.server.as_mut().unwrap().record_unknown = true;
 
         let port = get_free_port();
         let storage = Arc::new(RecordingStorage::default());

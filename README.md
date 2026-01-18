@@ -219,6 +219,20 @@ docker run -p 9002:9002 ecommerce-api
 
 Apicentric provides multiple installation methods to suit your workflow. Choose the one that works best for you.
 
+### NPM / Node.js (Quickest)
+
+If you have Node.js installed, you can run Apicentric directly without installation:
+
+```bash
+npx apicentric simulator start
+```
+
+Or install it globally:
+
+```bash
+npm install -g apicentric
+```
+
 ### Homebrew (macOS/Linux) - Recommended
 
 The easiest way to install on macOS and Linux:
@@ -408,6 +422,28 @@ apicentric simulator --help
 
 Expected output should show version information and available commands.
 
+## Utility Commands
+
+Apicentric includes built-in tools to help you manage your environment:
+
+### 🏥 Doctor
+
+Diagnose issues with your installation or environment:
+
+```bash
+apicentric doctor
+```
+
+### 🌐 Open WebUI
+
+Quickly open the WebUI in your default browser:
+
+```bash
+apicentric open
+# Or specify a custom port
+apicentric open --port 9002
+```
+
 ## Troubleshooting
 
 ### Command not found
@@ -491,7 +527,6 @@ Expected output should show version information and available commands.
   ```
 
 - **Missing dependencies:** Install required system dependencies:
-
   - **Ubuntu/Debian:**
     ```bash
     sudo apt-get update
@@ -747,6 +782,8 @@ apicentric twin run --device assets/library/demo_device.yaml
 - [Quick Start Guide](docs/guides/quick-start.md)
 - [Request Recording Guide](docs/guides/request-recording.md)
 - [Installation Guide](docs/guides/installation.md)
+- [Troubleshooting & Doctor](docs/guides/troubleshooting.md)
+- [Publishing Guide](docs/guides/publishing.md)
 - [Simulator Guide](docs/guides/simulator.md)
 - [TUI Guide](docs/guides/tui.md)
 - [Architecture](ARCHITECTURE.md)

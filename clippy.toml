@@ -1,36 +1,6 @@
 # Clippy configuration for apicentric project
 # See https://doc.rust-lang.org/clippy/ for full options
 
-# Disallowed methods
-disallowed-methods = []
-
-# Disallowed types
-disallowed-types = []
-
-# Disallowed macros
-disallowed-macros = []
-
-# Allowed duplicate crates
-allow-duplicate-crates = false
-
-# Arithmetic side effects
-arithmetic-side-effects = false
-
-# Cast losslessness
-cast-lossless = true
-
-# Cast precision loss
-cast-precision-loss = "warn"
-
-# Cast possible truncation
-cast-possible-truncation = "warn"
-
-# Cast possible wrap
-cast-possible-wrap = "warn"
-
-# Cast sign loss
-cast-sign-loss = "warn"
-
 # Cognitive complexity threshold
 cognitive-complexity-threshold = 25
 
@@ -48,66 +18,3 @@ enum-variant-name-threshold = 3
 
 # Verbose bit mask threshold
 verbose-bit-mask-threshold = 1
-
-# Allow expect in tests
-allow-expect-in-tests = true
-
-# Allow unwrap in tests
-allow-unwrap-in-tests = true
-
-# Allow dbg in tests
-allow-dbg-in-tests = true
-
-# Check private items
-check-private-items = false
-
-# Enforce for loop
-enforce-for-loop = false
-
-# Enforce iterate once
-enforce-iterate-once = false
-
-# Missing docs in crate items
-missing-docs-in-crate-items = false
-
-# Upper case acronyms
-upper-case-acronyms-aggressive = false
-
-# Doc valid idents
-doc-valid-idents = [".."]
-
-# Missing const for fn
-missing-const-for-fn = "warn"
-
-# Redundant else
-redundant-else = "warn"
-
-# Single char binding names threshold
-single-char-binding-names-threshold = 4
-
-# Allow mixed unnamed and named parameters
-allow-mixed-unamed-and-named = false
-
-# Check intrinsics
-check-intrinsics = false
-
-# Enable experimental intrinsics
-enable-raw-api = false
-
-# Lint groups to enable
-# Standard lints are enabled by default
-# pedantic = true
-# nursery = true
-# cargo = true
-
-# Specific lints to allow
-allow = []
-
-# Specific lints to warn
-warn = []
-
-# Specific lints to deny
-deny = []
-
-# Forbidden lints
-forbid = []

@@ -24,11 +24,13 @@ pub fn to_axios_client(service: &ServiceDefinition) -> Result<String> {
     out.push_str("  }\n\n");
 
     // Generate methods for each endpoint
-    for ep in &service.endpoints {
+    let endpoints = service.endpoints.as_ref().cloned().unwrap_or_default();
+    let base_path = service.server.as_ref().map(|s| s.base_path.as_str()).unwrap_or("/");
+    for ep in &endpoints {
         if ep.kind != EndpointKind::Http {
             continue;
         }
-        out.push_str(&generate_client_method(ep, &service.server.base_path));
+        out.push_str(&generate_client_method(ep, base_path));
         out.push('\n');
     }
 
@@ -141,17 +143,17 @@ mod tests {
             name: "Pet".into(),
             version: None,
             description: None,
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: None,
                 base_path: "/api".into(),
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: vec![
+            endpoints: Some(vec![
                 EndpointDefinition {
                     kind: EndpointKind::Http,
                     method: "GET".into(),
@@ -188,9 +190,10 @@ mod tests {
                     scenarios: None,
                     stream: None,
                 },
-            ],
+            ]),
             graphql: None,
             behavior: None,
+            twin: None,
         };
         let ts = to_axios_client(&service).unwrap();
         assert!(ts.contains("class PetClient"));

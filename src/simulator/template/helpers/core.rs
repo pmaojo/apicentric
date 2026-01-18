@@ -129,8 +129,7 @@ pub fn find_by_field_helper(
                                             && item_value.as_str() == search_value.as_str())
                                         || (item_value.is_number()
                                             && search_value.is_string()
-                                            && item_value.to_string()
-                                                == search_value.as_str().unwrap_or(""))
+                                            && *item_value == search_value.as_str().unwrap_or(""))
                                     {
                                         out.write(
                                             &serde_json::to_string(item).unwrap_or_default(),
@@ -266,7 +265,7 @@ pub fn find_by_multi_field_helper(
     if let Some(array_param) = h.param(0) {
         if let Some(array) = array_param.value().as_array() {
             // Parse field-value pairs: array field1 value1 field2 value2 ...
-            let params: Vec<_> = h.params().into_iter().collect();
+            let params: Vec<_> = h.params().iter().collect();
 
             if params.len() >= 3 && (params.len() - 1) % 2 == 0 {
                 // Find item that matches all field-value pairs
@@ -288,7 +287,7 @@ pub fn find_by_multi_field_helper(
                                                 && item_value.as_str() == search_value.as_str())
                                             || (item_value.is_number()
                                                 && search_value.is_string()
-                                                && item_value.to_string()
+                                                && *item_value
                                                     == search_value.as_str().unwrap_or(""));
 
                                         if !matches {

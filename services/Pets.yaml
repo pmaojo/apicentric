@@ -4,7 +4,7 @@ description: Pet service with fixtures and template rendering
 server:
   port: 9002
   base_path: /api/v1
-  cors: 
+  cors:
     enabled: true
     origins: ["*"]
 
@@ -50,11 +50,11 @@ endpoints:
         body: |
           {
             "id": {{ params.id }},
-            "name": "{{ (find fixtures.pets "id" params.id).name~ }}",
-            "type": "{{ (find fixtures.pets "id" params.id).type~ }}",
-            "breed": "{{ (find fixtures.pets "id" params.id).breed~ }}",
-            "age": {{ (find fixtures.pets "id" params.id).age }},
-            "available": {{ (find fixtures.pets "id" params.id).available }}
+            "name": "{{#with (find fixtures.pets "id" params.id)}}{{name}}{{/with}}",
+            "type": "{{#with (find fixtures.pets "id" params.id)}}{{type}}{{/with}}",
+            "breed": "{{#with (find fixtures.pets "id" params.id)}}{{breed}}{{/with}}",
+            "age": {{#with (find fixtures.pets "id" params.id)}}{{age}}{{/with}},
+            "available": {{#with (find fixtures.pets "id" params.id)}}{{available}}{{/with}}
           }
 
   - method: GET

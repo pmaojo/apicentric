@@ -246,31 +246,29 @@ pub async fn handle_logs(
             })?;
             if logs.is_empty() {
                 println!("No logs available for service '{}'.", service);
+            } else if let Some(path) = output {
+                let file = std::fs::File::create(path).map_err(|e| {
+                    ApicentricError::runtime_error(
+                        format!("Failed to write logs to {}: {}", path, e),
+                        None::<String>,
+                    )
+                })?;
+                serde_json::to_writer_pretty(file, &logs).map_err(|e| {
+                    ApicentricError::runtime_error(
+                        format!("Failed to serialize logs: {}", e),
+                        None::<String>,
+                    )
+                })?;
+                println!("Saved {} log entries to {}", logs.len(), path);
             } else {
-                if let Some(path) = output {
-                    let file = std::fs::File::create(path).map_err(|e| {
-                        ApicentricError::runtime_error(
-                            format!("Failed to write logs to {}: {}", path, e),
-                            None::<String>,
-                        )
-                    })?;
-                    serde_json::to_writer_pretty(file, &logs).map_err(|e| {
-                        ApicentricError::runtime_error(
-                            format!("Failed to serialize logs: {}", e),
-                            None::<String>,
-                        )
-                    })?;
-                    println!("Saved {} log entries to {}", logs.len(), path);
-                } else {
-                    for entry in logs {
-                        println!(
-                            "[{}] {} {} -> {}",
-                            entry.timestamp.to_rfc3339(),
-                            entry.method,
-                            entry.path,
-                            entry.status
-                        );
-                    }
+                for entry in logs {
+                    println!(
+                        "[{}] {} {} -> {}",
+                        entry.timestamp.to_rfc3339(),
+                        entry.method,
+                        entry.path,
+                        entry.status
+                    );
                 }
             }
             Ok(())

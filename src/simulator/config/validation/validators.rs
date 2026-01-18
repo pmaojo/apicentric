@@ -41,24 +41,52 @@ impl ConfigValidator for ServiceDefinition {
             errors.push(e);
         }
 
-        if let Err(mut server_errors) = self.server.validate() {
-            errors.append(&mut server_errors);
-        }
-
-        if self.endpoints.is_empty() {
-            errors.push(ValidationError {
-                field: "endpoints".to_string(),
-                message: "Service must have at least one endpoint".to_string(),
-                suggestion: Some("Add at least one endpoint definition".to_string()),
-            });
-        }
-
-        for (i, endpoint) in self.endpoints.iter().enumerate() {
-            if let Err(mut endpoint_errors) = endpoint.validate() {
-                for error in &mut endpoint_errors {
-                    error.field = format!("endpoints[{}].{}", i, error.field);
+        if let Some(ref twin) = self.twin {
+            if twin.name.is_empty() {
+                errors.push(ValidationError {
+                    field: "twin.name".to_string(),
+                    message: "Twin name cannot be empty".to_string(),
+                    suggestion: Some("Provide a name for the digital twin".to_string()),
+                });
+            }
+        } else {
+            // Standard service validation
+            if let Some(ref server) = self.server {
+                // Assuming ServerConfig implements ConfigValidator
+                if let Err(mut server_errors) = server.validate() {
+                    errors.append(&mut server_errors);
                 }
-                errors.append(&mut endpoint_errors);
+            } else {
+                errors.push(ValidationError {
+                    field: "server".to_string(),
+                    message: "Standard service must have a server configuration".to_string(),
+                    suggestion: Some("Add a 'server' block or a 'twin' block".to_string()),
+                });
+            }
+
+            if let Some(ref endpoints) = self.endpoints {
+                if endpoints.is_empty() {
+                    errors.push(ValidationError {
+                        field: "endpoints".to_string(),
+                        message: "Service must have at least one endpoint".to_string(),
+                        suggestion: Some("Add at least one endpoint definition".to_string()),
+                    });
+                }
+
+                for (i, endpoint) in endpoints.iter().enumerate() {
+                    if let Err(mut endpoint_errors) = endpoint.validate() {
+                        for error in &mut endpoint_errors {
+                            error.field = format!("endpoints[{}].{}", i, error.field);
+                        }
+                        errors.append(&mut endpoint_errors);
+                    }
+                }
+            } else {
+                errors.push(ValidationError {
+                    field: "endpoints".to_string(),
+                    message: "Standard service must have endpoints".to_string(),
+                    suggestion: Some("Add an 'endpoints' list or a 'twin' block".to_string()),
+                });
             }
         }
 
@@ -191,13 +219,14 @@ mod tests {
             name: "svc".into(),
             version: None,
             description: None,
-            server,
+            server: Some(server),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: vec![endpoint],
+            endpoints: Some(vec![endpoint]),
             graphql: None,
             behavior: None,
+            twin: None,
         };
         let mut names = HashSet::new();
         validate_unique_name(&service, &mut names).unwrap();

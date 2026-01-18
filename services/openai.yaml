@@ -1,0 +1,14 @@
+name: openai
+version: 1.0.0
+description: Installed from marketplace
+server:
+  port: 8080
+  base_path: /api
+endpoints:
+  - method: GET
+    path: /health
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {"status": "ok", "source": "marketplace"}

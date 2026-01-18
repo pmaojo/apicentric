@@ -110,13 +110,14 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
         name: env.name.clone(),
         version: None,
         description: None,
-        server,
+        server: Some(server),
         models: None,
         fixtures: None,
         bucket: None,
-        endpoints,
+        endpoints: Some(endpoints),
         graphql: None,
         behavior: None,
+        twin: None,
     }
 }
 

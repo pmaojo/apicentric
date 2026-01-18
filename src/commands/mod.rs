@@ -7,3 +7,5 @@ pub mod tui;
 pub mod tui_render;
 #[cfg(feature = "iot")]
 pub mod twin;
+pub mod doctor;
+pub mod open;

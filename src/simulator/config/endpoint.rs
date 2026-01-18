@@ -7,8 +7,10 @@ use std::path::PathBuf;
 /// Type of endpoint supported by the simulator
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum EndpointKind {
     /// Standard HTTP request/response endpoint
+    #[default]
     Http,
     /// WebSocket endpoint
     #[serde(alias = "ws")]
@@ -16,12 +18,6 @@ pub enum EndpointKind {
     /// Server Sent Events endpoint
     #[serde(alias = "sse")]
     Sse,
-}
-
-impl Default for EndpointKind {
-    fn default() -> Self {
-        EndpointKind::Http
-    }
 }
 
 /// Configuration for streaming style endpoints (WebSocket/SSE)

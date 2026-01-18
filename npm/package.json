@@ -1,0 +1,33 @@
+{
+  "name": "apicentric",
+  "version": "0.3.1",
+  "description": "A powerful CLI tool and API simulator platform for developers who love the terminal",
+  "bin": {
+    "apicentric": "bin/apicentric.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pmaojo/apicentric.git"
+  },
+  "keywords": [
+    "cli",
+    "api",
+    "simulator",
+    "mock",
+    "testing",
+    "rust"
+  ],
+  "author": "Pelayo Maojo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pmaojo/apicentric/issues"
+  },
+  "homepage": "https://apicentric.pelayomaojo.es",
+  "files": [
+    "bin",
+    "install.js"
+  ]
+}

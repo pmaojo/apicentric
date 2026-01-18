@@ -238,7 +238,10 @@ pub async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> Apicentric
         })?;
 
     let endpoint = scaffold_endpoint_definition()?;
-    service.endpoints.push(endpoint);
+    match service.endpoints.as_mut() {
+        Some(endpoints) => endpoints.push(endpoint),
+        None => service.endpoints = Some(vec![endpoint]),
+    }
 
     let yaml = serde_yaml::to_string(&service).map_err(|e| {
         ApicentricError::runtime_error(
@@ -274,19 +277,20 @@ pub async fn handle_new_graphql(
         name: service_name.clone(),
         version: Some("1.0.0".to_string()),
         description: Some("A GraphQL service".to_string()),
-        server: apicentric::simulator::config::ServerConfig {
+        server: Some(apicentric::simulator::config::ServerConfig {
             port: Some(9001),
             base_path: "/".to_string(),
             proxy_base_url: None,
             cors: None,
             record_unknown: false,
-        },
+        }),
         models: None,
         fixtures: None,
         bucket: None,
-        endpoints: Vec::new(),
+        endpoints: Some(Vec::new()),
         graphql: None,
         behavior: None,
+        twin: None,
     };
 
     let gql_schema_filename = format!("{}.gql", service_name);

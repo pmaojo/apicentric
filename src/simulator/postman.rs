@@ -48,19 +48,20 @@ fn convert_postman(v: &Value) -> ServiceDefinition {
         name,
         version: None,
         description: None,
-        server: ServerConfig {
+        server: Some(ServerConfig {
             port: None,
             base_path: "/".into(),
             proxy_base_url: None,
             cors: None,
             record_unknown: false,
-        },
+        }),
         models: None,
         fixtures: None,
         bucket: None,
-        endpoints,
+        endpoints: Some(endpoints),
         graphql: None,
         behavior: None,
+        twin: None,
     }
 }
 
@@ -242,26 +243,27 @@ fn convert_insomnia(v: &Value) -> ServiceDefinition {
         name,
         version: None,
         description: None,
-        server: ServerConfig {
+        server: Some(ServerConfig {
             port: None,
             base_path: "/".into(),
             proxy_base_url: None,
             cors: None,
             record_unknown: false,
-        },
+        }),
         models: None,
         fixtures: None,
         bucket: None,
-        endpoints,
+        endpoints: Some(endpoints),
         graphql: None,
         behavior: None,
+        twin: None,
     }
 }
 
 /// Convert a [`ServiceDefinition`] into a Postman collection value
 pub fn to_postman(service: &ServiceDefinition) -> Value {
-    let items: Vec<Value> = service
-        .endpoints
+    let endpoints = service.endpoints.as_ref().cloned().unwrap_or_default();
+    let items: Vec<Value> = endpoints
         .iter()
         .map(|ep| {
             let responses: Vec<Value> = ep

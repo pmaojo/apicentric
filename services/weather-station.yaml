@@ -1,0 +1,25 @@
+twin:
+  name: weather-station-01
+  physics:
+    - variable: wind_speed
+      strategy: script
+      params:
+        code: |
+           let r = value + (rand() % 10 - 5) * 0.1;
+           if r < 0.0 { r = 0.0; }
+           r
+    - variable: temperature
+      strategy: sine
+      params:
+        min: 15.0
+        max: 30.0
+    - variable: humidity
+      strategy: sine
+      params:
+        min: 30.0
+        max: 90.0
+  transports:
+    - type: mqtt
+      broker_url: localhost
+      port: 1883
+      topic_prefix: city/weather

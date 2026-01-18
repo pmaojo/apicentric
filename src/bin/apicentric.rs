@@ -39,8 +39,12 @@ mod cloud_cmd;
 #[path = "../commands/mcp/mod.rs"]
 mod mcp_cmd;
 
+#[path = "../commands/doctor.rs"]
+mod doctor_cmd;
 #[path = "../commands/new.rs"]
 mod new_cmd;
+#[path = "../commands/open.rs"]
+mod open_cmd;
 
 #[cfg(feature = "iot")]
 use apicentric::iot::args::TwinCommands;
@@ -111,7 +115,7 @@ enum Commands {
     /// API Simulator operations.
     Simulator {
         #[command(subcommand)]
-        action: simulator_cmd::SimulatorAction,
+        action: Option<simulator_cmd::SimulatorAction>,
     },
     /// AI-assisted generation.
     Ai {
@@ -135,11 +139,19 @@ enum Commands {
         name: String,
         /// The template ID to use (e.g., stripe, slack, petstore).
         #[arg(long, short)]
-        template: String,
+        template: Option<String>,
     },
     /// Starts the MCP server for AI agent interaction (requires the 'mcp' feature).
     #[cfg(feature = "mcp")]
     Mcp(mcp_cmd::Mcp),
+    /// Diagnose environment issues
+    Doctor,
+    /// Open the WebUI in default browser
+    Open {
+        /// Port number (default: 9002)
+        #[arg(short, long)]
+        port: Option<u16>,
+    },
     /// Manage IoT Digital Twins (requires the 'iot' feature).
     #[cfg(feature = "iot")]
     Twin {
@@ -151,8 +163,14 @@ enum Commands {
 /// The entry point for the `apicentric` CLI.
 #[tokio::main]
 async fn main() {
-    // Initialize structured logging
-    apicentric::logging::init();
+    // Skip logging for TUI mode to prevent log bleed into the terminal UI
+    let args: Vec<String> = std::env::args().collect();
+    let is_tui = args.iter().any(|a| a == "tui");
+    
+    if !is_tui {
+        // Initialize structured logging only for non-TUI commands
+        apicentric::logging::init();
+    }
 
     let cli = Cli::parse();
 
@@ -180,11 +198,11 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
     // Override config with CLI args
     if let Commands::Simulator {
         action:
-            simulator_cmd::SimulatorAction::Start {
+            Some(simulator_cmd::SimulatorAction::Start {
                 services_dir,
                 force: _,
                 p2p: _,
-            },
+            }),
     } = &cli.command
     {
         if cfg.simulator.is_none() {
@@ -218,45 +236,63 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
     }
 
     match cli.command {
-        Commands::Simulator { action } => match &action {
-            simulator_cmd::SimulatorAction::Start {
-                services_dir: _,
-                force: _,
-                p2p,
-            } => {
-                // Start and block to keep services alive
-                if let Some(sim) = context.api_simulator() {
-                    if exec_ctx.dry_run {
-                        println!("🏃 Dry run: Would start API simulator");
-                        return Ok(());
-                    }
-                    if *p2p {
-                        sim.enable_p2p(true).await;
-                    }
-                    println!("🚀 Starting API Simulator (blocking)…");
-                    sim.start().await?;
-                    let status = sim.get_status().await;
-                    println!(
-                        "✅ API Simulator started ({} services, {} active)",
-                        status.services_count,
-                        status.active_services.len()
-                    );
-                    for svc in &status.active_services {
+        Commands::Simulator { action } => match action {
+            Some(action) => match &action {
+                simulator_cmd::SimulatorAction::Start {
+                    services_dir: _,
+                    force: _,
+                    p2p,
+                } => {
+                    // Start and block to keep services alive
+                    if let Some(sim) = context.api_simulator() {
+                        if exec_ctx.dry_run {
+                            println!("🏃 Dry run: Would start API simulator");
+                            return Ok(());
+                        }
+                        if *p2p {
+                            sim.enable_p2p(true).await;
+                        }
+                        println!("🚀 Starting API Simulator (blocking)…");
+                        sim.start().await?;
+                        let status = sim.get_status().await;
                         println!(
-                            "   - {}: http://localhost:{}{}",
-                            svc.name, svc.port, svc.base_path
+                            "✅ API Simulator started ({} services, {} active)",
+                            status.services_count,
+                            status.active_services.len()
                         );
+                        for svc in &status.active_services {
+                            println!(
+                                "   - {}: http://localhost:{}{}",
+                                svc.name, svc.port, svc.base_path
+                            );
+                        }
+                        println!("🔄 Simulator running... Press Ctrl+C to stop");
+                        tokio::signal::ctrl_c().await.ok();
+                        println!("🛑 Stopping simulator…");
+                        sim.stop().await.ok();
+                        Ok(())
+                    } else {
+                        simulator_cmd::simulator_command(&action, &context, &exec_ctx).await
                     }
-                    println!("🔄 Simulator running... Press Ctrl+C to stop");
-                    tokio::signal::ctrl_c().await.ok();
-                    println!("🛑 Stopping simulator…");
-                    sim.stop().await.ok();
-                    Ok(())
-                } else {
-                    simulator_cmd::simulator_command(&action, &context, &exec_ctx).await
                 }
+                _ => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
+            },
+            None => {
+                use colored::Colorize;
+                println!("{}", "APICENTRIC SIMULATOR".bold().green());
+                println!("Usage: apicentric simulator <COMMAND>");
+                println!();
+                println!("Common commands:");
+                println!("  {}     Start the simulator", "start".cyan());
+                println!("  {}      Show status", "status".cyan());
+                println!("  {}     Show request logs", "logs".cyan());
+                println!();
+                println!(
+                    "Run '{}' for full list.",
+                    "apicentric simulator --help".yellow()
+                );
+                Ok(())
             }
-            _ => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
         },
         Commands::Ai { action } => ai_cmd::ai_command(&action, &context, &exec_ctx).await,
         #[cfg(feature = "tui")]
@@ -265,9 +301,13 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Gui => gui_cmd::gui_command().await,
         #[cfg(feature = "webui")]
         Commands::Cloud => cloud_cmd::cloud_command().await,
-        Commands::New { name, template } => new_cmd::new_command(name.clone(), template.clone()).await,
+        Commands::New { name, template } => {
+            new_cmd::new_command(name.clone(), template.clone()).await
+        }
         #[cfg(feature = "mcp")]
         Commands::Mcp(mcp) => mcp_cmd::mcp_command(&mcp, &context, &exec_ctx).await,
+        Commands::Doctor => doctor_cmd::doctor_command().await,
+        Commands::Open { port } => open_cmd::open_command(port).await,
         #[cfg(feature = "iot")]
         Commands::Twin { command } => match command {
             TwinCommands::Run(args) => {
