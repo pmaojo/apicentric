@@ -157,6 +157,7 @@ impl CloudServer {
                     .delete(iot_handlers::delete_twin),
             )
             .route("/api/iot/upload", post(iot_handlers::upload_replay_data))
+            .route("/api/iot/graph", get(iot_handlers::get_iot_graph))
             // Code generation routes
             .route(
                 "/api/codegen/typescript",

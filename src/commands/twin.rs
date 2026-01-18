@@ -30,19 +30,29 @@ pub async fn run(args: TwinRunArgs) -> anyhow::Result<()> {
 
     // Initialize Adapters
     for transport in &config.twin.transports {
-        match transport.adapter_type.as_str() {
-            "mqtt" => {
-                let mut adapter = MqttAdapter::new();
-                adapter.init(transport).await?;
-                adapters.push(Box::new(adapter));
+        let mut adapter: Box<dyn ProtocolAdapter> = match transport.adapter_type.as_str() {
+            "mqtt" => Box::new(MqttAdapter::new()),
+            "modbus" => Box::new(ModbusAdapter::new()),
+            _ => {
+                error!("Unknown transport type: {}", transport.adapter_type);
+                continue;
             }
-            "modbus" => {
-                let mut adapter = ModbusAdapter::new();
-                adapter.init(transport).await?;
-                adapters.push(Box::new(adapter));
+        };
+
+        adapter.init(transport).await?;
+
+        // Handle subscriptions
+        if let Some(subs) = transport.params.get("subscriptions") {
+            if let Some(subs_seq) = subs.as_sequence() {
+                for sub in subs_seq {
+                    if let Some(topic) = sub.as_str() {
+                        adapter.subscribe(topic).await?;
+                    }
+                }
             }
-            _ => error!("Unknown transport type: {}", transport.adapter_type),
         }
+
+        adapters.push(adapter);
     }
 
     // Initialize Physics Strategies
@@ -114,6 +124,13 @@ pub async fn run(args: TwinRunArgs) -> anyhow::Result<()> {
     let mut next_tick = Instant::now();
 
     loop {
+        // 0. Poll Adapters for new data
+        for adapter in &mut adapters {
+            while let Some((key, value)) = adapter.poll().await {
+                twin.state.variables.insert(key, value);
+            }
+        }
+
         // 1. Tick Physics
         for strategy in &mut strategies {
             if let Err(e) = strategy.tick(&mut twin.state).await {

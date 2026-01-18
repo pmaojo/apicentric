@@ -897,6 +897,27 @@ export interface TwinDetailResponse {
   config: any;
 }
 
+export interface GraphNode {
+  id: string;
+  label: string;
+  data: { label: string };
+  position: { x: number; y: number };
+  type: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  animated: boolean;
+}
+
+export interface GraphResponse {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
 /**
  * Lists all available IoT twins.
  */
@@ -972,4 +993,12 @@ export async function uploadReplayData(file: File): Promise<string> {
   }
 
   return result.data;
+}
+
+/**
+ * Fetches the IoT system graph.
+ */
+export async function getIotGraph(): Promise<GraphResponse> {
+  const response = await apiRequest<{ success: boolean; data: GraphResponse }>('/api/iot/graph');
+  return response.data;
 }

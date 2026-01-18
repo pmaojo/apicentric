@@ -44,6 +44,19 @@ impl SimulationStrategy for RhaiScriptStrategy {
             .unwrap_or(0.0);
         scope.push("value", current_val);
 
+        // Expose entire state as a map
+        let mut state_map = rhai::Map::new();
+        for (k, v) in &state.variables {
+            let val = match v {
+                VariableValue::Integer(i) => rhai::Dynamic::from(*i),
+                VariableValue::Float(f) => rhai::Dynamic::from(*f),
+                VariableValue::String(s) => rhai::Dynamic::from(s.clone()),
+                VariableValue::Boolean(b) => rhai::Dynamic::from(*b),
+            };
+            state_map.insert(k.clone().into(), val);
+        }
+        scope.push("state", state_map);
+
         // Execute script
         // Lock engine
         let engine = self.engine.lock().unwrap();

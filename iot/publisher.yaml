@@ -1,0 +1,13 @@
+twin:
+  name: publisher
+  physics:
+    - variable: temperature
+      strategy: sine
+      params:
+        min: 20
+        max: 30
+  transports:
+    - type: mqtt
+      broker_url: localhost
+      port: 1883
+      topic_prefix: iot/publisher
