@@ -4,6 +4,7 @@
 //! in Axum handlers to authenticate users from a JWT in the `Authorization`
 //! header.
 
+<<<<<<< HEAD
 use super::handlers::AuthState;
 use crate::auth::jwt::{validate_token, Claims};
 use axum::extract::Extension;
@@ -13,6 +14,13 @@ use axum::{
     http::{request::Parts, StatusCode},
 };
 use std::sync::Arc;
+=======
+use axum::{async_trait, extract::FromRequestParts, http::{request::Parts, StatusCode}};
+use crate::auth::jwt::{validate_token, Claims};
+use axum::extract::Extension;
+use std::sync::Arc;
+use super::handlers::AuthState;
+>>>>>>> origin/main
 
 /// An extractor for authenticating users from JWTs.
 pub struct AuthUser(pub Claims);
@@ -40,6 +48,7 @@ where
         // Get auth state
         let Extension(auth_state) = Extension::<Arc<AuthState>>::from_request_parts(parts, state)
             .await
+<<<<<<< HEAD
             .map_err(|_| {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -69,6 +78,13 @@ where
 
         let claims = validate_token(token, &auth_state.keys)
             .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token".to_string()))?;
+=======
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Missing auth state".to_string()))?;
+        // Read header
+        let header = parts.headers.get(axum::http::header::AUTHORIZATION).and_then(|h| h.to_str().ok()).ok_or((StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()))?;
+        let token = header.strip_prefix("Bearer ").ok_or((StatusCode::UNAUTHORIZED, "Invalid auth scheme".to_string()))?;
+        let claims = validate_token(token, &auth_state.keys).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token".to_string()))?;
+>>>>>>> origin/main
         Ok(AuthUser(claims))
     }
 }

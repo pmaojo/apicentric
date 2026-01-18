@@ -1009,6 +1009,7 @@ impl ServiceInstance {
 
                     let response_body = response_def.body.clone();
                     let processed_body = if response_body.contains("{{") {
+<<<<<<< HEAD
                         match Self::process_response_body_template(
                             &response_body,
                             &template_context,
@@ -1026,6 +1027,13 @@ impl ServiceInstance {
                                     ),
                                     Some("Check template syntax and fixture availability"),
                                 ));
+=======
+                        match template_engine.render(&response_body, &template_context) {
+                            Ok(rendered) => rendered,
+                            Err(e) => {
+                                log::warn!("Template rendering error: {}", e);
+                                response_body
+>>>>>>> origin/main
                             }
                         }
                     } else {
@@ -1864,6 +1872,7 @@ impl ServiceInstance {
 
         Ok(())
     }
+<<<<<<< HEAD
     /// Process response body template with robust error handling and validation
     fn process_response_body_template(
         response_body: &str,
@@ -1947,6 +1956,8 @@ impl ServiceInstance {
 
         Ok(processed_body)
     }
+=======
+>>>>>>> origin/main
 }
 
 #[cfg(test)]

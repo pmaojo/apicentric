@@ -3,10 +3,17 @@
 //! This module is responsible for parsing command-line arguments, initializing
 //! the application context, and dispatching to the appropriate command handler.
 
+<<<<<<< HEAD
 use apicentric::context::init;
 pub use apicentric::{ApicentricError, ApicentricResult as _ApicentricResult};
 use apicentric::{ApicentricResult, ContextBuilder, ExecutionContext};
 use clap::{Parser, Subcommand, ValueEnum};
+=======
+use clap::{Parser, Subcommand, ValueEnum};
+use apicentric::context::init;
+use apicentric::{ContextBuilder, ExecutionContext, ApicentricResult};
+pub use apicentric::{ApicentricError, ApicentricResult as _ApicentricResult};
+>>>>>>> origin/main
 #[path = "../commands/ai.rs"]
 mod ai_cmd;
 #[path = "../commands/shared.rs"]
@@ -18,19 +25,29 @@ mod simulator_cmd;
 #[path = "../commands/tui.rs"]
 mod tui_cmd;
 #[cfg(feature = "tui")]
+<<<<<<< HEAD
+=======
+#[path = "../commands/tui_state.rs"]
+mod tui_state;
+#[cfg(feature = "tui")]
+>>>>>>> origin/main
 #[path = "../commands/tui_events.rs"]
 mod tui_events;
 #[cfg(feature = "tui")]
 #[path = "../commands/tui_render.rs"]
 mod tui_render;
+<<<<<<< HEAD
 #[cfg(feature = "tui")]
 #[path = "../commands/tui_state.rs"]
 mod tui_state;
+=======
+>>>>>>> origin/main
 
 #[cfg(feature = "gui")]
 #[path = "../commands/gui/mod.rs"]
 mod gui_cmd;
 
+<<<<<<< HEAD
 #[cfg(feature = "webui")]
 #[path = "../commands/cloud.rs"]
 mod cloud_cmd;
@@ -49,6 +66,8 @@ use apicentric::iot::args::TwinCommands;
 #[path = "../commands/twin.rs"]
 mod twin_cmd;
 
+=======
+>>>>>>> origin/main
 mod commands {
     pub mod shared {
         pub use crate::shared_impl::*;
@@ -124,6 +143,7 @@ enum Commands {
     /// Launches the graphical user interface (requires the 'gui' feature).
     #[cfg(feature = "gui")]
     Gui,
+<<<<<<< HEAD
     /// Launches the cloud API server (requires the 'webui' feature).
     #[cfg(feature = "webui")]
     Cloud,
@@ -146,14 +166,19 @@ enum Commands {
         #[command(subcommand)]
         command: TwinCommands,
     },
+=======
+>>>>>>> origin/main
 }
 
 /// The entry point for the `apicentric` CLI.
 #[tokio::main]
 async fn main() {
+<<<<<<< HEAD
     // Initialize structured logging
     apicentric::logging::init();
 
+=======
+>>>>>>> origin/main
     let cli = Cli::parse();
 
     if let Err(e) = run(cli).await {
@@ -168,6 +193,7 @@ async fn main() {
 ///
 /// * `cli` - The parsed command-line arguments.
 async fn run(cli: Cli) -> ApicentricResult<()> {
+<<<<<<< HEAD
     // Load config from file
     let config_path = std::path::Path::new(&cli.config);
     let mut cfg = apicentric::config::load_config(config_path)?;
@@ -177,6 +203,11 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         env_cfg.apply(&mut cfg);
     }
 
+=======
+    let config_path = std::path::Path::new(&cli.config);
+    let mut cfg = apicentric::config::load_config(config_path)?;
+
+>>>>>>> origin/main
     // Override config with CLI args
     if let Commands::Simulator {
         action:
@@ -206,7 +237,11 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         sim.set_db_path(&cli.db_path).await.ok();
     }
 
+<<<<<<< HEAD
     let mut exec_ctx = ExecutionContext::new();
+=======
+    let mut exec_ctx = ExecutionContext::new(context.config());
+>>>>>>> origin/main
     if let Some(mode) = cli.mode {
         exec_ctx = exec_ctx.with_mode(mode.into());
     }
@@ -263,6 +298,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Tui => tui_cmd::tui_command().await,
         #[cfg(feature = "gui")]
         Commands::Gui => gui_cmd::gui_command().await,
+<<<<<<< HEAD
         #[cfg(feature = "webui")]
         Commands::Cloud => cloud_cmd::cloud_command().await,
         Commands::New { name, template } => new_cmd::new_command(name.clone(), template.clone()).await,
@@ -283,5 +319,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                     })
             }
         },
+=======
+>>>>>>> origin/main
     }
 }

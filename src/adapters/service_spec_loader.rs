@@ -35,6 +35,7 @@ impl YamlServiceSpecLoader {
         }
     }
 
+<<<<<<< HEAD
     /// Loads a service specification from a YAML string.
     ///
     /// # Arguments
@@ -50,6 +51,8 @@ impl YamlServiceSpecLoader {
         loader.convert_yaml_to_service_spec(yaml_spec)
     }
 
+=======
+>>>>>>> origin/main
     /// Creates a new `YamlServiceSpecLoader` with a base path.
     ///
     /// # Arguments

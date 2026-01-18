@@ -6,7 +6,11 @@ use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     admin_server::AdminServer,
     config::{ConfigLoader, ServiceDefinition, SimulatorConfig},
+<<<<<<< HEAD
     lifecycle::{Lifecycle, SimulatorLifecycle},
+=======
+    lifecycle::{SimulatorLifecycle, Lifecycle},
+>>>>>>> origin/main
     log::RequestLogEntry,
     recording_proxy::{ProxyRecorder, RecordingProxy},
     registry::ServiceRegistry,
@@ -20,7 +24,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, RwLock};
+<<<<<<< HEAD
 use tracing::info;
+=======
+>>>>>>> origin/main
 
 /// Central coordinator for the API simulator functionality
 pub struct ApiSimulatorManager {
@@ -29,9 +36,13 @@ pub struct ApiSimulatorManager {
     route_registry: Arc<RwLock<RequestRouter>>,
     config_loader: ConfigLoader,
     is_active: Arc<RwLock<bool>>,
+<<<<<<< HEAD
     #[allow(dead_code)]
     p2p_enabled: Arc<RwLock<bool>>,
     #[allow(dead_code)]
+=======
+    p2p_enabled: Arc<RwLock<bool>>,
+>>>>>>> origin/main
     collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
     #[cfg(feature = "p2p")]
     crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
@@ -142,13 +153,18 @@ impl ApiSimulatorManager {
             ));
         }
 
+<<<<<<< HEAD
         info!(target: "simulator", "Reloading service configurations");
+=======
+        log::info!("Reloading service configurations...");
+>>>>>>> origin/main
 
         self.lifecycle.reload_services_internal().await
     }
 
     /// Apply a service definition and update CRDT state.
     #[cfg(feature = "p2p")]
+<<<<<<< HEAD
     pub async fn apply_service_definition(
         &self,
         service_def: ServiceDefinition,
@@ -157,6 +173,11 @@ impl ApiSimulatorManager {
         self.lifecycle
             .apply_remote_service(service_def.clone())
             .await?;
+=======
+    pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> ApicentricResult<()> {
+        let service_name = service_def.name.clone();
+        self.lifecycle.apply_remote_service(service_def.clone()).await?;
+>>>>>>> origin/main
         {
             let mut crdts = self.crdts.write().await;
             if let Some(doc) = crdts.get_mut(&service_name) {
@@ -183,15 +204,23 @@ impl ApiSimulatorManager {
 
     /// Apply a service definition (P2P feature disabled)
     #[cfg(not(feature = "p2p"))]
+<<<<<<< HEAD
     pub async fn apply_service_definition(
         &self,
         service_def: ServiceDefinition,
     ) -> ApicentricResult<()> {
+=======
+    pub async fn apply_service_definition(&self, service_def: ServiceDefinition) -> ApicentricResult<()> {
+>>>>>>> origin/main
         self.lifecycle.apply_remote_service(service_def).await
     }
 
     /// Apply a YAML service definition string to the running simulator and CRDT.
+<<<<<<< HEAD
     pub async fn apply_service_yaml(&self, yaml: &str) -> ApicentricResult<String> {
+=======
+    pub async fn apply_service_yaml(&self, yaml: &str) -> ApicentricResult<()> {
+>>>>>>> origin/main
         let def: ServiceDefinition = serde_yaml::from_str(yaml).map_err(|e| {
             ApicentricError::validation_error(
                 format!("Invalid service YAML: {}", e),
@@ -199,9 +228,13 @@ impl ApiSimulatorManager {
                 None::<String>,
             )
         })?;
+<<<<<<< HEAD
         let service_name = def.name.clone();
         self.apply_service_definition(def).await?;
         Ok(service_name)
+=======
+        self.apply_service_definition(def).await
+>>>>>>> origin/main
     }
 
     /// Set the active scenario for all services
@@ -272,6 +305,7 @@ impl ApiSimulatorManager {
     /// Start a specific service by name
     pub async fn start_service(&self, service_name: &str) -> ApicentricResult<()> {
         let registry = self.service_registry.read().await;
+<<<<<<< HEAD
 
         if let Some(service_arc) = registry.get_service(service_name) {
             let mut service = service_arc.write().await;
@@ -289,6 +323,21 @@ impl ApiSimulatorManager {
                 service = %service_name,
                 "Service started"
             );
+=======
+
+        if let Some(service_arc) = registry.get_service(service_name) {
+            let mut service = service_arc.write().await;
+
+            if service.is_running() {
+                return Err(ApicentricError::runtime_error(
+                    format!("Service '{}' is already running", service_name),
+                    Some("Stop the service first or use --force to restart")
+                ));
+            }
+
+            service.start().await?;
+            log::info!("Started service '{}'", service_name);
+>>>>>>> origin/main
             Ok(())
         } else {
             Err(ApicentricError::runtime_error(
@@ -301,6 +350,7 @@ impl ApiSimulatorManager {
     /// Stop a specific service by name
     pub async fn stop_service(&self, service_name: &str) -> ApicentricResult<()> {
         let registry = self.service_registry.read().await;
+<<<<<<< HEAD
 
         if let Some(service_arc) = registry.get_service(service_name) {
             let mut service = service_arc.write().await;
@@ -318,6 +368,21 @@ impl ApiSimulatorManager {
                 service = %service_name,
                 "Service stopped"
             );
+=======
+
+        if let Some(service_arc) = registry.get_service(service_name) {
+            let mut service = service_arc.write().await;
+
+            if !service.is_running() {
+                return Err(ApicentricError::runtime_error(
+                    format!("Service '{}' is not running", service_name),
+                    Some("Start the service first with 'apicentric simulator start'")
+                ));
+            }
+
+            service.stop().await?;
+            log::info!("Stopped service '{}'", service_name);
+>>>>>>> origin/main
             Ok(())
         } else {
             Err(ApicentricError::runtime_error(
@@ -326,6 +391,7 @@ impl ApiSimulatorManager {
             ))
         }
     }
+<<<<<<< HEAD
 
     /// Load services from the configured directory
     pub async fn load_services(&self) -> ApicentricResult<()> {
@@ -337,3 +403,7 @@ impl ApiSimulatorManager {
         Ok(())
     }
 }
+=======
+}
+
+>>>>>>> origin/main

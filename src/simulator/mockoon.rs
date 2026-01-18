@@ -130,6 +130,7 @@ fn parse_env(json: &str) -> Result<MockoonEnvironment, Box<dyn std::error::Error
         .ok_or_else(|| "No environments found".into())
 }
 
+<<<<<<< HEAD
 /// Parse a Mockoon JSON export from a `serde_json::Value` into a [`ServiceDefinition`]
 pub fn from_json(
     value: &serde_json::Value,
@@ -138,6 +139,8 @@ pub fn from_json(
     from_str(&json_str)
 }
 
+=======
+>>>>>>> origin/main
 /// Parse a Mockoon JSON export into a [`ServiceDefinition`]
 pub fn from_str(json: &str) -> Result<ServiceDefinition, Box<dyn std::error::Error>> {
     let env = parse_env(json)?;

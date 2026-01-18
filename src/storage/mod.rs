@@ -14,7 +14,10 @@ pub trait Storage: Send + Sync {
         status: Option<u16>,
         limit: usize,
     ) -> ApicentricResult<Vec<RequestLogEntry>>;
+<<<<<<< HEAD
     fn clear_logs(&self) -> ApicentricResult<()>;
+=======
+>>>>>>> origin/main
 }
 
 pub mod sqlite;

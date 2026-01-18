@@ -3,6 +3,7 @@ use async_graphql::Request as GraphQLRequest;
 #[cfg(feature = "graphql")]
 use async_graphql_parser::parse_schema;
 
+<<<<<<< HEAD
 #[cfg(feature = "graphql")]
 use super::routing::PathParameters;
 use crate::errors::{ApicentricError, ApicentricResult};
@@ -19,10 +20,24 @@ use hyper::StatusCode;
 use serde_json::Value;
 use std::collections::HashMap;
 #[cfg(feature = "graphql")]
+=======
+use crate::errors::{ApicentricError, ApicentricResult};
+use crate::simulator::config::GraphQLConfig;
+use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
+use bytes::Bytes;
+use http_body_util::Full;
+use hyper::{Response, StatusCode};
+use serde_json::Value;
+use std::collections::HashMap;
+>>>>>>> origin/main
 use std::fs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+<<<<<<< HEAD
+=======
+use super::routing::PathParameters;
+>>>>>>> origin/main
 use super::state::ServiceState;
 
 /// Holds loaded GraphQL schema and mock templates
@@ -37,10 +52,14 @@ pub struct GraphQLMocks {
 pub fn load_graphql_mocks(gql_cfg: &GraphQLConfig) -> ApicentricResult<GraphQLMocks> {
     let schema = fs::read_to_string(&gql_cfg.schema_path).map_err(|e| {
         ApicentricError::config_error(
+<<<<<<< HEAD
             format!(
                 "Failed to read GraphQL schema {}: {}",
                 gql_cfg.schema_path, e
             ),
+=======
+            format!("Failed to read GraphQL schema {}: {}", gql_cfg.schema_path, e),
+>>>>>>> origin/main
             Some("Check that the schema file exists and is readable"),
         )
     })?;
@@ -135,7 +154,14 @@ pub async fn handle_graphql_request(
                                         e
                                     ))))
                                     .unwrap();
+<<<<<<< HEAD
                                 return Some((resp, StatusCode::INTERNAL_SERVER_ERROR.as_u16()));
+=======
+                                return Some((
+                                    resp,
+                                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                                ));
+>>>>>>> origin/main
                             }
                         }
                     } else {

@@ -175,6 +175,7 @@ impl FileSystemUtils {
             return Err("Not a regular file".to_string());
         }
 
+<<<<<<< HEAD
         // Check file extension - support common test file patterns
         let extension = path.extension().and_then(|ext| ext.to_str());
         let stem = path.file_stem().and_then(|s| s.to_str());
@@ -193,6 +194,25 @@ impl FileSystemUtils {
 
         // Skip non-test directories
         let excluded_dirs = ["node_modules", "dist", "build", "target"];
+=======
+        // Check file extension
+        let valid_extensions = [".cy.ts", ".cy.js"];
+        let extension = path.extension().and_then(|ext| ext.to_str());
+        let stem = path.file_stem().and_then(|s| s.to_str());
+
+        let valid = matches!(extension, Some("ts" | "js"))
+            && stem.map(|s| s.ends_with(".cy")).unwrap_or(false);
+
+        if !valid {
+            return Err(format!(
+                "Invalid test file extension. Expected one of: {}",
+                valid_extensions.join(", ")
+            ));
+        }
+
+        // Skip non-test directories
+        let excluded_dirs = ["screenshots", "videos", "node_modules", "dist", "build"];
+>>>>>>> origin/main
         if excluded_dirs.iter().any(|dir| {
             let dir_os = std::ffi::OsStr::new(dir);
             path.starts_with(dir) || path.components().any(|c| c.as_os_str() == dir_os)
@@ -244,6 +264,16 @@ impl FileSystemUtils {
             );
         }
 
+<<<<<<< HEAD
+=======
+        if pattern.contains(".cy.ts") || pattern.contains(".cy.js") {
+            suggestions.push(
+                "Looking for Cypress test files. Ensure they have .cy.ts or .cy.js extensions."
+                    .to_string(),
+            );
+        }
+
+>>>>>>> origin/main
         if pattern.contains("/test/") || pattern.contains("/__tests__/") {
             suggestions
                 .push("Pattern expects files in 'test' or '__tests__' directories.".to_string());

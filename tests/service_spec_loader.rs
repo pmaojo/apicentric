@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 use apicentric::adapters::service_spec_loader::YamlServiceSpecLoader;
 use apicentric::domain::contract_testing::HttpMethod;
 use apicentric::domain::ports::contract::{
@@ -5,6 +6,13 @@ use apicentric::domain::ports::contract::{
 };
 use apicentric::utils::FileReader;
 use async_trait::async_trait;
+=======
+use async_trait::async_trait;
+use apicentric::adapters::service_spec_loader::YamlServiceSpecLoader;
+use apicentric::domain::ports::contract::{ServiceSpecLoader, ServiceSpec, EndpointSpec, ResponseSpec};
+use apicentric::domain::contract_testing::HttpMethod;
+use apicentric::utils::FileReader;
+>>>>>>> origin/main
 use std::path::Path;
 use std::sync::Arc;
 
@@ -31,9 +39,13 @@ endpoints:
     response:
       status: 200
 "#;
+<<<<<<< HEAD
     let reader = Arc::new(MockFileReader {
         content: yaml_content.to_string(),
     });
+=======
+    let reader = Arc::new(MockFileReader { content: yaml_content.to_string() });
+>>>>>>> origin/main
     let loader = YamlServiceSpecLoader::with_file_reader(reader);
     let spec = loader.load("ignored.yaml").await.unwrap();
     assert_eq!(spec.name, "test-service");
@@ -130,13 +142,22 @@ async fn test_validate_missing_fields() {
             path: "/".to_string(),
             method: HttpMethod::GET,
             conditions: vec![],
+<<<<<<< HEAD
             response: ResponseSpec {
                 status: 200,
                 headers: Default::default(),
                 body_template: String::new(),
             },
+=======
+            response: ResponseSpec { status: 200, headers: Default::default(), body_template: String::new() },
+>>>>>>> origin/main
         }],
     };
     let result = loader.validate(&spec).await;
     assert!(result.is_err());
 }
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> origin/main

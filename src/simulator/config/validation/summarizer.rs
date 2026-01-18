@@ -57,6 +57,7 @@ mod tests {
 
     #[test]
     fn summary_calculates_success_rate() {
+<<<<<<< HEAD
         let summary = summarize(
             4,
             vec![LoadError {
@@ -65,6 +66,13 @@ mod tests {
                 message: "err".into(),
             }],
         );
+=======
+        let summary = summarize(4, vec![LoadError {
+            file_path: PathBuf::from("a.yaml"),
+            error_type: LoadErrorType::Validation,
+            message: "err".into(),
+        }]);
+>>>>>>> origin/main
         assert_eq!(summary.valid_count, 3);
         assert_eq!(summary.invalid_count, 1);
         assert!((summary.success_rate() - 75.0).abs() < f64::EPSILON);

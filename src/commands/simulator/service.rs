@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_definition};
 use apicentric::{ApicentricError, ApicentricResult, Context, ExecutionContext};
 
@@ -5,6 +6,13 @@ use apicentric::{ApicentricError, ApicentricResult, Context, ExecutionContext};
 use apicentric::collab::share;
 #[cfg(feature = "p2p")]
 use libp2p::PeerId;
+=======
+// Disabled heavy P2P dependencies for lighter CLI build
+// use crate::collab::share;
+use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_definition, scaffold_graphql_service_definition};
+// use libp2p::PeerId;
+use apicentric::{Context, ExecutionContext, ApicentricError, ApicentricResult};
+>>>>>>> origin/main
 
 pub async fn handle_record(
     context: &Context,
@@ -14,7 +22,11 @@ pub async fn handle_record(
 ) -> ApicentricResult<()> {
     let target = url
         .clone()
+<<<<<<< HEAD
         .unwrap_or_else(|| "http://localhost:8080".to_string());
+=======
+        .unwrap_or_else(|| context.config().base_url.clone());
+>>>>>>> origin/main
     if exec_ctx.dry_run {
         println!(
             "🏃 Dry run: Would record traffic to '{}' (target={})",
@@ -35,9 +47,14 @@ pub async fn handle_record(
     }
 }
 
+<<<<<<< HEAD
 #[cfg(feature = "p2p")]
 pub async fn handle_share(
     _context: &Context,
+=======
+pub async fn handle_share(
+    context: &Context,
+>>>>>>> origin/main
     service: &str,
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
@@ -45,6 +62,7 @@ pub async fn handle_share(
         println!("🏃 Dry run: Would share service '{}'", service);
         return Ok(());
     }
+<<<<<<< HEAD
 
     // For now, we'll use a default port. In a full implementation, this would
     // query the running service from the simulator to get its actual port.
@@ -148,6 +166,15 @@ pub async fn handle_connect(
 }
 
 #[cfg(not(feature = "p2p"))]
+=======
+    // Disabled heavy P2P sharing functionality for lighter CLI build
+    println!("📡 Sharing feature temporarily disabled for lighter CLI build");
+    println!("   Service: {}", service);
+    println!("   (P2P sharing will be re-enabled in future versions)");
+    Ok(())
+}
+
+>>>>>>> origin/main
 pub async fn handle_connect(
     peer: &str,
     service: &str,
@@ -162,14 +189,20 @@ pub async fn handle_connect(
         );
         return Ok(());
     }
+<<<<<<< HEAD
 
     println!("🔗 P2P connection is not available in this build");
+=======
+    // Disabled heavy P2P connection functionality for lighter CLI build
+    println!("🔗 Connection feature temporarily disabled for lighter CLI build");
+>>>>>>> origin/main
     println!("   Peer: {}", peer);
     println!("   Service: {}", service);
     println!("   Port: {}", port);
     if let Some(t) = token {
         println!("   Token: {}", t);
     }
+<<<<<<< HEAD
     println!("\n💡 To enable P2P features, rebuild with:");
     println!("   cargo build --release --features p2p");
 
@@ -177,6 +210,10 @@ pub async fn handle_connect(
         "P2P features not available",
         Some("Rebuild with --features p2p to enable collaboration"),
     ))
+=======
+    println!("   (P2P connection will be re-enabled in future versions)");
+    Ok(())
+>>>>>>> origin/main
 }
 
 pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> ApicentricResult<()> {
@@ -186,13 +223,18 @@ pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> Apicentric
     }
 
     let service = scaffold_service_definition()?;
+<<<<<<< HEAD
     tokio::fs::create_dir_all(output).await.map_err(|e| {
+=======
+    std::fs::create_dir_all(output).map_err(|e| {
+>>>>>>> origin/main
         ApicentricError::fs_error(
             format!("Failed to create directory {}: {}", output, e),
             None::<String>,
         )
     })?;
     let file_path = std::path::Path::new(output).join(format!("{}.yaml", service.name));
+<<<<<<< HEAD
 
     let exists = tokio::fs::try_exists(&file_path).await.map_err(|e| {
         ApicentricError::fs_error(
@@ -202,6 +244,9 @@ pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> Apicentric
     })?;
 
     if exists {
+=======
+    if file_path.exists() {
+>>>>>>> origin/main
         return Err(ApicentricError::fs_error(
             format!("File {} already exists", file_path.display()),
             Some("Choose a different service name"),
@@ -213,7 +258,11 @@ pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> Apicentric
             None::<String>,
         )
     })?;
+<<<<<<< HEAD
     tokio::fs::write(&file_path, yaml).await.map_err(|e| {
+=======
+    std::fs::write(&file_path, yaml).map_err(|e| {
+>>>>>>> origin/main
         ApicentricError::runtime_error(
             format!("Failed to write service file: {}", e),
             None::<String>,
@@ -229,7 +278,11 @@ pub async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> Apicentric
         return Ok(());
     }
 
+<<<<<<< HEAD
     let yaml = tokio::fs::read_to_string(input).await.map_err(|e| {
+=======
+    let yaml = std::fs::read_to_string(input).map_err(|e| {
+>>>>>>> origin/main
         ApicentricError::runtime_error(format!("Failed to read service: {}", e), None::<String>)
     })?;
     let mut service: apicentric::simulator::config::ServiceDefinition = serde_yaml::from_str(&yaml)
@@ -246,7 +299,11 @@ pub async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> Apicentric
             None::<String>,
         )
     })?;
+<<<<<<< HEAD
     tokio::fs::write(input, yaml).await.map_err(|e| {
+=======
+    std::fs::write(input, yaml).map_err(|e| {
+>>>>>>> origin/main
         ApicentricError::runtime_error(
             format!("Failed to write service file: {}", e),
             None::<String>,
@@ -257,6 +314,7 @@ pub async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> Apicentric
 }
 
 pub async fn handle_new_graphql(
+<<<<<<< HEAD
     name: &str,
     output: &str,
     exec_ctx: &ExecutionContext,
@@ -289,16 +347,59 @@ pub async fn handle_new_graphql(
         behavior: None,
     };
 
+=======
+    output: &str,
+    name: &Option<String>,
+    port: &Option<u16>,
+    exec_ctx: &ExecutionContext,
+) -> ApicentricResult<()> {
+    if exec_ctx.dry_run {
+        println!("🏃 Dry run: Would scaffold new GraphQL service in {}", output);
+        return Ok(());
+    }
+
+    let mut service = if let (Some(name), Some(port)) = (name, port) {
+        apicentric::simulator::config::ServiceDefinition {
+            name: name.clone(),
+            version: Some("1.0.0".to_string()),
+            description: Some("A GraphQL service".to_string()),
+            server: apicentric::simulator::config::ServerConfig {
+                port: Some(*port),
+                base_path: "/".to_string(),
+                proxy_base_url: None,
+                cors: None,
+                record_unknown: false,
+            },
+            models: None,
+            fixtures: None,
+            bucket: None,
+            endpoints: Vec::new(),
+            graphql: None,
+            behavior: None,
+        }
+    } else {
+        scaffold_graphql_service_definition()?
+    };
+    let service_name = service.name.clone();
+
+    // Define GraphQL specific files
+>>>>>>> origin/main
     let gql_schema_filename = format!("{}.gql", service_name);
     let example_query_name = "helloQuery".to_string();
     let example_query_filename = format!("{}.json", example_query_name);
 
+<<<<<<< HEAD
     service.graphql = Some(apicentric::simulator::config::GraphQLConfig {
+=======
+    // Create GraphQL config for the YAML file
+    let graphql_config = apicentric::simulator::config::GraphQLConfig {
+>>>>>>> origin/main
         schema_path: gql_schema_filename.clone(),
         mocks: std::collections::HashMap::from([(
             example_query_name.clone(),
             example_query_filename.clone(),
         )]),
+<<<<<<< HEAD
     });
 
     tokio::fs::create_dir_all(output).await.map_err(|e| {
@@ -318,11 +419,25 @@ pub async fn handle_new_graphql(
     })?;
 
     if exists {
+=======
+    };
+    service.graphql = Some(graphql_config);
+
+    // Create output directory
+    std::fs::create_dir_all(output).map_err(|e| {
+        ApicentricError::fs_error(format!("Failed to create directory {}: {}", output, e), None::<String>)
+    })?;
+
+    // Write main service YAML file
+    let yaml_path = std::path::Path::new(output).join(format!("{}.yaml", service_name));
+    if yaml_path.exists() {
+>>>>>>> origin/main
         return Err(ApicentricError::fs_error(
             format!("File {} already exists", yaml_path.display()),
             Some("Choose a different service name"),
         ));
     }
+<<<<<<< HEAD
 
     let yaml = serde_yaml::to_string(&service)
         .map_err(|e| ApicentricError::runtime_error(e.to_string(), Option::<String>::None))?;
@@ -350,6 +465,31 @@ pub async fn handle_new_graphql(
         "✅ Created example mock response at {}",
         mock_path.display()
     );
+=======
+    let yaml = serde_yaml::to_string(&service).map_err(|e| {
+        ApicentricError::runtime_error(format!("Failed to serialize service: {}", e), None::<String>)
+    })?;
+    std::fs::write(&yaml_path, yaml).map_err(|e| {
+        ApicentricError::runtime_error(format!("Failed to write service file: {}", e), None::<String>)
+    })?;
+    println!("✅ Created GraphQL service definition at {}", yaml_path.display());
+
+    // Write .gql schema file
+    let schema_path = std::path::Path::new(output).join(gql_schema_filename);
+    let schema_content = "type Query {\n  hello: String\n}";
+    std::fs::write(&schema_path, schema_content).map_err(|e| {
+        ApicentricError::runtime_error(format!("Failed to write schema file: {}", e), None::<String>)
+    })?;
+    println!("✅ Created GraphQL schema at {}", schema_path.display());
+
+    // Write example mock response file
+    let mock_path = std::path::Path::new(output).join(example_query_filename);
+    let mock_content = "{\n  \"data\": {\n    \"hello\": \"world\"\n  }\n}";
+    std::fs::write(&mock_path, mock_content).map_err(|e| {
+        ApicentricError::runtime_error(format!("Failed to write mock file: {}", e), None::<String>)
+    })?;
+    println!("✅ Created example mock response at {}", mock_path.display());
+>>>>>>> origin/main
 
     Ok(())
 }

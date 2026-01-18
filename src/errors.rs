@@ -1,42 +1,76 @@
 //! Defines the error types and error handling utilities for the Apicentric application.
 //!
 //! This module includes the main `ApicentricError` enum, which represents all possible
+<<<<<<< HEAD
 //! errors that can occur within the application. It provides structured error types
 //! with contextual information and actionable suggestions for common problems.
 
 use std::fmt;
+=======
+//! errors that can occur within the application. It also provides a custom `Result`
+//! type alias, `ApicentricResult`, and an `ErrorFormatter` for creating user-friendly
+//! error messages.
+
+use thiserror::Error;
+>>>>>>> origin/main
 
 /// The main error type for all Apicentric operations.
 ///
 /// This enum consolidates all possible errors that can occur within the application,
+<<<<<<< HEAD
 /// providing contextual variants with built-in suggestions for common issues.
 #[derive(Debug)]
 pub enum ApicentricError {
     /// An error related to application configuration.
+=======
+/// including configuration errors, server errors, file system issues, and more.
+/// It uses `thiserror` to derive the `Error` trait and provide descriptive error
+/// messages.
+#[derive(Debug, Error)]
+pub enum ApicentricError {
+    /// An error related to application configuration.
+    #[error("Configuration error: {message}")]
+>>>>>>> origin/main
     Configuration {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error that occurred within the server.
+<<<<<<< HEAD
+=======
+    #[error("Server error: {message}")]
+>>>>>>> origin/main
     Server {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error that occurred during test execution.
+<<<<<<< HEAD
+=======
+    #[error("Test execution error: {message}")]
+>>>>>>> origin/main
     TestExecution {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error related to file system operations.
+<<<<<<< HEAD
+=======
+    #[error("File system error: {message}")]
+>>>>>>> origin/main
     FileSystem {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error that occurred during data validation.
+<<<<<<< HEAD
+=======
+    #[error("Validation error: {message}")]
+>>>>>>> origin/main
     Validation {
         message: String,
         field: Option<String>,
@@ -44,11 +78,16 @@ pub enum ApicentricError {
     },
 
     /// A general-purpose runtime error.
+<<<<<<< HEAD
+=======
+    #[error("Runtime error: {message}")]
+>>>>>>> origin/main
     Runtime {
         message: String,
         suggestion: Option<String>,
     },
 
+<<<<<<< HEAD
     /// Errors related to simulated services.
     Service {
         message: String,
@@ -169,6 +208,27 @@ impl std::error::Error for ApicentricError {
             _ => None,
         }
     }
+=======
+    /// An I/O error.
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    /// An error that occurred during JSON serialization or deserialization.
+    #[error("JSON parsing error: {0}")]
+    Json(#[from] serde_json::Error),
+
+    /// An error related to glob pattern matching.
+    #[error("Glob pattern error: {0}")]
+    Glob(#[from] glob::GlobError),
+
+    /// An error in a glob pattern.
+    #[error("Pattern error: {0}")]
+    Pattern(#[from] glob::PatternError),
+
+    /// An error from the `anyhow` crate.
+    #[error("Anyhow error: {0}")]
+    Anyhow(#[from] anyhow::Error),
+>>>>>>> origin/main
 }
 
 impl ApicentricError {
@@ -283,6 +343,7 @@ impl ApicentricError {
         }
     }
 
+<<<<<<< HEAD
     /// Creates a new service error.
     ///
     /// # Arguments
@@ -409,6 +470,8 @@ impl ApicentricError {
         }
     }
 
+=======
+>>>>>>> origin/main
     /// Returns the suggestion for this error, if any.
     ///
     /// # Returns
@@ -422,6 +485,7 @@ impl ApicentricError {
             | Self::TestExecution { suggestion, .. }
             | Self::FileSystem { suggestion, .. }
             | Self::Validation { suggestion, .. }
+<<<<<<< HEAD
             | Self::Runtime { suggestion, .. }
             | Self::Service { suggestion, .. }
             | Self::Ai { suggestion, .. }
@@ -429,6 +493,9 @@ impl ApicentricError {
             | Self::Authentication { suggestion, .. }
             | Self::Network { suggestion, .. }
             | Self::Database { suggestion, .. } => suggestion.as_deref(),
+=======
+            | Self::Runtime { suggestion, .. } => suggestion.as_deref(),
+>>>>>>> origin/main
             _ => None,
         }
     }
@@ -445,6 +512,7 @@ impl ApicentricError {
             _ => None,
         }
     }
+<<<<<<< HEAD
 
     /// Returns the service name for service errors, if any.
     ///
@@ -602,6 +670,8 @@ impl From<anyhow::Error> for ApicentricError {
     fn from(err: anyhow::Error) -> Self {
         Self::Anyhow(err)
     }
+=======
+>>>>>>> origin/main
 }
 
 /// A `Result` type alias for Apicentric operations.
@@ -677,6 +747,7 @@ impl ErrorFormatter {
             output.push_str(&format!("\n🔍 Field: {}", field));
         }
 
+<<<<<<< HEAD
         if let Some(service_name) = error.service_name() {
             output.push_str(&format!("\n🏷️ Service: {}", service_name));
         }
@@ -689,6 +760,8 @@ impl ErrorFormatter {
             output.push_str(&format!("\n🌐 URL: {}", url));
         }
 
+=======
+>>>>>>> origin/main
         output
     }
 
@@ -729,6 +802,7 @@ mod tests {
 
     #[test]
     fn test_error_creation() {
+<<<<<<< HEAD
         let error = ApicentricError::config_error(
             "Invalid config",
             Some("Check your apicentric.json file"),
@@ -754,6 +828,11 @@ mod tests {
         let network_error = ApicentricError::network_connection_failed("http://example.com");
         assert!(matches!(network_error, ApicentricError::Network { .. }));
         assert_eq!(network_error.url().unwrap(), "http://example.com");
+=======
+        let error = ApicentricError::config_error("Invalid config", Some("Check your apicentric.json file"));
+        assert!(error.suggestion().is_some());
+        assert_eq!(error.suggestion().unwrap(), "Check your apicentric.json file");
+>>>>>>> origin/main
     }
 
     #[test]
@@ -783,10 +862,14 @@ mod tests {
     #[test]
     fn test_all_error_types() {
         let config_error = ApicentricError::config_error("Config issue", None::<String>);
+<<<<<<< HEAD
         assert!(matches!(
             config_error,
             ApicentricError::Configuration { .. }
         ));
+=======
+        assert!(matches!(config_error, ApicentricError::Configuration { .. }));
+>>>>>>> origin/main
 
         let server_error = ApicentricError::server_error("Server issue", Some("Restart server"));
         assert!(matches!(server_error, ApicentricError::Server { .. }));
@@ -800,10 +883,14 @@ mod tests {
 
         let validation_error =
             ApicentricError::validation_error("Invalid", Some("field"), Some("Fix it"));
+<<<<<<< HEAD
         assert!(matches!(
             validation_error,
             ApicentricError::Validation { .. }
         ));
+=======
+        assert!(matches!(validation_error, ApicentricError::Validation { .. }));
+>>>>>>> origin/main
         assert_eq!(validation_error.field().unwrap(), "field");
     }
 
@@ -861,8 +948,12 @@ mod tests {
         assert_eq!(error.suggestion().unwrap(), "Test suggestion");
         assert_eq!(error.field().unwrap(), "test_field");
 
+<<<<<<< HEAD
         let io_error: ApicentricError =
             std::io::Error::new(std::io::ErrorKind::NotFound, "test").into();
+=======
+        let io_error: ApicentricError = std::io::Error::new(std::io::ErrorKind::NotFound, "test").into();
+>>>>>>> origin/main
         assert!(io_error.suggestion().is_none());
         assert!(io_error.field().is_none());
     }
@@ -877,6 +968,7 @@ mod tests {
         assert!(formatted.contains("❌ Configuration error: Test config error"));
         assert!(formatted.contains("💡 Suggestion: Fix the config"));
     }
+<<<<<<< HEAD
 
     #[test]
     fn test_new_error_display_and_formatting() {
@@ -893,4 +985,6 @@ mod tests {
         let formatted_ai = ErrorFormatter::format_for_user(&ai_error);
         assert!(formatted_ai.contains("🤖 AI Provider: openai"));
     }
+=======
+>>>>>>> origin/main
 }

@@ -325,10 +325,14 @@ impl ValidationUtils {
         if start >= end {
             return Err(ValidationError::new(
                 field_name,
+<<<<<<< HEAD
                 format!(
                     "Invalid port range: start ({}) must be less than end ({})",
                     start, end
                 ),
+=======
+                format!("Invalid port range: start ({}) must be less than end ({})", start, end),
+>>>>>>> origin/main
             )
             .with_suggestion("Ensure start port is less than end port, e.g., 8000-8999"));
         }
@@ -373,7 +377,14 @@ impl ValidationUtils {
                 field_name,
                 format!("Invalid HTTP method: {}", method),
             )
+<<<<<<< HEAD
             .with_suggestion(format!("Use one of: {}", valid_methods.join(", "))));
+=======
+            .with_suggestion(format!(
+                "Use one of: {}",
+                valid_methods.join(", ")
+            )));
+>>>>>>> origin/main
         }
         Ok(())
     }
@@ -446,10 +457,18 @@ impl ValidationUtils {
     /// A `Result` indicating whether the validation was successful.
     pub fn validate_json_string(json: &str, field_name: &str) -> Result<(), ValidationError> {
         if let Err(e) = serde_json::from_str::<serde_json::Value>(json) {
+<<<<<<< HEAD
             return Err(
                 ValidationError::new(field_name, format!("Invalid JSON: {}", e))
                     .with_suggestion("Ensure the JSON is properly formatted with valid syntax"),
             );
+=======
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid JSON: {}", e),
+            )
+            .with_suggestion("Ensure the JSON is properly formatted with valid syntax"));
+>>>>>>> origin/main
         }
         Ok(())
     }
@@ -466,11 +485,19 @@ impl ValidationUtils {
     /// A `Result` indicating whether the validation was successful.
     pub fn validate_yaml_string(yaml: &str, field_name: &str) -> Result<(), ValidationError> {
         if let Err(e) = serde_yaml::from_str::<serde_yaml::Value>(yaml) {
+<<<<<<< HEAD
             return Err(
                 ValidationError::new(field_name, format!("Invalid YAML: {}", e)).with_suggestion(
                     "Ensure the YAML is properly formatted with correct indentation",
                 ),
             );
+=======
+            return Err(ValidationError::new(
+                field_name,
+                format!("Invalid YAML: {}", e),
+            )
+            .with_suggestion("Ensure the YAML is properly formatted with correct indentation"));
+>>>>>>> origin/main
         }
         Ok(())
     }
@@ -487,10 +514,15 @@ impl ValidationUtils {
     /// A `Result` indicating whether the validation was successful.
     pub fn validate_service_name(name: &str, field_name: &str) -> Result<(), ValidationError> {
         if name.is_empty() {
+<<<<<<< HEAD
             return Err(
                 ValidationError::new(field_name, "Service name cannot be empty")
                     .with_suggestion("Provide a descriptive service name"),
             );
+=======
+            return Err(ValidationError::new(field_name, "Service name cannot be empty")
+                .with_suggestion("Provide a descriptive service name"));
+>>>>>>> origin/main
         }
 
         if !name
@@ -509,10 +541,14 @@ impl ValidationUtils {
         if name.starts_with('-') || name.starts_with('_') {
             return Err(ValidationError::new(
                 field_name,
+<<<<<<< HEAD
                 format!(
                     "Service name cannot start with hyphen or underscore: {}",
                     name
                 ),
+=======
+                format!("Service name cannot start with hyphen or underscore: {}", name),
+>>>>>>> origin/main
             )
             .with_suggestion("Start the service name with an alphanumeric character"));
         }
@@ -872,32 +908,52 @@ mod tests {
     fn test_validate_port() {
         assert!(ValidationUtils::validate_port(8080, "port").is_ok());
         assert!(ValidationUtils::validate_port(1024, "port").is_ok());
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_port(80, "port");
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(error.message.contains("below 1024"));
+<<<<<<< HEAD
         assert!(error
             .suggestion
             .as_ref()
             .unwrap()
             .contains("1024 or higher"));
+=======
+        assert!(error.suggestion.as_ref().unwrap().contains("1024 or higher"));
+>>>>>>> origin/main
     }
 
     #[test]
     fn test_validate_port_range() {
         assert!(ValidationUtils::validate_port_range(8000, 8999, "port_range").is_ok());
+<<<<<<< HEAD
 
         // Invalid: start >= end
         let result = ValidationUtils::validate_port_range(9000, 8000, "port_range");
         assert!(result.is_err());
 
+=======
+
+        // Invalid: start >= end
+        let result = ValidationUtils::validate_port_range(9000, 8000, "port_range");
+        assert!(result.is_err());
+
+>>>>>>> origin/main
         // Invalid: too small range
         let result = ValidationUtils::validate_port_range(8000, 8005, "port_range");
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(error.message.contains("too small"));
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         // Invalid: system ports
         let result = ValidationUtils::validate_port_range(80, 100, "port_range");
         assert!(result.is_err());
@@ -923,10 +979,17 @@ mod tests {
         assert!(ValidationUtils::validate_status_code(200, "status").is_ok());
         assert!(ValidationUtils::validate_status_code(404, "status").is_ok());
         assert!(ValidationUtils::validate_status_code(500, "status").is_ok());
+<<<<<<< HEAD
 
         let result = ValidationUtils::validate_status_code(99, "status");
         assert!(result.is_err());
 
+=======
+
+        let result = ValidationUtils::validate_status_code(99, "status");
+        assert!(result.is_err());
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_status_code(600, "status");
         assert!(result.is_err());
     }
@@ -935,12 +998,20 @@ mod tests {
     fn test_validate_content_type() {
         assert!(ValidationUtils::validate_content_type("application/json", "content_type").is_ok());
         assert!(ValidationUtils::validate_content_type("text/html", "content_type").is_ok());
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_content_type("invalid", "content_type");
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(error.message.contains("Invalid content type"));
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_content_type("application/", "content_type");
         assert!(result.is_err());
     }
@@ -950,7 +1021,11 @@ mod tests {
         assert!(ValidationUtils::validate_json_string(r#"{"key": "value"}"#, "json").is_ok());
         assert!(ValidationUtils::validate_json_string("[]", "json").is_ok());
         assert!(ValidationUtils::validate_json_string("null", "json").is_ok());
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_json_string("{invalid json}", "json");
         assert!(result.is_err());
         let error = result.unwrap_err();
@@ -961,7 +1036,11 @@ mod tests {
     fn test_validate_yaml_string() {
         assert!(ValidationUtils::validate_yaml_string("key: value", "yaml").is_ok());
         assert!(ValidationUtils::validate_yaml_string("- item1\n- item2", "yaml").is_ok());
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_yaml_string("invalid: yaml: :", "yaml");
         assert!(result.is_err());
         let error = result.unwrap_err();
@@ -973,15 +1052,26 @@ mod tests {
         assert!(ValidationUtils::validate_service_name("user-api", "name").is_ok());
         assert!(ValidationUtils::validate_service_name("auth_service", "name").is_ok());
         assert!(ValidationUtils::validate_service_name("api123", "name").is_ok());
+<<<<<<< HEAD
 
         let result = ValidationUtils::validate_service_name("", "name");
         assert!(result.is_err());
 
+=======
+
+        let result = ValidationUtils::validate_service_name("", "name");
+        assert!(result.is_err());
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_service_name("invalid name", "name");
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(error.message.contains("Invalid service name"));
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_service_name("-invalid", "name");
         assert!(result.is_err());
         let error = result.unwrap_err();
@@ -992,12 +1082,20 @@ mod tests {
     fn test_validate_timeout() {
         assert!(ValidationUtils::validate_timeout(1000, "timeout").is_ok());
         assert!(ValidationUtils::validate_timeout(30000, "timeout").is_ok());
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_timeout(50, "timeout");
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(error.message.contains("too short"));
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         let result = ValidationUtils::validate_timeout(400_000, "timeout");
         assert!(result.is_err());
         let error = result.unwrap_err();

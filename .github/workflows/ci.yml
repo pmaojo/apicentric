@@ -11,6 +11,7 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+<<<<<<< HEAD
   manifest:
     name: Manifest Check
     runs-on: ubuntu-latest
@@ -33,6 +34,8 @@ jobs:
             exit 1
           fi
 
+=======
+>>>>>>> origin/main
   format:
     name: Format Check
     runs-on: ubuntu-latest
@@ -47,6 +50,7 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+<<<<<<< HEAD
   readme:
     name: README Sync
     runs-on: ubuntu-latest
@@ -62,6 +66,8 @@ jobs:
       - name: Verify README is up to date
         run: cargo rdme --check
 
+=======
+>>>>>>> origin/main
   lint:
     name: Clippy Lint
     runs-on: ubuntu-latest
@@ -101,26 +107,35 @@ jobs:
         if: matrix.features == 'minimal'
         run: cargo test --no-default-features --features minimal
 
+<<<<<<< HEAD
       - name: Run doc tests (minimal)
         if: matrix.features == 'minimal'
         run: cargo test --doc --no-default-features --features minimal
 
+=======
+>>>>>>> origin/main
       - name: Run tests (default)
         if: matrix.features == 'default'
         run: cargo test
 
+<<<<<<< HEAD
       - name: Run doc tests (default)
         if: matrix.features == 'default'
         run: cargo test --doc
 
+=======
+>>>>>>> origin/main
       - name: Run tests (full)
         if: matrix.features == 'full'
         run: cargo test --all-features
 
+<<<<<<< HEAD
       - name: Run doc tests (full)
         if: matrix.features == 'full'
         run: cargo test --doc --all-features
 
+=======
+>>>>>>> origin/main
   audit:
     name: Security Audit
     runs-on: ubuntu-latest

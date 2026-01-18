@@ -2,7 +2,11 @@
 
 use std::time::Duration;
 
+<<<<<<< HEAD
 use crate::errors::ApicentricResult;
+=======
+use crate::domain::errors::ApicentricResult;
+>>>>>>> origin/main
 
 /// Controls the lifecycle of external servers required for tests.
 pub trait ServerControllerPort {
@@ -30,3 +34,7 @@ pub trait FsPort {
 pub trait ProcessPort {
     fn run(&self, cmd: &str, args: &[&str]) -> ApicentricResult<(i32, String, String)>;
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main

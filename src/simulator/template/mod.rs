@@ -29,6 +29,7 @@ pub struct TemplateEngine {
 /// the dependency inversion principle.
 pub trait TemplateRenderer: Send + Sync {
     /// Render the given template with the provided context
+<<<<<<< HEAD
     fn render_template(
         &self,
         template: &str,
@@ -42,6 +43,13 @@ impl TemplateRenderer for TemplateEngine {
         template: &str,
         context: &TemplateContext,
     ) -> ApicentricResult<String> {
+=======
+    fn render_template(&self, template: &str, context: &TemplateContext) -> ApicentricResult<String>;
+}
+
+impl TemplateRenderer for TemplateEngine {
+    fn render_template(&self, template: &str, context: &TemplateContext) -> ApicentricResult<String> {
+>>>>>>> origin/main
         self.render(template, context)
     }
 }
@@ -204,11 +212,15 @@ impl TemplateEngine {
     }
 
     /// Render a pre-compiled template
+<<<<<<< HEAD
     pub fn render_compiled(
         &self,
         name: &str,
         context: &TemplateContext,
     ) -> ApicentricResult<String> {
+=======
+    pub fn render_compiled(&self, name: &str, context: &TemplateContext) -> ApicentricResult<String> {
+>>>>>>> origin/main
         let json_context = self.context_to_json(context)?;
 
         self.handlebars.render(name, &json_context).map_err(|e| {
@@ -330,4 +342,17 @@ mod tests {
         assert_eq!(result, "42");
         assert_eq!(bucket.get("foo"), Some(json!(42)));
     }
+<<<<<<< HEAD
+=======
+
+    #[test]
+    fn test_env_lookup() {
+        std::env::set_var("PULSE_TEST_ENV", "123");
+        let engine = TemplateEngine::new().unwrap();
+        let context = TemplateContext::minimal();
+        let result = engine.render("{{env.PULSE_TEST_ENV}}", &context).unwrap();
+        assert_eq!(result, "123");
+        std::env::remove_var("PULSE_TEST_ENV");
+    }
+>>>>>>> origin/main
 }

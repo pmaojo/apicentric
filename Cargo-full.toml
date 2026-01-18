@@ -1,6 +1,10 @@
 [package]
 name = "apicentric"
+<<<<<<< HEAD
 version = "0.2.5"
+=======
+version = "0.1.1"
+>>>>>>> origin/main
 edition = "2021"
 description = "Toolkit for building, recording, and sharing mock APIs"
 repository = "https://github.com/pmaojo/apicentric"
@@ -17,6 +21,10 @@ wasm-bindgen = "0.2" # retained for potential future wasm utilities; harmless fo
 anyhow = "1.0.99"
 clap = { version = "4.4.8", features = ["derive"] }
 glob = "0.3.3"
+<<<<<<< HEAD
+=======
+lazy_static = "1.5.0"
+>>>>>>> origin/main
 log = "0.4.20"
 env_logger = "0.10"
 serde = { version = "1.0.219", features = ["derive"] }
@@ -43,7 +51,11 @@ fake = "4.4.0"
 rand = "0.8"
 
 # OpenAPI support
+<<<<<<< HEAD
 openapiv3 = "2.0"
+=======
+openapi = "0.1.5"
+>>>>>>> origin/main
 
 # HTTP client for contract testing
 reqwest = { version = "0.11", features = ["json"] }

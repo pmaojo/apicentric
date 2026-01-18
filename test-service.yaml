@@ -1,0 +1,16 @@
+name: test-service
+version: 1.0.0
+description: Test service for validation
+
+server:
+  port: 8080
+  base_path: /api/test
+  proxy_base_url: https://example.com
+
+endpoints:
+  - method: GET
+    path: /health
+    responses:
+      200:
+        content_type: application/json
+        body: '{"status": "ok"}'

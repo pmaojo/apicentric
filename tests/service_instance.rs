@@ -3,15 +3,24 @@ use std::sync::Arc;
 use reqwest::{Client, StatusCode};
 use tokio::sync::broadcast;
 
+<<<<<<< HEAD
 use apicentric::errors::ApicentricResult;
 use apicentric::simulator::config::ServiceDefinition;
 use apicentric::simulator::log::RequestLogEntry;
 use apicentric::simulator::service::ServiceInstance;
 use apicentric::storage::Storage;
+=======
+use apicentric::simulator::service::ServiceInstance;
+use apicentric::simulator::config::ServiceDefinition;
+use apicentric::storage::Storage;
+use apicentric::errors::ApicentricResult;
+use apicentric::simulator::log::RequestLogEntry;
+>>>>>>> origin/main
 
 struct NoopStorage;
 
 impl Storage for NoopStorage {
+<<<<<<< HEAD
     fn save_service(&self, _service: &ServiceDefinition) -> ApicentricResult<()> {
         Ok(())
     }
@@ -34,6 +43,12 @@ impl Storage for NoopStorage {
     fn clear_logs(&self) -> ApicentricResult<()> {
         Ok(())
     }
+=======
+    fn save_service(&self, _service: &ServiceDefinition) -> ApicentricResult<()> { Ok(()) }
+    fn load_service(&self, _name: &str) -> ApicentricResult<Option<ServiceDefinition>> { Ok(None) }
+    fn append_log(&self, _entry: &RequestLogEntry) -> ApicentricResult<()> { Ok(()) }
+    fn query_logs(&self, _service: Option<&str>, _route: Option<&str>, _method: Option<&str>, _status: Option<u16>, _limit: usize) -> ApicentricResult<Vec<RequestLogEntry>> { Ok(vec![]) }
+>>>>>>> origin/main
 }
 
 fn test_service_definition() -> ServiceDefinition {
@@ -107,3 +122,7 @@ async fn scenario_management_roundtrip() {
     service.set_scenario(Some("test".to_string())).await;
     assert_eq!(service.get_scenario().await, Some("test".to_string()));
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main

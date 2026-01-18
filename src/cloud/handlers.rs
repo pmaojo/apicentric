@@ -6,6 +6,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
+<<<<<<< HEAD
     Extension,
 };
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,14 @@ use crate::simulator::config::{EndpointDefinition, ServerConfig};
 use crate::simulator::log::RequestLogEntry;
 use crate::simulator::{ApiSimulatorManager, ServiceDefinition, ServiceInfo};
 use crate::validation::ConfigValidator;
+=======
+};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Arc};
+
+use crate::simulator::{ApiSimulatorManager, ServiceDefinition, ServiceInfo};
+use crate::simulator::log::RequestLogEntry;
+>>>>>>> origin/main
 
 /// A generic API response.
 #[derive(Serialize)]
@@ -73,6 +82,7 @@ pub struct SaveServiceRequest {
     pub yaml: String,
 }
 
+<<<<<<< HEAD
 /// A request to create a new service.
 #[derive(Deserialize)]
 pub struct CreateServiceRequest {
@@ -89,11 +99,14 @@ pub struct UpdateServiceRequest {
     pub yaml: String,
 }
 
+=======
+>>>>>>> origin/main
 /// A query for logs.
 #[derive(Deserialize)]
 pub struct LogsQuery {
     /// The maximum number of logs to return.
     pub limit: Option<usize>,
+<<<<<<< HEAD
     /// Filter by service name.
     pub service: Option<String>,
     /// Filter by HTTP method.
@@ -170,6 +183,8 @@ pub struct GenerateServiceRequest {
     pub service_name: String,
     /// Optional description for the service.
     pub description: Option<String>,
+=======
+>>>>>>> origin/main
 }
 
 /// Lists all active services.
@@ -195,12 +210,25 @@ pub async fn load_service(
     Json(request): Json<LoadServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     match std::fs::File::open(&request.path) {
+<<<<<<< HEAD
         Ok(file) => match serde_yaml::from_reader::<_, ServiceDefinition>(file) {
             Ok(def) => match serde_yaml::to_string(&def) {
                 Ok(yaml) => Ok(Json(ApiResponse::success(yaml))),
                 Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
             },
             Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+=======
+        Ok(file) => {
+            match serde_yaml::from_reader::<_, ServiceDefinition>(file) {
+                Ok(def) => {
+                    match serde_yaml::to_string(&def) {
+                        Ok(yaml) => Ok(Json(ApiResponse::success(yaml))),
+                        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+                    }
+                },
+                Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+            }
+>>>>>>> origin/main
         },
         Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
     }
@@ -216,6 +244,7 @@ pub async fn save_service(
     Json(request): Json<SaveServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     match serde_yaml::from_str::<ServiceDefinition>(&request.yaml) {
+<<<<<<< HEAD
         Ok(def) => match std::fs::File::create(&request.path) {
             Ok(file) => match serde_yaml::to_writer(file, &def) {
                 Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
@@ -1781,5 +1810,19 @@ pub async fn stop_simulator(
             log::error!("Failed to stop simulator: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
+=======
+        Ok(def) => {
+            match std::fs::File::create(&request.path) {
+                Ok(file) => {
+                    match serde_yaml::to_writer(file, &def) {
+                        Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
+                        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+                    }
+                },
+                Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+            }
+        },
+        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+>>>>>>> origin/main
     }
 }

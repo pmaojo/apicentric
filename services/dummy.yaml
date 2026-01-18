@@ -3,7 +3,11 @@ name: dummy
 version: "1.0"
 description: "Dummy service for GUI"
 server:
+<<<<<<< HEAD
   port: 8081
+=======
+  port: 8080
+>>>>>>> origin/main
   base_path: "/api"
 endpoints:
   - method: GET

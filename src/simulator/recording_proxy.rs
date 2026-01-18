@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::Bytes;
+<<<<<<< HEAD
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::{
     pki_types::{CertificateDer, ServerName, UnixTime},
@@ -63,14 +64,20 @@ impl ServerCertVerifier for NoCertificateVerification {
         ]
     }
 }
+=======
+>>>>>>> origin/main
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{HeaderMap, Request, Response, Uri};
+<<<<<<< HEAD
 use hyper_rustls::HttpsConnectorBuilder;
 use std::error::Error;
 // use hyper_util::client::legacy::connect::HttpConnector;
+=======
+use hyper_util::client::legacy::connect::HttpConnector;
+>>>>>>> origin/main
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use tokio::net::TcpListener;
@@ -96,6 +103,7 @@ impl RecordingProxy for ProxyRecorder {
     async fn record(&self, target: &str, output_dir: PathBuf, port: u16) -> ApicentricResult<()> {
         let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
+<<<<<<< HEAD
         // Create a custom TLS configuration that ignores certificate validation errors
         let tls = rustls::ClientConfig::builder()
             .dangerous()
@@ -109,6 +117,11 @@ impl RecordingProxy for ProxyRecorder {
             .build();
 
         let client: Client<_, Full<Bytes>> = Client::builder(TokioExecutor::new()).build(https);
+=======
+        let connector = HttpConnector::new();
+        let client: Client<HttpConnector, Full<Bytes>> =
+            Client::builder(TokioExecutor::new()).build(connector);
+>>>>>>> origin/main
         let endpoints: Arc<Mutex<HashMap<(String, String), EndpointDefinition>>> =
             Arc::new(Mutex::new(HashMap::new()));
         let listener = TcpListener::bind(addr).await.map_err(|e| {
@@ -156,9 +169,15 @@ impl RecordingProxy for ProxyRecorder {
                                     }
                                 };
 
+<<<<<<< HEAD
                                 let target_trimmed = target.trim_end_matches('/');
                                 let uri_string = format!("{}{}", target_trimmed, path_and_query);
                                 let uri: Uri = uri_string.parse().unwrap();
+=======
+                                let uri: Uri = format!("{}{}", target, path_and_query)
+                                    .parse()
+                                    .unwrap();
+>>>>>>> origin/main
 
                                 let mut fwd_req = Request::new(Full::from(req_body.clone()));
                                 *fwd_req.method_mut() = method.clone();
@@ -168,7 +187,10 @@ impl RecordingProxy for ProxyRecorder {
                                 let resp = match client.request(fwd_req).await {
                                     Ok(r) => r,
                                     Err(e) => {
+<<<<<<< HEAD
                                         eprintln!("Proxy request failed to {}: {} (source: {:?})", uri_string, e, e.source());
+=======
+>>>>>>> origin/main
                                         let mut err_resp = Response::new(Full::from(Bytes::from(e.to_string())));
                                         *err_resp.status_mut() = hyper::StatusCode::BAD_GATEWAY;
                                         return Ok::<_, Infallible>(err_resp);

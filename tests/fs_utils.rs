@@ -8,12 +8,21 @@ fn create_test_structure() -> TempDir {
     let base = temp_dir.path();
     std::fs::create_dir_all(base.join("app/routes/login/test")).unwrap();
     std::fs::create_dir_all(base.join("app/routes/dashboard/test")).unwrap();
+<<<<<<< HEAD
     std::fs::create_dir_all(base.join("screenshots")).unwrap();
     std::fs::create_dir_all(base.join("videos")).unwrap();
     File::create(base.join("app/routes/login/test/login.test.ts")).unwrap();
     File::create(base.join("app/routes/dashboard/test/dashboard.spec.ts")).unwrap();
     File::create(base.join("screenshots/test.png")).unwrap();
     File::create(base.join("videos/test.mp4")).unwrap();
+=======
+    std::fs::create_dir_all(base.join("cypress/screenshots")).unwrap();
+    std::fs::create_dir_all(base.join("cypress/videos")).unwrap();
+    File::create(base.join("app/routes/login/test/login.cy.ts")).unwrap();
+    File::create(base.join("app/routes/dashboard/test/dashboard.cy.ts")).unwrap();
+    File::create(base.join("cypress/screenshots/test.png")).unwrap();
+    File::create(base.join("cypress/videos/test.mp4")).unwrap();
+>>>>>>> origin/main
     File::create(base.join("app/routes/login/route.tsx")).unwrap();
     temp_dir
 }
@@ -21,6 +30,7 @@ fn create_test_structure() -> TempDir {
 #[test]
 fn test_resolve_glob_pattern_success() {
     let temp_dir = create_test_structure();
+<<<<<<< HEAD
     let pattern = format!("{}/**/test/*.test.ts", temp_dir.path().display());
     let result = FileSystemUtils::resolve_glob_pattern(&pattern, None);
     assert!(result.is_ok());
@@ -29,17 +39,30 @@ fn test_resolve_glob_pattern_success() {
     assert!(paths
         .iter()
         .any(|p| p.to_string_lossy().contains("login.test.ts")));
+=======
+    let pattern = format!("{}/**/test/*.cy.ts", temp_dir.path().display());
+    let result = FileSystemUtils::resolve_glob_pattern(&pattern, None);
+    assert!(result.is_ok());
+    let paths = result.unwrap();
+    assert_eq!(paths.len(), 2);
+    assert!(paths.iter().any(|p| p.to_string_lossy().contains("login.cy.ts")));
+    assert!(paths.iter().any(|p| p.to_string_lossy().contains("dashboard.cy.ts")));
+>>>>>>> origin/main
 }
 
 #[test]
 fn test_resolve_glob_pattern_invalid_syntax() {
     let result = FileSystemUtils::resolve_glob_pattern("[invalid", None);
     assert!(result.is_err());
+<<<<<<< HEAD
     if let Err(apicentric::errors::ApicentricError::FileSystem {
         message,
         suggestion,
     }) = result
     {
+=======
+    if let Err(apicentric::errors::ApicentricError::FileSystem { message, suggestion }) = result {
+>>>>>>> origin/main
         assert!(message.contains("Invalid glob pattern syntax"));
         assert!(suggestion.is_some());
     } else {
@@ -50,6 +73,7 @@ fn test_resolve_glob_pattern_invalid_syntax() {
 #[test]
 fn test_resolve_glob_pattern_no_matches() {
     let temp_dir = create_test_structure();
+<<<<<<< HEAD
     let pattern = format!("{}/**/nonexistent/*.test.ts", temp_dir.path().display());
     let result = FileSystemUtils::resolve_glob_pattern(&pattern, None);
     assert!(result.is_err());
@@ -58,6 +82,12 @@ fn test_resolve_glob_pattern_no_matches() {
         suggestion: _,
     }) = result
     {
+=======
+    let pattern = format!("{}/**/nonexistent/*.cy.ts", temp_dir.path().display());
+    let result = FileSystemUtils::resolve_glob_pattern(&pattern, None);
+    assert!(result.is_err());
+    if let Err(apicentric::errors::ApicentricError::FileSystem { message, suggestion: _ }) = result {
+>>>>>>> origin/main
         assert!(message.contains("No valid files found"));
     }
 }
@@ -66,25 +96,42 @@ fn test_resolve_glob_pattern_no_matches() {
 fn test_validate_test_files() {
     let temp_dir = create_test_structure();
     let paths = vec![
+<<<<<<< HEAD
         temp_dir.path().join("app/routes/login/test/login.test.ts"),
         temp_dir.path().join("screenshots/test.png"),
+=======
+        temp_dir.path().join("app/routes/login/test/login.cy.ts"),
+        temp_dir.path().join("cypress/screenshots/test.png"),
+>>>>>>> origin/main
         temp_dir.path().join("app/routes/login/route.tsx"),
     ];
     let (valid_files, issues) = FileSystemUtils::validate_test_files(&paths);
     assert_eq!(valid_files.len(), 1);
     assert_eq!(issues.len(), 2);
+<<<<<<< HEAD
     assert!(valid_files[0].to_string_lossy().contains("login.test.ts"));
+=======
+    assert!(valid_files[0].to_string_lossy().contains("login.cy.ts"));
+>>>>>>> origin/main
 }
 
 #[cfg(unix)]
 #[test]
 fn test_validate_single_test_file_posix() {
     let temp_dir = create_test_structure();
+<<<<<<< HEAD
     let valid_file = temp_dir.path().join("app/routes/login/test/login.test.ts");
     assert!(FileSystemUtils::validate_single_test_file(&valid_file).is_ok());
     let invalid_file = temp_dir.path().join("app/routes/login/route.tsx");
     assert!(FileSystemUtils::validate_single_test_file(&invalid_file).is_err());
     let excluded_file = temp_dir.path().join("screenshots/test.png");
+=======
+    let valid_file = temp_dir.path().join("app/routes/login/test/login.cy.ts");
+    assert!(FileSystemUtils::validate_single_test_file(&valid_file).is_ok());
+    let invalid_file = temp_dir.path().join("app/routes/login/route.tsx");
+    assert!(FileSystemUtils::validate_single_test_file(&invalid_file).is_err());
+    let excluded_file = temp_dir.path().join("cypress/screenshots/test.png");
+>>>>>>> origin/main
     assert!(FileSystemUtils::validate_single_test_file(&excluded_file).is_err());
 }
 
@@ -92,6 +139,7 @@ fn test_validate_single_test_file_posix() {
 #[test]
 fn test_validate_single_test_file_windows() {
     let temp_dir = create_test_structure();
+<<<<<<< HEAD
     let valid_file = temp_dir
         .path()
         .join("app\\routes\\login\\test\\login.test.ts");
@@ -99,6 +147,13 @@ fn test_validate_single_test_file_windows() {
     let invalid_file = temp_dir.path().join("app\\routes\\login\\route.tsx");
     assert!(FileSystemUtils::validate_single_test_file(&invalid_file).is_err());
     let excluded_file = temp_dir.path().join("screenshots\\test.png");
+=======
+    let valid_file = temp_dir.path().join("app\\routes\\login\\test\\login.cy.ts");
+    assert!(FileSystemUtils::validate_single_test_file(&valid_file).is_ok());
+    let invalid_file = temp_dir.path().join("app\\routes\\login\\route.tsx");
+    assert!(FileSystemUtils::validate_single_test_file(&invalid_file).is_err());
+    let excluded_file = temp_dir.path().join("cypress\\screenshots\\test.png");
+>>>>>>> origin/main
     assert!(FileSystemUtils::validate_single_test_file(&excluded_file).is_err());
 }
 
@@ -150,17 +205,28 @@ fn test_validate_directory_access() {
 fn test_directory_scanner() {
     let temp_dir = create_test_structure();
     let scanner = DirectoryScanner::new(temp_dir.path().to_path_buf());
+<<<<<<< HEAD
     let result = scanner.scan_for_files("**/test/*.test.ts");
     assert!(result.is_ok());
     let files = result.unwrap();
     assert_eq!(files.len(), 1);
+=======
+    let result = scanner.scan_for_files("**/test/*.cy.ts");
+    assert!(result.is_ok());
+    let files = result.unwrap();
+    assert_eq!(files.len(), 2);
+>>>>>>> origin/main
 }
 
 #[test]
 fn test_count_files_in_directory() {
     let temp_dir = create_test_structure();
     let test_dir = temp_dir.path().join("app/routes/login/test");
+<<<<<<< HEAD
     let result = FileSystemUtils::count_files_in_directory(&test_dir, Some(".test.ts"));
+=======
+    let result = FileSystemUtils::count_files_in_directory(&test_dir, Some(".cy.ts"));
+>>>>>>> origin/main
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 1);
 }

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 //! GUI Application State Logic
 //!
 //! This module contains the state management logic for the GUI application.
@@ -1001,4 +1002,32 @@ mod log_integration_tests {
         assert!(elapsed < std::time::Duration::from_millis(50));
         assert_eq!(state.request_log_count(), 1000);
     }
+=======
+//! GUI Application State
+//!
+//! This module defines the state for the `egui` application.
+
+#![cfg(feature = "gui")]
+
+use tokio::sync::broadcast;
+
+pub struct GuiAppState {
+    pub services: Vec<String>,
+    pub logs: Vec<String>,
+    pub ai_prompt: String,
+    pub log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
+    pub ai_generated_yaml: Option<String>,
+}
+
+impl GuiAppState {
+    pub fn new(log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>) -> Self {
+        Self {
+            services: Vec::new(),
+            logs: Vec::new(),
+            ai_prompt: "Generate a new service".to_string(),
+            log_receiver,
+            ai_generated_yaml: None,
+        }
+    }
+>>>>>>> origin/main
 }

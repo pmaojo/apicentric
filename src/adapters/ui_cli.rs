@@ -39,10 +39,14 @@ impl ProgressPort for CliProgress {
 
     /// Finishes the progress bar.
     fn finish(&self) {
+<<<<<<< HEAD
         println!(
             "✅ {} completed ({}/{})",
             self.message, self.total, self.total
         );
+=======
+        println!("✅ {} completed ({}/{})", self.message, self.total, self.total);
+>>>>>>> origin/main
     }
 }
 
@@ -55,41 +59,61 @@ impl UserInterfacePort for CliUiAdapter {
     /// # Arguments
     ///
     /// * `message` - The message to print.
+<<<<<<< HEAD
     fn print_success(&self, message: &str) {
         println!("✅ {}", message);
     }
+=======
+    fn print_success(&self, message: &str) { println!("✅ {}", message); }
+>>>>>>> origin/main
     /// Prints an error message to the console.
     ///
     /// # Arguments
     ///
     /// * `message` - The message to print.
+<<<<<<< HEAD
     fn print_error(&self, message: &str) {
         println!("❌ {}", message);
     }
+=======
+    fn print_error(&self, message: &str) { println!("❌ {}", message); }
+>>>>>>> origin/main
     /// Prints a warning message to the console.
     ///
     /// # Arguments
     ///
     /// * `message` - The message to print.
+<<<<<<< HEAD
     fn print_warning(&self, message: &str) {
         println!("⚠️  {}", message);
     }
+=======
+    fn print_warning(&self, message: &str) { println!("⚠️  {}", message); }
+>>>>>>> origin/main
     /// Prints an informational message to the console.
     ///
     /// # Arguments
     ///
     /// * `message` - The message to print.
+<<<<<<< HEAD
     fn print_info(&self, message: &str) {
         println!("ℹ️  {}", message);
     }
+=======
+    fn print_info(&self, message: &str) { println!("ℹ️  {}", message); }
+>>>>>>> origin/main
     /// Prints a debug message to the console.
     ///
     /// # Arguments
     ///
     /// * `message` - The message to print.
+<<<<<<< HEAD
     fn print_debug(&self, message: &str) {
         println!("🐛 {}", message);
     }
+=======
+    fn print_debug(&self, message: &str) { println!("🐛 {}", message); }
+>>>>>>> origin/main
 
     /// Creates a new progress bar.
     ///

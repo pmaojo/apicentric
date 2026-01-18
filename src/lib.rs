@@ -1,5 +1,6 @@
 //! # Apicentric
 //!
+<<<<<<< HEAD
 //! > A powerful CLI tool and API simulator platform for developers who love the terminal
 //! >
 //! > https://apicentric.pelayomaojo.es
@@ -642,12 +643,37 @@
 //! - `cli` and `cli_ui`: CLI and text-based UI front-ends.
 //!
 //! Refer to the module documentation for deeper implementation details.
+=======
+//! Apicentric is a powerful CLI tool and API simulator platform for developers.
+//! This library contains the core functionality of Apicentric, including the API
+//! simulator, contract testing, and code generation.
+//!
+//! The library is structured into several modules, each responsible for a specific
+//! part of the application:
+//!
+//! - `app`: The main application entry point and setup.
+//! - `config`: Application configuration management.
+//! - `context`: The application context, which holds the configuration and other
+//!   shared state.
+//! - `errors`: Error handling and custom error types.
+//! - `utils`: Utility functions.
+//! - `validation`: Data validation.
+//! - `storage`: Storage-related functionality.
+//! - `ai`: AI-powered features.
+//! - `domain`: The core business logic of the application.
+//! - `contract`: Contract testing functionality.
+//! - `adapters`: Implementations of the domain ports.
+//! - `simulator`: The API simulator.
+//! - `cli`: The command-line interface.
+//! - `cli_ui`: The command-line user interface.
+>>>>>>> origin/main
 
 // Enhanced error handling and validation
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 #[cfg(not(target_arch = "wasm32"))]
+<<<<<<< HEAD
 pub mod ai;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod app;
@@ -658,10 +684,15 @@ pub mod cloud;
 #[cfg(all(not(target_arch = "wasm32"), feature = "p2p"))]
 pub mod collab;
 #[cfg(not(target_arch = "wasm32"))]
+=======
+pub mod app;
+#[cfg(not(target_arch = "wasm32"))]
+>>>>>>> origin/main
 pub mod config;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod context;
 #[cfg(not(target_arch = "wasm32"))]
+<<<<<<< HEAD
 pub mod env_config;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod errors;
@@ -673,6 +704,22 @@ pub mod storage;
 pub mod utils;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod validation;
+=======
+pub mod errors;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod utils;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod validation;
+// Disabled heavy dependencies for lighter CLI build
+// #[cfg(not(target_arch = "wasm32"))]
+// pub mod collab;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod storage;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod ai;
+#[cfg(not(target_arch = "wasm32"))]
+// Cloud & auth modules removed for pure CLI focus
+>>>>>>> origin/main
 
 // Domain layer (core business logic)
 #[cfg(not(target_arch = "wasm32"))]
@@ -687,6 +734,7 @@ pub mod contract;
 pub mod adapters {
     pub mod contract_repository;
     pub mod http_client;
+<<<<<<< HEAD
     pub mod mock_server;
     pub mod noop_telemetry;
     pub mod report_sink;
@@ -701,6 +749,19 @@ pub mod adapters {
     pub use service_spec_loader::*;
     pub use simulator_manager_adapter::*;
     pub use ui_cli::*;
+=======
+    pub mod ui_cli;
+    pub mod mock_server;
+    pub mod npm;
+    pub mod report_sink;
+    pub mod service_spec_loader;
+
+    pub use contract_repository::*;
+    pub use http_client::*;
+    pub use ui_cli::*;
+    pub use report_sink::*;
+    pub use service_spec_loader::*;
+>>>>>>> origin/main
 }
 
 // API Simulator module
@@ -713,10 +774,13 @@ pub mod cli;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod cli_ui;
 
+<<<<<<< HEAD
 // IoT module
 #[cfg(all(not(target_arch = "wasm32"), feature = "iot"))]
 pub mod iot;
 
+=======
+>>>>>>> origin/main
 // Re-export commonly used types
 #[cfg(not(target_arch = "wasm32"))]
 pub use config::ApicentricConfig;
@@ -729,14 +793,24 @@ pub use simulator::{ApiSimulatorManager, ServiceDefinition, SimulatorConfig};
 
 // Re-export contract testing functionality
 #[cfg(not(target_arch = "wasm32"))]
+<<<<<<< HEAD
 pub use domain::contract::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use domain::contract_testing::*;
+=======
+pub use domain::contract_testing::*;
+#[cfg(not(target_arch = "wasm32"))]
+pub use domain::contract::*;
+>>>>>>> origin/main
 
 /// Re-exports from the infrastructure layer.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod infrastructure {
     pub use crate::adapters::*;
+<<<<<<< HEAD
+=======
+    pub use crate::app::setup_npm::setup_npm_scripts;
+>>>>>>> origin/main
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub use infrastructure::*;

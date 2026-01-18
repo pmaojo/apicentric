@@ -4,12 +4,18 @@
 //! by serving locally-defined APIs through YAML configuration files.
 
 pub mod admin_server;
+<<<<<<< HEAD
 pub mod axios_client;
+=======
+>>>>>>> origin/main
 pub mod config;
 pub mod lifecycle;
 pub mod log;
 pub mod manager;
+<<<<<<< HEAD
 pub mod marketplace;
+=======
+>>>>>>> origin/main
 pub mod mockoon;
 pub mod openapi;
 pub mod postman;

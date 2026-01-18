@@ -2,6 +2,7 @@
 //!
 //! This module provides a cloud API for managing services.
 
+<<<<<<< HEAD
 pub mod api;
 pub mod cors;
 pub mod error;
@@ -18,3 +19,10 @@ pub use error::{ApiError, ApiErrorCode, ErrorResponse};
 pub use monitoring::{Metrics, MetricsCollector, StructuredLog};
 pub use server::CloudServer;
 pub use websocket::{broadcast_service_status, ws_handler, ServiceStatusUpdate, WebSocketState};
+=======
+pub mod server;
+pub mod api;
+pub mod handlers;
+
+pub use server::CloudServer;
+>>>>>>> origin/main

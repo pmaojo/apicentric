@@ -11,8 +11,13 @@ use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 
+<<<<<<< HEAD
 use super::router::RequestRouter;
 use crate::errors::{ApicentricError, ApicentricResult};
+=======
+use crate::errors::{ApicentricError, ApicentricResult};
+use super::router::RequestRouter;
+>>>>>>> origin/main
 
 /// Adapter responsible for running an HTTP server that delegates
 /// requests to a [`RequestRouter`].
@@ -25,21 +30,29 @@ pub struct HttpServer<R: RequestRouter + 'static> {
 
 impl<R: RequestRouter + 'static> HttpServer<R> {
     pub fn new(addr: SocketAddr, router: Arc<R>) -> Self {
+<<<<<<< HEAD
         Self {
             addr,
             router,
             handle: None,
             listener_addr: None,
         }
+=======
+        Self { addr, router, handle: None, listener_addr: None }
+>>>>>>> origin/main
     }
 
     /// Start listening for HTTP requests.
     pub async fn start(&mut self) -> ApicentricResult<()> {
         if self.handle.is_some() {
+<<<<<<< HEAD
             return Err(ApicentricError::runtime_error(
                 "server already running",
                 None::<String>,
             ));
+=======
+            return Err(ApicentricError::runtime_error("server already running", None::<String>));
+>>>>>>> origin/main
         }
         let listener = TcpListener::bind(self.addr).await.map_err(|e| {
             ApicentricError::runtime_error(format!("failed to bind: {}", e), None::<String>)
@@ -74,9 +87,13 @@ impl<R: RequestRouter + 'static> HttpServer<R> {
                                     }
                                 }
                             });
+<<<<<<< HEAD
                             let _ = http1::Builder::new()
                                 .serve_connection(TokioIo::new(stream), svc)
                                 .await;
+=======
+                            let _ = http1::Builder::new().serve_connection(TokioIo::new(stream), svc).await;
+>>>>>>> origin/main
                         });
                     }
                     Err(_) => break,
@@ -109,6 +126,7 @@ mod tests {
     struct TestRouter;
     #[async_trait::async_trait]
     impl RequestRouter for TestRouter {
+<<<<<<< HEAD
         async fn route(
             &self,
             _req: Request<Full<Bytes>>,
@@ -117,19 +135,35 @@ mod tests {
                 .status(StatusCode::OK)
                 .body(Full::new(Bytes::new()))
                 .unwrap())
+=======
+        async fn route(&self, _req: Request<Full<Bytes>>) -> ApicentricResult<Response<Full<Bytes>>> {
+            Ok(Response::builder().status(StatusCode::OK).body(Full::new(Bytes::new())).unwrap())
+>>>>>>> origin/main
         }
     }
 
     #[tokio::test]
     async fn server_handles_request() {
         let router = Arc::new(TestRouter);
+<<<<<<< HEAD
         let addr = SocketAddr::from(([127, 0, 0, 1], 0));
+=======
+        let addr = SocketAddr::from(([127,0,0,1], 0));
+>>>>>>> origin/main
         let mut server = HttpServer::new(addr, router);
         server.start().await.unwrap();
         let addr = server.local_addr().unwrap();
 
         let client = Client::new();
+<<<<<<< HEAD
         let resp = client.get(format!("http://{addr}/")).send().await.unwrap();
+=======
+        let resp = client
+            .get(format!("http://{addr}/"))
+            .send()
+            .await
+            .unwrap();
+>>>>>>> origin/main
         assert_eq!(resp.status(), reqwest::StatusCode::OK);
 
         server.stop().await.unwrap();

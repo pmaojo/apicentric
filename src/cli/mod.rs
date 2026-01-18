@@ -4,8 +4,11 @@
 //! the main `Cli` struct and the `Commands` enum.
 
 use crate::config::ExecutionMode;
+<<<<<<< HEAD
 #[cfg(feature = "iot")]
 use crate::iot::args::TwinCommands;
+=======
+>>>>>>> origin/main
 use clap::{Parser, Subcommand, ValueEnum};
 
 /// The command-line interface for `apicentric`.
@@ -257,6 +260,7 @@ pub enum Commands {
     ///
     /// Example: apicentric tui
     Tui,
+<<<<<<< HEAD
 
     /// Launches the Apicentric Cloud API server.
     ///
@@ -285,6 +289,8 @@ pub enum Commands {
         #[command(subcommand)]
         command: TwinCommands,
     },
+=======
+>>>>>>> origin/main
 }
 
 /// Parses the command-line arguments into a `Cli` instance.

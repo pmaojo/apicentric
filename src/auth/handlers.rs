@@ -3,6 +3,7 @@
 //! This module provides handlers for registering, logging in, and authenticating
 //! users.
 
+<<<<<<< HEAD
 use crate::auth::blacklist::TokenBlacklist;
 use crate::auth::jwt::{generate_token, validate_token, JwtKeys};
 use crate::auth::model::{AuthResponse, LoginRequest, RegisterRequest};
@@ -15,6 +16,15 @@ use axum::{
 };
 use serde_json::json;
 use std::sync::Arc;
+=======
+use axum::{Json, extract::Extension, http::{StatusCode, HeaderMap, header}};
+use serde_json::json;
+use std::sync::Arc;
+use crate::auth::repository::AuthRepository;
+use crate::auth::password::{hash_password, verify_password};
+use crate::auth::jwt::{generate_token, JwtKeys, validate_token};
+use crate::auth::model::{RegisterRequest, LoginRequest, AuthResponse};
+>>>>>>> origin/main
 
 /// The state for the authentication handlers.
 pub struct AuthState {
@@ -22,8 +32,11 @@ pub struct AuthState {
     pub repo: Arc<AuthRepository>,
     /// The JWT keys.
     pub keys: JwtKeys,
+<<<<<<< HEAD
     /// The token blacklist for logout functionality.
     pub blacklist: TokenBlacklist,
+=======
+>>>>>>> origin/main
 }
 
 /// Registers a new user.
@@ -37,6 +50,7 @@ pub struct AuthState {
 ///
 /// A `Result` containing an `AuthResponse` if the registration was successful,
 /// or a rejection otherwise.
+<<<<<<< HEAD
 pub async fn register(
     Extension(state): Extension<Arc<AuthState>>,
     Json(payload): Json<RegisterRequest>,
@@ -59,6 +73,18 @@ pub async fn register(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let token = generate_token(&payload.username, &state.keys, 24)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+=======
+pub async fn register(Extension(state): Extension<Arc<AuthState>>, Json(payload): Json<RegisterRequest>) -> Result<Json<AuthResponse>, (StatusCode, String)> {
+    if payload.username.trim().is_empty() || payload.password.len() < 6 {
+        return Err((StatusCode::BAD_REQUEST, "Invalid username or password (min length 6)".into()));
+    }
+    if let Ok(Some(_existing)) = state.repo.find_by_username(&payload.username) {
+        return Err((StatusCode::CONFLICT, "Username already exists".into()));
+    }
+    let hash = hash_password(&payload.password).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    state.repo.create_user(&payload.username, &hash).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let token = generate_token(&payload.username, &state.keys, 24).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+>>>>>>> origin/main
     Ok(Json(AuthResponse { token }))
 }
 
@@ -73,6 +99,7 @@ pub async fn register(
 ///
 /// A `Result` containing an `AuthResponse` if the login was successful, or a
 /// rejection otherwise.
+<<<<<<< HEAD
 pub async fn login(
     Extension(state): Extension<Arc<AuthState>>,
     Json(payload): Json<LoginRequest>,
@@ -92,6 +119,14 @@ pub async fn login(
     }
     let token = generate_token(&payload.username, &state.keys, 24)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+=======
+pub async fn login(Extension(state): Extension<Arc<AuthState>>, Json(payload): Json<LoginRequest>) -> Result<Json<AuthResponse>, (StatusCode, String)> {
+    let user = state.repo.find_by_username(&payload.username).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let Some(user) = user else { return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".into())); };
+    let ok = verify_password(&user.password_hash, &payload.password).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    if !ok { return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".into())); }
+    let token = generate_token(&payload.username, &state.keys, 24).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+>>>>>>> origin/main
     Ok(Json(AuthResponse { token }))
 }
 
@@ -106,6 +141,7 @@ pub async fn login(
 ///
 /// A `Result` containing the user's claims if the request is authenticated,
 /// or a rejection otherwise.
+<<<<<<< HEAD
 pub async fn me(
     Extension(state): Extension<Arc<AuthState>>,
     headers: HeaderMap,
@@ -214,3 +250,11 @@ pub async fn logout(
         "success": true
     })))
 }
+=======
+pub async fn me(Extension(state): Extension<Arc<AuthState>>, headers: HeaderMap) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()).ok_or((StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()))?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or((StatusCode::UNAUTHORIZED, "Invalid auth scheme".to_string()))?;
+    let claims = validate_token(token, &state.keys).map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token".into()))?;
+    Ok(Json(json!({"username": claims.sub})))
+}
+>>>>>>> origin/main

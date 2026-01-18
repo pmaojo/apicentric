@@ -38,7 +38,11 @@ The importer understands single stub files or `mappings` arrays produced by `__a
 - Only `equalTo` header matchers and object `equalToJson` body patterns are supported; other pattern types such as `matchesJsonPath`, `binaryEqualTo`, or plain string bodies are ignored.
 - Advanced WireMock features including transformers, proxying, post-serve actions, scenario state transitions, and body files are not imported automatically.
 
+<<<<<<< HEAD
 #### `contract-testing` (included in default)
+=======
+#### `contract-testing`
+>>>>>>> origin/main
 
 Contract testing validates that mocks match real APIs.
 
@@ -52,9 +56,15 @@ Contract testing validates that mocks match real APIs.
 
 **Use when**: You need to verify API contracts
 
+<<<<<<< HEAD
 ### Optional Features
 
 #### `tui` (included in default)
+=======
+### Advanced Features
+
+#### `tui`
+>>>>>>> origin/main
 
 Interactive terminal user interface for managing services.
 
@@ -68,6 +78,7 @@ Interactive terminal user interface for managing services.
 
 **Use when**: You want visual service management in the terminal
 
+<<<<<<< HEAD
 #### `webui` (included in default)
 
 Web-based user interface with Axum server.
@@ -80,6 +91,8 @@ Web-based user interface with Axum server.
 
 **Use when**: You prefer a browser-based interface over terminal
 
+=======
+>>>>>>> origin/main
 #### `p2p`
 
 Peer-to-peer collaboration for sharing services.
@@ -94,6 +107,7 @@ Peer-to-peer collaboration for sharing services.
 
 **Use when**: You need to share services with team members
 
+<<<<<<< HEAD
 #### `gui`
 
 Desktop graphical user interface using egui/eframe.
@@ -106,6 +120,8 @@ Desktop graphical user interface using egui/eframe.
 
 **Use when**: You want a native desktop GUI application
 
+=======
+>>>>>>> origin/main
 #### `graphql`
 
 GraphQL API mocking support.
@@ -119,7 +135,11 @@ GraphQL API mocking support.
 
 **Use when**: You need to mock GraphQL APIs
 
+<<<<<<< HEAD
 #### `scripting` (included in default)
+=======
+#### `scripting`
+>>>>>>> origin/main
 
 JavaScript runtime for custom logic.
 
@@ -133,6 +153,7 @@ JavaScript runtime for custom logic.
 
 **Use when**: You need dynamic response generation
 
+<<<<<<< HEAD
 #### `mcp`
 
 Model Context Protocol for AI agent interaction.
@@ -144,6 +165,20 @@ Model Context Protocol for AI agent interaction.
 **Dependencies**: rmcp, simulator
 
 **Use when**: You want to expose APIs to AI agents
+=======
+#### `ai`
+
+AI-powered service generation (experimental).
+
+**Includes**:
+- Natural language to YAML conversion
+- Service generation from descriptions
+- OpenAI integration
+
+**Dependencies**: Minimal
+
+**Use when**: You want to generate services from descriptions
+>>>>>>> origin/main
 
 ### Convenience Bundles
 
@@ -159,6 +194,7 @@ Fastest build, smallest binary.
 
 #### `default`
 
+<<<<<<< HEAD
 Balanced feature set for most users.
 
 **Includes**: simulator, contract-testing, tui, webui, mock-data, database, file-watch, websockets, scripting
@@ -168,6 +204,17 @@ Balanced feature set for most users.
 **Use when**: You want the standard experience including TUI and WebUI
 
 #### `cli-tools` (recommended for CLI users)
+=======
+Balanced feature set.
+
+**Includes**: simulator
+
+**Build time**: < 1.5 minutes
+
+**Use when**: You want the standard experience
+
+#### `cli-tools` (recommended)
+>>>>>>> origin/main
 
 Essential CLI tools for developers.
 
@@ -175,12 +222,17 @@ Essential CLI tools for developers.
 
 **Build time**: < 2 minutes
 
+<<<<<<< HEAD
 **Use when**: You want a complete CLI experience without the heavy desktop GUI or P2P features
+=======
+**Use when**: You want a complete CLI experience
+>>>>>>> origin/main
 
 #### `full`
 
 All features enabled.
 
+<<<<<<< HEAD
 **Includes**: All features (gui, p2p, webui, simulator, contract-testing, tui, mock-data, database, file-watch, websockets, scripting, graphql)
 
 **Build time**: 5+ minutes
@@ -194,6 +246,13 @@ Everything except P2P collaboration.
 **Includes**: gui, webui, simulator, contract-testing, tui, mock-data, database, file-watch, websockets, scripting
 
 **Use when**: You want a full experience but don't need the heavy P2P networking stack
+=======
+**Includes**: All features (tui, p2p, graphql, scripting, ai)
+
+**Build time**: 3-5 minutes
+
+**Use when**: You need everything
+>>>>>>> origin/main
 
 ## Installation Examples
 
@@ -271,9 +330,15 @@ cargo install apicentric --no-default-features --features simulator,graphql
 | Feature Set | Dependencies | Build Time | Binary Size |
 |-------------|--------------|------------|-------------|
 | `minimal` | ~30 crates | < 1 min | ~5 MB |
+<<<<<<< HEAD
 | `default` | ~60 crates | < 3 min | ~15 MB |
 | `cli-tools` | ~50 crates | < 2 min | ~12 MB |
 | `full` | ~100+ crates | 5+ min | ~25 MB |
+=======
+| `default` | ~40 crates | < 1.5 min | ~8 MB |
+| `cli-tools` | ~50 crates | < 2 min | ~12 MB |
+| `full` | ~100+ crates | 3-5 min | ~25 MB |
+>>>>>>> origin/main
 
 *Build times measured on a modern development machine (M1 Mac, 16GB RAM)*
 
@@ -288,8 +353,13 @@ apicentric --version
 Output includes enabled features:
 
 ```
+<<<<<<< HEAD
 apicentric 0.2.3
 Features: simulator, tui, contract-testing, webui
+=======
+apicentric 0.1.0
+Features: simulator, tui, contract-testing
+>>>>>>> origin/main
 ```
 
 ## Using Features

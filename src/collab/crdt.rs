@@ -2,10 +2,15 @@
 //!
 //! This module provides a `ServiceCrdt` that can be used to synchronize service
 //! definitions between peers.
+<<<<<<< HEAD
 //!
 //! This module is only available when the `p2p` feature flag is enabled.
 
 use automerge::{transaction::Transactable, AutoCommit, ReadDoc, ScalarValue, Value, ROOT};
+=======
+
+use automerge::{transaction::Transactable, AutoCommit, Value, ScalarValue, ReadDoc, ROOT};
+>>>>>>> origin/main
 use serde::{Deserialize, Serialize};
 
 use crate::simulator::config::ServiceDefinition;

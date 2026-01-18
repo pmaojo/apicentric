@@ -13,10 +13,14 @@ impl<L: ServiceSpecLoader> ScenarioExtractor<L> {
     }
 
     /// Load a service definition and extract its validation scenarios.
+<<<<<<< HEAD
     pub async fn extract(
         &self,
         spec_path: &str,
     ) -> Result<Vec<ValidationScenario>, SpecLoaderError> {
+=======
+    pub async fn extract(&self, spec_path: &str) -> Result<Vec<ValidationScenario>, SpecLoaderError> {
+>>>>>>> origin/main
         let spec: ServiceSpec = self.loader.load(spec_path).await?;
         self.loader.extract_scenarios(&spec)
     }
@@ -64,7 +68,15 @@ mod tests {
                 .iter()
                 .enumerate()
                 .map(|(i, ep)| {
+<<<<<<< HEAD
                     ValidationScenario::new(format!("s{}", i), ep.path.clone(), ep.method.clone())
+=======
+                    ValidationScenario::new(
+                        format!("s{}", i),
+                        ep.path.clone(),
+                        ep.method.clone(),
+                    )
+>>>>>>> origin/main
                 })
                 .collect())
         }
@@ -78,3 +90,7 @@ mod tests {
         assert_eq!(scenarios[0].path(), "/ping");
     }
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main

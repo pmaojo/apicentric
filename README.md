@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!-- cargo-rdme start -->
 
 # Apicentric
@@ -5,6 +6,11 @@
 > A powerful CLI tool and API simulator platform for developers who love the terminal
 >
 > https://apicentric.pelayomaojo.es
+=======
+# Apicentric
+
+> A powerful CLI tool and API simulator platform for developers who love the terminal
+>>>>>>> origin/main
 
 ## What is Apicentric?
 
@@ -13,9 +19,14 @@ Apicentric is a **Rust-based CLI tool and API simulator platform** that helps de
 - 🎯 **Mock APIs** with simple YAML configuration
 - ✅ **Test API contracts** between services
 - 🔄 **Generate code** (TypeScript types, React Query hooks)
+<<<<<<< HEAD
 - ✨ **MCP** Power your agent with API mocking tools
 - 🏭 **IoT Digital Twins** Simulate industrial devices with MQTT and Modbus
 - 🖥️ **TUI (Terminal User Interface)** for visual service management
+=======
+- 🖥️ **TUI (Terminal User Interface)** for visual service management
+- 🌐 **P2P collaboration** on service definitions (optional)
+>>>>>>> origin/main
 
 Perfect for frontend developers who need backend APIs, teams doing contract testing, or anyone who loves working in the terminal.
 
@@ -27,7 +38,10 @@ Apicentric is built around a few core concepts:
 - **Simulator**: A local server that serves the mock APIs defined in your service definitions.
 - **Contract Testing**: A feature that allows you to validate that your mock APIs match the real APIs they are mocking.
 - **Code Generation**: A feature that allows you to generate client code from your service definitions.
+<<<<<<< HEAD
 - **Digital Twin**: An actor-based simulation of a physical device with state, physics, and network protocols.
+=======
+>>>>>>> origin/main
 - **TUI**: A terminal user interface that provides a visual way to manage your services.
 
 ## Real-World Example: E-commerce API
@@ -192,7 +206,10 @@ curl http://localhost:9002/api/v2/orders/5678/status
 ```
 
 This example demonstrates features like:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - **Fixtures**: Reusable data for your endpoints.
 - **Dynamic Responses**: Handlebars templating for realistic data.
 - **Request Validation**: Conditional responses based on the request body.
@@ -202,10 +219,16 @@ This example demonstrates features like:
 
 Create a portable Docker image for your service:
 
+<<<<<<< HEAD
 ````bash
 ```bash
 apicentric simulator dockerize --file ecommerce-api.yaml --output ./ecommerce-docker
 ````
+=======
+```bash
+apicentric simulator dockerize --services ecommerce-api.yaml --output ./ecommerce-docker
+```
+>>>>>>> origin/main
 
 This will create a `Dockerfile` and copy the service definition into the `ecommerce-docker` directory. You can then build and run the image:
 
@@ -248,7 +271,10 @@ curl -fsSL https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/inst
 ```
 
 This script will:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - Detect your platform and architecture automatically
 - Download the appropriate binary
 - Verify checksums for security
@@ -275,7 +301,10 @@ irm https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/install.ps1
 ```
 
 This script will:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - Download the Windows x64 binary
 - Verify checksums
 - Extract to `%USERPROFILE%\.apicentric\bin`
@@ -334,7 +363,10 @@ apicentric --version
 Download pre-built binaries for your platform from [GitHub Releases](https://github.com/pmaojo/apicentric/releases).
 
 **Available platforms:**
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
 - Linux x64 (`apicentric-linux-x64.tar.gz`)
 - macOS x64 (`apicentric-macos-x64.tar.gz`)
 - macOS ARM64 (`apicentric-macos-arm64.tar.gz`)
@@ -378,7 +410,11 @@ apicentric --version
 You can use the `dockerize` command to create a self-contained Docker image for your services.
 
 ```bash
+<<<<<<< HEAD
 apicentric simulator dockerize --file <service1>.yaml [<service2>.yaml ...] --output ./my-service-docker
+=======
+apicentric simulator dockerize --services <service1>.yaml [<service2>.yaml ...] --output ./my-service-docker
+>>>>>>> origin/main
 ```
 
 This will generate a `Dockerfile` and a `.dockerignore` file in the output directory, along with a `services` directory containing your service definitions.
@@ -417,14 +453,20 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - **Homebrew:** Ensure Homebrew's bin directory is in your PATH:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
   ```bash
   echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.bashrc  # or ~/.zshrc
   source ~/.bashrc
   ```
 
 - **Install script:** Verify `/usr/local/bin` is in your PATH:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
   ```bash
   echo $PATH | grep -q "/usr/local/bin" && echo "✓ In PATH" || echo "✗ Not in PATH"
   ```
@@ -444,6 +486,7 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - **Unix install script:** The script requires sudo for `/usr/local/bin`. Use custom directory:
+<<<<<<< HEAD
 
   ```bash
   INSTALL_DIR=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/install.sh | sh
@@ -451,6 +494,12 @@ Expected output should show version information and available commands.
 
   Then add to PATH:
 
+=======
+  ```bash
+  INSTALL_DIR=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/install.sh | sh
+  ```
+  Then add to PATH:
+>>>>>>> origin/main
   ```bash
   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
   source ~/.bashrc
@@ -469,7 +518,10 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - Download may be corrupted. Delete and try again:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
   ```bash
   rm apicentric-*.tar.gz
   curl -LO https://github.com/pmaojo/apicentric/releases/latest/download/apicentric-linux-x64.tar.gz
@@ -485,13 +537,19 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - **Update Rust:** Ensure you have the latest stable Rust:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
   ```bash
   rustup update stable
   ```
 
 - **Missing dependencies:** Install required system dependencies:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
   - **Ubuntu/Debian:**
     ```bash
     sudo apt-get update
@@ -515,7 +573,10 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - You installed a minimal build. Reinstall with desired features:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
   ```bash
   cargo install apicentric --features cli-tools --force
   ```
@@ -532,13 +593,19 @@ Expected output should show version information and available commands.
 **Solutions:**
 
 - **Option 1:** Use Homebrew installation (recommended):
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
   ```bash
   brew install pmaojo/tap/apicentric
   ```
 
 - **Option 2:** Allow the binary manually:
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
   ```bash
   xattr -d com.apple.quarantine /usr/local/bin/apicentric
   ```
@@ -571,12 +638,16 @@ Define mock APIs in YAML and serve them locally:
 - Scenarios for different states
 - Request/response logging
 - Request recording proxy and auto-generated endpoints via `record_unknown`
+<<<<<<< HEAD
 - Import from various formats like OpenAPI, Postman, WireMock, and Mockoon with `apicentric simulator import`.
 
 ### GraphQL Mocking
 
 - Define GraphQL mocks with a schema and response templates.
 - Create a new GraphQL service from scratch with `apicentric simulator new-graphql <name>`.
+=======
+- Imports OpenAPI 2.0/3.x specs, preferring documented examples and generating JSON bodies from schemas when necessary
+>>>>>>> origin/main
 
 ### 🐳 Dockerize Services
 
@@ -595,6 +666,7 @@ Validate that mocks match real APIs:
 - HTML reports with differences
 - CI/CD integration
 
+<<<<<<< HEAD
 ### 🔄 Code Generation & Exporting
 
 Generate client code from service definitions or export to standard formats:
@@ -603,6 +675,16 @@ Generate client code from service definitions or export to standard formats:
 - **Generate React Query hooks**: `apicentric simulator generate-query --file <service.yaml> --output <output.ts>`
 - **Export to OpenAPI**: `apicentric simulator export --file <service.yaml> --output <openapi.json> --format openapi`
 - **Export to Postman**: `apicentric simulator export --file <service.yaml> --output <collection.json> --format postman`
+=======
+### 🔄 Code Generation
+
+Generate client code from service definitions:
+
+- TypeScript interfaces
+- React Query hooks
+- OpenAPI specs
+- Postman collections
+>>>>>>> origin/main
 
 ### 🖥️ TUI (Terminal User Interface)
 
@@ -613,6 +695,7 @@ Interactive terminal dashboard for service management:
 - Start/stop services
 - Keyboard-driven workflow
 
+<<<<<<< HEAD
 ### 🤖 AI Integration with MCP (Model Context Protocol)
 
 Apicentric supports the **Model Context Protocol (MCP)**, allowing AI assistants like Claude, ChatGPT, and other MCP-compatible tools to interact with your API simulator programmatically.
@@ -736,6 +819,8 @@ twin:
 apicentric twin run --device assets/library/demo_device.yaml
 ```
 
+=======
+>>>>>>> origin/main
 ### 🌐 Advanced Features (Optional)
 
 - **P2P Collaboration**: Share services with team members
@@ -763,6 +848,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - [GitHub Issues](https://github.com/pmaojo/apicentric/issues)
 - [Discussions](https://github.com/pmaojo/apicentric/discussions)
+<<<<<<< HEAD
 
 ## Crate Modules
 
@@ -790,3 +876,5 @@ The crate follows hexagonal architecture principles and exposes the following mo
 Refer to the module documentation for deeper implementation details.
 
 <!-- cargo-rdme end -->
+=======
+>>>>>>> origin/main

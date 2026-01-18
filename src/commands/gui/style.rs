@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 #![allow(dead_code)]
+=======
+>>>>>>> origin/main
 
 use egui::{
     style::{Style, Visuals},

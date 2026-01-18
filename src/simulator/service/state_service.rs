@@ -15,9 +15,13 @@ pub struct StateService {
 
 impl StateService {
     pub fn new(state: ServiceState) -> Self {
+<<<<<<< HEAD
         Self {
             inner: Arc::new(RwLock::new(state)),
         }
+=======
+        Self { inner: Arc::new(RwLock::new(state)) }
+>>>>>>> origin/main
     }
 
     pub async fn update(&self, key: &str, value: Value) {
@@ -72,14 +76,18 @@ mod tests {
         ) -> ApicentricResult<Vec<RequestLogEntry>> {
             Ok(vec![])
         }
+<<<<<<< HEAD
 
         fn clear_logs(&self) -> ApicentricResult<()> {
             Ok(())
         }
+=======
+>>>>>>> origin/main
     }
 
     #[tokio::test]
     async fn state_roundtrip() {
+<<<<<<< HEAD
         let service =
             StateService::new(ServiceState::new(None, None, Arc::new(DummyStorage), None));
         service.update("key", Value::String("value".into())).await;
@@ -87,5 +95,15 @@ mod tests {
             service.get("key").await,
             Some(Value::String("value".into()))
         );
+=======
+        let service = StateService::new(ServiceState::new(
+            None,
+            None,
+            Arc::new(DummyStorage),
+            None,
+        ));
+        service.update("key", Value::String("value".into())).await;
+        assert_eq!(service.get("key").await, Some(Value::String("value".into())));
+>>>>>>> origin/main
     }
 }

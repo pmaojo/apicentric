@@ -3,11 +3,19 @@
 //! This module provides a `GeminiAiProvider` that can be used to generate YAML
 //! from a prompt using the Google Gemini API.
 
+<<<<<<< HEAD
 use super::AiProvider;
 use crate::errors::{ApicentricError, ApicentricResult};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
+=======
+use async_trait::async_trait;
+use reqwest::Client;
+use serde::Deserialize;
+use crate::errors::{ApicentricError, ApicentricResult};
+use super::AiProvider;
+>>>>>>> origin/main
 
 /// An AI provider that uses the Google Gemini API.
 pub struct GeminiAiProvider {
@@ -24,11 +32,15 @@ impl GeminiAiProvider {
     /// * `api_key` - The Google Gemini API key.
     /// * `model` - The name of the model to use.
     pub fn new(api_key: String, model: String) -> Self {
+<<<<<<< HEAD
         Self {
             client: Client::new(),
             api_key,
             model,
         }
+=======
+        Self { client: Client::new(), api_key, model }
+>>>>>>> origin/main
     }
 }
 
@@ -147,4 +159,8 @@ impl AiProvider for GeminiAiProvider {
 
         Ok(clean_content)
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> origin/main

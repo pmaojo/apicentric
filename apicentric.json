@@ -1,11 +1,65 @@
 {
+<<<<<<< HEAD
   "ai": {
     "provider": "openai",
     "api_key": "test-key"
+=======
+  "cypress_config_path": "cypress.config.ts",
+  "base_url": "http://localhost:5173",
+  "specs_pattern": "app/routes/**/test/*.cy.ts",
+  "routes_dir": "app/routes",
+  "specs_dir": "app/routes",
+  "reports_dir": "cypress/reports",
+  "index_cache_path": ".apicentric/route-index.json",
+  "default_timeout": 30000,
+  "server": {
+    "auto_start": false,
+    "start_command": "npm run dev",
+    "startup_timeout_ms": 30000,
+    "health_check_retries": 5,
+    "skip_health_check": false
+  },
+  "execution": {
+    "mode": "development",
+    "continue_on_failure": true,
+    "dry_run": false,
+    "verbose": false
+  },
+  "npm": {
+    "apicentric_script": "cargo run --manifest-path ./Cargo.toml --",
+    "apicentric_watch_script": "cargo run --manifest-path ./Cargo.toml -- watch",
+    "dev_script": "npm run dev"
+  },
+  "ai": {
+    "provider": "gemini",
+    "api_key": "AIzaSyCmz2MPCrI78hjAY9nTtPmxb0w_E3EpRU8",
+    "model": "gemini-2.5-flash"
+  },
+  "testcase": {
+    "pattern": "*.cy.ts",
+    "timeout": 30000,
+    "retries": 3
+  },
+  "metrics": {
+    "sentry": {
+      "enabled": true,
+      "dsn": "https://your-sentry-dsn@sentry.io/123456",
+      "environment": "automatizacion-de-pruebas"
+    },
+    "prometheus": {
+      "enabled": true,
+      "port": 9092
+    },
+    "allure": {
+      "enabled": true,
+      "report_dir": "cypress/reports/allure-results"
+    }
+>>>>>>> origin/main
   },
   "simulator": {
     "enabled": true,
     "services_dir": "services",
+<<<<<<< HEAD
     "port_range": {
       "start": 9000,
       "end": 9099
@@ -18,4 +72,15 @@
       "rate_limiting": null
     }
   }
+=======
+    "port_range": { "start": 9000, "end": 9099 },
+    "db_path": "apicentric.db",
+    "global_behavior": {
+      "cors_enabled": true,
+      "default_delay_ms": 0,
+      "request_logging": true
+    }
+  },
+  "services_dir": "services"
+>>>>>>> origin/main
 }

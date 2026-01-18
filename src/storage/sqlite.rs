@@ -35,12 +35,16 @@ impl SqliteStorage {
             "CREATE TABLE IF NOT EXISTS services (name TEXT PRIMARY KEY, definition TEXT NOT NULL)",
             [],
         )
+<<<<<<< HEAD
         .map_err(|e| {
             ApicentricError::runtime_error(
                 format!("Failed to create services table: {}", e),
                 None::<String>,
             )
         })?;
+=======
+        .map_err(|e| ApicentricError::runtime_error(format!("Failed to create services table: {}", e), None::<String>))?;
+>>>>>>> origin/main
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS logs (
@@ -54,6 +58,7 @@ impl SqliteStorage {
             )",
             [],
         )
+<<<<<<< HEAD
         .map_err(|e| {
             ApicentricError::runtime_error(
                 format!("Failed to create logs table: {}", e),
@@ -64,28 +69,44 @@ impl SqliteStorage {
         Ok(Self {
             conn: Mutex::new(conn),
         })
+=======
+        .map_err(|e| ApicentricError::runtime_error(format!("Failed to create logs table: {}", e), None::<String>))?;
+
+        Ok(Self { conn: Mutex::new(conn) })
+>>>>>>> origin/main
     }
 }
 
 impl Storage for SqliteStorage {
     fn save_service(&self, service: &ServiceDefinition) -> ApicentricResult<()> {
         let json = serde_json::to_string(service).map_err(|e| {
+<<<<<<< HEAD
             ApicentricError::runtime_error(
                 format!("Failed to serialize service: {}", e),
                 None::<String>,
             )
+=======
+            ApicentricError::runtime_error(format!("Failed to serialize service: {}", e), None::<String>)
+>>>>>>> origin/main
         })?;
         let conn = self
             .conn
             .lock()
             .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
         conn.execute(
+<<<<<<< HEAD
             "INSERT OR REPLACE INTO services (name, definition) VALUES (?1, ?2)",
             params![service.name, json],
         )
         .map_err(|e| {
             ApicentricError::runtime_error(format!("Failed to save service: {}", e), None::<String>)
         })?;
+=======
+                "INSERT OR REPLACE INTO services (name, definition) VALUES (?1, ?2)",
+                params![service.name, json],
+            )
+            .map_err(|e| ApicentricError::runtime_error(format!("Failed to save service: {}", e), None::<String>))?;
+>>>>>>> origin/main
         Ok(())
     }
 
@@ -96,6 +117,7 @@ impl Storage for SqliteStorage {
             .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
         let mut stmt = conn
             .prepare("SELECT definition FROM services WHERE name = ?1")
+<<<<<<< HEAD
             .map_err(|e| {
                 ApicentricError::runtime_error(
                     format!("Failed to prepare query: {}", e),
@@ -108,10 +130,17 @@ impl Storage for SqliteStorage {
                 None::<String>,
             )
         })?;
+=======
+            .map_err(|e| ApicentricError::runtime_error(format!("Failed to prepare query: {}", e), None::<String>))?;
+        let mut rows = stmt
+            .query(params![name])
+            .map_err(|e| ApicentricError::runtime_error(format!("Failed to query service: {}", e), None::<String>))?;
+>>>>>>> origin/main
         if let Some(row) = rows.next().map_err(|e| {
             ApicentricError::runtime_error(format!("Failed to read row: {}", e), None::<String>)
         })? {
             let json: String = row.get(0).map_err(|e| {
+<<<<<<< HEAD
                 ApicentricError::runtime_error(
                     format!("Failed to get column: {}", e),
                     None::<String>,
@@ -122,6 +151,12 @@ impl Storage for SqliteStorage {
                     format!("Failed to deserialize service: {}", e),
                     None::<String>,
                 )
+=======
+                ApicentricError::runtime_error(format!("Failed to get column: {}", e), None::<String>)
+            })?;
+            let service = serde_json::from_str(&json).map_err(|e| {
+                ApicentricError::runtime_error(format!("Failed to deserialize service: {}", e), None::<String>)
+>>>>>>> origin/main
             })?;
             Ok(Some(service))
         } else {
@@ -157,8 +192,14 @@ impl Storage for SqliteStorage {
         status: Option<u16>,
         limit: usize,
     ) -> ApicentricResult<Vec<RequestLogEntry>> {
+<<<<<<< HEAD
         let mut sql =
             String::from("SELECT timestamp, service, endpoint, method, path, status FROM logs");
+=======
+        let mut sql = String::from(
+            "SELECT timestamp, service, endpoint, method, path, status FROM logs",
+        );
+>>>>>>> origin/main
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<Box<dyn ToSql>> = Vec::new();
 
@@ -189,6 +230,7 @@ impl Storage for SqliteStorage {
             .conn
             .lock()
             .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
+<<<<<<< HEAD
         let mut stmt = conn.prepare(&sql).map_err(|e| {
             ApicentricError::runtime_error(
                 format!("Failed to prepare log query: {}", e),
@@ -225,6 +267,29 @@ impl Storage for SqliteStorage {
                     None::<String>,
                 )
             })?;
+=======
+        let mut stmt = conn
+            .prepare(&sql)
+            .map_err(|e| {
+                ApicentricError::runtime_error(format!("Failed to prepare log query: {}", e), None::<String>)
+            })?;
+        let mapped = stmt
+            .query_map(rusqlite::params_from_iter(params.iter().map(|p| &**p)), |row| {
+                let ts: String = row.get(0)?;
+                let timestamp = chrono::DateTime::parse_from_rfc3339(&ts)
+                    .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e)))?
+                    .with_timezone(&chrono::Utc);
+                Ok(RequestLogEntry {
+                    timestamp,
+                    service: row.get(1)?,
+                    endpoint: row.get::<_, Option<i64>>(2)?.map(|v| v as usize),
+                    method: row.get(3)?,
+                    path: row.get(4)?,
+                    status: row.get::<_, i64>(5)? as u16,
+                })
+            })
+            .map_err(|e| ApicentricError::runtime_error(format!("Failed to fetch logs: {}", e), None::<String>))?;
+>>>>>>> origin/main
         let mut entries: Vec<RequestLogEntry> = Vec::new();
         for item in mapped {
             if let Ok(entry) = item {
@@ -234,6 +299,7 @@ impl Storage for SqliteStorage {
         entries.reverse();
         Ok(entries)
     }
+<<<<<<< HEAD
 
     fn clear_logs(&self) -> ApicentricResult<()> {
         let conn = self
@@ -245,4 +311,6 @@ impl Storage for SqliteStorage {
         })?;
         Ok(())
     }
+=======
+>>>>>>> origin/main
 }

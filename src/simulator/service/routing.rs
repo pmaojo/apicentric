@@ -9,9 +9,13 @@ pub struct PathParameters {
 
 impl PathParameters {
     pub fn new() -> Self {
+<<<<<<< HEAD
         Self {
             params: HashMap::new(),
         }
+=======
+        Self { params: HashMap::new() }
+>>>>>>> origin/main
     }
 
     pub fn insert(&mut self, key: String, value: String) {

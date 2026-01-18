@@ -10,7 +10,10 @@ use crate::simulator::{
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
+<<<<<<< HEAD
 use tracing::info;
+=======
+>>>>>>> origin/main
 
 /// Port manager for automatic port assignment
 pub struct PortManager {
@@ -125,12 +128,16 @@ impl ServiceRegistry {
             Arc::new(RwLock::new(service_instance)),
         );
 
+<<<<<<< HEAD
         info!(
             target: "simulator",
             service = %service_name,
             port = port,
             "Service registered"
         );
+=======
+        log::info!("Registered service '{}' on port {}", service_name, port);
+>>>>>>> origin/main
 
         Ok(())
     }
@@ -274,11 +281,14 @@ impl ServiceRegistry {
         log::info!("Cleared all services from registry");
         Ok(())
     }
+<<<<<<< HEAD
 
     /// Get access to the storage backend
     pub fn storage(&self) -> &Arc<dyn crate::storage::Storage> {
         &self.storage
     }
+=======
+>>>>>>> origin/main
 }
 
 #[cfg(test)]

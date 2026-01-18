@@ -1,8 +1,12 @@
 use chrono::{DateTime, Utc};
+<<<<<<< HEAD
 use fake::{
     faker::{internet::en::FreeEmail, lorem::en::Sentence, name::en::Name},
     Fake,
 };
+=======
+use fake::{faker::{internet::en::FreeEmail, lorem::en::Sentence, name::en::Name}, Fake};
+>>>>>>> origin/main
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext};
 use uuid::Uuid;
 
@@ -69,7 +73,14 @@ pub fn faker_helper(
     _: &mut RenderContext,
     out: &mut dyn Output,
 ) -> HelperResult {
+<<<<<<< HEAD
     let key = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
+=======
+    let key = h
+        .param(0)
+        .and_then(|v| v.value().as_str())
+        .unwrap_or("");
+>>>>>>> origin/main
 
     let value = match key {
         "internet.email" => FreeEmail().fake::<String>(),
@@ -112,3 +123,7 @@ pub fn random_string_helper(
     out.write(&result)?;
     Ok(())
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main

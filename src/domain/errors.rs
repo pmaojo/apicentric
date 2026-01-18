@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 lmuse thiserror::Error;
+=======
+use thiserror::Error;
+>>>>>>> origin/main
 
 #[derive(Debug, Error)]
 pub enum ApicentricError {

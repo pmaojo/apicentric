@@ -51,6 +51,7 @@ pub struct ServiceState {
 }
 
 impl ServiceState {
+<<<<<<< HEAD
     /// Create a new ServiceState instance.
     ///
     /// # Arguments
@@ -58,6 +59,8 @@ impl ServiceState {
     /// * `bucket` - Initial bucket data
     /// * `storage` - Storage backend for logs
     /// * `log_sender` - Optional sender for broadcasting log entries
+=======
+>>>>>>> origin/main
     pub fn new(
         fixtures: Option<HashMap<String, Value>>,
         bucket: Option<HashMap<String, Value>>,
@@ -76,6 +79,7 @@ impl ServiceState {
         }
     }
 
+<<<<<<< HEAD
     /// Get the next response index based on the scenario strategy.
     ///
     /// # Arguments
@@ -85,6 +89,8 @@ impl ServiceState {
     ///
     /// # Returns
     /// The index of the next response to use
+=======
+>>>>>>> origin/main
     pub fn next_response_index(
         &mut self,
         endpoint_index: usize,
@@ -105,10 +111,13 @@ impl ServiceState {
         }
     }
 
+<<<<<<< HEAD
     /// Get a clone of the data bucket.
     ///
     /// # Returns
     /// A DataBucket instance
+=======
+>>>>>>> origin/main
     pub fn bucket(&self) -> DataBucket {
         self.bucket.clone()
     }
@@ -160,10 +169,14 @@ impl ServiceState {
                     Ok(arr.remove(index))
                 } else {
                     Err(ApicentricError::runtime_error(
+<<<<<<< HEAD
                         format!(
                             "Index {} out of bounds for fixture array '{}'",
                             index, fixture_key
                         ),
+=======
+                        format!("Index {} out of bounds for fixture array '{}'", index, fixture_key),
+>>>>>>> origin/main
                         Some("Check array length before removing items"),
                     ))
                 }
@@ -193,10 +206,14 @@ impl ServiceState {
                     Ok(())
                 } else {
                     Err(ApicentricError::runtime_error(
+<<<<<<< HEAD
                         format!(
                             "Index {} out of bounds for fixture array '{}'",
                             index, fixture_key
                         ),
+=======
+                        format!("Index {} out of bounds for fixture array '{}'", index, fixture_key),
+>>>>>>> origin/main
                         Some("Check array length before updating items"),
                     ))
                 }
@@ -222,6 +239,7 @@ impl ServiceState {
     ) -> ApicentricResult<bool> {
         match self.fixtures.get_mut(fixture_key) {
             Some(Value::Array(arr)) => {
+<<<<<<< HEAD
                 // Iterate through each item in the array
                 for item in arr.iter_mut() {
                     // Check if the item is a JSON object
@@ -229,6 +247,11 @@ impl ServiceState {
                         // Check if the object has the specified field
                         if let Some(value) = obj.get(field) {
                             // If the field value matches, update the item
+=======
+                for item in arr.iter_mut() {
+                    if let Some(obj) = item.as_object() {
+                        if let Some(value) = obj.get(field) {
+>>>>>>> origin/main
                             if value == field_value {
                                 *item = new_item;
                                 return Ok(true);

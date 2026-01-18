@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+<<<<<<< HEAD
 pub mod endpoint;
 pub mod server;
 pub mod validation;
@@ -12,6 +13,18 @@ pub use endpoint::{
     ScenarioResponse, ScenarioStrategy, SideEffect, StreamConfig,
 };
 pub use server::{CorsConfig, ServerConfig};
+=======
+pub mod server;
+pub mod endpoint;
+pub mod validation;
+
+pub use server::{ServerConfig, CorsConfig};
+pub use endpoint::{
+    EndpointKind, StreamConfig, PeriodicMessage, EndpointDefinition,
+    ParameterDefinition, ParameterLocation, RequestBodyDefinition, ResponseDefinition,
+    SideEffect, ScenarioDefinition, ScenarioStrategy, ScenarioConditions, ScenarioResponse,
+};
+>>>>>>> origin/main
 pub use validation::{ConfigLoader, LoadError, LoadErrorType, LoadResult, ValidationSummary};
 
 fn default_db_path() -> PathBuf {
@@ -38,10 +51,17 @@ pub struct SimulatorConfig {
 }
 
 impl SimulatorConfig {
+<<<<<<< HEAD
     /// Create a new simulator configuration
     pub fn new(enabled: bool, services_dir: PathBuf, port_range: PortRange) -> Self {
         Self {
             enabled,
+=======
+    /// Create a new simulator configuration with environment variable override
+    pub fn new(enabled: bool, services_dir: PathBuf, port_range: PortRange) -> Self {
+        Self {
+            enabled: Self::check_environment_override(enabled),
+>>>>>>> origin/main
             services_dir,
             port_range,
             db_path: default_db_path(),
@@ -53,21 +73,55 @@ impl SimulatorConfig {
     /// Create a default simulator configuration
     pub fn default_config() -> Self {
         Self {
+<<<<<<< HEAD
             enabled: false,
             services_dir: PathBuf::from("services"),
             port_range: PortRange {
                 start: 8000,
                 end: 8999,
             },
+=======
+            enabled: Self::check_environment_override(false),
+            services_dir: PathBuf::from("services"),
+            port_range: PortRange { start: 8000, end: 8999 },
+>>>>>>> origin/main
             db_path: default_db_path(),
             admin_port: None,
             global_behavior: None,
         }
     }
 
+<<<<<<< HEAD
     /// Check if the simulator is enabled
     pub fn is_enabled(&self) -> bool {
         self.enabled
+=======
+    /// Check if the simulator should be enabled based on environment variables
+    /// Environment variable PULSE_API_SIMULATOR overrides configuration setting
+    fn check_environment_override(config_enabled: bool) -> bool {
+        match std::env::var("PULSE_API_SIMULATOR") {
+            Ok(value) => {
+                let normalized = value.to_lowercase();
+                normalized == "true"
+                    || normalized == "1"
+                    || normalized == "yes"
+                    || normalized == "on"
+            }
+            Err(_) => config_enabled,
+        }
+    }
+
+    /// Check if the simulator is enabled (considering environment variables)
+    pub fn is_enabled(&self) -> bool {
+        Self::check_environment_override(self.enabled)
+    }
+
+    /// Get the effective enabled state with environment variable consideration
+    pub fn effective_enabled_state(&self) -> (bool, bool) {
+        let env_override = std::env::var("PULSE_API_SIMULATOR").is_ok();
+        let effective_enabled = self.is_enabled();
+        (effective_enabled, env_override)
+>>>>>>> origin/main
     }
 }
 
@@ -76,10 +130,14 @@ impl Default for SimulatorConfig {
         Self {
             enabled: false,
             services_dir: PathBuf::from("services"),
+<<<<<<< HEAD
             port_range: PortRange {
                 start: 8000,
                 end: 8999,
             },
+=======
+            port_range: PortRange { start: 8000, end: 8999 },
+>>>>>>> origin/main
             db_path: default_db_path(),
             admin_port: None,
             global_behavior: None,

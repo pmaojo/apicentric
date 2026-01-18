@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 pub mod executor;
 pub mod facade;
 pub mod loader;
@@ -11,6 +12,21 @@ pub use loader::ContractLoadingUseCase;
 pub use management::ManageContractsUseCase;
 pub use reporter::{ReportPublicationResult, ReportingUseCase};
 pub use validator::SpecValidationUseCase;
+=======
+pub mod loader;
+pub mod validator;
+pub mod executor;
+pub mod reporter;
+pub mod facade;
+pub mod management;
+
+pub use loader::ContractLoadingUseCase;
+pub use validator::SpecValidationUseCase;
+pub use executor::ScenarioExecutionUseCase;
+pub use reporter::{ReportingUseCase, ReportPublicationResult};
+pub use facade::{ContractTestingFacade, WorkflowResult};
+pub use management::ManageContractsUseCase;
+>>>>>>> origin/main
 
 #[derive(Debug, thiserror::Error)]
 pub enum ContractUseCaseError {

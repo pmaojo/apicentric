@@ -1,5 +1,9 @@
 //! Terminal User Interface module
+<<<<<<< HEAD
 //!
+=======
+//!
+>>>>>>> origin/main
 //! This module is only available when the `tui` feature is enabled.
 
 #![cfg(feature = "tui")]
@@ -23,6 +27,7 @@ use ratatui::{
     Terminal,
 };
 
+<<<<<<< HEAD
 use apicentric::simulator::{config::SimulatorConfig, manager::ApiSimulatorManager};
 use apicentric::{ApicentricError, ApicentricResult};
 
@@ -33,6 +38,13 @@ use super::tui_render::{
     render_actions_panel_with_metrics, render_filter_dialog, render_help_dialog, render_log_view,
     render_search_dialog, render_service_list,
 };
+=======
+use apicentric::{ApicentricError, ApicentricResult};
+use apicentric::simulator::{manager::ApiSimulatorManager, config::SimulatorConfig};
+
+use super::tui_events::{poll_events, handle_key_event, update_service_status, poll_log_entries, Action};
+use super::tui_render::{render_service_list, render_log_view, render_actions_panel, render_filter_dialog, render_search_dialog, render_help_dialog};
+>>>>>>> origin/main
 use super::tui_state::{TuiAppState, ViewMode};
 
 /// Launch the enhanced terminal dashboard with service list, logs and actions panes.
@@ -53,23 +65,41 @@ pub async fn tui_command() -> ApicentricResult<()> {
     enable_raw_mode().map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to enable raw mode: {}", e),
+<<<<<<< HEAD
             Some("Try running in a different terminal or check terminal permissions"),
         )
     })?;
 
+=======
+            Some("Try running in a different terminal or check terminal permissions")
+        )
+    })?;
+
+>>>>>>> origin/main
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to initialize terminal: {}", e),
+<<<<<<< HEAD
             Some("Ensure your terminal supports alternate screen mode"),
         )
     })?;
 
+=======
+            Some("Ensure your terminal supports alternate screen mode")
+        )
+    })?;
+
+>>>>>>> origin/main
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to create terminal backend: {}", e),
+<<<<<<< HEAD
             Some("Try using a different terminal emulator or check terminal compatibility"),
+=======
+            Some("Try using a different terminal emulator or check terminal compatibility")
+>>>>>>> origin/main
         )
     })?;
 
@@ -80,16 +110,24 @@ pub async fn tui_command() -> ApicentricResult<()> {
     disable_raw_mode().map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to disable raw mode: {}", e),
+<<<<<<< HEAD
             Some(
                 "Terminal may be in an inconsistent state. Try closing and reopening your terminal",
             ),
         )
     })?;
 
+=======
+            Some("Terminal may be in an inconsistent state. Try closing and reopening your terminal")
+        )
+    })?;
+
+>>>>>>> origin/main
     let mut stdout = io::stdout();
     execute!(stdout, LeaveAlternateScreen, DisableMouseCapture).map_err(|e| {
         ApicentricError::runtime_error(
             format!("Failed to restore terminal: {}", e),
+<<<<<<< HEAD
             Some(
                 "Terminal may be in an inconsistent state. Try closing and reopening your terminal",
             ),
@@ -100,6 +138,16 @@ pub async fn tui_command() -> ApicentricResult<()> {
         ApicentricError::runtime_error(
             format!("Failed to show cursor: {}", e),
             Some("Run 'tput cnorm' to restore cursor visibility"),
+=======
+            Some("Terminal may be in an inconsistent state. Try closing and reopening your terminal")
+        )
+    })?;
+
+    terminal.show_cursor().map_err(|e| {
+        ApicentricError::runtime_error(
+            format!("Failed to show cursor: {}", e),
+            Some("Run 'tput cnorm' to restore cursor visibility")
+>>>>>>> origin/main
         )
     })?;
 
@@ -120,7 +168,11 @@ async fn run_app(
 ) -> ApicentricResult<()> {
     // Initialize state
     let mut state = TuiAppState::new();
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
     // Subscribe to log events
     let mut log_receiver = manager.subscribe_logs();
 
@@ -131,6 +183,7 @@ async fn run_app(
     let mut last_status_update = std::time::Instant::now();
     let status_update_interval = Duration::from_secs(1);
 
+<<<<<<< HEAD
     // Performance profiling variables
     let mut input_latencies = Vec::new();
     let mut max_input_latency = Duration::ZERO;
@@ -145,18 +198,34 @@ async fn run_app(
             .draw(|f| {
                 let size = f.size();
 
+=======
+    // Main event loop
+    loop {
+        // Render UI
+        terminal
+            .draw(|f| {
+                let size = f.size();
+
+>>>>>>> origin/main
                 // Create three-panel layout
                 let chunks = Layout::default()
                     .direction(Direction::Horizontal)
                     .constraints([
+<<<<<<< HEAD
                         Constraint::Percentage(25), // Services
                         Constraint::Percentage(50), // Logs
                         Constraint::Percentage(25), // Actions
+=======
+                        Constraint::Percentage(25),  // Services
+                        Constraint::Percentage(50),  // Logs
+                        Constraint::Percentage(25),  // Actions
+>>>>>>> origin/main
                     ])
                     .split(size);
 
                 // Render panels with focus indication
                 render_service_list(
+<<<<<<< HEAD
                     f,
                     chunks[0],
                     &state.services,
@@ -191,18 +260,37 @@ async fn run_app(
                         None
                     },
                 );
+=======
+                    f,
+                    chunks[0],
+                    &state.services,
+                    state.focused_panel == super::tui_state::FocusedPanel::Services
+                );
+                render_log_view(
+                    f,
+                    chunks[1],
+                    &state,
+                    state.focused_panel == super::tui_state::FocusedPanel::Logs
+                );
+                render_actions_panel(f, chunks[2], &state);
+>>>>>>> origin/main
 
                 // Render dialogs on top if active
                 match state.mode {
                     ViewMode::FilterDialog => render_filter_dialog(f, &state),
                     ViewMode::SearchDialog => render_search_dialog(f, &state),
                     ViewMode::HelpDialog => render_help_dialog(f),
+<<<<<<< HEAD
                     ViewMode::Normal => {}
+=======
+                    ViewMode::Normal => {},
+>>>>>>> origin/main
                 }
             })
             .map_err(|e| {
                 ApicentricError::runtime_error(
                     format!("Render error: {}", e),
+<<<<<<< HEAD
                     Some("Terminal size may be too small. Try resizing your terminal window"),
                 )
             })?;
@@ -238,6 +326,24 @@ async fn run_app(
                     max_input_latency = key_press_time;
                 }
 
+=======
+                    Some("Terminal size may be too small. Try resizing your terminal window")
+                )
+            })?;
+
+        // Poll for new log entries (non-blocking)
+        poll_log_entries(&mut state, &mut log_receiver);
+
+        // Periodic status update (every 1 second)
+        if last_status_update.elapsed() >= status_update_interval {
+            let _ = update_service_status(&mut state, &manager).await;
+            last_status_update = std::time::Instant::now();
+        }
+
+        // Poll for keyboard events with timeout
+        if let Some(event) = poll_events(Duration::from_millis(250))? {
+            if let Event::Key(key) = event {
+>>>>>>> origin/main
                 let action = handle_key_event(key, &mut state, &manager).await?;
 
                 if action == Action::Quit {
@@ -245,6 +351,7 @@ async fn run_app(
                 }
             }
         }
+<<<<<<< HEAD
         let _event_time = event_start.elapsed();
 
         // Maintain latency history (keep last 100 measurements)
@@ -258,6 +365,8 @@ async fn run_app(
             // Optional: could add debug logging here if needed
             // For now, just track internally
         }
+=======
+>>>>>>> origin/main
     }
 
     Ok(())

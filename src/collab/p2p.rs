@@ -2,6 +2,7 @@
 //!
 //! This module provides a `spawn` function that creates a new libp2p node for
 //! collaboration.
+<<<<<<< HEAD
 //!
 //! This module is only available when the `p2p` feature flag is enabled.
 
@@ -13,6 +14,15 @@ use libp2p::{
     gossipsub::{self, IdentTopic, MessageAuthenticity, ValidationMode},
     identity, mdns,
     swarm::SwarmEvent,
+=======
+
+use std::error::Error;
+
+use libp2p::{
+    futures::StreamExt,
+    gossipsub::{self, IdentTopic, MessageAuthenticity, ValidationMode},
+    identity, mdns, swarm::{NetworkBehaviour, SwarmEvent},
+>>>>>>> origin/main
     PeerId, SwarmBuilder,
 };
 use tokio::sync::mpsc;
@@ -20,12 +30,16 @@ use tokio::sync::mpsc;
 /// The combined network behaviour for collaboration, consisting of gossipsub
 /// and mDNS.
 #[derive(NetworkBehaviour)]
+<<<<<<< HEAD
 #[behaviour(out_event = "CollabBehaviourEvent")]
+=======
+>>>>>>> origin/main
 struct CollabBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::tokio::Behaviour,
 }
 
+<<<<<<< HEAD
 #[derive(Debug)]
 pub enum CollabBehaviourEvent {
     Gossipsub(gossipsub::Event),
@@ -44,6 +58,8 @@ impl From<mdns::Event> for CollabBehaviourEvent {
     }
 }
 
+=======
+>>>>>>> origin/main
 /// Spawns a libp2p node that publishes and receives raw CRDT operations.
 ///
 /// # Returns
@@ -51,6 +67,7 @@ impl From<mdns::Event> for CollabBehaviourEvent {
 /// A `Result` containing a sender for local messages and a receiver for
 /// messages coming from peers. Messages are plain byte vectors that higher
 /// layers interpret as [`crate::collab::crdt::CrdtMessage`].
+<<<<<<< HEAD
 pub async fn spawn() -> Result<
     (
         mpsc::UnboundedSender<Vec<u8>>,
@@ -58,14 +75,24 @@ pub async fn spawn() -> Result<
     ),
     Box<dyn Error + Send + Sync>,
 > {
+=======
+pub async fn spawn()
+    -> Result<(mpsc::UnboundedSender<Vec<u8>>, mpsc::UnboundedReceiver<Vec<u8>>), Box<dyn Error>>
+{
+>>>>>>> origin/main
     // Generate a random peer id based on an Ed25519 key pair.
     let local_key = identity::Keypair::generate_ed25519();
     let peer_id = PeerId::from(local_key.public());
 
     // Build gossipsub behaviour.
+<<<<<<< HEAD
     let gossipsub_config = gossipsub::ConfigBuilder::default()
         .validation_mode(ValidationMode::None)
         .build()?;
+=======
+    let gossipsub_config =
+        gossipsub::ConfigBuilder::default().validation_mode(ValidationMode::None).build()?;
+>>>>>>> origin/main
     let gossipsub = gossipsub::Behaviour::new(
         MessageAuthenticity::Signed(local_key.clone()),
         gossipsub_config,

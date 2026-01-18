@@ -3,6 +3,7 @@
 //! This module provides an `AuthRepository` that can be used to store and
 //! retrieve user data from a SQLite database.
 
+<<<<<<< HEAD
 use crate::auth::model::User;
 use rusqlite::{params, Connection};
 use std::path::Path;
@@ -12,6 +13,16 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 pub struct AuthRepository {
     conn: Arc<Mutex<Connection>>,
+=======
+use rusqlite::{Connection, params};
+use std::path::Path;
+use std::sync::Mutex;
+use crate::auth::model::User;
+
+/// A repository for storing user data.
+pub struct AuthRepository {
+    conn: Mutex<Connection>,
+>>>>>>> origin/main
 }
 
 impl AuthRepository {
@@ -31,9 +42,13 @@ impl AuthRepository {
             )",
             [],
         )?;
+<<<<<<< HEAD
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
+=======
+        Ok(Self { conn: Mutex::new(conn) })
+>>>>>>> origin/main
     }
 
     /// Creates a new user.
@@ -46,6 +61,7 @@ impl AuthRepository {
     /// # Returns
     ///
     /// The new user.
+<<<<<<< HEAD
     pub async fn create_user(
         &self,
         username: String,
@@ -68,6 +84,17 @@ impl AuthRepository {
             })
         })
         .await?
+=======
+    pub fn create_user(&self, username: &str, password_hash: &str) -> anyhow::Result<User> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let c = self.conn.lock().unwrap();
+        c.execute(
+            "INSERT INTO users (username, password_hash, created_at) VALUES (?1, ?2, ?3)",
+            params![username, password_hash, now],
+        )?;
+        let id = c.last_insert_rowid();
+        Ok(User { id, username: username.to_string(), password_hash: password_hash.to_string(), created_at: now })
+>>>>>>> origin/main
     }
 
     /// Finds a user by their username.
@@ -80,6 +107,7 @@ impl AuthRepository {
     ///
     /// An `Option` containing the user if they were found, or `None` if they
     /// were not.
+<<<<<<< HEAD
     pub async fn find_by_username(&self, username: String) -> anyhow::Result<Option<User>> {
         let conn = self.conn.clone();
         tokio::task::spawn_blocking(move || {
@@ -100,5 +128,21 @@ impl AuthRepository {
             }
         })
         .await?
+=======
+    pub fn find_by_username(&self, username: &str) -> anyhow::Result<Option<User>> {
+        let c = self.conn.lock().unwrap();
+        let mut stmt = c.prepare("SELECT id, username, password_hash, created_at FROM users WHERE username = ?1")?;
+        let mut rows = stmt.query(params![username])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(User {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                password_hash: row.get(2)?,
+                created_at: row.get(3)?,
+            }))
+        } else {
+            Ok(None)
+        }
+>>>>>>> origin/main
     }
 }

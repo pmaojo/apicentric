@@ -51,9 +51,13 @@ fn generated_hooks_compile_and_call_endpoints() {
             }
         }
         Err(err) if err.kind() == ErrorKind::NotFound => {
+<<<<<<< HEAD
             eprintln!(
                 "Skipping react-query generation test: TypeScript compiler not available ({err})"
             );
+=======
+            eprintln!("Skipping react-query generation test: TypeScript compiler not available ({err})");
+>>>>>>> origin/main
             return;
         }
         Err(err) => panic!("failed to run tsc: {err}"),

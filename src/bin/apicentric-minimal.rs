@@ -33,18 +33,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         Commands::Version => {
+<<<<<<< HEAD
             println!("{}", "apicentric CLI v0.2.8 (minimal build)".green().bold());
+=======
+            println!("{}", "apicentric CLI v0.1.1 (minimal build)".green().bold());
+>>>>>>> origin/main
             println!("✅ All heavy dependencies removed for faster compilation!");
             println!("🚀 Core CLI functionality working");
         }
         Commands::Validate { path } => {
             println!("{} {}", "🔍 Validating:".blue().bold(), path);
+<<<<<<< HEAD
 
             match std::fs::read_to_string(&path) {
                 Ok(content) => match serde_yaml::from_str::<serde_json::Value>(&content) {
                     Ok(_) => println!("{}", "✅ Valid YAML structure".green()),
                     Err(e) => println!("{} {}", "❌ Invalid YAML:".red(), e),
                 },
+=======
+
+            match std::fs::read_to_string(&path) {
+                Ok(content) => {
+                    match serde_yaml::from_str::<serde_json::Value>(&content) {
+                        Ok(_) => println!("{}", "✅ Valid YAML structure".green()),
+                        Err(e) => println!("{} {}", "❌ Invalid YAML:".red(), e),
+                    }
+                }
+>>>>>>> origin/main
                 Err(e) => println!("{} {}", "❌ Cannot read file:".red(), e),
             }
         }

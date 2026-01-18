@@ -3,6 +3,7 @@
 //! This module provides the building blocks for real-time collaboration,
 //! including a CRDT for service definitions, a peer-to-peer network layer,
 //! and a service for sharing and synchronizing service definitions.
+<<<<<<< HEAD
 //!
 //! # Feature Flag
 //!
@@ -51,3 +52,9 @@ pub fn availability_message() -> &'static str {
 pub fn availability_message() -> &'static str {
     "P2P collaboration features are not available. Rebuild with --features p2p to enable."
 }
+=======
+
+pub mod crdt;
+pub mod p2p;
+pub mod share;
+>>>>>>> origin/main

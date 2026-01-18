@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use tokio::sync::{broadcast, mpsc, RwLock};
 
 #[cfg(feature = "p2p")]
+<<<<<<< HEAD
 use crate::collab::{
     crdt::{CrdtMessage, ServiceCrdt},
     p2p,
@@ -13,13 +14,22 @@ use crate::collab::{
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     config::{ConfigLoader, ServiceDefinition, SimulatorConfig},
+=======
+use crate::collab::{crdt::{ServiceCrdt, CrdtMessage}, p2p};
+use crate::errors::{ApicentricError, ApicentricResult};
+use crate::simulator::{
+    config::{ConfigLoader, SimulatorConfig, ServiceDefinition},
+>>>>>>> origin/main
     log::RequestLogEntry,
     registry::ServiceRegistry,
     route_registry::RouteRegistry,
     watcher::ConfigWatcher,
     ConfigChange,
 };
+<<<<<<< HEAD
 use tracing::info;
+=======
+>>>>>>> origin/main
 
 /// Trait for managing simulator lifecycle.
 #[async_trait]
@@ -53,7 +63,12 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
         p2p_enabled: Arc<RwLock<bool>>,
         collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
+<<<<<<< HEAD
         #[cfg(feature = "p2p")] crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
+=======
+        #[cfg(feature = "p2p")]
+        crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
+>>>>>>> origin/main
         log_sender: broadcast::Sender<RequestLogEntry>,
     ) -> Self {
         Self {
@@ -74,12 +89,19 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
 
 #[async_trait]
 impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<R> {
+<<<<<<< HEAD
     #[tracing::instrument(skip(self), fields(simulator_enabled = self.config.enabled))]
+=======
+>>>>>>> origin/main
     async fn start(&self) -> ApicentricResult<()> {
         if !self.config.enabled {
             return Err(ApicentricError::config_error(
                 "API simulator is not enabled",
+<<<<<<< HEAD
                 Some("Enable in configuration"),
+=======
+                Some("Set PULSE_API_SIMULATOR=true or enable in configuration"),
+>>>>>>> origin/main
             ));
         }
 
@@ -104,7 +126,11 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         // Register and start services
         let mut registry = self.service_registry.write().await;
         let mut router = self.route_registry.write().await;
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         #[cfg(feature = "p2p")]
         let mut crdts_map = self.crdts.write().await;
 
@@ -114,11 +140,19 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
             registry.register_service(service_def.clone()).await?;
             router.register_service(&service_name, &base_path);
+<<<<<<< HEAD
 
             #[cfg(feature = "p2p")]
             crdts_map.insert(service_name, ServiceCrdt::new(service_def));
         }
 
+=======
+
+            #[cfg(feature = "p2p")]
+            crdts_map.insert(service_name, ServiceCrdt::new(service_def));
+        }
+
+>>>>>>> origin/main
         #[cfg(feature = "p2p")]
         drop(crdts_map);
 
@@ -129,10 +163,16 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
         *is_active = true;
 
+<<<<<<< HEAD
         info!(
             target: "simulator",
             service_count = service_count,
             "API Simulator started"
+=======
+        log::info!(
+            "API Simulator started with {} services",
+            service_count
+>>>>>>> origin/main
         );
         // Spawn configuration watcher for automatic reloads
         let (tx, mut rx) = mpsc::channel(16);
@@ -193,9 +233,13 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
                                 if let Some(doc) = map.get(&msg.name) {
                                     let service = doc.to_service();
                                     drop(map);
+<<<<<<< HEAD
                                     if let Err(err) =
                                         manager_clone.apply_remote_service(service).await
                                     {
+=======
+                                    if let Err(err) = manager_clone.apply_remote_service(service).await {
+>>>>>>> origin/main
                                         eprintln!("Failed to apply remote update: {}", err);
                                     }
                                 }
@@ -210,7 +254,10 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         Ok(())
     }
 
+<<<<<<< HEAD
     #[tracing::instrument(skip(self))]
+=======
+>>>>>>> origin/main
     async fn stop(&self) -> ApicentricResult<()> {
         let mut is_active = self.is_active.write().await;
         if !*is_active {
@@ -227,7 +274,11 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
         *is_active = false;
 
+<<<<<<< HEAD
         info!(target: "simulator", "API Simulator stopped");
+=======
+        log::info!("API Simulator stopped");
+>>>>>>> origin/main
 
         Ok(())
     }
@@ -298,7 +349,11 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
                 crdts_map.insert(service_name, ServiceCrdt::new(service_def));
             }
         }
+<<<<<<< HEAD
 
+=======
+
+>>>>>>> origin/main
         for service_def in services {
             let service_name = service_def.name.clone();
             let base_path = service_def.server.base_path.clone();
@@ -310,3 +365,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         Ok(())
     }
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main

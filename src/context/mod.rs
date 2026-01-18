@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+use std::path::Path;
+>>>>>>> origin/main
 use std::sync::Arc;
 
 use crate::{config, ApicentricError, ApicentricResult};
@@ -5,7 +9,10 @@ use crate::{config, ApicentricError, ApicentricResult};
 pub mod init;
 
 /// Minimal application context containing configuration and optional API simulator.
+<<<<<<< HEAD
 #[derive(Clone)]
+=======
+>>>>>>> origin/main
 pub struct Context {
     config: config::ApicentricConfig,
     api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
@@ -56,7 +63,13 @@ impl Context {
         if let Some(ref c) = self.config.simulator {
             c.is_enabled()
         } else {
+<<<<<<< HEAD
             false
+=======
+            std::env::var("PULSE_API_SIMULATOR")
+                .map(|v| matches!(v.to_lowercase().as_str(), "true" | "1" | "yes" | "on"))
+                .unwrap_or(false)
+>>>>>>> origin/main
         }
     }
 }
@@ -95,7 +108,11 @@ impl ContextBuilder {
     }
 }
 
+<<<<<<< HEAD
 /// Simple execution context for CLI operations.
+=======
+/// Execution context derived from configuration and CLI flags.
+>>>>>>> origin/main
 #[derive(Debug, Clone)]
 pub struct ExecutionContext {
     pub mode: config::ExecutionMode,
@@ -105,12 +122,21 @@ pub struct ExecutionContext {
 }
 
 impl ExecutionContext {
+<<<<<<< HEAD
     pub fn new() -> Self {
         Self {
             mode: config::ExecutionMode::Development,
             dry_run: false,
             verbose: false,
             continue_on_failure: false,
+=======
+    pub fn new(cfg: &config::ApicentricConfig) -> Self {
+        Self {
+            mode: cfg.execution.mode.clone(),
+            dry_run: cfg.execution.dry_run,
+            verbose: cfg.execution.verbose,
+            continue_on_failure: cfg.execution.continue_on_failure,
+>>>>>>> origin/main
         }
     }
 
@@ -146,10 +172,13 @@ impl ExecutionContext {
     }
 }
 
+<<<<<<< HEAD
 impl Default for ExecutionContext {
     fn default() -> Self {
         Self::new()
     }
 }
 
+=======
+>>>>>>> origin/main
 pub use Context as AppContext;

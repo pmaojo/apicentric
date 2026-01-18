@@ -491,6 +491,10 @@ impl UserInterfacePort for CliUiAdapter {
         CliUiAdapter::print_warning(message);
     }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
     /// Prints an informational message to the console.
     ///
     /// # Arguments

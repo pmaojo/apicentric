@@ -253,8 +253,13 @@ impl ResponseDefinition {
         let body_trimmed = self.body.trim();
         if body_trimmed.is_empty() {
             match status_code {
+<<<<<<< HEAD
                 204 | 304 => {}
                 _ => {}
+=======
+                204 | 304 => {},
+                _ => {},
+>>>>>>> origin/main
             }
         }
 

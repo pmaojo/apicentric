@@ -52,7 +52,15 @@ pub async fn handle_dockerize(
         ports.push(service_def.server.port);
         service_names.push(service_def.name.clone());
 
+<<<<<<< HEAD
         let service_filename = Path::new(input).file_name().unwrap().to_str().unwrap();
+=======
+        let service_filename = Path::new(input)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
+>>>>>>> origin/main
         fs::copy(input, services_dir.join(service_filename))?;
     }
 
@@ -105,6 +113,7 @@ target
     println!("✅ Dockerized services successfully to '{}'.", output);
     println!("   - Dockerfile and .dockerignore created.");
     for input in inputs {
+<<<<<<< HEAD
         let service_filename = Path::new(input).file_name().unwrap().to_str().unwrap();
         println!(
             "   - Service '{}' copied into 'services/' directory.",
@@ -117,6 +126,18 @@ target
         output,
         service_names.join("-").to_lowercase().replace(' ', "-")
     );
+=======
+        let service_filename = Path::new(input)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        println!("   - Service '{}' copied into 'services/' directory.", service_filename);
+    }
+    println!("\nTo build the image, run:");
+    println!("   cd {} && docker build -t {}-service .", output, service_names.join("-").to_lowercase().replace(' ', "-"));
+
+>>>>>>> origin/main
 
     Ok(())
 }

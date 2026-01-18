@@ -1,0 +1,65 @@
+apis:
+  - name: "get_user"
+    path: "/users/{id}"
+    method: "GET"
+    response:
+      status: 200
+      headers:
+        content-type: "application/json"
+      body: |
+        {
+          "id": 1,
+          "name": "John Doe"
+        }
+    response_schema:
+      id: integer
+      name: string
+        }
+  - name: "create_user"
+    path: "/users"
+    method: "POST"
+    response:
+      status: 201
+      headers:
+        content-type: "application/json"
+      body: |
+        {
+          "id": 2,
+          "name": "Jane Smith"
+        }
+    conditional_responses:
+      - condition:
+          name: "Test User"
+        response:
+          status: 201
+          headers:
+            content-type: "application/json"
+          body: |
+            {
+              "id": 99,
+              "name": "Test User Created"
+            }
+      - condition: {} # Default condition
+        response:
+          status: 201
+          headers:
+            content-type: "application/json"
+        {
+          "id": 2,
+          "name": "Jane Smith"
+        }
+auth:
+  login:
+    path: "/auth/login"
+    method: "POST"
+    expected_credentials:
+      username: "testuser"
+      password: "password123"
+    response:
+      status: 200
+      headers:
+        content-type: "application/json"
+      body: |
+        {
+          "token": "mock_jwt_token_12345"
+        }

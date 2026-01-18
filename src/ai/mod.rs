@@ -3,9 +3,14 @@
 //! This module defines the `AiProvider` trait, which is implemented by AI
 //! providers that can generate YAML from a prompt.
 
+<<<<<<< HEAD
 use crate::config::AiProviderKind;
 use crate::{ApicentricError, ApicentricResult, Context};
 use async_trait::async_trait;
+=======
+use async_trait::async_trait;
+use crate::errors::ApicentricResult;
+>>>>>>> origin/main
 
 pub mod gemini;
 pub mod local;
@@ -29,6 +34,7 @@ pub trait AiProvider: Send + Sync {
 pub use gemini::GeminiAiProvider;
 pub use local::LocalAiProvider;
 pub use openai::OpenAiProvider;
+<<<<<<< HEAD
 
 pub async fn generate_service(context: &Context, prompt: &str) -> ApicentricResult<String> {
     let cfg = context.config();
@@ -86,3 +92,5 @@ pub async fn generate_service(context: &Context, prompt: &str) -> ApicentricResu
 
     provider.generate_yaml(prompt).await
 }
+=======
+>>>>>>> origin/main
