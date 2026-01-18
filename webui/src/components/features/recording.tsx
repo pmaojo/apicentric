@@ -299,12 +299,14 @@ ${serviceData.endpoints.map(ep => `  - method: ${ep.method}
             <label className="text-sm font-medium">Target URL</label>
             <div className="flex gap-2">
                 <Input 
+                    data-testid="recording-target-url-input"
                     placeholder="https://api.example.com" 
                     disabled={isRecording || isLoading}
                     value={targetUrl}
                     onChange={(e) => setTargetUrl(e.target.value)}
                 />
                 <Button 
+                  data-testid={isRecording ? "stop-recording-button" : "start-recording-button"}
                   onClick={handleToggleRecording} 
                   disabled={!targetUrl || isLoading}
                 >
@@ -324,7 +326,7 @@ ${serviceData.endpoints.map(ep => `  - method: ${ep.method}
             
             {/* Recording Status Indicator */}
             {isRecording && (
-              <div className="space-y-2">
+              <div className="space-y-2" data-testid="recording-status">
                 <div className="flex items-center gap-2 text-sm">
                   <RadioTower className="h-4 w-4 animate-pulse text-primary" />
                   <span className="text-muted-foreground">
@@ -342,7 +344,7 @@ ${serviceData.endpoints.map(ep => `  - method: ${ep.method}
                   <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
                     <div className="flex-1">
                       <p className="text-xs text-muted-foreground mb-1">Proxy URL</p>
-                      <p className="font-mono text-sm">{proxyUrl}</p>
+                      <p className="font-mono text-sm" data-testid="proxy-url">{proxyUrl}</p>
                       {proxyPort && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Port: {proxyPort}
