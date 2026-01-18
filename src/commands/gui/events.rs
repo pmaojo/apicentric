@@ -262,12 +262,15 @@ impl EventHandler {
         for def in service_definitions {
             let service_name = def.name.clone();
             let service_path = services_dir.join(format!("{}.yaml", service_name));
-            let port = def.server.port.unwrap_or(state.config.default_port);
+            let port = def
+                .server
+                .and_then(|s| s.port)
+                .unwrap_or(state.config.default_port);
 
             let mut service_info = ServiceInfo::new(service_name.clone(), service_path, port);
 
             // Parse endpoints from definition
-            for endpoint in &def.endpoints {
+            for endpoint in def.endpoints.iter().flatten() {
                 service_info.endpoints.push(EndpointInfo {
                     method: endpoint.method.clone(),
                     path: endpoint.path.clone(),
@@ -347,7 +350,7 @@ impl EventHandler {
                 file_path.clone(),
                 state.config.default_port,
             );
-            for endpoint in &service.endpoints {
+            for endpoint in service.endpoints.iter().flatten() {
                 info.endpoints.push(EndpointInfo {
                     method: endpoint.method.clone(),
                     path: endpoint.path.clone(),
@@ -472,19 +475,20 @@ impl EventHandler {
             name: "recording_service".to_string(),
             version: None,
             description: Some(format!("Recorded from {}", session.target_url)),
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: Some(session.proxy_port),
                 base_path: "/".to_string(),
                 proxy_base_url: Some(session.target_url.clone()),
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: endpoints.into_values().collect(),
+            endpoints: Some(endpoints.into_values().collect()),
             graphql: None,
             behavior: None,
+            twin: None,
         };
 
         fs::create_dir_all(&state.config.services_directory).map_err(|e| {
@@ -893,7 +897,7 @@ impl EventHandler {
                 path.clone(),
                 state.config.default_port,
             );
-            for endpoint in &service.endpoints {
+            for endpoint in service.endpoints.iter().flatten() {
                 info.endpoints.push(EndpointInfo {
                     method: endpoint.method.clone(),
                     path: endpoint.path.clone(),
