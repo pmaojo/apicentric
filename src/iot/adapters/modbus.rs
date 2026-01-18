@@ -93,6 +93,16 @@ impl ProtocolAdapter for ModbusAdapter {
         }
         Ok(())
     }
+
+    async fn subscribe(&mut self, _topic: &str) -> anyhow::Result<()> {
+        // Not implemented for Modbus
+        Ok(())
+    }
+
+    async fn poll(&mut self) -> Option<(String, VariableValue)> {
+        // Not implemented for Modbus
+        None
+    }
 }
 
 async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<ModbusStore>>) {

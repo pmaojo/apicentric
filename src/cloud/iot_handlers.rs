@@ -177,3 +177,181 @@ pub async fn upload_replay_data(
 
     Ok(Json(ApiResponse::success(filename)))
 }
+
+#[derive(Serialize)]
+pub struct GraphNode {
+    id: String,
+    label: String,
+    data: GraphNodeData,
+    position: GraphNodePosition,
+    #[serde(rename = "type")]
+    node_type: String,
+}
+
+#[derive(Serialize)]
+pub struct GraphNodeData {
+    label: String,
+}
+
+#[derive(Serialize)]
+pub struct GraphNodePosition {
+    x: i32,
+    y: i32,
+}
+
+#[derive(Serialize)]
+pub struct GraphEdge {
+    id: String,
+    source: String,
+    target: String,
+    label: Option<String>,
+    animated: bool,
+}
+
+#[derive(Serialize)]
+pub struct GraphResponse {
+    nodes: Vec<GraphNode>,
+    edges: Vec<GraphEdge>,
+}
+
+fn mqtt_match(subscription: &str, topic: &str) -> bool {
+    if subscription == "#" {
+        return true;
+    }
+    if subscription == topic {
+        return true;
+    }
+
+    let sub_parts: Vec<&str> = subscription.split('/').collect();
+    let topic_parts: Vec<&str> = topic.split('/').collect();
+
+    for (i, sub_part) in sub_parts.iter().enumerate() {
+        if *sub_part == "#" {
+            return true;
+        }
+        if i >= topic_parts.len() {
+            return false;
+        }
+        if *sub_part != "+" && *sub_part != topic_parts[i] {
+            return false;
+        }
+    }
+
+    if topic_parts.len() > sub_parts.len() {
+        return false;
+    }
+
+    true
+}
+
+/// Generates the IoT system graph.
+pub async fn get_iot_graph() -> Result<Json<ApiResponse<GraphResponse>>, ApiError> {
+    let iot_dir = std::env::var("APICENTRIC_IOT_DIR").unwrap_or_else(|_| "iot".to_string());
+    let path = std::path::Path::new(&iot_dir);
+
+    if !path.exists() {
+        return Ok(Json(ApiResponse::success(GraphResponse {
+            nodes: vec![],
+            edges: vec![],
+        })));
+    }
+
+    let entries = std::fs::read_dir(path).map_err(|e| {
+        ApiError::internal_server_error(format!("Failed to read IoT directory: {}", e))
+    })?;
+
+    struct TwinInfo {
+        id: String,
+        name: String,
+        pub_topics: Vec<String>,
+        sub_topics: Vec<String>,
+    }
+
+    let mut twins_info: Vec<TwinInfo> = Vec::new();
+
+    for entry in entries {
+        if let Ok(entry) = entry {
+            let path = entry.path();
+            if let Some(ext) = path.extension() {
+                if ext == "yaml" || ext == "yml" {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                         if let Ok(config) = serde_yaml::from_str::<TwinConfig>(&content) {
+                            let mut pub_topics = Vec::new();
+                            let mut sub_topics = Vec::new();
+
+                            for transport in config.twin.transports {
+                                let prefix = transport.params.get("topic_prefix")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("sensors")
+                                    .to_string();
+
+                                for physics in &config.twin.physics {
+                                    pub_topics.push(format!("{}/{}", prefix, physics.variable));
+                                }
+
+                                if let Some(subs) = transport.params.get("subscriptions") {
+                                    if let Some(subs_seq) = subs.as_sequence() {
+                                        for sub in subs_seq {
+                                            if let Some(topic) = sub.as_str() {
+                                                sub_topics.push(topic.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            twins_info.push(TwinInfo {
+                                id: config.twin.name.clone(),
+                                name: config.twin.name,
+                                pub_topics,
+                                sub_topics,
+                            });
+                         }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
+
+    for (i, twin) in twins_info.iter().enumerate() {
+        nodes.push(GraphNode {
+            id: twin.id.clone(),
+            label: twin.name.clone(),
+            data: GraphNodeData { label: twin.name.clone() },
+            position: GraphNodePosition { x: (i as i32) * 250, y: 100 + (if i % 2 == 0 { 50 } else { -50 }) },
+            node_type: "default".to_string(),
+        });
+    }
+
+    let mut edge_count = 0;
+    for source in &twins_info {
+        for target in &twins_info {
+            if source.id == target.id {
+                continue;
+            }
+
+            for pub_topic in &source.pub_topics {
+                for sub_topic in &target.sub_topics {
+                    if mqtt_match(sub_topic, pub_topic) {
+                        edges.push(GraphEdge {
+                            id: format!("e{}-{}", edge_count, source.id),
+                            source: source.id.clone(),
+                            target: target.id.clone(),
+                            label: Some(pub_topic.clone()),
+                            animated: true,
+                        });
+                        edge_count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(Json(ApiResponse::success(GraphResponse {
+        nodes,
+        edges,
+    })))
+}
