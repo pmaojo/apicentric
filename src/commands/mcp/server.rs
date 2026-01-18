@@ -28,8 +28,6 @@ use apicentric::simulator::config::{
 use std::collections::HashMap;
 #[cfg(feature = "mcp")]
 use std::fs;
-#[cfg(feature = "mcp")]
-use std::path::Path;
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct ServiceName {
@@ -136,19 +134,20 @@ impl ApicentricMcpService {
             name: spec.name,
             version: Some("1.0.0".to_string()),
             description: Some("Service created via MCP".to_string()),
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: Some(spec.port),
                 base_path: spec.base_path,
                 proxy_base_url: None,
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: Some(fixtures),
             bucket: None,
-            endpoints,
+            endpoints: Some(endpoints),
             graphql: None,
             behavior: None,
+            twin: None,
         })
     }
 }
