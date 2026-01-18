@@ -3,6 +3,7 @@ use apicentric::iot::adapters::mqtt::MqttAdapter;
 use apicentric::iot::args::TwinRunArgs;
 use apicentric::iot::config::TwinConfig;
 use apicentric::iot::model::DigitalTwin;
+use apicentric::iot::physics::replay::ReplayStrategy;
 use apicentric::iot::physics::scripting::RhaiScriptStrategy;
 use apicentric::iot::physics::sine::SineWaveStrategy;
 use apicentric::iot::traits::{ProtocolAdapter, SimulationStrategy};
@@ -70,6 +71,37 @@ pub async fn run(args: TwinRunArgs) -> anyhow::Result<()> {
                 let frequency = 0.1; // Default Hz
 
                 let strategy = SineWaveStrategy::new(physics.variable.clone(), min, max, frequency);
+                strategies.push(Box::new(strategy));
+            }
+            "replay" => {
+                let file_name = physics
+                    .params
+                    .get("file")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing 'file' parameter for replay strategy"))?;
+
+                let column = physics
+                    .params
+                    .get("column")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
+                let loop_data = physics
+                    .params
+                    .get("loop")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+
+                // Resolve file path relative to the device config file
+                let config_dir = device_path.parent().unwrap_or(Path::new("."));
+                let csv_path = config_dir.join(file_name);
+
+                let strategy = ReplayStrategy::new(
+                    &csv_path,
+                    physics.variable.clone(),
+                    column,
+                    loop_data,
+                )?;
                 strategies.push(Box::new(strategy));
             }
             _ => error!("Unknown physics strategy: {}", physics.strategy),
