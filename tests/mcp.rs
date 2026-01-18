@@ -37,8 +37,8 @@ fn test_mcp_command_starts_server_and_responds_to_initialize() {
 use std::process::{Command as StdCommand, Stdio};
 
 #[test]
-fn test_mcp_generate_and_start_service_tool() {
-    let request = fs::read_to_string("tests/mcp_generate_request.json").unwrap();
+fn test_mcp_create_service_tool() {
+    let request = fs::read_to_string("tests/mcp_create_request.json").unwrap();
 
     let mut config_file = NamedTempFile::new().unwrap();
     config_file
@@ -66,19 +66,24 @@ fn test_mcp_generate_and_start_service_tool() {
         .arg("--test")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .unwrap();
 
     {
         let stdin = child.stdin.as_mut().unwrap();
         stdin.write_all(request.as_bytes()).unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(2));
     } // stdin is closed here
 
     let output = child.wait_with_output().unwrap();
     let response = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+
+    println!("MCP Response: {}", response);
+    println!("MCP Stderr: {}", stderr);
 
     assert!(response.contains("jsonrpc"));
     assert!(response.contains("result"));
-    assert!(response.contains("Service"));
-    assert!(response.contains("generated and started successfully"));
+    assert!(response.contains("Service 'test-service' created"));
 }
