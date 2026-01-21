@@ -108,7 +108,7 @@ mod tests {
                                 script: None,
                                 headers: None,
                                 side_effects: None,
-                        schema: None,
+                                schema: None,
                             },
                         );
                         responses

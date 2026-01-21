@@ -709,3 +709,144 @@ async fn download_marketplace_item(item_id: &str, url: &str) -> Result<String, S
     #[cfg(not(feature = "reqwest"))]
     Err("HTTP client (reqwest) is not enabled".to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::tui_state::{FocusedPanel, TuiAppState, ViewMode};
+    use apicentric::simulator::config::SimulatorConfig;
+    use apicentric::simulator::manager::ApiSimulatorManager;
+    use crossterm::event::{self, KeyCode, KeyModifiers};
+    use tempfile::NamedTempFile;
+
+    async fn create_test_manager() -> (Arc<ApiSimulatorManager>, NamedTempFile) {
+        let temp_db = NamedTempFile::new().unwrap();
+        let db_path = temp_db.path().to_string_lossy().to_string();
+
+        let mut config = SimulatorConfig::default_config();
+        config.db_path = std::path::PathBuf::from(db_path);
+
+        (Arc::new(ApiSimulatorManager::new(config)), temp_db)
+    }
+
+    #[tokio::test]
+    async fn test_handle_key_event_quit() {
+        let (manager, _temp_db) = create_test_manager().await;
+        let mut state = TuiAppState::new();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let key = event::KeyEvent {
+            code: KeyCode::Char('q'),
+            modifiers: KeyModifiers::empty(),
+            kind: event::KeyEventKind::Press,
+            state: event::KeyEventState::empty(),
+        };
+
+        let result = handle_key_event(key, &mut state, &manager, &tx).await;
+        assert!(matches!(result, Ok(Action::Quit)));
+    }
+
+    #[tokio::test]
+    async fn test_handle_key_event_switch_panel() {
+        let (manager, _temp_db) = create_test_manager().await;
+        let mut state = TuiAppState::new();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        assert_eq!(state.focused_panel, FocusedPanel::Services);
+
+        let key = event::KeyEvent {
+            code: KeyCode::Tab,
+            modifiers: KeyModifiers::empty(),
+            kind: event::KeyEventKind::Press,
+            state: event::KeyEventState::empty(),
+        };
+
+        let result = handle_key_event(key, &mut state, &manager, &tx).await;
+        assert!(matches!(result, Ok(Action::Continue)));
+        assert_eq!(state.focused_panel, FocusedPanel::Logs);
+
+        let result = handle_key_event(key, &mut state, &manager, &tx).await;
+        assert!(matches!(result, Ok(Action::Continue)));
+        assert_eq!(state.focused_panel, FocusedPanel::Services);
+    }
+
+    #[tokio::test]
+    async fn test_handle_key_event_filter_mode() {
+        let (manager, _temp_db) = create_test_manager().await;
+        let mut state = TuiAppState::new();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        assert_eq!(state.mode, ViewMode::Normal);
+
+        // Press 'f' to enter filter mode
+        let key = event::KeyEvent {
+            code: KeyCode::Char('f'),
+            modifiers: KeyModifiers::empty(),
+            kind: event::KeyEventKind::Press,
+            state: event::KeyEventState::empty(),
+        };
+
+        let result = handle_key_event(key, &mut state, &manager, &tx).await;
+        assert!(matches!(result, Ok(Action::Continue)));
+        assert_eq!(state.mode, ViewMode::FilterDialog);
+
+        // Type filter "status:200"
+        let chars = "status:200";
+        for c in chars.chars() {
+            let key = event::KeyEvent {
+                code: KeyCode::Char(c),
+                modifiers: KeyModifiers::empty(),
+                kind: event::KeyEventKind::Press,
+                state: event::KeyEventState::empty(),
+            };
+            let _ = handle_key_event(key, &mut state, &manager, &tx).await;
+        }
+
+        assert_eq!(state.input.value(), "status:200");
+
+        // Press Enter to apply
+        let key = event::KeyEvent {
+            code: KeyCode::Enter,
+            modifiers: KeyModifiers::empty(),
+            kind: event::KeyEventKind::Press,
+            state: event::KeyEventState::empty(),
+        };
+
+        let result = handle_key_event(key, &mut state, &manager, &tx).await;
+        assert!(matches!(result, Ok(Action::Continue)));
+        assert_eq!(state.mode, ViewMode::Normal);
+        assert_eq!(state.logs.filter.status, Some(200));
+        assert!(state.status_message.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_handle_key_event_help_mode() {
+        let (manager, _temp_db) = create_test_manager().await;
+        let mut state = TuiAppState::new();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        // Press '?' to enter help mode
+        let key = event::KeyEvent {
+            code: KeyCode::Char('?'),
+            modifiers: KeyModifiers::empty(),
+            kind: event::KeyEventKind::Press,
+            state: event::KeyEventState::empty(),
+        };
+
+        let result = handle_key_event(key, &mut state, &manager, &tx).await;
+        assert!(matches!(result, Ok(Action::Continue)));
+        assert_eq!(state.mode, ViewMode::HelpDialog);
+
+        // Press Esc to exit help mode
+        let key = event::KeyEvent {
+            code: KeyCode::Esc,
+            modifiers: KeyModifiers::empty(),
+            kind: event::KeyEventKind::Press,
+            state: event::KeyEventState::empty(),
+        };
+
+        let result = handle_key_event(key, &mut state, &manager, &tx).await;
+        assert!(matches!(result, Ok(Action::Continue)));
+        assert_eq!(state.mode, ViewMode::Normal);
+    }
+}
