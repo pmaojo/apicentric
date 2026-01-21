@@ -53,6 +53,7 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
                         script: None,
                         headers: None,
                         side_effects: None,
+                        schema: None,
                     },
                 );
                 responses
