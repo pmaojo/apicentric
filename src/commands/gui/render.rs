@@ -211,14 +211,16 @@ pub fn render(ctx: &egui::Context, state: &mut GuiAppState, _manager: &Arc<ApiSi
                                     for def in defs {
                                         let name = def.name.clone();
                                         let path = services_dir.join(format!("{}.yaml", name));
-                                        let port = def.server.port.unwrap_or(default_port);
+                                    let port = def.server.as_ref().and_then(|s| s.port).unwrap_or(default_port);
                                         let mut info =
                                             super::models::ServiceInfo::new(name, path, port);
-                                        for ep in def.endpoints {
+                                    if let Some(endpoints) = def.endpoints {
+                                        for ep in endpoints {
                                             info.endpoints.push(super::models::EndpointInfo {
                                                 method: ep.method,
                                                 path: ep.path,
                                             });
+                                        }
                                         }
                                         // TODO: Check if running using manager.service_registry()
                                         info.status = ServiceStatus::Stopped; // Default
@@ -316,14 +318,16 @@ pub fn render(ctx: &egui::Context, state: &mut GuiAppState, _manager: &Arc<ApiSi
                                 for def in defs {
                                     let name = def.name.clone();
                                     let path = services_dir.join(format!("{}.yaml", name));
-                                    let port = def.server.port.unwrap_or(default_port);
+                                    let port = def.server.as_ref().and_then(|s| s.port).unwrap_or(default_port);
                                     let mut info =
                                         super::models::ServiceInfo::new(name, path, port);
-                                    for ep in def.endpoints {
-                                        info.endpoints.push(super::models::EndpointInfo {
-                                            method: ep.method,
-                                            path: ep.path,
-                                        });
+                                    if let Some(endpoints) = def.endpoints {
+                                        for ep in endpoints {
+                                            info.endpoints.push(super::models::EndpointInfo {
+                                                method: ep.method,
+                                                path: ep.path,
+                                            });
+                                        }
                                     }
                                     services.push(info);
                                 }

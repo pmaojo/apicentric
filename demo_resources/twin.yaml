@@ -1,0 +1,12 @@
+twin:
+  name: demo-sensor
+  physics:
+    - variable: temperature
+      strategy: sine
+      params:
+        min: 20.0
+        max: 30.0
+  transports:
+    - type: modbus
+      params:
+        port: 5020

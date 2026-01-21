@@ -262,16 +262,18 @@ impl EventHandler {
         for def in service_definitions {
             let service_name = def.name.clone();
             let service_path = services_dir.join(format!("{}.yaml", service_name));
-            let port = def.server.port.unwrap_or(state.config.default_port);
+            let port = def.server.as_ref().and_then(|s| s.port).unwrap_or(state.config.default_port);
 
             let mut service_info = ServiceInfo::new(service_name.clone(), service_path, port);
 
             // Parse endpoints from definition
-            for endpoint in &def.endpoints {
-                service_info.endpoints.push(EndpointInfo {
-                    method: endpoint.method.clone(),
-                    path: endpoint.path.clone(),
-                });
+            if let Some(endpoints) = &def.endpoints {
+                for endpoint in endpoints {
+                    service_info.endpoints.push(EndpointInfo {
+                        method: endpoint.method.clone(),
+                        path: endpoint.path.clone(),
+                    });
+                }
             }
 
             // Restore status if service was running
@@ -347,11 +349,13 @@ impl EventHandler {
                 file_path.clone(),
                 state.config.default_port,
             );
-            for endpoint in &service.endpoints {
-                info.endpoints.push(EndpointInfo {
-                    method: endpoint.method.clone(),
-                    path: endpoint.path.clone(),
-                });
+                if let Some(endpoints) = &service.endpoints {
+                    for endpoint in endpoints {
+                        info.endpoints.push(EndpointInfo {
+                            method: endpoint.method.clone(),
+                            path: endpoint.path.clone(),
+                        });
+                    }
             }
             state.add_service(info);
         }
@@ -459,6 +463,7 @@ impl EventHandler {
                             script: None,
                             headers: None,
                             side_effects: None,
+                            schema: None,
                         },
                     );
                     map
@@ -472,19 +477,20 @@ impl EventHandler {
             name: "recording_service".to_string(),
             version: None,
             description: Some(format!("Recorded from {}", session.target_url)),
-            server: ServerConfig {
+            server: Some(ServerConfig {
                 port: Some(session.proxy_port),
                 base_path: "/".to_string(),
                 proxy_base_url: Some(session.target_url.clone()),
                 cors: None,
                 record_unknown: false,
-            },
+            }),
             models: None,
             fixtures: None,
             bucket: None,
-            endpoints: endpoints.into_values().collect(),
+            endpoints: Some(endpoints.into_values().collect()),
             graphql: None,
             behavior: None,
+            twin: None,
         };
 
         fs::create_dir_all(&state.config.services_directory).map_err(|e| {
@@ -893,11 +899,13 @@ impl EventHandler {
                 path.clone(),
                 state.config.default_port,
             );
-            for endpoint in &service.endpoints {
-                info.endpoints.push(EndpointInfo {
-                    method: endpoint.method.clone(),
-                    path: endpoint.path.clone(),
-                });
+            if let Some(endpoints) = &service.endpoints {
+                for endpoint in endpoints {
+                    info.endpoints.push(EndpointInfo {
+                        method: endpoint.method.clone(),
+                        path: endpoint.path.clone(),
+                    });
+                }
             }
             state.add_service(info);
         }
