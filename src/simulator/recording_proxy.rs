@@ -326,6 +326,7 @@ fn upsert_recorded_endpoint(
             condition: None,
             content_type: content_type.to_string(),
             body,
+            schema: None,
             script: None,
             headers: headers_option,
             side_effects: None,
