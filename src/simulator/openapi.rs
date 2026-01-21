@@ -141,12 +141,23 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                                     .clone()
                                     .unwrap_or_else(|| "".to_string())
                             });
+
+                        let schema = pick_media_type(&response.content).and_then(|(_, media)| {
+                            media.schema.as_ref().and_then(|s| {
+                                s.get("$ref")
+                                    .and_then(|r| r.as_str())
+                                    .and_then(|r| r.split('/').next_back())
+                                    .map(|s| s.to_string())
+                            })
+                        });
+
                         responses_map.insert(
                             code,
                             ResponseDefinition {
                                 condition: None,
                                 content_type,
                                 body,
+                                schema,
                                 script: None,
                                 headers: None,
                                 side_effects: None,
@@ -607,11 +618,22 @@ pub fn to_openapi(service: &ServiceDefinition) -> OpenAPI {
         }
 
         for (code, resp) in &ep.responses {
+            let mut content = IndexMap::new();
+            if let Some(schema_name) = &resp.schema {
+                let media_type = openapiv3::MediaType {
+                    schema: Some(ReferenceOr::Reference {
+                        reference: format!("#/components/schemas/{}", schema_name),
+                    }),
+                    ..Default::default()
+                };
+                content.insert(resp.content_type.clone(), media_type);
+            }
+
             op.responses.responses.insert(
                 StatusCode::Code(*code),
                 ReferenceOr::Item(Response {
                     description: resp.body.clone(),
-                    content: IndexMap::new(),
+                    content,
                     ..Default::default()
                 }),
             );
