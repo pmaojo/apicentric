@@ -8,11 +8,13 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};
 
+type MqttRx = Arc<Mutex<mpsc::Receiver<(String, VariableValue)>>>;
+
 /// An adapter that publishes digital twin state changes to an MQTT broker.
 pub struct MqttAdapter {
     client: Option<AsyncClient>,
     topic_prefix: String,
-    rx: Option<Arc<Mutex<mpsc::Receiver<(String, VariableValue)>>>>,
+    rx: Option<MqttRx>,
 }
 
 impl Default for MqttAdapter {

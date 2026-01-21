@@ -2,8 +2,6 @@
 //!
 //! This module is only available when the `tui` feature is enabled.
 
-#![cfg(feature = "tui")]
-
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -11,7 +9,6 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
-use serde_json;
 
 use std::time::Duration;
 

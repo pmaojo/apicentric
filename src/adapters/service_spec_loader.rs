@@ -174,6 +174,7 @@ impl YamlServiceSpecLoader {
         Ok(scenarios)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn parse_condition_scenario(
         &self,
         spec: &ServiceSpec,

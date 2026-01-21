@@ -124,7 +124,7 @@ pub struct ServiceDefinition {
 #[serde(untagged)]
 pub enum UnifiedConfig {
     /// Standard service with name at top level
-    Service(ServiceDefinition),
+    Service(Box<ServiceDefinition>),
     /// Digital twin with 'twin' key at top level
     Twin {
         twin: TwinDefinition,
@@ -134,7 +134,7 @@ pub enum UnifiedConfig {
 impl From<UnifiedConfig> for ServiceDefinition {
     fn from(config: UnifiedConfig) -> Self {
         match config {
-            UnifiedConfig::Service(def) => def,
+            UnifiedConfig::Service(def) => *def,
             UnifiedConfig::Twin { twin } => ServiceDefinition {
                 name: twin.name.clone(),
                 version: None,

@@ -475,6 +475,7 @@ impl Contract {
         diff
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn json_structures_compatible(
         &self,
         mock_json: &serde_json::Value,

@@ -47,40 +47,35 @@ impl<R: RequestRouter + 'static> HttpServer<R> {
         self.listener_addr = Some(listener.local_addr().unwrap());
         let router = Arc::clone(&self.router);
         self.handle = Some(tokio::spawn(async move {
-            loop {
-                match listener.accept().await {
-                    Ok((stream, _)) => {
+            while let Ok((stream, _)) = listener.accept().await {
+                let router = Arc::clone(&router);
+                tokio::spawn(async move {
+                    let svc = service_fn(move |req: Request<hyper::body::Incoming>| {
                         let router = Arc::clone(&router);
-                        tokio::spawn(async move {
-                            let svc = service_fn(move |req: Request<hyper::body::Incoming>| {
-                                let router = Arc::clone(&router);
-                                async move {
-                                    let (parts, body) = req.into_parts();
-                                    use http_body_util::BodyExt;
-                                    let bytes = match body.collect().await {
-                                        Ok(collected) => collected.to_bytes(),
-                                        Err(_) => Bytes::new(),
-                                    };
-                                    let req = Request::from_parts(parts, Full::new(bytes));
-                                    match router.route(req).await {
-                                        Ok(resp) => Ok::<_, Infallible>(resp),
-                                        Err(e) => {
-                                            eprintln!("router error: {}", e);
-                                            Ok(Response::builder()
-                                                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                                                .body(Full::new(Bytes::new()))
-                                                .unwrap())
-                                        }
-                                    }
+                        async move {
+                            let (parts, body) = req.into_parts();
+                            use http_body_util::BodyExt;
+                            let bytes = match body.collect().await {
+                                Ok(collected) => collected.to_bytes(),
+                                Err(_) => Bytes::new(),
+                            };
+                            let req = Request::from_parts(parts, Full::new(bytes));
+                            match router.route(req).await {
+                                Ok(resp) => Ok::<_, Infallible>(resp),
+                                Err(e) => {
+                                    eprintln!("router error: {}", e);
+                                    Ok(Response::builder()
+                                        .status(StatusCode::INTERNAL_SERVER_ERROR)
+                                        .body(Full::new(Bytes::new()))
+                                        .unwrap())
                                 }
-                            });
-                            let _ = http1::Builder::new()
-                                .serve_connection(TokioIo::new(stream), svc)
-                                .await;
-                        });
-                    }
-                    Err(_) => break,
-                }
+                            }
+                        }
+                    });
+                    let _ = http1::Builder::new()
+                        .serve_connection(TokioIo::new(stream), svc)
+                        .await;
+                });
             }
         }));
         Ok(())

@@ -77,6 +77,7 @@ pub fn load_graphql_mocks(_gql_cfg: &GraphQLConfig) -> ApicentricResult<GraphQLM
 
 /// Handle a GraphQL request if applicable
 #[cfg(feature = "graphql")]
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_graphql_request(
     gql: &GraphQLMocks,
     method: &str,
@@ -178,6 +179,7 @@ pub async fn handle_graphql_request(
 
 /// Handle a GraphQL request if applicable (GraphQL feature disabled)
 #[cfg(not(feature = "graphql"))]
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_graphql_request(
     _gql: &GraphQLMocks,
     _method: &str,
