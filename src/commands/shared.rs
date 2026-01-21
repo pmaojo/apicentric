@@ -226,6 +226,7 @@ pub fn scaffold_endpoint_definition() -> ApicentricResult<EndpointDefinition> {
             condition: None,
             content_type,
             body,
+            schema: None,
             script: None,
             headers: None,
             side_effects: None,

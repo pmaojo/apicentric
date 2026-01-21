@@ -101,6 +101,8 @@ pub struct ResponseDefinition {
     pub content_type: String,
     pub body: String, // Template string
     #[serde(default)]
+    pub schema: Option<String>, // Reference to model name
+    #[serde(default)]
     pub script: Option<PathBuf>,
     #[serde(default)]
     pub headers: Option<HashMap<String, String>>,
