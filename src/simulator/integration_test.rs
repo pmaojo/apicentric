@@ -108,6 +108,7 @@ mod tests {
                                 script: None,
                                 headers: None,
                                 side_effects: None,
+                        schema: None,
                             },
                         );
                         responses
@@ -132,6 +133,7 @@ mod tests {
                             script: None,
                             headers: None,
                             side_effects: None,
+                            schema: None,
                         });
                         responses
                     },
@@ -155,6 +157,7 @@ mod tests {
                             script: None,
                             headers: None,
                             side_effects: None,
+                            schema: None,
                         });
                         responses
                     },

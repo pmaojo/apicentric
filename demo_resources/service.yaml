@@ -1,0 +1,29 @@
+name: Demo API
+version: "1.0"
+description: A demo API for the walkthrough
+server:
+  port: 9005
+  base_path: /api/v1
+
+endpoints:
+  - method: GET
+    path: /users
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          [
+            {"id": 1, "name": "Alice"},
+            {"id": 2, "name": "Bob"}
+          ]
+  - method: POST
+    path: /users
+    responses:
+      201:
+        content_type: application/json
+        body: |
+          {
+            "id": 3,
+            "name": "Charlie",
+            "created_at": "{{now}}"
+          }
