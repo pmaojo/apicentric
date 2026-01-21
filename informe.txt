@@ -1,0 +1,96 @@
+INFORME PARA EL WEBMASTER DE APICENTRIC
+=======================================
+
+Hola,
+
+Se requiere actualizar la sección de "Marketplace" en la web (https://apicentric.pelayomaojo.es/marketplace) para reflejar las capacidades reales de la plataforma Apicentric v0.3.4.
+
+Apicentric no es solo un simulador de APIs REST (SaaS); es una plataforma híbrida que permite emular también dispositivos IoT físicos mediante "Gemelos Digitales" (Digital Twins) con protocolos industriales reales (Modbus TCP, MQTT).
+
+A continuación se detalla el contenido propuesto para reemplazar los placeholders actuales, así como un resumen técnico para la documentación.
+
+1. PROPUESTA DE CONTENIDO PARA EL MARKETPLACE
+---------------------------------------------
+El marketplace debe mostrar una mezcla equilibrada de APIs de Software y Dispositivos de Hardware.
+
+### Categoría: SaaS APIs (Software)
+Estos elementos simulan servicios web populares. Útiles para desarrolladores frontend/backend que necesitan integrarse con terceros sin costes ni límites de rate-limit.
+
+*   **Stripe API**
+    *   *Descripción:* Simulación completa de pagos, gestión de clientes y suscripciones. Ideal para probar flujos de checkout.
+    *   *Specs:* OpenAPI v3.
+*   **Slack API**
+    *   *Descripción:* API de mensajería para probar bots, webhooks y gestión de canales.
+    *   *Specs:* OpenAPI v3.
+*   **GitHub API**
+    *   *Descripción:* Emulación de repositorios, issues y pull requests para herramientas de CI/CD.
+    *   *Specs:* OpenAPI v3.
+*   **Kubernetes API**
+    *   *Descripción:* Simulación del plano de control de K8s (Pods, Deployments, Services) para herramientas de orquestación.
+    *   *Specs:* Swagger 2.0.
+*   **SendGrid API**
+    *   *Descripción:* API de envío de emails transaccionales para probar notificaciones sin enviar correos reales.
+    *   *Specs:* OpenAPI v3.
+
+### Categoría: IoT Twins (Hardware & Industria)
+Estos elementos simulan dispositivos físicos reales. Apicentric levanta servidores TCP/MQTT que se comportan exactamente como el hardware real, permitiendo conectar SCADAs, PLCs o Home Assistant contra ellos.
+
+*   **Victron Energy System (GX Device)**
+    *   *Descripción:* Gemelo digital de un sistema fotovoltaico Victron. Simula registros Modbus TCP para voltaje de baterías, corriente de carga y producción solar.
+    *   *Protocolo:* Modbus TCP (Puerto 5020).
+    *   *Uso:* Pruebas de integración con sistemas de gestión energética (EMS).
+*   **Schneider PowerLogic PM5300**
+    *   *Descripción:* Medidor de potencia industrial trifásico. Genera datos realistas de voltaje (L1, L2, L3), corriente y factor de potencia.
+    *   *Protocolo:* Modbus TCP (Puerto 5021).
+    *   *Uso:* Monitorización industrial y pruebas de SCADA.
+*   **Zigbee Environmental Sensor**
+    *   *Descripción:* Sensor ambiental inalámbrico (tipo Xiaomi/Aqara) conectado vía bridge Zigbee2MQTT. Publica temperatura, humedad y nivel de batería.
+    *   *Protocolo:* MQTT (Puerto 1883).
+    *   *Uso:* Domótica (Home Assistant, Node-RED).
+*   **Industrial Pump Controller**
+    *   *Descripción:* Controlador de bomba industrial con variables de RPM, flujo caudalimétrico y temperatura de motor.
+    *   *Protocolo:* Modbus TCP.
+*   **Smart Thermostat**
+    *   *Descripción:* Termostato inteligente residencial. Permite lectura y escritura de consignas de temperatura.
+    *   *Protocolo:* MQTT.
+
+2. RESUMEN DE COMANDOS (CLI)
+----------------------------
+Apicentric se maneja principalmente vía terminal. Estos son los comandos clave para interactuar con el marketplace y las simulaciones:
+
+*   `apicentric new <NOMBRE>`
+    *   Crea un nuevo proyecto de simulación vacío.
+*   `apicentric new <NOMBRE> --template <ID>`
+    *   Crea un servicio pre-configurado bajado del marketplace.
+    *   *Ejemplo:* `apicentric new mi-pago --template stripe`
+*   `apicentric simulator start`
+    *   Arranca el servidor de simulación. Por defecto levanta:
+        *   API REST en puerto 8080.
+        *   Servidores Modbus/MQTT según la configuración de los gemelos activos.
+        *   Interfaz WebUI en puerto 9002 (si está habilitada).
+*   `apicentric simulator start --p2p`
+    *   Habilita funciones de colaboración Peer-to-Peer para compartir simulaciones en red local.
+*   `apicentric iot import <URL_O_ARCHIVO>`
+    *   Importa una definición de Gemelo Digital (YAML) a la biblioteca local.
+
+3. CAPACIDADES DE EMULACIÓN
+---------------------------
+Apicentric destaca por su enfoque híbrido "IT + OT" (Tecnologías de la Información + Tecnologías de Operación).
+
+*   **Simulación Física (Physics Strategy):**
+    Los dispositivos no son estáticos. Tienen "estrategias de física" que definen cómo cambian sus valores en el tiempo:
+    *   *Sine Wave:* Para simular voltajes AC, temperaturas diurnas/nocturnas.
+    *   *Linear/Ramp:* Para simular llenado de tanques o descarga de baterías.
+    *   *Random/Walk:* Para añadir ruido realista a sensores.
+    *   *Replay (CSV):* Reproducción de datos históricos reales grabados de máquinas en producción.
+    *   *Scripting (Rhai):* Lógica personalizada compleja (ej: "si temperatura > 80, activar alerta").
+
+*   **Conectividad Multi-Protocolo:**
+    *   **HTTP/REST:** Para simular servicios web.
+    *   **Modbus TCP:** Actúa como un servidor (esclavo) industrial, aceptando conexiones de PLCs o SCADAs. Soporta Function Codes 03 (Read Holding) y 06 (Write Single).
+    *   **MQTT:** Actúa como un dispositivo IoT publicando telemetría y suscribiéndose a comandos.
+
+Esta combinación permite a los ingenieros probar sistemas complejos (ej: una app móvil que controla un panel solar) sin tener el hardware físico presente.
+
+Atentamente,
+El Equipo de Ingeniería de Apicentric

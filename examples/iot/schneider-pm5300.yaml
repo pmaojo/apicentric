@@ -1,0 +1,26 @@
+twin:
+  name: schneider-pm5300
+  physics:
+    - variable: addr_3000
+      strategy: sine
+      params:
+        min: 100.0 # 10.0 A * 10
+        max: 150.0 # 15.0 A * 10
+    - variable: addr_3002
+      strategy: sine
+      params:
+        min: 100.0
+        max: 145.0
+    - variable: addr_3004
+      strategy: sine
+      params:
+        min: 95.0
+        max: 152.0
+    - variable: addr_3020
+      strategy: random
+      params:
+        min: 3980.0 # 398.0 V * 10
+        max: 4020.0 # 402.0 V * 10
+  transports:
+    - type: modbus
+      port: 5021 # Simulating PM5300

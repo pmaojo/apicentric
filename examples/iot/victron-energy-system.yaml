@@ -1,0 +1,26 @@
+twin:
+  name: victron-energy-system
+  physics:
+    - variable: addr_840
+      strategy: sine
+      params:
+        min: 240.0 # 24.0V * 10
+        max: 280.0 # 28.0V * 10
+    - variable: addr_841
+      strategy: sine
+      params:
+        min: -50.0 # -5.0A * 10
+        max: 50.0  # +5.0A * 10
+    - variable: addr_843
+      strategy: sine
+      params:
+        min: 80.0 # 80.0%
+        max: 100.0 # 100.0%
+    - variable: addr_850
+      strategy: sine
+      params:
+        min: 0.0 # 0W
+        max: 1500.0 # 1500W
+  transports:
+    - type: modbus
+      port: 5020 # Simulating Victron GX Modbus Service (Unit ID 100 is ignored by simple adapter, acts as server)

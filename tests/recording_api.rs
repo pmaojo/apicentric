@@ -40,6 +40,7 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
                         condition: None,
                         content_type: "application/json".to_string(),
                         body: r#"[{"id": 1, "name": "John"}]"#.to_string(),
+                        schema: None,
                         script: None,
                         headers: None,
                         side_effects: None,
