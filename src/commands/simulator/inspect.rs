@@ -184,6 +184,7 @@ fn print_result(result: &ContractValidationResult) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_logs(
     context: &Context,
     service: &str,

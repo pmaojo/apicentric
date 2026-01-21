@@ -1,9 +1,6 @@
 //! Terminal User Interface module
 //!
 //! This module is only available when the `tui` feature is enabled.
-
-#![cfg(feature = "tui")]
-
 //! Enhanced Terminal User Interface for Apicentric
 //!
 //! Provides an interactive dashboard for managing services and viewing logs in real-time.

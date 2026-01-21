@@ -77,7 +77,8 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
     let base_path = doc
         .servers
         .iter()
-        .find_map(|server| Some(extract_base_path(&server.url)))
+        .map(|server| extract_base_path(&server.url))
+        .next()
         .unwrap_or_else(|| "/".to_string());
 
     let server = ServerConfig {

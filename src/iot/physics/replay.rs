@@ -27,7 +27,7 @@ impl ReplayStrategy {
         // Check headers if column_name is provided
         let headers = rdr.headers()?.clone();
         let col_idx = if let Some(col) = column_name {
-            headers.iter().position(|h| h == &col).ok_or_else(|| {
+            headers.iter().position(|h| h == col).ok_or_else(|| {
                 anyhow::anyhow!("Column '{}' not found in CSV file", col)
             })?
         } else {

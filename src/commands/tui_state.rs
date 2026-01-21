@@ -2,8 +2,6 @@
 //!
 //! This module is only available when the `tui` feature is enabled.
 
-#![cfg(feature = "tui")]
-
 use chrono::{DateTime, Utc};
 use std::collections::{HashMap, VecDeque};
 

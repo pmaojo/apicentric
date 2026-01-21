@@ -44,6 +44,7 @@ pub struct SimulatorLifecycle<R: RouteRegistry + Send + Sync> {
 }
 
 impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: SimulatorConfig,
         service_registry: Arc<RwLock<ServiceRegistry>>,

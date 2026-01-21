@@ -25,15 +25,13 @@ pub async fn list_twins() -> Result<Json<ApiResponse<Vec<String>>>, ApiError> {
         ApiError::internal_server_error(format!("Failed to read IoT directory: {}", e))
     })?;
 
-    for entry in entries {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if let Some(ext) = path.extension() {
-                if ext == "yaml" || ext == "yml" {
-                    if let Some(stem) = path.file_stem() {
-                        if let Some(name) = stem.to_str() {
-                            twins.push(name.to_string());
-                        }
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if let Some(ext) = path.extension() {
+            if ext == "yaml" || ext == "yml" {
+                if let Some(stem) = path.file_stem() {
+                    if let Some(name) = stem.to_str() {
+                        twins.push(name.to_string());
                     }
                 }
             }
@@ -269,44 +267,42 @@ pub async fn get_iot_graph() -> Result<Json<ApiResponse<GraphResponse>>, ApiErro
 
     let mut twins_info: Vec<TwinInfo> = Vec::new();
 
-    for entry in entries {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if let Some(ext) = path.extension() {
-                if ext == "yaml" || ext == "yml" {
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                         if let Ok(config) = serde_yaml::from_str::<TwinConfig>(&content) {
-                            let mut pub_topics = Vec::new();
-                            let mut sub_topics = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if let Some(ext) = path.extension() {
+            if ext == "yaml" || ext == "yml" {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    if let Ok(config) = serde_yaml::from_str::<TwinConfig>(&content) {
+                        let mut pub_topics = Vec::new();
+                        let mut sub_topics = Vec::new();
 
-                            for transport in config.twin.transports {
-                                let prefix = transport.params.get("topic_prefix")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("sensors")
-                                    .to_string();
+                        for transport in config.twin.transports {
+                            let prefix = transport.params.get("topic_prefix")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("sensors")
+                                .to_string();
 
-                                for physics in &config.twin.physics {
-                                    pub_topics.push(format!("{}/{}", prefix, physics.variable));
-                                }
+                            for physics in &config.twin.physics {
+                                pub_topics.push(format!("{}/{}", prefix, physics.variable));
+                            }
 
-                                if let Some(subs) = transport.params.get("subscriptions") {
-                                    if let Some(subs_seq) = subs.as_sequence() {
-                                        for sub in subs_seq {
-                                            if let Some(topic) = sub.as_str() {
-                                                sub_topics.push(topic.to_string());
-                                            }
+                            if let Some(subs) = transport.params.get("subscriptions") {
+                                if let Some(subs_seq) = subs.as_sequence() {
+                                    for sub in subs_seq {
+                                        if let Some(topic) = sub.as_str() {
+                                            sub_topics.push(topic.to_string());
                                         }
                                     }
                                 }
                             }
+                        }
 
-                            twins_info.push(TwinInfo {
-                                id: config.twin.name.clone(),
-                                name: config.twin.name,
-                                pub_topics,
-                                sub_topics,
-                            });
-                         }
+                        twins_info.push(TwinInfo {
+                            id: config.twin.name.clone(),
+                            name: config.twin.name,
+                            pub_topics,
+                            sub_topics,
+                        });
                     }
                 }
             }
