@@ -84,6 +84,8 @@ Web-based user interface with Axum server.
 
 Peer-to-peer collaboration for sharing services.
 
+**Note**: This feature is included in the GitHub release binaries but **disabled by default** in the crates.io package. You must enable it explicitly when building from source (`--features p2p`).
+
 **Includes**:
 - libp2p networking
 - Service sharing between developers
@@ -93,6 +95,8 @@ Peer-to-peer collaboration for sharing services.
 **Dependencies**: libp2p, automerge, tokio-tungstenite
 
 **Use when**: You need to share services with team members
+
+[Read the P2P Guide](p2p.md)
 
 #### `gui`
 
@@ -329,6 +333,8 @@ apicentric contract demo --contract-id <id>
 ```
 
 ### P2P (Requires `p2p` feature)
+
+See the [P2P Guide](p2p.md) for full documentation.
 
 ```bash
 # Start simulator with P2P
