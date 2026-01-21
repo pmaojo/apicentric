@@ -1,0 +1,133 @@
+[0;32m🚀 Building Apicentric with all features (except p2p)...[0m
+[0;32m🧪 [1/12] Running Doctor...[0m
+  [2m2026-01-21T01:49:55.331963Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+🏥 Apicentric Doctor
+Checking your system for potential issues...
+
+Checking apicentric version... ✅ v0.3.3
+Checking Rust installation... ✅ cargo 1.91.0 (ea2d97820 2025-10-10)
+Checking Docker installation... ✅ Docker version 28.5.2, build ecc6942
+Checking services directory... ✅ Found ./services
+Checking configuration... ✅ Found apicentric.json
+
+✨ All systems operational! (5 checks passed) You are ready to build.
+[0;32m🆕 [2/12] Creating a new service from template...[0m
+  [2m2026-01-21T01:49:55.461908Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+📦 Creating new service 'my-new-service' from template 'stripe'...
+✅ Found template: Stripe API
+⬇️ Fetching definition from: https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.yaml
+✨ Service created successfully at services/my-new-service.yaml
+Run it with: apicentric simulator start
+[0;32m✅ [3/12] Validating resources...[0m
+  [2m2026-01-21T01:50:00.662538Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+🔍 Validating service definitions...
+📁 Path: demo_resources/service.yaml
+
+📊 Validation Results: total=1 valid=1 invalid=0
+✅ All files valid
+[0;32m🏃 [4/12] Starting Simulator (Background)...[0m
+[0;36m⏳ Waiting for simulator to start...[0m
+[0;32m📊 [5/12] Checking Status...[0m
+  [2m2026-01-21T01:50:05.684892Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+📊 API Simulator Status
+   Status: 🔴 Stopped
+   Services: 0 total
+   Active Services: 0
+[0;32m📡 [6/12] Testing Endpoint...[0m
+[
+    {
+        "id": 1,
+        "name": "Alice"
+    },
+    {
+        "id": 2,
+        "name": "Bob"
+    }
+]
+[0;32m📝 [7/12] Checking Logs...[0m
+  [2m2026-01-21T01:50:06.064920Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+Error: Runtime error: Service 'Demo API' not found
+Logs command finished
+[0;32m📤 [8/12] Exporting Service...[0m
+  [2m2026-01-21T01:50:06.080701Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+✅ Exported service to demo_output/openapi.json in Openapi format
+[0;32m💻 [9/12] Generating Code (Types, Query, View)...[0m
+  [2m2026-01-21T01:50:06.097845Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+✅ Exported TypeScript types to demo_output/types.ts
+  [2m2026-01-21T01:50:08.622752Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+✅ Exported React Query hooks to demo_output/queries.ts
+  [2m2026-01-21T01:50:08.640393Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+✅ Exported React view to demo_output/View.tsx
+[0;32m🐳 [10/12] Dockerizing...[0m
+  [2m2026-01-21T01:50:08.656938Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+🐳 Dockerizing services '["demo_resources/service.yaml"]' to 'demo_output/docker'
+✅ Dockerized services successfully to 'demo_output/docker'.
+   - Dockerfile and .dockerignore created.
+   - Service 'service.yaml' copied into 'services/' directory.
+
+To build the image, run:
+   cd demo_output/docker && docker build -t demo-api-service .
+[0;32m🧪 [11/12] Running Contract Tests...[0m
+  [2m2026-01-21T01:50:08.687687Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+🚀 Running contract tests...
+   Contract: demo_output/service.yaml
+   API URL:  http://localhost:9005
+   Env:      default
+Error: Validation error: Contract ID contains invalid characters (only alphanumeric, hyphens, and underscores allowed)
+Contract test failed (expected if strict validation)
+[0;32m🤖 [12/12] Running IoT Digital Twin...[0m
+  [2m2026-01-21T01:50:08.705178Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+  [2m2026-01-21T01:50:08.708052Z[0m [32m INFO[0m [1;32mapicentric::twin_cmd[0m[32m: [32mStarting Digital Twin simulation...[0m
+    [2;3mat[0m src/bin/../commands/twin.rs:15
+
+  [2m2026-01-21T01:50:08.709081Z[0m [32m INFO[0m [1;32mapicentric::twin_cmd[0m[32m: [32mLoaded twin definition: demo-sensor[0m
+    [2;3mat[0m src/bin/../commands/twin.rs:25
+
+  [2m2026-01-21T01:50:08.709417Z[0m [32m INFO[0m [1;32mapicentric::twin_cmd[0m[32m: [32mEntering simulation loop...[0m
+    [2;3mat[0m src/bin/../commands/twin.rs:122
+
+  [2m2026-01-21T01:50:08.709534Z[0m [31mERROR[0m [1;31mapicentric::iot::adapters::modbus[0m[31m: [31mFailed to bind Modbus TCP listener: Address already in use (os error 98)[0m
+    [2;3mat[0m src/iot/adapters/modbus.rs:66
+
+[0;32m✨ All demos completed successfully![0m
+demo_output:
+View.tsx
+apicentric.db
+docker
+openapi.json
+queries.ts
+service.yaml
+sim.log
+types.ts
+
+demo_output/docker:
+Dockerfile
+services
+
+demo_output/docker/services:
+service.yaml
+[0;32m🧹 Cleaning up...[0m
