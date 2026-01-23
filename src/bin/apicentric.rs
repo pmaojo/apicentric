@@ -202,6 +202,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                 services_dir,
                 force: _,
                 p2p: _,
+                template: _,
             }),
     } = &cli.command
     {
@@ -239,9 +240,10 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Simulator { action } => match action {
             Some(action) => match &action {
                 simulator_cmd::SimulatorAction::Start {
-                    services_dir: _,
+                    services_dir,
                     force: _,
                     p2p,
+                    template,
                 } => {
                     // Start and block to keep services alive
                     if let Some(sim) = context.api_simulator() {
@@ -249,6 +251,12 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                             println!("🏃 Dry run: Would start API simulator");
                             return Ok(());
                         }
+
+                        if let Some(tmpl) = template {
+                            println!("🚀 Initializing service from template '{}'...", tmpl);
+                            shared_impl::fetch_and_create_service(tmpl, None, services_dir).await?;
+                        }
+
                         if *p2p {
                             sim.enable_p2p(true).await;
                         }

@@ -60,13 +60,25 @@ impl SimulationStrategy for RhaiScriptStrategy {
         // Execute script
         // Lock engine
         let engine = self.engine.lock().unwrap();
-        let result = engine.eval_ast_with_scope::<f64>(&mut scope, &self.ast);
+        let result = engine.eval_ast_with_scope::<rhai::Dynamic>(&mut scope, &self.ast);
 
         match result {
-            Ok(new_val) => {
+            Ok(val) => {
+                let var_val = if let Some(f) = val.clone().try_cast::<f64>() {
+                    VariableValue::Float(f)
+                } else if let Some(i) = val.clone().try_cast::<i64>() {
+                    VariableValue::Integer(i)
+                } else if let Some(b) = val.clone().try_cast::<bool>() {
+                    VariableValue::Boolean(b)
+                } else if let Some(s) = val.clone().try_cast::<String>() {
+                    VariableValue::String(s)
+                } else {
+                    VariableValue::String(val.to_string())
+                };
+
                 state
                     .variables
-                    .insert(self.variable_name.clone(), VariableValue::Float(new_val));
+                    .insert(self.variable_name.clone(), var_val);
             }
             Err(e) => {
                 error!("Script execution failed for {}: {}", self.variable_name, e);
