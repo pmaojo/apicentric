@@ -1,19 +1,30 @@
 use apicentric::{ApicentricError, ApicentricResult, Context, ExecutionContext};
+use crate::commands::shared::fetch_and_create_service;
 
 pub async fn handle_start(
     context: &Context,
     services_dir: &str,
     force: bool,
     p2p: bool,
+    template: Option<&str>,
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!(
-            "🏃 Dry run: Would start API simulator (dir={}, force={})",
-            services_dir, force
+            "🏃 Dry run: Would start API simulator (dir={}, force={}, template={:?})",
+            services_dir, force, template
         );
         return Ok(());
     }
+
+    if let Some(tmpl) = template {
+        println!("🚀 Initializing service from template '{}'...", tmpl);
+        // We pass None for name_override, so it uses the template name or derived name.
+        // If users want a custom name, they should use `apicentric new` first.
+        // But `start` is usually for quick start.
+        fetch_and_create_service(tmpl, None, services_dir).await?;
+    }
+
     println!(
         "🚀 Starting API Simulator...\n📁 Services directory: {}",
         services_dir

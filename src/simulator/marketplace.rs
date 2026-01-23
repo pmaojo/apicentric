@@ -174,6 +174,14 @@ pub fn get_marketplace_items() -> Vec<MarketplaceItem> {
             logo_url: None,
             definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/zigbee-env-sensor.yaml".to_string(),
         },
+        MarketplaceItem {
+            id: "iot/automotive/gps-tracker".to_string(),
+            name: "GPS Tracker".to_string(),
+            description: "Digital Twin of a GPS tracker (Lat, Lon, Speed, Heading). MQTT.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/gps-tracker.yaml".to_string(),
+        },
     ]
 }
 
@@ -188,7 +196,7 @@ mod tests {
 
         // Check for IoT items
         let iot_items: Vec<_> = items.iter().filter(|i| i.category == "IoT Twin").collect();
-        assert_eq!(iot_items.len(), 8);
+        assert_eq!(iot_items.len(), 9);
 
         for item in iot_items {
             assert!(item.definition_url.starts_with(

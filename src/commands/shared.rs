@@ -2,6 +2,9 @@ use crate::{ApicentricError, ApicentricResult};
 use apicentric::simulator::config::{
     EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
 };
+use apicentric::simulator::marketplace::get_marketplace_items;
+use apicentric::simulator::openapi::from_openapi;
+use colored::Colorize;
 use inquire::{Confirm, Select, Text};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -97,6 +100,139 @@ fn find_yaml_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Apicentric
         }
     }
     Ok(())
+}
+
+/// Fetches a template by ID and creates a service definition file in the output directory.
+///
+/// If `name_override` is provided, the service name and filename will use it.
+/// Otherwise, the template's name (sanitized) is used.
+///
+/// Returns the path to the created file.
+pub async fn fetch_and_create_service(
+    template_id: &str,
+    name_override: Option<String>,
+    output_dir: &str,
+) -> ApicentricResult<PathBuf> {
+    let items = get_marketplace_items();
+    let template = items.iter().find(|i| i.id == template_id).ok_or_else(|| {
+        ApicentricError::validation_error(
+            format!("Template '{}' not found", template_id),
+            Some("template".to_string()),
+            Some("Check 'apicentric new --help' for available templates".to_string()),
+        )
+    })?;
+
+    println!("{} Found template: {}", "✅".green(), template.name);
+    println!(
+        "{} Fetching definition from: {}",
+        "⬇️".blue(),
+        template.definition_url
+    );
+
+    let content = reqwest::get(&template.definition_url)
+        .await
+        .map_err(|e| {
+            ApicentricError::network_error(
+                format!("Failed to fetch template: {}", e),
+                Some(&template.definition_url),
+                None::<String>,
+            )
+        })?
+        .text()
+        .await
+        .map_err(|e| {
+            ApicentricError::network_error(
+                format!("Failed to read template content: {}", e),
+                Some(&template.definition_url),
+                None::<String>,
+            )
+        })?;
+
+    let value: serde_yaml::Value = serde_yaml::from_str(&content).map_err(|e| {
+        ApicentricError::validation_error(
+            format!("Failed to parse template YAML: {}", e),
+            None::<String>,
+            Some("Check the template syntax"),
+        )
+    })?;
+
+    let mut definition = if value.get("openapi").is_some() || value.get("swagger").is_some() {
+        from_openapi(&value)
+    } else {
+        serde_yaml::from_value::<ServiceDefinition>(value).map_err(|e| {
+            ApicentricError::validation_error(
+                format!("Invalid service definition: {}", e),
+                None::<String>,
+                None::<String>,
+            )
+        })?
+    };
+
+    let service_name = name_override.unwrap_or_else(|| {
+        // Sanitize template name to be a valid filename/service name
+        template.name.to_lowercase().replace(" ", "-")
+    });
+
+    definition.name = service_name.clone();
+
+    std::fs::create_dir_all(output_dir).map_err(ApicentricError::Io)?;
+    let mut file_path = Path::new(output_dir).join(format!("{}.yaml", service_name));
+
+    if file_path.exists() {
+        println!(
+            "{} Service file '{}' already exists.",
+            "⚠️".yellow(),
+            file_path.display()
+        );
+
+        // Ask user what to do
+        let options = vec!["Overwrite", "Rename", "Cancel"];
+        let choice = Select::new("What would you like to do?", options)
+            .with_starting_cursor(0)
+            .prompt()
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    e.to_string(),
+                    Some("Interactive prompt failed. Check terminal compatibility"),
+                )
+            })?;
+
+        match choice {
+            "Overwrite" => {
+                // Proceed
+            }
+            "Rename" => {
+                let new_name = Text::new("Enter new service name:")
+                    .prompt()
+                    .map_err(|e| ApicentricError::runtime_error(e.to_string(), None::<String>))?;
+                definition.name = new_name.clone();
+                file_path = Path::new(output_dir).join(format!("{}.yaml", new_name));
+            }
+            _ => {
+                return Err(ApicentricError::runtime_error(
+                    "Operation cancelled by user".to_string(),
+                    None::<String>,
+                ));
+            }
+        }
+    }
+
+    let yaml = serde_yaml::to_string(&definition).map_err(|e| {
+        ApicentricError::runtime_error(
+            format!("Failed to serialize service: {}", e),
+            None::<String>,
+        )
+    })?;
+
+    std::fs::write(&file_path, yaml).map_err(ApicentricError::Io)?;
+
+    println!(
+        "{} Service created successfully at {}",
+        "✨".green(),
+        file_path.display()
+    );
+
+    Ok(file_path)
 }
 
 /// Prompt the user to create a new [`ServiceDefinition`]
