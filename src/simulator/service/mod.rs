@@ -140,7 +140,8 @@ impl ServiceInstance {
         let base_path = server_cfg.base_path.clone();
 
         // Create TCP listener for the service
-        let addr = SocketAddr::from(([127, 0, 0, 1], self.port));
+        // Use 0.0.0.0 to bind to all interfaces (required for LAN access on mobile)
+        let addr = SocketAddr::from(([0, 0, 0, 0], self.port));
         let listener = TcpListener::bind(addr).await.map_err(|e| {
             ApicentricError::runtime_error(
                 format!("Failed to bind to port {}: {}", self.port, e),
