@@ -1,5 +1,11 @@
-# Apicentric Makefile
-# Comprehensive build and management system
+#   ___  ______ _____ _____ _____ _   _ _____ ______ _____ _____ 
+#  / _ \ | ___ \_   _/  __ \  ___| \ | |_   _|| ___ \_   _/  __ \
+# / /_\ \| |_/ / | | | /  \/ |__ |  \| | | |  | |_/ / | | | /  \/
+# |  _  ||  __/  | | | |   |  __|| . ` | | |  |    /  | | | |    
+# | | | || |    _| |_| \__/\ |___| |\  | | |  | |\ \ _| |_| \__/\
+# \_| |_/\_|    \___/ \____\____/\_| \_/ \_/  \_| \_|\___/ \____/
+#                                                                
+# High-performance API Simulator & Digital Twin Framework
 
 .PHONY: all help build build-backend build-frontend run dev test lint format clean docker-build package doctor demo install
 
@@ -13,21 +19,44 @@ DB_PATH=data/apicentric.db
 all: build
 
 help:
-	@echo "🔍 Available commands:"
-	@echo "  make install        - Install dependencies (Rust & Node.js)"
-	@echo "  make build          - Build backend and frontend"
-	@echo "  make build-backend  - Build Rust backend"
-	@echo "  make build-frontend - Build Next.js frontend"
-	@echo "  make run            - Run the simulator with example services"
-	@echo "  make dev            - Run backend and frontend in dev mode"
-	@echo "  make test           - Run all tests (Rust & Integration)"
-	@echo "  make lint           - Run clippy and frontend linter"
-	@echo "  make format         - Format code (Rust & Frontend)"
-	@echo "  make clean          - Remove build artifacts and logs"
-	@echo "  make doctor         - Run diagnostic checks"
-	@echo "  make demo           - Run the full demo suite"
-	@echo "  make package        - Create a production deployment package"
-
+	@printf '                                                                \n'
+	@printf '  \033[1;36m___  ______ _____ _____ _____ _   _ _____ ______ _____ _____ \033[0m\n'
+	@printf '  \033[1;36m/ _ \\ | ___ \\_   _/  __ \\  ___| \\ | |_   _|| ___ \\_   _/  __ \\\\ \033[0m\n'
+	@printf '  \033[1;36m/ /_\\ \\| |_/ / | | | /  \\/ |__ |  \\| | | |  | |_/ / | | | /  \\/\033[0m\n'
+	@printf '  \033[1;36m|  _  ||  __/  | | | |   |  __|| . ` | | |  |    /  | | | |    \033[0m\n'
+	@printf '  \033[1;36m| | | || |    _| |_| \\__/\\ |___| |\\  | | |  | |\\ \\ _| |_| \\__/\033[0m\n'
+	@printf '  \033[1;36m\\_| |_/\\_|    \\___/ \\____\\____/\\_| \\_/ \\_/  \\_| \\_|\\___/ \\____/\033[0m\n'
+	@printf '                                                                \n'
+	@printf '  \033[1;33m⚡ Core Commands:\033[0m\n'
+	@printf '    \033[1;32mmake build\033[0m          - 🏗️  Build complete project (Backend & Frontend)\n'
+	@printf '    \033[1;32mmake run\033[0m            - 🏃 Start simulator with examples\n'
+	@printf '    \033[1;32mmake dev\033[0m            - 🚀 Hot-reload development environment\n'
+	@printf '    \033[1;32mmake wizard\033[0m         - 🧙 Interactive project management wizard\n'
+	@printf '  \n'
+	@printf '  \033[1;33m🎮 Interfaces:\033[0m\n'
+	@printf '    \033[1;32mmake tui\033[0m            - 🖥️  Launch Terminal User Interface\n'
+	@printf '    \033[1;32mmake gui\033[0m            - 🎨 Launch Desktop GUI Administration\n'
+	@printf '  \n'
+	@printf '  \033[1;33m🔬 Simulation & Testing:\033[0m\n'
+	@printf '    \033[1;32mmake twin\033[0m           - 🤖 Run IoT Digital Twin simulator\n'
+	@printf '    \033[1;32mmake contract\033[0m       - 📝 Execute contract-driven API tests\n'
+	@printf '    \033[1;32mmake cloud\033[0m          - ☁️  Start server in cloud-ready mode\n'
+	@printf '  \n'
+	@printf '  \033[1;33m🛠️  Development & QA:\033[0m\n'
+	@printf '    \033[1;32mmake test\033[0m           - 🧪 Run full test suite\n'
+	@printf '    \033[1;32mmake lint\033[0m           - 🧹 Static analysis & linting\n'
+	@printf '    \033[1;32mmake format\033[0m         - 🎨 Auto-format all source code\n'
+	@printf '    \033[1;32mmake doctor\033[0m         - 🩺 Run project diagnostics\n'
+	@printf '  \n'
+	@printf '  \033[1;33m📦 Distribution:\033[0m\n'
+	@printf '    \033[1;32mmake package\033[0m        - 📦 Create production tarball\n'
+	@printf '    \033[1;32mmake docker-build\033[0m   - 🐳 Build release Docker image\n'
+	@printf '    \033[1;32mmake demo\033[0m           - 🎬 Run visual demonstration\n'
+	@printf '  \n'
+	@printf '  \033[1;33m🧹 Utility:\033[0m\n'
+	@printf '    \033[1;32mmake clean\033[0m          - 🗑️  Deep clean build artifacts\n'
+	@printf '    \033[1;32mmake install\033[0m        - 📥 Bootstrap dependencies\n'
+	@printf '  \n'
 install:
 	@echo "📦 Installing dependencies..."
 	cargo fetch
@@ -86,6 +115,30 @@ demo: build-backend
 package:
 	@echo "📦 Packaging for production..."
 	./scripts/build-production.sh
+
+tui: build-backend
+	@echo "🖥️  Launching TUI..."
+	$(BINARY) tui
+
+gui: build-backend
+	@echo "🎨 Launching GUI..."
+	$(BINARY) gui
+
+twin: build-backend
+	@echo "🤖 Starting IoT Digital Twin..."
+	$(BINARY) twin run --device examples/iot/smarthome/thermostat-nest.yaml
+
+contract: build-backend
+	@echo "📝 Running contract tests..."
+	$(BINARY) simulator test --path examples/iot/smarthome/thermostat-nest.yaml --url http://localhost:9005
+
+cloud: build-backend
+	@echo "☁️  Starting cloud mode..."
+	$(BINARY) cloud --port 8080
+
+wizard:
+	@chmod +x scripts/wizard.sh
+	@./scripts/wizard.sh
 
 docker-build:
 	@echo "🐳 Building Docker images..."

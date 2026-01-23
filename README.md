@@ -777,8 +777,32 @@ apicentric twin run --device assets/library/demo_device.yaml
 - **GraphQL Mocking**: Mock GraphQL APIs with schema
 - **JavaScript Plugins**: Extend with custom logic
 
+## Development
+
+Apicentric includes a comprehensive developer toolkit to streamline local work:
+
+### 🛠️ Makefile
+
+We use a supercomplete `Makefile` for all common tasks:
+
+- `make build`: Build both backend and frontend
+- `make dev`: Start a parallel development environment
+- `make test`: Run the full test suite
+- `make help`: View all available targets (with a fancy ASCII logo!)
+
+### 🧙 Management Wizard
+
+For a guided experience, run our interactive wizard:
+
+```bash
+make wizard
+```
+
+This provides a numeric menu to build, test, and manage the project without remembering individual commands.
+
 ## Documentation
 
+- [Developer Experience Guide](docs/guides/developer-experience.md)
 - [Quick Start Guide](docs/guides/quick-start.md)
 - [Request Recording Guide](docs/guides/request-recording.md)
 - [Installation Guide](docs/guides/installation.md)
@@ -831,15 +855,19 @@ Refer to the module documentation for deeper implementation details.
 Here is a visual walkthrough of the recording feature:
 
 ### 1. Initial State
+
 ![Initial View](assets/screenshots/recording-view-initial.png)
 
 ### 2. Recording Active
+
 ![Recording Active](assets/screenshots/recording-view-active.png)
 
 ### 3. Captured Requests
+
 ![Captured Requests](assets/screenshots/recording-view-captured.png)
 
 ### 4. Recording Stopped
+
 ![Recording Stopped](assets/screenshots/recording-view-stopped.png)
 
 <!-- cargo-rdme end -->
