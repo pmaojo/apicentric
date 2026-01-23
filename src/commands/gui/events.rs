@@ -262,7 +262,11 @@ impl EventHandler {
         for def in service_definitions {
             let service_name = def.name.clone();
             let service_path = services_dir.join(format!("{}.yaml", service_name));
-            let port = def.server.as_ref().and_then(|s| s.port).unwrap_or(state.config.default_port);
+            let port = def
+                .server
+                .as_ref()
+                .and_then(|s| s.port)
+                .unwrap_or(state.config.default_port);
 
             let mut service_info = ServiceInfo::new(service_name.clone(), service_path, port);
 
@@ -349,13 +353,13 @@ impl EventHandler {
                 file_path.clone(),
                 state.config.default_port,
             );
-                if let Some(endpoints) = &service.endpoints {
-                    for endpoint in endpoints {
-                        info.endpoints.push(EndpointInfo {
-                            method: endpoint.method.clone(),
-                            path: endpoint.path.clone(),
-                        });
-                    }
+            if let Some(endpoints) = &service.endpoints {
+                for endpoint in endpoints {
+                    info.endpoints.push(EndpointInfo {
+                        method: endpoint.method.clone(),
+                        path: endpoint.path.clone(),
+                    });
+                }
             }
             state.add_service(info);
         }

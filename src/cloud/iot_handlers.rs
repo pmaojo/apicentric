@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Multipart},
+    extract::{Multipart, Path},
     http::StatusCode,
     response::Json,
 };
@@ -59,12 +59,15 @@ pub async fn get_twin(
         return Err(ErrorResponse::service_not_found(&name).into()); // Reuse service not found or generic not found
     }
 
-    let content = std::fs::read_to_string(&path).map_err(|e| {
-        ApiError::internal_server_error(format!("Failed to read twin file: {}", e))
-    })?;
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| ApiError::internal_server_error(format!("Failed to read twin file: {}", e)))?;
 
     let config: TwinConfig = serde_yaml::from_str(&content).map_err(|e| {
-        ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, ApiErrorCode::InvalidYaml, format!("Invalid YAML: {}", e))
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            ApiErrorCode::InvalidYaml,
+            format!("Invalid YAML: {}", e),
+        )
     })?;
 
     Ok(Json(ApiResponse::success(TwinDetailResponse {
@@ -97,7 +100,11 @@ pub async fn save_twin(
 
     // Validate YAML
     let _: TwinConfig = serde_yaml::from_str(&request.yaml).map_err(|e| {
-        ApiError::new(StatusCode::BAD_REQUEST, ApiErrorCode::InvalidYaml, format!("Invalid YAML: {}", e))
+        ApiError::new(
+            StatusCode::BAD_REQUEST,
+            ApiErrorCode::InvalidYaml,
+            format!("Invalid YAML: {}", e),
+        )
     })?;
 
     std::fs::write(&path, &request.yaml).map_err(|e| {
@@ -108,9 +115,7 @@ pub async fn save_twin(
 }
 
 /// Deletes a twin.
-pub async fn delete_twin(
-    Path(name): Path<String>,
-) -> Result<Json<ApiResponse<String>>, ApiError> {
+pub async fn delete_twin(Path(name): Path<String>) -> Result<Json<ApiResponse<String>>, ApiError> {
     let iot_dir = std::env::var("APICENTRIC_IOT_DIR").unwrap_or_else(|_| "iot".to_string());
     let path = std::path::Path::new(&iot_dir).join(format!("{}.yaml", name));
 
@@ -122,7 +127,10 @@ pub async fn delete_twin(
         ApiError::internal_server_error(format!("Failed to delete twin file: {}", e))
     })?;
 
-    Ok(Json(ApiResponse::success(format!("Twin '{}' deleted", name))))
+    Ok(Json(ApiResponse::success(format!(
+        "Twin '{}' deleted",
+        name
+    ))))
 }
 
 /// Uploads a CSV file for replay strategy.
@@ -142,7 +150,10 @@ pub async fn upload_replay_data(
     let mut saved_path = String::new();
 
     while let Some(field) = multipart.next_field().await.map_err(|e| {
-        ApiError::bad_request(ApiErrorCode::InvalidParameter, format!("Multipart error: {}", e))
+        ApiError::bad_request(
+            ApiErrorCode::InvalidParameter,
+            format!("Multipart error: {}", e),
+        )
     })? {
         let name = field.name().unwrap_or("").to_string();
 
@@ -152,7 +163,12 @@ pub async fn upload_replay_data(
             // Sanitize filename to prevent directory traversal
             let file_name = std::path::Path::new(raw_file_name)
                 .file_name()
-                .ok_or_else(|| ApiError::bad_request(ApiErrorCode::InvalidParameter, "Invalid filename".to_string()))?
+                .ok_or_else(|| {
+                    ApiError::bad_request(
+                        ApiErrorCode::InvalidParameter,
+                        "Invalid filename".to_string(),
+                    )
+                })?
                 .to_string_lossy()
                 .to_string();
 
@@ -170,7 +186,10 @@ pub async fn upload_replay_data(
     }
 
     if saved_path.is_empty() {
-         return Err(ApiError::bad_request(ApiErrorCode::InvalidParameter, "No file uploaded".to_string()));
+        return Err(ApiError::bad_request(
+            ApiErrorCode::InvalidParameter,
+            "No file uploaded".to_string(),
+        ));
     }
 
     Ok(Json(ApiResponse::success(filename)))
@@ -277,7 +296,9 @@ pub async fn get_iot_graph() -> Result<Json<ApiResponse<GraphResponse>>, ApiErro
                         let mut sub_topics = Vec::new();
 
                         for transport in config.twin.transports {
-                            let prefix = transport.params.get("topic_prefix")
+                            let prefix = transport
+                                .params
+                                .get("topic_prefix")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("sensors")
                                 .to_string();
@@ -316,8 +337,13 @@ pub async fn get_iot_graph() -> Result<Json<ApiResponse<GraphResponse>>, ApiErro
         nodes.push(GraphNode {
             id: twin.id.clone(),
             label: twin.name.clone(),
-            data: GraphNodeData { label: twin.name.clone() },
-            position: GraphNodePosition { x: (i as i32) * 250, y: 100 + (if i % 2 == 0 { 50 } else { -50 }) },
+            data: GraphNodeData {
+                label: twin.name.clone(),
+            },
+            position: GraphNodePosition {
+                x: (i as i32) * 250,
+                y: 100 + (if i % 2 == 0 { 50 } else { -50 }),
+            },
             node_type: "default".to_string(),
         });
     }
@@ -346,8 +372,5 @@ pub async fn get_iot_graph() -> Result<Json<ApiResponse<GraphResponse>>, ApiErro
         }
     }
 
-    Ok(Json(ApiResponse::success(GraphResponse {
-        nodes,
-        edges,
-    })))
+    Ok(Json(ApiResponse::success(GraphResponse { nodes, edges })))
 }

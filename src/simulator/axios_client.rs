@@ -25,7 +25,11 @@ pub fn to_axios_client(service: &ServiceDefinition) -> Result<String> {
 
     // Generate methods for each endpoint
     let endpoints = service.endpoints.as_ref().cloned().unwrap_or_default();
-    let base_path = service.server.as_ref().map(|s| s.base_path.as_str()).unwrap_or("/");
+    let base_path = service
+        .server
+        .as_ref()
+        .map(|s| s.base_path.as_str())
+        .unwrap_or("/");
     for ep in &endpoints {
         if ep.kind != EndpointKind::Http {
             continue;

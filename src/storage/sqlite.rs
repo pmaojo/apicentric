@@ -138,7 +138,7 @@ impl Storage for SqliteStorage {
             .conn
             .lock()
             .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
-        
+
         conn.execute(
                 "INSERT INTO logs (timestamp, service, endpoint, method, path, status, payload) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
@@ -152,7 +152,7 @@ impl Storage for SqliteStorage {
                 ],
             )
             .map_err(|e| ApicentricError::runtime_error(format!("Failed to insert log: {}", e), None::<String>))?;
-        
+
         Ok(())
     }
 
@@ -164,8 +164,9 @@ impl Storage for SqliteStorage {
         status: Option<u16>,
         limit: usize,
     ) -> ApicentricResult<Vec<RequestLogEntry>> {
-        let mut sql =
-            String::from("SELECT timestamp, service, endpoint, method, path, status, payload FROM logs");
+        let mut sql = String::from(
+            "SELECT timestamp, service, endpoint, method, path, status, payload FROM logs",
+        );
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<Box<dyn ToSql>> = Vec::new();
 

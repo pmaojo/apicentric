@@ -1,10 +1,9 @@
+use crate::simulator::openapi::from_openapi;
+use crate::simulator::ServiceDefinition;
 use crate::{ApicentricError, ApicentricResult};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use crate::simulator::openapi::from_openapi;
-use crate::simulator::ServiceDefinition;
-
 
 /// Marketplace Item
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -362,13 +361,15 @@ pub async fn install_template(
     name_override: Option<String>,
 ) -> ApicentricResult<PathBuf> {
     let items = get_marketplace_items();
-    let template = items.iter().find(|i| i.id == template_id).ok_or_else(|| {
-        ApicentricError::Validation {
-            message: format!("Template '{}' not found", template_id),
-            field: Some("template".to_string()),
-            suggestion: Some("Check the list of available templates".to_string()),
-        }
-    })?;
+    let template =
+        items
+            .iter()
+            .find(|i| i.id == template_id)
+            .ok_or_else(|| ApicentricError::Validation {
+                message: format!("Template '{}' not found", template_id),
+                field: Some("template".to_string()),
+                suggestion: Some("Check the list of available templates".to_string()),
+            })?;
 
     println!(
         "{} Fetching template '{}' from: {}",
@@ -431,7 +432,10 @@ pub async fn install_template(
 
     // Save
     let yaml = serde_yaml::to_string(&definition).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to serialize service: {}", e), None::<String>)
+        ApicentricError::runtime_error(
+            format!("Failed to serialize service: {}", e),
+            None::<String>,
+        )
     })?;
 
     if file_path.exists() {
@@ -469,7 +473,9 @@ mod tests {
         assert_eq!(iot_items.len(), 29);
 
         // Verify specific new template exists
-        assert!(items.iter().any(|i| i.id == "iot/sensors/temperature-industrial"));
+        assert!(items
+            .iter()
+            .any(|i| i.id == "iot/sensors/temperature-industrial"));
 
         for item in iot_items {
             assert!(item.definition_url.starts_with(

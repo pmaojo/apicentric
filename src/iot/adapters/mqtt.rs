@@ -2,8 +2,8 @@ use crate::iot::config::AdapterConfig;
 use crate::iot::model::VariableValue;
 use crate::iot::traits::ProtocolAdapter;
 use async_trait::async_trait;
-use log::{info, error};
-use rumqttc::{AsyncClient, MqttOptions, QoS, Event, Packet};
+use log::{error, info};
+use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};
@@ -74,7 +74,7 @@ impl ProtocolAdapter for MqttAdapter {
             loop {
                 match eventloop.poll().await {
                     Ok(event) => {
-                         if let Event::Incoming(Packet::Publish(p)) = event {
+                        if let Event::Incoming(Packet::Publish(p)) = event {
                             let topic = p.topic;
                             // Remove prefix if present to get the variable name
                             // e.g. sensors/temp -> temp
@@ -98,7 +98,7 @@ impl ProtocolAdapter for MqttAdapter {
                             if let Err(e) = tx.send((key, value)).await {
                                 error!("Failed to send MQTT message to channel: {}", e);
                             }
-                         }
+                        }
                     }
                     Err(_e) => {
                         // Connection errors are expected during reconnections
@@ -143,8 +143,8 @@ impl ProtocolAdapter for MqttAdapter {
 
     async fn poll(&mut self) -> Option<(String, VariableValue)> {
         if let Some(rx_mutex) = &self.rx {
-             let mut rx = rx_mutex.lock().await;
-             rx.try_recv().ok()
+            let mut rx = rx_mutex.lock().await;
+            rx.try_recv().ok()
         } else {
             None
         }

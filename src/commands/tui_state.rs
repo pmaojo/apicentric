@@ -197,16 +197,21 @@ impl DashboardState {
     }
 
     pub fn record_request(&mut self, service: String) {
-        let metrics = self.metrics.entry(service).or_insert_with(|| ServiceMetrics {
-            request_history: VecDeque::from(vec![0; 50]),
-            current_tick_count: 0,
-        });
+        let metrics = self
+            .metrics
+            .entry(service)
+            .or_insert_with(|| ServiceMetrics {
+                request_history: VecDeque::from(vec![0; 50]),
+                current_tick_count: 0,
+            });
         metrics.current_tick_count += 1;
     }
 
     pub fn tick(&mut self) {
         for metrics in self.metrics.values_mut() {
-            metrics.request_history.push_back(metrics.current_tick_count);
+            metrics
+                .request_history
+                .push_back(metrics.current_tick_count);
             if metrics.request_history.len() > 50 {
                 metrics.request_history.pop_front();
             }
@@ -615,7 +620,8 @@ mod tests {
             endpoint: None,
             method: "GET".to_string(),
             path: "/api/test".to_string(),
-            status: 200, payload: None,
+            status: 200,
+            payload: None,
         };
 
         assert!(filter.matches(&entry));
@@ -644,7 +650,8 @@ mod tests {
             endpoint: None,
             method: "GET".to_string(),
             path: "/api/test".to_string(),
-            status: 200, payload: None,
+            status: 200,
+            payload: None,
         };
 
         assert!(filter.matches(&entry));

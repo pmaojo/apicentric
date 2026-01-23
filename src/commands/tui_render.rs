@@ -171,16 +171,22 @@ pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState, is_focuse
                     if let Ok(vars) = serde_json::from_str::<serde_json::Value>(payload) {
                         if let Some(obj) = vars.as_object() {
                             spans.push(Span::styled(" [", Style::default().fg(Color::DarkGray)));
-                            
+
                             let mut first = true;
                             for (key, val) in obj {
                                 if !first {
-                                    spans.push(Span::styled(", ", Style::default().fg(Color::DarkGray)));
+                                    spans.push(Span::styled(
+                                        ", ",
+                                        Style::default().fg(Color::DarkGray),
+                                    ));
                                 }
                                 first = false;
-                                
-                                spans.push(Span::styled(format!("{}:", key), Style::default().fg(Color::Yellow)));
-                                
+
+                                spans.push(Span::styled(
+                                    format!("{}:", key),
+                                    Style::default().fg(Color::Yellow),
+                                ));
+
                                 let val_str = if val.is_f64() {
                                     format!("{:.2}", val.as_f64().unwrap())
                                 } else if val.is_i64() {
@@ -192,7 +198,12 @@ pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState, is_focuse
                                 } else {
                                     val.to_string()
                                 };
-                                spans.push(Span::styled(val_str, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)));
+                                spans.push(Span::styled(
+                                    val_str,
+                                    Style::default()
+                                        .fg(Color::Green)
+                                        .add_modifier(Modifier::BOLD),
+                                ));
                             }
                             spans.push(Span::styled("]", Style::default().fg(Color::DarkGray)));
                         }
@@ -407,7 +418,10 @@ pub fn render_actions_panel_with_metrics(
     } else {
         "d: Dashboard"
     };
-    lines.push(Line::from(vec![Span::styled(dashboard_hint, Style::default().fg(Color::Cyan))]));
+    lines.push(Line::from(vec![Span::styled(
+        dashboard_hint,
+        Style::default().fg(Color::Cyan),
+    )]));
     lines.push(Line::from(""));
 
     // Show filter status if active
@@ -494,14 +508,18 @@ pub fn render_actions_panel_with_metrics(
 
 /// Render the retro telemetry dashboard
 pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
-    use ratatui::widgets::{Sparkline, Gauge};
     use ratatui::layout::{Constraint, Direction, Layout};
+    use ratatui::widgets::{Gauge, Sparkline};
 
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" 🚀 Telemetry Dashboard ")
         .border_type(ratatui::widgets::BorderType::Thick)
-        .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+        .border_style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
 
     f.render_widget(block.clone(), area);
 
@@ -509,10 +527,13 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
     let inner_area = block.inner(area);
 
     // Get running services
-    let running_services: Vec<_> = state.services.items.iter()
+    let running_services: Vec<_> = state
+        .services
+        .items
+        .iter()
         .filter(|s| s.is_running)
         .collect();
-    
+
     if running_services.is_empty() {
         let text = Paragraph::new("No running services...")
             .alignment(ratatui::layout::Alignment::Center)
@@ -524,15 +545,17 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
     // Create grid layout (simple rows for now)
     let rows = running_services.len().max(1);
     let constraints: Vec<Constraint> = (0..rows).map(|_| Constraint::Length(4)).collect(); // 4 lines per service
-    
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
         .split(inner_area);
 
     for (i, service) in running_services.iter().enumerate() {
-        if i >= chunks.len() { break; }
-        
+        if i >= chunks.len() {
+            break;
+        }
+
         let metrics_opt = state.dashboard.metrics.get(&service.name);
 
         // Service Row Layout: Name/Status | Sparkline | Stats
@@ -548,9 +571,16 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
         // 1. Name
         let name_widget = Paragraph::new(Line::from(vec![
             Span::styled("● ", Style::default().fg(Color::Green)), // LED
-            Span::styled(service.name.clone(), Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(
+                service.name.clone(),
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
         ]))
-        .block(Block::default().borders(Borders::RIGHT).border_style(Style::default().fg(Color::DarkGray)));
+        .block(
+            Block::default()
+                .borders(Borders::RIGHT)
+                .border_style(Style::default().fg(Color::DarkGray)),
+        );
         f.render_widget(name_widget, row_chunks[0]);
 
         // 2. Sparkline
@@ -558,10 +588,10 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
         let data: Vec<u64> = metrics_opt
             .map(|m| m.request_history.iter().copied().collect())
             .unwrap_or_else(|| empty_data.clone());
-            
+
         // Determine max for scaling
         let max = data.iter().max().copied().unwrap_or(1).max(1);
-        
+
         let sparkline = Sparkline::default()
             .block(Block::default().title("Activity").borders(Borders::NONE))
             .data(&data)
@@ -570,12 +600,18 @@ pub fn render_dashboard_view(f: &mut Frame, area: Rect, state: &TuiAppState) {
         f.render_widget(sparkline, row_chunks[1]);
 
         // 3. Stats (Gauge or Value)
-        let last_val = metrics_opt.and_then(|m| m.request_history.back().copied()).unwrap_or(0);
+        let last_val = metrics_opt
+            .and_then(|m| m.request_history.back().copied())
+            .unwrap_or(0);
         let gauge = Gauge::default()
-            .block(Block::default().borders(Borders::LEFT).border_style(Style::default().fg(Color::DarkGray)))
+            .block(
+                Block::default()
+                    .borders(Borders::LEFT)
+                    .border_style(Style::default().fg(Color::DarkGray)),
+            )
             .gauge_style(Style::default().fg(Color::Red))
-            .ratio( (last_val as f64 / (max as f64).max(1.0)).min(1.0) )
-            .label(format!("{} rps", last_val)); 
+            .ratio((last_val as f64 / (max as f64).max(1.0)).min(1.0))
+            .label(format!("{} rps", last_val));
         f.render_widget(gauge, row_chunks[2]);
     }
 }
@@ -590,10 +626,10 @@ pub fn render_marketplace_dialog(f: &mut Frame, state: &TuiAppState) {
     f.render_widget(Clear, dialog_area);
 
     let mut lines = vec![Line::from("")];
-    
+
     for (idx, item) in state.marketplace.items.iter().enumerate() {
         let is_selected = idx == state.marketplace.selected;
-        
+
         let indicator = if is_selected { "▶ " } else { "  " };
         let style = if is_selected {
             Style::default()
@@ -602,7 +638,7 @@ pub fn render_marketplace_dialog(f: &mut Frame, state: &TuiAppState) {
         } else {
             Style::default().fg(Color::White)
         };
-        
+
         let category_color = match item.category.as_str() {
             "SaaS" => Color::Cyan,
             "Device" => Color::Green,
@@ -610,7 +646,7 @@ pub fn render_marketplace_dialog(f: &mut Frame, state: &TuiAppState) {
             "Template" => Color::Blue,
             _ => Color::White,
         };
-        
+
         lines.push(Line::from(vec![
             Span::styled(indicator, style),
             Span::styled(
@@ -620,7 +656,7 @@ pub fn render_marketplace_dialog(f: &mut Frame, state: &TuiAppState) {
             Span::styled(&item.name, style),
         ]));
     }
-    
+
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
         Span::styled("Enter", Style::default().fg(Color::Green)),
@@ -652,28 +688,42 @@ pub fn render_header(f: &mut Frame, area: Rect) {
     let text = vec![
         Line::from(Span::styled(
             r#"   _______   ________   ________  ________  ________  ________  ________  ________   ________  ________ "#,
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(
             r#"  ╱       ╲╲╱        ╲ ╱        ╲╱        ╲╱        ╲╱    ╱   ╲╱        ╲╱        ╲ ╱        ╲╱        ╲"#,
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(
             r#" ╱        ╱╱         ╱_╱       ╱╱         ╱         ╱         ╱        _╱         ╱_╱       ╱╱         ╱"#,
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(
             r#"╱         ╱       __╱╱         ╱       --╱        _╱         ╱╱       ╱╱        _╱╱         ╱       --╱ "#,
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(
             r#"╲___╱____╱╲______╱   ╲________╱╲________╱╲________╱╲__╱_____╱ ╲______╱ ╲____╱___╱ ╲________╱╲________╱  "#,
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )),
     ];
 
     let paragraph = Paragraph::new(text)
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::DarkGray)))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::DarkGray)),
+        )
         .alignment(ratatui::layout::Alignment::Center);
 
     f.render_widget(paragraph, area);
@@ -708,7 +758,7 @@ pub fn render_endpoint_explorer(f: &mut Frame, state: &TuiAppState) {
         .title(" Endpoint Explorer ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan));
-    
+
     f.render_widget(block.clone(), area);
 
     let chunks = ratatui::layout::Layout::default()
@@ -729,11 +779,13 @@ pub fn render_endpoint_explorer(f: &mut Frame, state: &TuiAppState) {
         .enumerate()
         .map(|(i, ep)| {
             let style = if i == selected_idx {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
-            
+
             let method_color = match ep.method.as_str() {
                 "GET" => Color::Green,
                 "POST" => Color::Blue,
@@ -743,7 +795,10 @@ pub fn render_endpoint_explorer(f: &mut Frame, state: &TuiAppState) {
             };
 
             ListItem::new(Line::from(vec![
-                Span::styled(format!("{:7}", ep.method), Style::default().fg(method_color)),
+                Span::styled(
+                    format!("{:7}", ep.method),
+                    Style::default().fg(method_color),
+                ),
                 Span::styled(&ep.path, style),
             ]))
         })
@@ -756,7 +811,7 @@ pub fn render_endpoint_explorer(f: &mut Frame, state: &TuiAppState) {
     let list = List::new(items)
         .block(list_block)
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
-    
+
     f.render_widget(list, chunks[0]);
 
     // Detail Panel
@@ -770,88 +825,130 @@ pub fn render_endpoint_explorer(f: &mut Frame, state: &TuiAppState) {
             Span::styled("Method: ", Style::default().fg(Color::Gray)),
             Span::raw(&ep.method),
         ]));
-        
+
         if let Some(desc) = &ep.description {
-             details.push(Line::from(vec![
+            details.push(Line::from(vec![
                 Span::styled("Description: ", Style::default().fg(Color::Gray)),
                 Span::raw(desc),
             ]));
         }
 
         details.push(Line::from(""));
-        details.push(Line::from(Span::styled("Responses:", Style::default().fg(Color::Yellow))));
-        
+        details.push(Line::from(Span::styled(
+            "Responses:",
+            Style::default().fg(Color::Yellow),
+        )));
+
         for (status, resp) in &ep.responses {
-            let color = if *status < 300 { Color::Green } else { Color::Red };
+            let color = if *status < 300 {
+                Color::Green
+            } else {
+                Color::Red
+            };
             details.push(Line::from(vec![
                 Span::styled(format!("  {} ", status), Style::default().fg(color)),
-                Span::styled(format!("({})", resp.content_type), Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("({})", resp.content_type),
+                    Style::default().fg(Color::Gray),
+                ),
             ]));
         }
 
         if let Some(params) = &ep.parameters {
             details.push(Line::from(""));
-            details.push(Line::from(Span::styled("Parameters:", Style::default().fg(Color::Yellow))));
+            details.push(Line::from(Span::styled(
+                "Parameters:",
+                Style::default().fg(Color::Yellow),
+            )));
             for param in params {
-                 details.push(Line::from(vec![
-                    Span::styled(format!("  {} ", param.name), Style::default().fg(Color::Blue)),
+                details.push(Line::from(vec![
+                    Span::styled(
+                        format!("  {} ", param.name),
+                        Style::default().fg(Color::Blue),
+                    ),
                     Span::raw(format!("({:?})", param.location)),
-                 ]));
+                ]));
             }
         }
 
         let detail_paragraph = Paragraph::new(details)
             .block(Block::default().padding(ratatui::widgets::Padding::new(1, 1, 0, 0)));
-        
+
         f.render_widget(detail_paragraph, chunks[1]);
-        
+
         // Test Result Panel (Bottom of Details)
         if state.endpoint_explorer.is_testing {
-             let loading = Paragraph::new("Testing endpoint...")
-                .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
-                .block(Block::default().borders(Borders::TOP).padding(ratatui::widgets::Padding::new(1, 1, 1, 0)));
-             
-             // Calculate a sub-area for the result at the bottom
-             let result_area = Rect {
-                 x: chunks[1].x,
-                 y: chunks[1].y + chunks[1].height.saturating_sub(5),
-                 width: chunks[1].width,
-                 height: 5,
-             };
-             f.render_widget(Clear, result_area);
-             f.render_widget(loading, result_area);
-        } else if let Some(result) = &state.endpoint_explorer.last_test_result {
-             let status_color = if result.status < 300 { Color::Green } else { Color::Red };
-             
-             let result_text = vec![
-                 Line::from(vec![
-                     Span::styled("Test Result: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-                     Span::styled(format!("{} ", result.status), Style::default().fg(status_color)),
-                     Span::styled(format!("({}ms)", result.duration_ms), Style::default().fg(Color::DarkGray)),
-                 ]),
-                 Line::from(vec![
-                     Span::styled("Body: ", Style::default().fg(Color::Gray)),
-                     Span::raw(&result.body),
-                 ]),
-             ];
+            let loading = Paragraph::new("Testing endpoint...")
+                .style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                )
+                .block(
+                    Block::default()
+                        .borders(Borders::TOP)
+                        .padding(ratatui::widgets::Padding::new(1, 1, 1, 0)),
+                );
 
-             let result_paragraph = Paragraph::new(result_text)
+            // Calculate a sub-area for the result at the bottom
+            let result_area = Rect {
+                x: chunks[1].x,
+                y: chunks[1].y + chunks[1].height.saturating_sub(5),
+                width: chunks[1].width,
+                height: 5,
+            };
+            f.render_widget(Clear, result_area);
+            f.render_widget(loading, result_area);
+        } else if let Some(result) = &state.endpoint_explorer.last_test_result {
+            let status_color = if result.status < 300 {
+                Color::Green
+            } else {
+                Color::Red
+            };
+
+            let result_text = vec![
+                Line::from(vec![
+                    Span::styled(
+                        "Test Result: ",
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        format!("{} ", result.status),
+                        Style::default().fg(status_color),
+                    ),
+                    Span::styled(
+                        format!("({}ms)", result.duration_ms),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                ]),
+                Line::from(vec![
+                    Span::styled("Body: ", Style::default().fg(Color::Gray)),
+                    Span::raw(&result.body),
+                ]),
+            ];
+
+            let result_paragraph = Paragraph::new(result_text)
                 .wrap(ratatui::widgets::Wrap { trim: true })
-                .block(Block::default().borders(Borders::TOP).padding(ratatui::widgets::Padding::new(1, 1, 0, 0)));
-             
-             // Calculate a sub-area for the result at the bottom
-             let result_height = result.body.lines().count().max(2) as u16 + 3;
-             let result_height = result_height.min(chunks[1].height / 2); // Limit height to half panel
-             
-             let result_area = Rect {
-                 x: chunks[1].x,
-                 y: chunks[1].y + chunks[1].height.saturating_sub(result_height),
-                 width: chunks[1].width,
-                 height: result_height,
-             };
+                .block(
+                    Block::default()
+                        .borders(Borders::TOP)
+                        .padding(ratatui::widgets::Padding::new(1, 1, 0, 0)),
+                );
+
+            // Calculate a sub-area for the result at the bottom
+            let result_height = result.body.lines().count().max(2) as u16 + 3;
+            let result_height = result_height.min(chunks[1].height / 2); // Limit height to half panel
+
+            let result_area = Rect {
+                x: chunks[1].x,
+                y: chunks[1].y + chunks[1].height.saturating_sub(result_height),
+                width: chunks[1].width,
+                height: result_height,
+            };
             f.render_widget(Clear, result_area);
             f.render_widget(result_paragraph, result_area);
         }
     }
 }
-

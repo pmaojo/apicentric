@@ -88,7 +88,9 @@ pub async fn run(args: TwinRunArgs) -> anyhow::Result<()> {
                     .params
                     .get("file")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing 'file' parameter for replay strategy"))?;
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Missing 'file' parameter for replay strategy")
+                    })?;
 
                 let column = physics
                     .params
@@ -106,12 +108,8 @@ pub async fn run(args: TwinRunArgs) -> anyhow::Result<()> {
                 let config_dir = device_path.parent().unwrap_or(Path::new("."));
                 let csv_path = config_dir.join(file_name);
 
-                let strategy = ReplayStrategy::new(
-                    &csv_path,
-                    physics.variable.clone(),
-                    column,
-                    loop_data,
-                )?;
+                let strategy =
+                    ReplayStrategy::new(&csv_path, physics.variable.clone(), column, loop_data)?;
                 strategies.push(Box::new(strategy));
             }
             _ => error!("Unknown physics strategy: {}", physics.strategy),

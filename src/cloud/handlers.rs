@@ -351,7 +351,12 @@ pub async fn get_service_status(
             } else {
                 None
             },
-            endpoint_count: service.definition().endpoints.as_ref().map(|e| e.len()).unwrap_or(0),
+            endpoint_count: service
+                .definition()
+                .endpoints
+                .as_ref()
+                .map(|e| e.len())
+                .unwrap_or(0),
         };
         Ok(Json(ApiResponse::success(response)))
     } else {
@@ -393,7 +398,11 @@ pub async fn get_service(
                 let info = ServiceInfo {
                     name: definition.name.clone(),
                     port: service.port(),
-                    base_path: definition.server.as_ref().map(|s| s.base_path.clone()).unwrap_or_else(|| "/".to_string()),
+                    base_path: definition
+                        .server
+                        .as_ref()
+                        .map(|s| s.base_path.clone())
+                        .unwrap_or_else(|| "/".to_string()),
                     endpoints_count: definition.endpoints.as_ref().map(|e| e.len()).unwrap_or(0),
                     is_running: service.is_running(),
                 };

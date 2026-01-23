@@ -23,6 +23,7 @@ use crate::simulator::config::{
     ScenarioDefinition, ScenarioStrategy, ServiceDefinition,
 };
 use crate::simulator::log::RequestLogEntry;
+use crate::simulator::scripting::ScriptingEngine;
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 use crate::storage::Storage;
 use bytes::Bytes;
@@ -42,7 +43,6 @@ use std::sync::{Arc, RwLock as StdRwLock};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
-use crate::simulator::scripting::ScriptingEngine;
 
 /// Individual service instance with HTTP server capabilities
 pub struct ServiceInstance {
@@ -168,7 +168,8 @@ impl ServiceInstance {
                 &format!("Started on port {} at {}", addr.port(), base_path),
                 200,
                 None,
-            ).await;
+            )
+            .await;
 
             loop {
                 match listener.accept().await {
@@ -321,7 +322,11 @@ impl ServiceInstance {
 
     /// Get the service base path
     pub fn base_path(&self) -> String {
-        self.definition.read().unwrap().server.as_ref()
+        self.definition
+            .read()
+            .unwrap()
+            .server
+            .as_ref()
             .map(|s| s.base_path.clone())
             .unwrap_or_else(|| "/".to_string())
     }
@@ -333,14 +338,23 @@ impl ServiceInstance {
 
     /// Get the number of endpoints defined for this service
     pub fn endpoints_count(&self) -> usize {
-        self.definition.read().unwrap().endpoints.as_ref()
+        self.definition
+            .read()
+            .unwrap()
+            .endpoints
+            .as_ref()
             .map(|e| e.len())
             .unwrap_or(0)
     }
 
     /// Get all endpoint definitions
     pub fn endpoints(&self) -> Vec<EndpointDefinition> {
-        self.definition.read().unwrap().endpoints.clone().unwrap_or_default()
+        self.definition
+            .read()
+            .unwrap()
+            .endpoints
+            .clone()
+            .unwrap_or_default()
     }
 
     /// Get the service definition
@@ -540,7 +554,11 @@ impl ServiceInstance {
         crate::simulator::ServiceInfo {
             name: def.name.clone(),
             port: self.port,
-            base_path: def.server.as_ref().map(|s| s.base_path.clone()).unwrap_or_else(|| "/".to_string()),
+            base_path: def
+                .server
+                .as_ref()
+                .map(|s| s.base_path.clone())
+                .unwrap_or_else(|| "/".to_string()),
             endpoints_count: def.endpoints.as_ref().map(|e| e.len()).unwrap_or(0),
             is_running: self.is_running,
         }
@@ -661,8 +679,14 @@ impl ServiceInstance {
     ) -> ApicentricResult<Response<Full<Bytes>>> {
         let (service_name, base_path, endpoints, cors_cfg, proxy_base_url, record_unknown) = {
             let def = definition.read().unwrap();
-            let (base_path, cors_cfg, proxy_cfg, record_unknown) = if let Some(server) = &def.server {
-                (server.base_path.clone(), server.cors.clone(), server.proxy_base_url.clone(), server.record_unknown)
+            let (base_path, cors_cfg, proxy_cfg, record_unknown) = if let Some(server) = &def.server
+            {
+                (
+                    server.base_path.clone(),
+                    server.cors.clone(),
+                    server.proxy_base_url.clone(),
+                    server.record_unknown,
+                )
             } else {
                 ("/".to_string(), None, None, false)
             };
@@ -687,10 +711,18 @@ impl ServiceInstance {
             &service_name,
             None,
             "DEBUG",
-            &format!("Request Origin: {}", parts.headers.get("origin").and_then(|v| v.to_str().ok()).unwrap_or("none")),
+            &format!(
+                "Request Origin: {}",
+                parts
+                    .headers
+                    .get("origin")
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("none")
+            ),
             200,
             None,
-        ).await;
+        )
+        .await;
 
         // Log CORS configuration
         if let Some(ref _cors) = cors_cfg {
@@ -731,7 +763,6 @@ impl ServiceInstance {
 
         // Handle CORS preflight
         if method == "OPTIONS" {
-
             let origin = headers.get("origin").cloned().unwrap_or_default();
 
             let allow_origin = match &cors_cfg {
@@ -776,7 +807,6 @@ impl ServiceInstance {
                 .map(|v| v.join(", "))
                 .unwrap_or_else(|| "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string());
 
-
             let resp = Response::builder()
                 .status(StatusCode::NO_CONTENT)
                 .header("access-control-allow-origin", &allow_origin)
@@ -799,7 +829,8 @@ impl ServiceInstance {
                 "CORS preflight response sent",
                 204,
                 None,
-            ).await;
+            )
+            .await;
             Self::record_log(
                 &state,
                 &service_name,
@@ -853,7 +884,8 @@ impl ServiceInstance {
                 &format!("Request body: {}", body_str),
                 200,
                 None,
-            ).await;
+            )
+            .await;
 
             // Determine content type
             let content_type = parts
@@ -1078,7 +1110,8 @@ impl ServiceInstance {
                         if body_v.is_string() {
                             body_v.as_str().unwrap().to_string()
                         } else {
-                            serde_json::to_string(&body_v).unwrap_or_else(|_| response_def.body.clone())
+                            serde_json::to_string(&body_v)
+                                .unwrap_or_else(|_| response_def.body.clone())
                         }
                     } else {
                         response_def.body.clone()
@@ -1839,14 +1872,17 @@ impl ServiceInstance {
 
     /// Get CORS configuration
     pub fn cors_config(&self) -> Option<crate::simulator::config::CorsConfig> {
-        self.definition.read().unwrap().server.as_ref().and_then(|s| s.cors.clone())
+        self.definition
+            .read()
+            .unwrap()
+            .server
+            .as_ref()
+            .and_then(|s| s.cors.clone())
     }
 
     /// Check if the service has CORS enabled
     pub fn has_cors(&self) -> bool {
-        self.cors_config()
-            .map(|cors| cors.enabled)
-            .unwrap_or(false)
+        self.cors_config().map(|cors| cors.enabled).unwrap_or(false)
     }
 
     /// Validate that the service definition is consistent
@@ -2406,13 +2442,19 @@ mod tests {
         // Without specific header, it should match the fallback
         let endpoint = service.find_endpoint("GET", "/headers", &headers);
         assert!(endpoint.is_some());
-        assert_eq!(endpoint.unwrap().description, Some("Get without header match".to_string()));
+        assert_eq!(
+            endpoint.unwrap().description,
+            Some("Get without header match".to_string())
+        );
 
         // Correct header should match the restricted endpoint
         headers.insert("x-test".to_string(), "true".to_string());
         let endpoint = service.find_endpoint("GET", "/headers", &headers);
         assert!(endpoint.is_some());
-        assert_eq!(endpoint.unwrap().description, Some("Get with header match".to_string()));
+        assert_eq!(
+            endpoint.unwrap().description,
+            Some("Get with header match".to_string())
+        );
     }
 
     #[test]
@@ -2660,18 +2702,22 @@ mod tests {
         let mut definition = create_test_service_definition();
 
         // Add duplicate endpoint
-        definition.endpoints.as_mut().unwrap().push(EndpointDefinition {
-            kind: EndpointKind::Http,
-            method: "GET".to_string(),
-            path: "/users".to_string(), // Duplicate path with same method
-            description: Some("Duplicate endpoint".to_string()),
-            header_match: None,
-            parameters: None,
-            request_body: None,
-            responses: HashMap::new(),
-            scenarios: None,
-            stream: None,
-        });
+        definition
+            .endpoints
+            .as_mut()
+            .unwrap()
+            .push(EndpointDefinition {
+                kind: EndpointKind::Http,
+                method: "GET".to_string(),
+                path: "/users".to_string(), // Duplicate path with same method
+                description: Some("Duplicate endpoint".to_string()),
+                header_match: None,
+                parameters: None,
+                request_body: None,
+                responses: HashMap::new(),
+                scenarios: None,
+                stream: None,
+            });
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());
         let (tx, _) = broadcast::channel(100);
@@ -3048,7 +3094,8 @@ mod tests {
         let upstream_handle = spawn_upstream_server(upstream_port);
 
         let mut definition = create_test_service_definition();
-        definition.server.as_mut().unwrap().proxy_base_url = Some(format!("http://127.0.0.1:{}", upstream_port));
+        definition.server.as_mut().unwrap().proxy_base_url =
+            Some(format!("http://127.0.0.1:{}", upstream_port));
 
         let service_port = {
             let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();

@@ -1,9 +1,9 @@
 use crate::iot::model::{DigitalTwinState, VariableValue};
 use crate::iot::traits::SimulationStrategy;
 use async_trait::async_trait;
+use log::warn;
 use std::path::Path;
 use std::sync::Mutex;
-use log::warn;
 
 /// A simulation strategy that replays data from a CSV file.
 pub struct ReplayStrategy {
@@ -27,9 +27,10 @@ impl ReplayStrategy {
         // Check headers if column_name is provided
         let headers = rdr.headers()?.clone();
         let col_idx = if let Some(col) = column_name {
-            headers.iter().position(|h| h == col).ok_or_else(|| {
-                anyhow::anyhow!("Column '{}' not found in CSV file", col)
-            })?
+            headers
+                .iter()
+                .position(|h| h == col)
+                .ok_or_else(|| anyhow::anyhow!("Column '{}' not found in CSV file", col))?
         } else {
             0 // Default to first column
         };
@@ -42,7 +43,10 @@ impl ReplayStrategy {
                 let val: f64 = match field.parse() {
                     Ok(v) => v,
                     Err(_) => {
-                        warn!("Failed to parse value '{}' in CSV. Defaulting to 0.0", field);
+                        warn!(
+                            "Failed to parse value '{}' in CSV. Defaulting to 0.0",
+                            field
+                        );
                         0.0
                     }
                 };
@@ -105,43 +109,26 @@ mod tests {
 
         let path = file.path();
 
-        let strategy = ReplayStrategy::new(
-            path,
-            "temp".to_string(),
-            Some("val".to_string()),
-            true,
-        )
-        .unwrap();
+        let strategy =
+            ReplayStrategy::new(path, "temp".to_string(), Some("val".to_string()), true).unwrap();
 
         let mut state = DigitalTwinState::default();
 
         // Tick 1
         strategy.tick(&mut state).await.unwrap();
-        assert_eq!(
-            state.variables.get("temp").unwrap().as_f64().unwrap(),
-            10.0
-        );
+        assert_eq!(state.variables.get("temp").unwrap().as_f64().unwrap(), 10.0);
 
         // Tick 2
         strategy.tick(&mut state).await.unwrap();
-        assert_eq!(
-            state.variables.get("temp").unwrap().as_f64().unwrap(),
-            20.0
-        );
+        assert_eq!(state.variables.get("temp").unwrap().as_f64().unwrap(), 20.0);
 
         // Tick 3
         strategy.tick(&mut state).await.unwrap();
-        assert_eq!(
-            state.variables.get("temp").unwrap().as_f64().unwrap(),
-            30.0
-        );
+        assert_eq!(state.variables.get("temp").unwrap().as_f64().unwrap(), 30.0);
 
         // Tick 4 (Loop)
         strategy.tick(&mut state).await.unwrap();
-        assert_eq!(
-            state.variables.get("temp").unwrap().as_f64().unwrap(),
-            10.0
-        );
+        assert_eq!(state.variables.get("temp").unwrap().as_f64().unwrap(), 10.0);
     }
 
     #[tokio::test]
@@ -166,14 +153,11 @@ mod tests {
 
         // Tick 1
         strategy.tick(&mut state).await.unwrap(); // 10.0
-        // Tick 2
+                                                  // Tick 2
         strategy.tick(&mut state).await.unwrap(); // 20.0
 
         // Tick 3 (End reached, should hold 20.0)
         strategy.tick(&mut state).await.unwrap();
-        assert_eq!(
-            state.variables.get("temp").unwrap().as_f64().unwrap(),
-            20.0
-        );
+        assert_eq!(state.variables.get("temp").unwrap().as_f64().unwrap(), 20.0);
     }
 }

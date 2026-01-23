@@ -148,7 +148,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
 
     // Test GET
-    let resp = client.get("http://localhost:9500/api/status")
+    let resp = client
+        .get("http://localhost:9500/api/status")
         .send()
         .await?
         .text()
@@ -156,7 +157,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📥 GET /api/status response: {}", resp);
 
     // Test POST
-    let resp = client.post("http://localhost:9500/api/data")
+    let resp = client
+        .post("http://localhost:9500/api/data")
         .json(&serde_json::json!({"task": "processing", "id": 123}))
         .send()
         .await?

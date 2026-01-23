@@ -1,12 +1,9 @@
-use apicentric::simulator::{
-    ApiSimulatorManager, SimulatorConfig, ServiceDefinition, EndpointDefinition,
-    ResponseDefinition,
-};
-use apicentric::simulator::config::{PortRange, ServerConfig, EndpointKind};
 use apicentric::iot::{
-    model::{DigitalTwin},
-    physics::sine::SineWaveStrategy,
-    traits::SimulationStrategy,
+    model::DigitalTwin, physics::sine::SineWaveStrategy, traits::SimulationStrategy,
+};
+use apicentric::simulator::config::{EndpointKind, PortRange, ServerConfig};
+use apicentric::simulator::{
+    ApiSimulatorManager, EndpointDefinition, ResponseDefinition, ServiceDefinition, SimulatorConfig,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -44,7 +41,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sim_config = SimulatorConfig::new(
         true,
         PathBuf::from("./services"), // Placeholder, we register manually
-        PortRange { start: 9500, end: 9600 },
+        PortRange {
+            start: 9500,
+            end: 9600,
+        },
     );
     sim_config.db_path = PathBuf::from(":memory:"); // Use in-memory DB
 
@@ -60,7 +60,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             condition: None,
             content_type: "application/json".to_string(),
             // Use Handlebars to echo back the received data + timestamp
-            body: r#"{"status": "received", "data": {{json request.body}}, "ts": "{{now}}"}"#.to_string(),
+            body: r#"{"status": "received", "data": {{json request.body}}, "ts": "{{now}}"}"#
+                .to_string(),
             script: None,
             headers: None,
             side_effects: None,
@@ -146,7 +147,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(val) = twin.state.variables.get("temperature") {
             let temp = val.as_f64().unwrap_or(0.0);
 
-            println!("   [Tick {}/{}] 🌡️  Device State: Temperature = {:.2}°C", i, steps, temp);
+            println!(
+                "   [Tick {}/{}] 🌡️  Device State: Temperature = {:.2}°C",
+                i, steps, temp
+            );
 
             // 3. Report to API (Simulate Telemetry)
             let payload = serde_json::json!({
@@ -155,7 +159,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "unit": "celsius"
             });
 
-            match client.post("http://localhost:9500/api/v1/telemetry")
+            match client
+                .post("http://localhost:9500/api/v1/telemetry")
                 .json(&payload)
                 .send()
                 .await
@@ -163,7 +168,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(resp) => {
                     let status = resp.status();
                     let body = resp.text().await?;
-                    println!("   [Tick {}/{}] ☁️  Cloud Response: {} - {}", i, steps, status, body);
+                    println!(
+                        "   [Tick {}/{}] ☁️  Cloud Response: {} - {}",
+                        i, steps, status, body
+                    );
                 }
                 Err(e) => println!("   [Tick {}/{}] ❌ Cloud Error: {}", i, steps, e),
             }

@@ -126,9 +126,7 @@ pub enum UnifiedConfig {
     /// Standard service with name at top level
     Service(Box<ServiceDefinition>),
     /// Digital twin with 'twin' key at top level
-    Twin {
-        twin: TwinDefinition,
-    },
+    Twin { twin: TwinDefinition },
 }
 
 impl From<UnifiedConfig> for ServiceDefinition {

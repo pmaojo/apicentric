@@ -11,13 +11,17 @@ pub async fn handle_start(
     // Install template if provided
     if let Some(template_id) = template {
         if exec_ctx.dry_run {
-            println!("🏃 Dry run: Would install template '{}' to '{}'", template_id, services_dir);
+            println!(
+                "🏃 Dry run: Would install template '{}' to '{}'",
+                template_id, services_dir
+            );
         } else {
             apicentric::simulator::marketplace::install_template(
                 template_id,
                 std::path::Path::new(services_dir),
                 None, // Don't override name, use template name
-            ).await?;
+            )
+            .await?;
         }
     }
 

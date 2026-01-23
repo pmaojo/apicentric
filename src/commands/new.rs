@@ -50,12 +50,13 @@ pub async fn new_command(name: String, template_id: Option<String>) -> Apicentri
 
     let services_dir =
         std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    
+
     apicentric::simulator::marketplace::install_template(
         &selected_id,
         Path::new(&services_dir),
         Some(name),
-    ).await?;
+    )
+    .await?;
 
     println!("Run it with: apicentric simulator start");
 

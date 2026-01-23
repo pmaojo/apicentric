@@ -226,7 +226,17 @@ pub async fn simulator_command(
             force,
             p2p,
             template,
-        } => control::handle_start(context, services_dir, *force, *p2p, template.as_deref(), exec_ctx).await,
+        } => {
+            control::handle_start(
+                context,
+                services_dir,
+                *force,
+                *p2p,
+                template.as_deref(),
+                exec_ctx,
+            )
+            .await
+        }
         SimulatorAction::Stop { force } => control::handle_stop(context, *force, exec_ctx).await,
         SimulatorAction::Status { detailed } => {
             control::handle_status(context, *detailed, exec_ctx).await

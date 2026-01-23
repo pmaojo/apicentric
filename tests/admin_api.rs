@@ -91,7 +91,7 @@ async fn test_admin_server_log_retrieval() {
         .await
         .unwrap();
     assert_eq!(res.status(), 200);
-    
+
     // Give time for the log to be recorded and broadcast
     tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 

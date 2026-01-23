@@ -684,7 +684,11 @@ pub fn to_openapi(service: &ServiceDefinition) -> OpenAPI {
             ..Default::default()
         },
         servers: vec![openapiv3::Server {
-            url: service.server.as_ref().map(|s| s.base_path.clone()).unwrap_or_else(|| "/".into()),
+            url: service
+                .server
+                .as_ref()
+                .map(|s| s.base_path.clone())
+                .unwrap_or_else(|| "/".into()),
             description: None,
             variables: None,
             ..Default::default()

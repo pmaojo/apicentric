@@ -27,12 +27,11 @@ use super::tui_events::{
     handle_key_event, poll_log_entries, update_service_status, Action, TuiMessage,
 };
 use super::tui_render::{
-    render_actions_panel_with_metrics, render_dashboard_view, render_filter_dialog,
-    render_help_dialog, render_log_view, render_marketplace_dialog, render_search_dialog,
-    render_service_list, render_header, render_config_view, render_endpoint_explorer,
+    render_actions_panel_with_metrics, render_config_view, render_dashboard_view,
+    render_endpoint_explorer, render_filter_dialog, render_header, render_help_dialog,
+    render_log_view, render_marketplace_dialog, render_search_dialog, render_service_list,
 };
 use super::tui_state::{TuiAppState, ViewMode};
-
 
 /// Launch the enhanced terminal dashboard with service list, logs and actions panes.
 ///
@@ -54,12 +53,12 @@ pub async fn tui_command() -> ApicentricResult<()> {
         .try_init();
 
     std::env::set_var("RUST_LOG", "off");
-    
+
     // Initialize the simulator manager with services enabled
     let mut config = SimulatorConfig::default_config();
     config.enabled = true;
     let manager = Arc::new(ApiSimulatorManager::new(config));
-    
+
     // Start the simulator to load services
     manager.start().await?;
 
@@ -259,7 +258,7 @@ async fn run_app(
                 }
             }
         }
-        
+
         // Handle input events
         let _poll_time = poll_start.elapsed();
 
@@ -267,7 +266,7 @@ async fn run_app(
         let _status_update_time = if last_status_update.elapsed() >= status_update_interval {
             let update_start = std::time::Instant::now();
             let _ = update_service_status(&mut state, &manager).await;
-            
+
             // Update dashboard metrics (move sparkline)
             state.dashboard.tick();
 

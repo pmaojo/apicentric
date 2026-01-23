@@ -166,7 +166,7 @@ async fn main() {
     // Skip logging for TUI mode to prevent log bleed into the terminal UI
     let args: Vec<String> = std::env::args().collect();
     let is_tui = args.iter().any(|a| a == "tui");
-    
+
     if !is_tui {
         // Initialize structured logging only for non-TUI commands
         apicentric::logging::init();
@@ -247,16 +247,20 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                 } => {
                     // Start and block to keep services alive
                     if let Some(sim) = context.api_simulator() {
-                         // Install template if provided
+                        // Install template if provided
                         if let Some(template_id) = template {
                             if exec_ctx.dry_run {
-                                println!("🏃 Dry run: Would install template '{}' to '{}'", template_id, services_dir);
+                                println!(
+                                    "🏃 Dry run: Would install template '{}' to '{}'",
+                                    template_id, services_dir
+                                );
                             } else {
                                 apicentric::simulator::marketplace::install_template(
                                     template_id,
                                     std::path::Path::new(services_dir),
                                     None,
-                                ).await?;
+                                )
+                                .await?;
                             }
                         }
 

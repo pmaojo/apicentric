@@ -3,6 +3,7 @@
 //! This module contains the core logic for the API simulator.
 
 pub mod admin_server;
+pub mod axios_client;
 pub mod config;
 pub mod lifecycle;
 pub mod log;
@@ -11,19 +12,18 @@ pub mod marketplace;
 pub mod mockoon;
 pub mod openapi;
 pub mod postman;
+pub mod react_query;
+pub mod react_view;
 pub mod recording_proxy;
 pub mod registry;
 pub mod route_registry;
 pub mod router;
+pub mod scripting;
 pub mod service;
 pub mod template;
+pub mod typescript;
 pub mod watcher;
 pub mod wiremock;
-pub mod scripting;
-pub mod typescript;
-pub mod react_query;
-pub mod react_view;
-pub mod axios_client;
 
 // Re-export common types
 pub use config::{EndpointDefinition, ResponseDefinition, ServiceDefinition, SimulatorConfig};

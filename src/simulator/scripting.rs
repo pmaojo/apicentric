@@ -1,7 +1,7 @@
-use rhai::{Engine, Scope, Dynamic, ImmutableString};
+use crate::errors::{ApicentricError, ApicentricResult};
+use rhai::{Dynamic, Engine, ImmutableString, Scope};
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
-use crate::errors::{ApicentricError, ApicentricResult};
 
 /// Wrapper around Rhai engine to provide consistent scripting environment
 pub struct ScriptingEngine {
@@ -37,11 +37,7 @@ impl ScriptingEngine {
     }
 
     /// Execute a script with the given context
-    pub fn execute(
-        &self,
-        script: &str,
-        context: Value
-    ) -> ApicentricResult<Value> {
+    pub fn execute(&self, script: &str, context: Value) -> ApicentricResult<Value> {
         let engine = self.engine.lock().unwrap();
         let mut scope = Scope::new();
 

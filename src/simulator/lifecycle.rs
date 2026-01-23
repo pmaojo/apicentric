@@ -111,7 +111,9 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
         for service_def in services {
             let service_name = service_def.name.clone();
-            let base_path = service_def.server.as_ref()
+            let base_path = service_def
+                .server
+                .as_ref()
                 .map(|s| s.base_path.clone())
                 .unwrap_or_else(|| "/".to_string());
 
@@ -259,7 +261,9 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         let mut registry = self.service_registry.write().await;
         registry.register_service(service.clone()).await?;
         let mut router = self.route_registry.write().await;
-        let base_path = service.server.as_ref()
+        let base_path = service
+            .server
+            .as_ref()
             .map(|s| s.base_path.clone())
             .unwrap_or_else(|| "/".to_string());
         router.register_service(&service.name, &base_path);
@@ -307,7 +311,9 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
 
         for service_def in services {
             let service_name = service_def.name.clone();
-            let base_path = service_def.server.as_ref()
+            let base_path = service_def
+                .server
+                .as_ref()
                 .map(|s| s.base_path.clone())
                 .unwrap_or_else(|| "/".to_string());
             registry.register_service(service_def.clone()).await?;

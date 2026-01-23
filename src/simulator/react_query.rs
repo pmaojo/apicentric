@@ -12,7 +12,11 @@ pub fn to_react_query(service: &ServiceDefinition) -> Result<String> {
     out.push_str("import { useQuery, useMutation } from '@tanstack/react-query';\n\n");
 
     let endpoints = service.endpoints.as_ref().cloned().unwrap_or_default();
-    let base_path = service.server.as_ref().map(|s| s.base_path.as_str()).unwrap_or("/");
+    let base_path = service
+        .server
+        .as_ref()
+        .map(|s| s.base_path.as_str())
+        .unwrap_or("/");
     for ep in &endpoints {
         if ep.kind != EndpointKind::Http {
             continue;

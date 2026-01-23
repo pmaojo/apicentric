@@ -8,10 +8,17 @@ async fn test_p2p_service_sharing() {
     let result = share::share_service(port).await;
 
     // We expect this to succeed and return a PeerId and a Token
-    assert!(result.is_ok(), "Failed to share service: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to share service: {:?}",
+        result.err()
+    );
 
     let (peer_id, token) = result.unwrap();
-    println!("P2P Share successful. PeerId: {}, Token: {}", peer_id, token);
+    println!(
+        "P2P Share successful. PeerId: {}, Token: {}",
+        peer_id, token
+    );
 
     assert!(!token.is_empty(), "Token should not be empty");
 }
