@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'src/rust/api.dart'; // Import our Rust bridge (or mock)
+import 'src/rust/api.dart' as rust_api;
+import 'src/rust/frb_generated.dart';
 import 'screens/home_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/create_screen.dart';
@@ -8,7 +9,7 @@ import 'screens/create_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Initialize Rust in main isolate
-  await initApp();
+  await RustLib.init();
   await initializeService();
   runApp(const MyApp());
 }
@@ -37,18 +38,18 @@ Future<void> initializeService() async {
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   // Initialize Rust in background isolate
-  await initApp();
+  await RustLib.init();
 
   service.on('stopService').listen((event) {
     service.stopSelf();
   });
 
   service.on('startSimulator').listen((event) async {
-      final configPath = event?['configPath'] as String?;
+      final servicesDir = event?['servicesDir'] as String?;
       final dbPath = event?['dbPath'] as String?;
-      if (configPath != null && dbPath != null) {
+      if (servicesDir != null && dbPath != null) {
           try {
-             await startSimulator(configPath: configPath, dbPath: dbPath);
+             await rust_api.startSimulator(servicesDir: servicesDir, dbPath: dbPath);
              print("Simulator started via background service");
           } catch(e) {
              print("Error starting simulator: $e");
@@ -57,7 +58,7 @@ void onStart(ServiceInstance service) async {
   });
 
   service.on('stopSimulator').listen((event) async {
-      await stopSimulator();
+      await rust_api.stopSimulator();
   });
 }
 

@@ -7,8 +7,8 @@ edition = "2021"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
-apicentric = { path = "../../", default-features = false, features = ["simulator", "iot"] }
-flutter_rust_bridge = "2"
+apicentric = { path = "../../", default-features = false, features = ["simulator", "iot", "file-watch", "database", "contract-testing", "mock-data", "websockets", "scripting"] }
+flutter_rust_bridge = "=2.11.1"
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
 lazy_static = "1.4"

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:path_provider/path_provider.dart';
-import '../src/rust/api.dart';
+import '../src/rust/api.dart' as rust_api;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isRunning = false;
-  List<ServiceStatus> _services = [];
+  List<rust_api.ServiceStatus> _services = [];
   final List<String> _logs = [];
 
   @override
@@ -25,7 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final service = FlutterBackgroundService();
       final isRunning = await service.isRunning();
       if (isRunning) {
-          final services = await getActiveServices();
+          final services = await rust_api.getActiveServices();
           setState(() {
               _isRunning = true;
               _services = services;
@@ -40,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshStatus() async {
     try {
-      final services = await getActiveServices();
+      final services = await rust_api.getActiveServices();
       setState(() {
         _services = services;
       });
@@ -70,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
         await Future.delayed(const Duration(milliseconds: 500));
 
         service.invoke("startSimulator", {
-           "configPath": dir.path,
+           "servicesDir": dir.path,
            "dbPath": dbPath
         });
         setState(() {

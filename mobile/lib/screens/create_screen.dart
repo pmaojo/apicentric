@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import '../src/rust/api.dart';
+import '../src/rust/api.dart' as rust_api;
 import 'dart:io';
 
 class CreateScreen extends StatelessWidget {
@@ -112,7 +112,7 @@ class _AiWizardState extends State<AiWizard> {
       }
       setState(() => _loading = true);
       try {
-          final yaml = await generateServiceAi(
+          final yaml = await rust_api.generateServiceAi(
               apiKey: _apiKeyController.text,
               prompt: _promptController.text,
               model: "gpt-3.5-turbo"
