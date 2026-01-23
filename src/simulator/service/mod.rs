@@ -1044,8 +1044,9 @@ impl ServiceInstance {
                         request_body.clone(),
                     );
 
+                    let mut script_body_override = None;
                     if let Some(ref script_path) = response_def.script {
-                        if let Err(e) = Self::execute_script(
+                        match Self::execute_script(
                             script_path.as_path(),
                             &state,
                             &scripting_engine,
@@ -1054,7 +1055,14 @@ impl ServiceInstance {
                         )
                         .await
                         {
-                            log::warn!("Script execution error: {}", e);
+                            Ok(result) => {
+                                if !result.is_null() {
+                                    script_body_override = Some(result);
+                                }
+                            }
+                            Err(e) => {
+                                log::warn!("Script execution error: {}", e);
+                            }
                         }
                     }
 
@@ -1066,7 +1074,15 @@ impl ServiceInstance {
                     );
                     drop(state_guard);
 
-                    let response_body = response_def.body.clone();
+                    let response_body = if let Some(body_v) = script_body_override {
+                        if body_v.is_string() {
+                            body_v.as_str().unwrap().to_string()
+                        } else {
+                            serde_json::to_string(&body_v).unwrap_or_else(|_| response_def.body.clone())
+                        }
+                    } else {
+                        response_def.body.clone()
+                    };
                     let processed_body = if response_body.contains("{{") {
                         match Self::process_response_body_template(
                             &response_body,
@@ -1599,7 +1615,7 @@ impl ServiceInstance {
         scripting_engine: &ScriptingEngine,
         path_params: &PathParameters,
         request_context: &RequestContext,
-    ) -> ApicentricResult<()> {
+    ) -> ApicentricResult<Value> {
         let script_source = tokio::fs::read_to_string(script_path).await.map_err(|e| {
             ApicentricError::runtime_error(
                 format!("Failed to read script {}: {}", script_path.display(), e),
@@ -1624,14 +1640,14 @@ impl ServiceInstance {
 
         let result = scripting_engine.execute(&script_source, context)?;
 
-        if let serde_json::Value::Object(map) = result {
+        if let serde_json::Value::Object(ref map) = result {
             let mut state_guard = state.write().await;
             for (k, v) in map {
-                state_guard.set_runtime_data(k, v);
+                state_guard.set_runtime_data(k.clone(), v.clone());
             }
         }
 
-        Ok(())
+        Ok(result)
     }
 
     /// Process a side effect from a response

@@ -1,0 +1,21 @@
+twin:
+  name: smart-lock
+  physics:
+    - variable: battery_level
+      strategy: sine
+      params:
+        min: 20.0
+        max: 100.0
+    - variable: is_locked
+      strategy: script
+      params:
+        code: |
+          // Simulating state toggle every few ticks?
+          // For now just locked
+          return true;
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: home/security/frontdoor

@@ -1,0 +1,23 @@
+twin:
+  name: obd2-scanner
+  physics:
+    - variable: rpm
+      strategy: sine
+      params:
+        min: 800.0
+        max: 4500.0
+    - variable: engine_temp
+      strategy: sine
+      params:
+        min: 80.0
+        max: 110.0
+    - variable: dtc_codes
+      strategy: script
+      params:
+        code: return "P0300"; // Random misfire
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: fleet/vehicle/123/diagnostics

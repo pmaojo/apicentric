@@ -1,0 +1,21 @@
+twin:
+  name: robot-arm-6dof
+  physics:
+    - variable: joint_1_pos
+      strategy: sine
+      params:
+        min: -90.0
+        max: 90.0
+    - variable: gripper_status
+      strategy: script
+      params:
+        code: return "open";
+  transports:
+    - type: modbus
+      params:
+        port: 5025
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: factory/robot/arm1

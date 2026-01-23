@@ -1,0 +1,25 @@
+twin:
+  name: wind-turbine
+  physics:
+    - variable: wind_speed_ms
+      strategy: sine
+      params:
+        min: 0.0
+        max: 25.0
+    - variable: power_output_kw
+      strategy: script
+      params:
+        code: |
+          // Simple power curve simulation
+          if wind_speed_ms < 3.0 { return 0.0; }
+          if wind_speed_ms > 25.0 { return 0.0; } // Cut-out
+          return (wind_speed_ms * wind_speed_ms * wind_speed_ms) * 0.5; // Pseudo-cubic
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: renewable/wind/turbine1
+    - type: modbus
+      params:
+        port: 5023

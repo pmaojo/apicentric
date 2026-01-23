@@ -1,0 +1,26 @@
+twin:
+  name: pressure-gauge
+  physics:
+    - variable: pressure_psi
+      strategy: sine
+      params:
+        min: 100.0
+        max: 150.0
+    - variable: valve_status
+      strategy: script
+      params:
+        code: |
+          if pressure_psi > 140.0 {
+            return "critical";
+          } else {
+            return "normal";
+          }
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: pipeline/pressure
+    - type: modbus
+      params:
+        port: 5021

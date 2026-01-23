@@ -1,0 +1,26 @@
+twin:
+  name: smart-meter-electric
+  physics:
+    - variable: power_kw
+      strategy: sine
+      params:
+        min: 0.5
+        max: 5.0
+    - variable: voltage_v
+      strategy: sine
+      params:
+        min: 220.0
+        max: 240.0
+    - variable: total_kwh
+      strategy: script
+      params:
+        code: return 12345.6; // Mock accumulator
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: grid/customer/1001
+    - type: modbus
+      params:
+        port: 5022

@@ -1,0 +1,26 @@
+twin:
+  name: industrial-temp-sensor
+  physics:
+    - variable: temperature
+      strategy: sine
+      params:
+        min: 45.0
+        max: 85.0
+    - variable: overheat_alert
+      strategy: script
+      params:
+        code: |
+          if temperature > 80.0 {
+            return true;
+          } else {
+            return false;
+          }
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: factory/line1/temp
+    - type: http
+      params:
+        port: 8090

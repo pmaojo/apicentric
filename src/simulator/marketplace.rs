@@ -1,4 +1,10 @@
+use crate::{ApicentricError, ApicentricResult};
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use crate::simulator::openapi::from_openapi;
+use crate::simulator::ServiceDefinition;
+
 
 /// Marketplace Item
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -174,7 +180,279 @@ pub fn get_marketplace_items() -> Vec<MarketplaceItem> {
             logo_url: None,
             definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/zigbee-env-sensor.yaml".to_string(),
         },
+
+        // --- Requested Industrial IoT Templates ---
+
+        MarketplaceItem {
+            id: "iot/sensors/temperature-industrial".to_string(),
+            name: "Industrial Temperature Sensor".to_string(),
+            description: "Industrial temperature monitoring with configurable thresholds and alerts.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/sensors/temperature-industrial.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/sensors/humidity-industrial".to_string(),
+            name: "Industrial Humidity Sensor".to_string(),
+            description: "Precision humidity measurement for environmental monitoring and HVAC.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/sensors/humidity-industrial.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/sensors/pressure-gauge".to_string(),
+            name: "Pressure Gauge".to_string(),
+            description: "High-precision pressure monitoring for pipelines and tanks.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/sensors/pressure-gauge.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/sensors/vibration-monitor".to_string(),
+            name: "Vibration Monitor".to_string(),
+            description: "Predictive maintenance sensor detecting anomalies in rotating machinery.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/sensors/vibration-monitor.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/sensors/flow-meter".to_string(),
+            name: "Flow Meter".to_string(),
+            description: "Liquid and gas flow measurement for process control.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/sensors/flow-meter.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/controllers/plc-siemens".to_string(),
+            name: "PLC Controller".to_string(),
+            description: "Programmable Logic Controller simulation with Modbus/OPC-UA interfaces.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/controllers/plc-siemens.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/smarthome/smart-bulb".to_string(),
+            name: "Smart Bulb".to_string(),
+            description: "Intelligent RGB lighting with dimming and scene control.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/smarthome/smart-bulb.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/smarthome/smart-lock".to_string(),
+            name: "Smart Lock".to_string(),
+            description: "Connected lock with access logs and remote control.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/smarthome/smart-lock.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/smarthome/thermostat-nest".to_string(),
+            name: "Smart Thermostat Pro".to_string(),
+            description: "Climate control with scheduling and energy reports.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/smarthome/thermostat-nest.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/smarthome/motion-sensor".to_string(),
+            name: "Motion Sensor".to_string(),
+            description: "PIR-based occupancy detection for security and automation.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/smarthome/motion-sensor.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/smarthome/ip-camera".to_string(),
+            name: "IP Camera".to_string(),
+            description: "Video streaming device with motion detection simulation.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/smarthome/ip-camera.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/automotive/gps-tracker".to_string(),
+            name: "GPS Tracker".to_string(),
+            description: "Real-time vehicle location tracking with history.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/automotive/gps-tracker.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/automotive/obd2-scanner".to_string(),
+            name: "OBD-II Scanner".to_string(),
+            description: "Vehicle diagnostics including engine codes, RPM, and fuel.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/automotive/obd2-scanner.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/automotive/fuel-level".to_string(),
+            name: "Fuel Level Sensor".to_string(),
+            description: "Tank monitoring for fleet management.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/automotive/fuel-level.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/energy/smart-meter-electric".to_string(),
+            name: "Electric Smart Meter".to_string(),
+            description: "Electric meter with real-time consumption and demand response.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/energy/smart-meter-electric.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/energy/wind-turbine".to_string(),
+            name: "Wind Turbine".to_string(),
+            description: "Turbine telemetry including wind speed and power curve.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/energy/wind-turbine.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/agriculture/soil-moisture".to_string(),
+            name: "Soil Moisture Sensor".to_string(),
+            description: "Agricultural sensor for irrigation optimization.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/agriculture/soil-moisture.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/manufacturing/conveyor-system".to_string(),
+            name: "Conveyor System".to_string(),
+            description: "Production line conveyor with speed control and item counting.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/manufacturing/conveyor-system.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/manufacturing/robot-arm-6dof".to_string(),
+            name: "6-DOF Robot Arm".to_string(),
+            description: "Six-axis robotic arm with joint positions and gripper status.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/manufacturing/robot-arm-6dof.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/manufacturing/sorting-machine".to_string(),
+            name: "Sorting Machine".to_string(),
+            description: "Automated sorting with sensors and actuators.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/manufacturing/sorting-machine.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/gateway/edge-gateway".to_string(),
+            name: "Edge Gateway".to_string(),
+            description: "Protocol translator aggregating sensors via MQTT and HTTP.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/gateway/edge-gateway.yaml".to_string(),
+        },
     ]
+}
+
+/// Downloads and installs a template to the specified directory.
+/// Returns the path to the installed file.
+pub async fn install_template(
+    template_id: &str,
+    output_dir: &Path,
+    name_override: Option<String>,
+) -> ApicentricResult<PathBuf> {
+    let items = get_marketplace_items();
+    let template = items.iter().find(|i| i.id == template_id).ok_or_else(|| {
+        ApicentricError::Validation {
+            message: format!("Template '{}' not found", template_id),
+            field: Some("template".to_string()),
+            suggestion: Some("Check the list of available templates".to_string()),
+        }
+    })?;
+
+    println!(
+        "{} Fetching template '{}' from: {}",
+        "⬇️".blue(),
+        template.name,
+        template.definition_url
+    );
+
+    // Download content
+    let client = reqwest::Client::new();
+    let content = client
+        .get(&template.definition_url)
+        .send()
+        .await
+        .map_err(|e| {
+            ApicentricError::network_error(
+                format!("Failed to fetch template: {}", e),
+                Some(&template.definition_url),
+                None::<String>,
+            )
+        })?
+        .text()
+        .await
+        .map_err(|e| {
+            ApicentricError::network_error(
+                format!("Failed to read template content: {}", e),
+                Some(&template.definition_url),
+                None::<String>,
+            )
+        })?;
+
+    // Parse
+    let value: serde_yaml::Value = serde_yaml::from_str(&content).map_err(|e| {
+        ApicentricError::validation_error(
+            format!("Failed to parse template YAML: {}", e),
+            None::<String>,
+            Some("Check the template syntax"),
+        )
+    })?;
+
+    let mut definition = if value.get("openapi").is_some() || value.get("swagger").is_some() {
+        from_openapi(&value)
+    } else {
+        serde_yaml::from_value::<ServiceDefinition>(value).map_err(|e| {
+            ApicentricError::validation_error(
+                format!("Invalid service definition: {}", e),
+                None::<String>,
+                None::<String>,
+            )
+        })?
+    };
+
+    // Override name if provided, otherwise use template name (sanitized)
+    if let Some(n) = name_override {
+        definition.name = n;
+    }
+
+    let file_name = format!("{}.yaml", definition.name.to_lowercase().replace(' ', "-"));
+    let file_path = output_dir.join(&file_name);
+
+    // Save
+    let yaml = serde_yaml::to_string(&definition).map_err(|e| {
+        ApicentricError::runtime_error(format!("Failed to serialize service: {}", e), None::<String>)
+    })?;
+
+    if file_path.exists() {
+        println!(
+            "{} Service file '{}' already exists. Overwriting.",
+            "⚠️".yellow(),
+            file_path.display()
+        );
+    }
+
+    std::fs::create_dir_all(output_dir).map_err(ApicentricError::Io)?;
+    std::fs::write(&file_path, yaml).map_err(ApicentricError::Io)?;
+
+    println!(
+        "{} Service '{}' installed successfully at {}",
+        "✨".green(),
+        definition.name,
+        file_path.display()
+    );
+
+    Ok(file_path)
 }
 
 #[cfg(test)]

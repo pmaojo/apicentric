@@ -1,0 +1,14 @@
+twin:
+  name: fuel-level-sensor
+  physics:
+    - variable: fuel_level_percent
+      strategy: sine
+      params:
+        min: 10.0
+        max: 95.0
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: fleet/vehicle/123/fuel

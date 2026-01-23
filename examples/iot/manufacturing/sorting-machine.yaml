@@ -1,0 +1,21 @@
+twin:
+  name: sorting-machine
+  physics:
+    - variable: sort_rate_ppm
+      strategy: sine
+      params:
+        min: 50.0
+        max: 60.0
+    - variable: rejected_count
+      strategy: script
+      params:
+        code: return 5;
+  transports:
+    - type: modbus
+      params:
+        port: 5026
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: factory/sorting/line1

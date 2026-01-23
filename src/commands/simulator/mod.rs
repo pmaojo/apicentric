@@ -27,6 +27,9 @@ pub enum SimulatorAction {
         /// Enable peer-to-peer collaboration for service editing
         #[arg(long)]
         p2p: bool,
+        /// Initialize a new service from a template before starting
+        #[arg(long)]
+        template: Option<String>,
     },
     /// Stop the API simulator
     Stop {
@@ -222,7 +225,8 @@ pub async fn simulator_command(
             services_dir,
             force,
             p2p,
-        } => control::handle_start(context, services_dir, *force, *p2p, exec_ctx).await,
+            template,
+        } => control::handle_start(context, services_dir, *force, *p2p, template.as_deref(), exec_ctx).await,
         SimulatorAction::Stop { force } => control::handle_stop(context, *force, exec_ctx).await,
         SimulatorAction::Status { detailed } => {
             control::handle_status(context, *detailed, exec_ctx).await

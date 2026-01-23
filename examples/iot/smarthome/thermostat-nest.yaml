@@ -1,0 +1,33 @@
+twin:
+  name: smart-thermostat-pro
+  physics:
+    - variable: ambient_temp
+      strategy: sine
+      params:
+        min: 19.0
+        max: 23.0
+    - variable: target_temp
+      strategy: sine
+      params:
+        min: 20.0
+        max: 22.0
+    - variable: hvac_mode
+      strategy: script
+      params:
+        code: |
+          if ambient_temp > target_temp {
+             return "cooling";
+          } else if ambient_temp < target_temp {
+             return "heating";
+          } else {
+             return "idle";
+          }
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: home/hvac/main
+    - type: http
+      params:
+        port: 8094

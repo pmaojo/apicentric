@@ -1,0 +1,19 @@
+twin:
+  name: soil-moisture-sensor
+  physics:
+    - variable: moisture_percent
+      strategy: sine
+      params:
+        min: 20.0
+        max: 80.0
+    - variable: temp_c
+      strategy: sine
+      params:
+        min: 15.0
+        max: 35.0
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: agriculture/field1/zoneA

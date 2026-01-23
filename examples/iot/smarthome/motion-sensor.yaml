@@ -1,0 +1,21 @@
+twin:
+  name: motion-sensor
+  physics:
+    - variable: occupancy
+      strategy: script
+      params:
+        code: |
+          // Randomly trigger presence
+          // (mock implementation with sine for now as random not available in basic strategy list)
+          return false;
+    - variable: lux_level
+      strategy: sine
+      params:
+        min: 0.0
+        max: 500.0
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: home/security/hallway

@@ -1,0 +1,20 @@
+twin:
+  name: edge-gateway
+  physics:
+    - variable: connected_devices
+      strategy: script
+      params:
+        code: return 15;
+    - variable: uplink_status
+      strategy: script
+      params:
+        code: return "connected";
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: edge/gateway/01
+    - type: http
+      params:
+        port: 8097

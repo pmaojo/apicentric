@@ -1,0 +1,27 @@
+twin:
+  name: gps-tracker
+  physics:
+    - variable: latitude
+      strategy: sine
+      params:
+        min: 40.7128
+        max: 40.7138
+    - variable: longitude
+      strategy: sine
+      params:
+        min: -74.0060
+        max: -74.0050
+    - variable: speed_kmh
+      strategy: sine
+      params:
+        min: 0.0
+        max: 120.0
+  transports:
+    - type: mqtt
+      params:
+        broker_url: localhost
+        port: 1883
+        topic_prefix: fleet/vehicle/123/loc
+    - type: http
+      params:
+        port: 8096

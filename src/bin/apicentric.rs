@@ -202,6 +202,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                 services_dir,
                 force: _,
                 p2p: _,
+                template: _,
             }),
     } = &cli.command
     {
@@ -239,12 +240,26 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
         Commands::Simulator { action } => match action {
             Some(action) => match &action {
                 simulator_cmd::SimulatorAction::Start {
-                    services_dir: _,
+                    services_dir,
                     force: _,
                     p2p,
+                    template,
                 } => {
                     // Start and block to keep services alive
                     if let Some(sim) = context.api_simulator() {
+                         // Install template if provided
+                        if let Some(template_id) = template {
+                            if exec_ctx.dry_run {
+                                println!("🏃 Dry run: Would install template '{}' to '{}'", template_id, services_dir);
+                            } else {
+                                apicentric::simulator::marketplace::install_template(
+                                    template_id,
+                                    std::path::Path::new(services_dir),
+                                    None,
+                                ).await?;
+                            }
+                        }
+
                         if exec_ctx.dry_run {
                             println!("🏃 Dry run: Would start API simulator");
                             return Ok(());
