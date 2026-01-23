@@ -466,7 +466,10 @@ mod tests {
 
         // Check for IoT items
         let iot_items: Vec<_> = items.iter().filter(|i| i.category == "IoT Twin").collect();
-        assert_eq!(iot_items.len(), 8);
+        assert_eq!(iot_items.len(), 29);
+
+        // Verify specific new template exists
+        assert!(items.iter().any(|i| i.id == "iot/sensors/temperature-industrial"));
 
         for item in iot_items {
             assert!(item.definition_url.starts_with(
