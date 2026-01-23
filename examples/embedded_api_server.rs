@@ -51,6 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             script: None,
             headers: None,
             side_effects: None,
+            schema: None,
         },
     );
 
@@ -78,6 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             script: None,
             headers: None,
             side_effects: None,
+            schema: None,
         },
     );
 

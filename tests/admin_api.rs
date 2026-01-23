@@ -66,7 +66,6 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
                         script: None,
                         headers: None,
                         side_effects: None,
-                        schema: None,
                     },
                 );
                 responses
@@ -92,6 +91,9 @@ async fn test_admin_server_log_retrieval() {
         .await
         .unwrap();
     assert_eq!(res.status(), 200);
+    
+    // Give time for the log to be recorded and broadcast
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 
     // Set the admin token
     std::env::set_var("APICENTRIC_ADMIN_TOKEN", "test-token");

@@ -26,7 +26,7 @@ pub mod react_view;
 pub mod axios_client;
 
 // Re-export common types
-pub use config::{ServiceDefinition, SimulatorConfig};
+pub use config::{EndpointDefinition, ResponseDefinition, ServiceDefinition, SimulatorConfig};
 pub use log::RequestLogEntry;
 pub use manager::ApiSimulatorManager;
 pub use registry::ServiceRegistry;
