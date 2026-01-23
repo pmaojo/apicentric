@@ -26,7 +26,6 @@ use crate::simulator::log::RequestLogEntry;
 use crate::simulator::template::{RequestContext, TemplateContext, TemplateEngine};
 use crate::storage::Storage;
 use bytes::Bytes;
-use deno_core::{JsRuntime, RuntimeOptions};
 use http_body_util::Full;
 use hyper::header::HOST;
 use hyper::server::conn::http1;
@@ -43,6 +42,7 @@ use std::sync::{Arc, RwLock as StdRwLock};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
+use crate::simulator::scripting::ScriptingEngine;
 
 /// Individual service instance with HTTP server capabilities
 pub struct ServiceInstance {
@@ -50,6 +50,7 @@ pub struct ServiceInstance {
     port: u16,
     state: Arc<RwLock<ServiceState>>,
     template_engine: Arc<TemplateEngine>,
+    scripting_engine: Arc<ScriptingEngine>,
     server_handle: Option<JoinHandle<()>>,
     is_running: bool,
     active_scenario: Arc<RwLock<Option<String>>>,
@@ -77,6 +78,8 @@ impl ServiceInstance {
         let mut template_engine = TemplateEngine::new()?;
         template_engine.register_bucket_helpers(state.bucket())?;
 
+        let scripting_engine = Arc::new(ScriptingEngine::new());
+
         let graphql = if let Some(gql_cfg) = graphql_cfg {
             Some(Arc::new(load_graphql_mocks(&gql_cfg)?))
         } else {
@@ -91,6 +94,7 @@ impl ServiceInstance {
             port,
             state: Arc::new(RwLock::new(state)),
             template_engine: Arc::new(template_engine),
+            scripting_engine,
             server_handle: None,
             is_running: false,
             active_scenario: Arc::new(RwLock::new(None)),
@@ -148,6 +152,7 @@ impl ServiceInstance {
         let definition = Arc::clone(&self.definition);
         let state = Arc::clone(&self.state);
         let template_engine = Arc::clone(&self.template_engine);
+        let scripting_engine = Arc::clone(&self.scripting_engine);
         let active_scenario = Arc::clone(&self.active_scenario);
         let graphql = self.graphql.clone();
         let storage = Arc::clone(&self.storage);
@@ -173,6 +178,7 @@ impl ServiceInstance {
                         let definition = Arc::clone(&definition);
                         let state = Arc::clone(&state);
                         let template_engine = Arc::clone(&template_engine);
+                        let scripting_engine = Arc::clone(&scripting_engine);
                         let scenario_cfg_outer = Arc::clone(&active_scenario);
                         let graphql_cfg_outer = graphql.clone();
                         let storage = Arc::clone(&storage);
@@ -183,6 +189,7 @@ impl ServiceInstance {
                                 let definition = Arc::clone(&definition);
                                 let state = Arc::clone(&state);
                                 let template_engine = Arc::clone(&template_engine);
+                                let scripting_engine = Arc::clone(&scripting_engine);
                                 let scenario_cfg = Arc::clone(&scenario_cfg_outer);
                                 let graphql_cfg = graphql_cfg_outer.clone();
                                 let storage = Arc::clone(&storage);
@@ -193,6 +200,7 @@ impl ServiceInstance {
                                         Arc::clone(&definition),
                                         state,
                                         template_engine,
+                                        scripting_engine,
                                         scenario_cfg,
                                         graphql_cfg,
                                         storage,
@@ -292,6 +300,7 @@ impl ServiceInstance {
             Arc::clone(&self.definition),
             Arc::clone(&self.state),
             Arc::clone(&self.template_engine),
+            Arc::clone(&self.scripting_engine),
             Arc::clone(&self.active_scenario),
             self.graphql.clone(),
             Arc::clone(&self.storage),
@@ -644,6 +653,7 @@ impl ServiceInstance {
         definition: Arc<StdRwLock<ServiceDefinition>>,
         state: Arc<RwLock<ServiceState>>,
         template_engine: Arc<TemplateEngine>,
+        scripting_engine: Arc<ScriptingEngine>,
         active_scenario: Arc<RwLock<Option<String>>>,
         graphql: Option<Arc<GraphQLMocks>>,
         storage: Arc<dyn Storage>,
@@ -1037,6 +1047,7 @@ impl ServiceInstance {
                         if let Err(e) = Self::execute_script(
                             script_path.as_path(),
                             &state,
+                            &scripting_engine,
                             &route_match.path_params,
                             &request_context,
                         )
@@ -1584,6 +1595,7 @@ impl ServiceInstance {
     async fn execute_script(
         script_path: &Path,
         state: &Arc<RwLock<ServiceState>>,
+        scripting_engine: &ScriptingEngine,
         path_params: &PathParameters,
         request_context: &RequestContext,
     ) -> ApicentricResult<()> {
@@ -1608,61 +1620,8 @@ impl ServiceInstance {
             "runtime": state_guard.all_runtime_data().clone(),
         });
         drop(state_guard);
-        let ctx_json = serde_json::to_string(&context)?;
 
-        let result = tokio::task::spawn_blocking(move || -> ApicentricResult<serde_json::Value> {
-            let mut runtime = JsRuntime::new(RuntimeOptions::default());
-            runtime
-                .execute_script("<init>", format!("globalThis.ctx = {};", ctx_json))
-                .map_err(|e| {
-                    ApicentricError::runtime_error(
-                        format!("Script init error: {}", e),
-                        None::<String>,
-                    )
-                })?;
-            runtime
-                .execute_script(
-                    "user_script",
-                    format!(
-                        "globalThis.result = (function(ctx){{ {} }})(ctx);",
-                        script_source
-                    ),
-                )
-                .map_err(|e| {
-                    ApicentricError::runtime_error(
-                        format!("Script execution error: {}", e),
-                        None::<String>,
-                    )
-                })?;
-            deno_core::futures::executor::block_on(
-                runtime.run_event_loop(deno_core::PollEventLoopOptions::default()),
-            )
-            .map_err(|e| {
-                ApicentricError::runtime_error(
-                    format!("Script event loop error: {}", e),
-                    None::<String>,
-                )
-            })?;
-            let value = runtime.execute_script("<result>", "result").map_err(|e| {
-                ApicentricError::runtime_error(
-                    format!("Script result error: {}", e),
-                    None::<String>,
-                )
-            })?;
-            let scope = &mut runtime.handle_scope();
-            let result_str = value.open(scope).to_rust_string_lossy(scope);
-            let result: serde_json::Value = serde_json::from_str(&result_str).map_err(|e| {
-                ApicentricError::runtime_error(
-                    format!("Script result serialization error: {}", e),
-                    Some("Ensure script returns an object".to_string()),
-                )
-            })?;
-            Ok(result)
-        })
-        .await
-        .map_err(|e| {
-            ApicentricError::runtime_error(format!("Script thread error: {}", e), None::<String>)
-        })??;
+        let result = scripting_engine.execute(&script_source, context)?;
 
         if let serde_json::Value::Object(map) = result {
             let mut state_guard = state.write().await;
