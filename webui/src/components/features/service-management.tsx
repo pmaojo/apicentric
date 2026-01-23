@@ -46,6 +46,12 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { CreateServiceDialog } from './create-service-dialog';
 import { CreateGraphQLServiceDialog } from './create-graphql-service-dialog';
 import { EditServiceDialog } from './edit-service-dialog';
@@ -305,7 +311,7 @@ export function ServiceManagement({
   const allSelected = services.length > 0 && selectedServices.size === services.length;
   
   return (
-    <>
+    <TooltipProvider>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
@@ -412,33 +418,49 @@ export function ServiceManagement({
                           <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             {service.status === 'running' ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleStopService(service)}
-                                disabled={isLoading}
-                                data-testid="stop-service-button"
-                              >
-                                {isLoading ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Square className="h-4 w-4" />
-                                )}
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleStopService(service)}
+                                    disabled={isLoading}
+                                    data-testid="stop-service-button"
+                                    aria-label={`Stop ${service.name}`}
+                                  >
+                                    {isLoading ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Square className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Stop Service</p>
+                                </TooltipContent>
+                              </Tooltip>
                             ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleStartService(service)}
-                                disabled={isLoading}
-                                data-testid="start-service-button"
-                              >
-                                {isLoading ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Play className="h-4 w-4" />
-                                )}
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleStartService(service)}
+                                    disabled={isLoading}
+                                    data-testid="start-service-button"
+                                    aria-label={`Start ${service.name}`}
+                                  >
+                                    {isLoading ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Play className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Start Service</p>
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -519,6 +541,6 @@ export function ServiceManagement({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-    </>
+    </TooltipProvider>
   );
 }
