@@ -172,10 +172,27 @@ pub async fn upload_replay_data(
                 .to_string_lossy()
                 .to_string();
 
+            // Sentinel: Enforce .csv extension to prevent uploading executables or other malicious files
+            if !file_name.to_lowercase().ends_with(".csv") {
+                return Err(ApiError::bad_request(
+                    ApiErrorCode::InvalidParameter,
+                    "Only CSV files are allowed for replay data".to_string(),
+                ));
+            }
+
             filename = file_name.clone();
             let data = field.bytes().await.map_err(|e| {
                 ApiError::internal_server_error(format!("Failed to read file bytes: {}", e))
             })?;
+
+            // Sentinel: Limit file size to 10MB to prevent disk exhaustion
+            const MAX_SIZE: usize = 10 * 1024 * 1024;
+            if data.len() > MAX_SIZE {
+                return Err(ApiError::bad_request(
+                    ApiErrorCode::InvalidParameter,
+                    "File size exceeds 10MB limit".to_string(),
+                ));
+            }
 
             let path = dir_path.join(&file_name);
             std::fs::write(&path, data).map_err(|e| {

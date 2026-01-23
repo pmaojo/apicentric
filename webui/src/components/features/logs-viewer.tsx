@@ -55,8 +55,6 @@ export function LogsViewer({ services }: LogsViewerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [logs, setLogs] = React.useState<RequestLogEntry[]>([]);
-  const [filteredLogs, setFilteredLogs] = React.useState<RequestLogEntry[]>([]);
-  const [paginatedLogs, setPaginatedLogs] = React.useState<RequestLogEntry[]>([]);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [selectedLog, setSelectedLog] = React.useState<RequestLogEntry | null>(null);
   const [showDetailDialog, setShowDetailDialog] = React.useState(false);
@@ -74,6 +72,51 @@ export function LogsViewer({ services }: LogsViewerProps) {
     to: searchParams.get('to') || '',
   });
 
+  // Memoized filtered logs
+  // Optimized: Use useMemo to prevent unnecessary re-renders when logs update
+  const filteredLogs = React.useMemo(() => {
+    return logs.filter((log) => {
+      const statusClass = Math.floor(log.status / 100);
+      const statusFilterMatch =
+        filters.status === 'all' ||
+        (filters.status === '2xx' && statusClass === 2) ||
+        (filters.status === '3xx' && statusClass === 3) ||
+        (filters.status === '4xx' && statusClass === 4) ||
+        (filters.status === '5xx' && statusClass === 5);
+
+      const searchMatch =
+        filters.search === '' ||
+        log.path.toLowerCase().includes(filters.search.toLowerCase()) ||
+        log.service.toLowerCase().includes(filters.search.toLowerCase());
+
+      const serviceMatch = filters.service === 'all' || log.service === filters.service;
+      const methodMatch = filters.method === 'all' || log.method === filters.method;
+
+      // Time range filtering
+      let timeMatch = true;
+      if (filters.from || filters.to) {
+        const logTime = new Date(log.timestamp).getTime();
+        if (filters.from) {
+          const fromTime = new Date(filters.from).getTime();
+          timeMatch = timeMatch && logTime >= fromTime;
+        }
+        if (filters.to) {
+          const toTime = new Date(filters.to).getTime();
+          timeMatch = timeMatch && logTime <= toTime;
+        }
+      }
+
+      return serviceMatch && methodMatch && statusFilterMatch && searchMatch && timeMatch;
+    });
+  }, [logs, filters]);
+
+  // Memoized paginated logs
+  const paginatedLogs = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * LOGS_PER_PAGE;
+    const endIndex = startIndex + LOGS_PER_PAGE;
+    return filteredLogs.slice(startIndex, endIndex);
+  }, [filteredLogs, currentPage]);
+
   // Virtual scrolling setup
   const parentRef = React.useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
@@ -82,6 +125,11 @@ export function LogsViewer({ services }: LogsViewerProps) {
     estimateSize: () => 60,
     overscan: 10,
   });
+
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   // Subscribe to real-time log updates via WebSocket
   useWebSocketSubscription('request_log', (logEntry: RequestLogEntry) => {
@@ -131,53 +179,6 @@ export function LogsViewer({ services }: LogsViewerProps) {
     // Update URL without triggering a navigation
     window.history.replaceState({}, '', newUrl);
   }, [filters]);
-
-  // Apply filters
-  React.useEffect(() => {
-    const filtered = logs.filter((log) => {
-      const statusClass = Math.floor(log.status / 100);
-      const statusFilterMatch =
-        filters.status === 'all' ||
-        (filters.status === '2xx' && statusClass === 2) ||
-        (filters.status === '3xx' && statusClass === 3) ||
-        (filters.status === '4xx' && statusClass === 4) ||
-        (filters.status === '5xx' && statusClass === 5);
-
-      const searchMatch =
-        filters.search === '' ||
-        log.path.toLowerCase().includes(filters.search.toLowerCase()) ||
-        log.service.toLowerCase().includes(filters.search.toLowerCase());
-
-      const serviceMatch = filters.service === 'all' || log.service === filters.service;
-      const methodMatch = filters.method === 'all' || log.method === filters.method;
-
-      // Time range filtering
-      let timeMatch = true;
-      if (filters.from || filters.to) {
-        const logTime = new Date(log.timestamp).getTime();
-        if (filters.from) {
-          const fromTime = new Date(filters.from).getTime();
-          timeMatch = timeMatch && logTime >= fromTime;
-        }
-        if (filters.to) {
-          const toTime = new Date(filters.to).getTime();
-          timeMatch = timeMatch && logTime <= toTime;
-        }
-      }
-
-      return serviceMatch && methodMatch && statusFilterMatch && searchMatch && timeMatch;
-    });
-
-    setFilteredLogs(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [logs, filters]);
-
-  // Apply pagination
-  React.useEffect(() => {
-    const startIndex = (currentPage - 1) * LOGS_PER_PAGE;
-    const endIndex = startIndex + LOGS_PER_PAGE;
-    setPaginatedLogs(filteredLogs.slice(startIndex, endIndex));
-  }, [filteredLogs, currentPage]);
 
   const totalPages = Math.ceil(filteredLogs.length / LOGS_PER_PAGE);
   const showPagination = filteredLogs.length > LOGS_PER_PAGE;
