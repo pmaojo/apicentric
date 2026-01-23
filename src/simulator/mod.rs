@@ -22,6 +22,7 @@ pub mod wiremock;
 pub mod scripting;
 pub mod typescript;
 pub mod react_query;
+pub mod react_view;
 pub mod axios_client;
 
 // Re-export common types
