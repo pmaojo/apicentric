@@ -34,11 +34,13 @@ async fn test_upload_security_vulnerability() {
 
     // Attempt to upload a malicious file (e.g. .sh script)
     let client = reqwest::Client::new();
-    let form = reqwest::multipart::Form::new()
-        .part("file", reqwest::multipart::Part::bytes(b"#!/bin/bash\necho 'hacked'".to_vec())
+    let form = reqwest::multipart::Form::new().part(
+        "file",
+        reqwest::multipart::Part::bytes(b"#!/bin/bash\necho 'hacked'".to_vec())
             .file_name("exploit.sh")
             .mime_str("application/x-sh")
-            .unwrap());
+            .unwrap(),
+    );
 
     let response = client
         .post(format!("http://localhost:{}/api/iot/upload", port))
@@ -53,11 +55,13 @@ async fn test_upload_security_vulnerability() {
     println!("Upload response status: {}", status);
 
     // Also try to upload a valid CSV
-    let form_valid = reqwest::multipart::Form::new()
-        .part("file", reqwest::multipart::Part::bytes(b"timestamp,value\n1,10".to_vec())
+    let form_valid = reqwest::multipart::Form::new().part(
+        "file",
+        reqwest::multipart::Part::bytes(b"timestamp,value\n1,10".to_vec())
             .file_name("data.csv")
             .mime_str("text/csv")
-            .unwrap());
+            .unwrap(),
+    );
 
     let response_valid = client
         .post(format!("http://localhost:{}/api/iot/upload", port))
