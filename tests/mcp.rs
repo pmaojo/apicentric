@@ -15,7 +15,7 @@ fn test_mcp_command_starts_server_and_responds_to_initialize() {
     let temp_path = temp_file.path();
 
     let mut cmd = Command::new("cargo");
-    cmd.args([
+    cmd.args(&[
         "run",
         "--features",
         "mcp",

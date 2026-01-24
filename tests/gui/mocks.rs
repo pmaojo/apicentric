@@ -89,7 +89,6 @@ pub fn create_test_log_entry(method: &str, path: &str, status: u16) -> RequestLo
         method: method.to_string(),
         path: path.to_string(),
         status,
-        payload: None,
     }
 }
 

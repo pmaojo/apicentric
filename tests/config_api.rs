@@ -33,15 +33,14 @@ async fn test_config_save_and_load() {
 
 #[tokio::test]
 async fn test_config_with_ai_settings() {
-    let config = ApicentricConfig {
-        ai: Some(AiConfig {
-            provider: AiProviderKind::Openai,
-            model_path: None,
-            api_key: Some("test-key".to_string()),
-            model: Some("gpt-4".to_string()),
-        }),
-        ..Default::default()
-    };
+    let mut config = ApicentricConfig::default();
+
+    config.ai = Some(AiConfig {
+        provider: AiProviderKind::Openai,
+        model_path: None,
+        api_key: Some("test-key".to_string()),
+        model: Some("gpt-4".to_string()),
+    });
 
     // Validate
     let validation_result = config.validate();
@@ -62,15 +61,14 @@ async fn test_config_with_ai_settings() {
 
 #[tokio::test]
 async fn test_ai_config_validation_missing_key() {
-    let config = ApicentricConfig {
-        ai: Some(AiConfig {
-            provider: AiProviderKind::Openai,
-            model_path: None,
-            api_key: None, // Missing API key
-            model: Some("gpt-4".to_string()),
-        }),
-        ..Default::default()
-    };
+    let mut config = ApicentricConfig::default();
+
+    config.ai = Some(AiConfig {
+        provider: AiProviderKind::Openai,
+        model_path: None,
+        api_key: None, // Missing API key
+        model: Some("gpt-4".to_string()),
+    });
 
     // Validate
     let validation_result = config.validate();

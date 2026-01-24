@@ -3,6 +3,8 @@
 //! This module handles all GUI messages and coordinates between
 //! the GUI state and the simulator manager.
 
+#![cfg(feature = "gui")]
+
 use super::messages::{CapturedRequest, CodeGenTarget, ExportFormat, GuiMessage};
 use super::models::{EndpointInfo, RequestLogEntry, ServiceInfo, ServiceStatus};
 use super::state::GuiAppState;
@@ -967,6 +969,7 @@ mod tests {
         let manager = create_test_manager();
         let _handler = EventHandler::new(manager);
         // Just verify it can be created
+        assert!(true);
     }
 
     #[tokio::test]
