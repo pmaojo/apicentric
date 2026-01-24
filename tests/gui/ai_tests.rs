@@ -10,6 +10,7 @@ use apicentric::config::{AiConfig, AiProviderKind};
 use apicentric::ApicentricResult;
 use tokio::sync::mpsc;
 
+#[allow(unused_imports)]
 #[tokio::test]
 async fn test_ai_generation_success() {
     let yaml = create_test_service_yaml("test-service");
@@ -731,15 +732,14 @@ fn test_detect_ai_config_present() {
     // Test detection when AI config is present
     use apicentric::config::AiConfig;
 
-    let ai_config = Some(AiConfig {
+    let ai_config = AiConfig {
         provider: AiProviderKind::Openai,
         api_key: Some("test-key".to_string()),
         model: Some("gpt-3.5-turbo".to_string()),
         model_path: None,
-    });
+    };
 
-    assert!(ai_config.is_some());
-    let config = ai_config.unwrap();
+    let config = ai_config;
     assert!(config.api_key.is_some());
 }
 
@@ -886,7 +886,6 @@ async fn test_workflow_with_error_recovery() {
 #[tokio::test]
 async fn test_integration_complete_generation_workflow() {
     // Test the complete workflow from prompt to generated YAML
-    use crate::gui::mocks::create_test_manager;
 
     let yaml = create_test_service_yaml("integration-workflow");
     let provider = MockAiProvider::new_success(&yaml);
@@ -1165,22 +1164,19 @@ async fn test_integration_state_error_workflow() {
     // Test state management during error scenarios
 
     // Simulate state transitions
-    let mut ai_generation_in_progress = false;
-    let mut ai_generated_yaml: Option<String> = None;
-    let mut ai_error: Option<String> = None;
+    let mut ai_generation_in_progress = true;
+    let ai_generated_yaml: Option<String> = None;
 
     // Start generation
-    ai_generation_in_progress = true;
     assert!(ai_generation_in_progress);
 
     // Fail with error
     ai_generation_in_progress = false;
-    ai_generated_yaml = None;
-    ai_error = Some("Test error".to_string());
+    let ai_error = Some("Test error".to_string());
     assert!(!ai_generation_in_progress);
     assert!(ai_generated_yaml.is_none());
     assert!(ai_error.is_some());
-    assert_eq!(ai_error.unwrap(), "Test error");
+    assert_eq!(ai_error, Some("Test error".to_string()));
 }
 
 #[tokio::test]
@@ -1206,15 +1202,14 @@ async fn test_integration_config_detection_workflow() {
 async fn test_integration_validation_errors_workflow() {
     // Test validation errors in state
 
-    // Simulate validation errors state
-    let mut ai_validation_errors: Vec<String> = Vec::new();
-
     // Set validation errors
     let errors = vec![
         "Missing required field: name".to_string(),
         "Invalid port number".to_string(),
     ];
-    ai_validation_errors = errors.clone();
+
+    // Simulate validation errors state
+    let mut ai_validation_errors: Vec<String> = errors.clone();
 
     assert_eq!(ai_validation_errors.len(), 2);
     assert_eq!(ai_validation_errors, errors);

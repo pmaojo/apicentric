@@ -111,7 +111,6 @@ async fn test_message_timeout() {
 
 #[cfg(test)]
 mod gui_message_tests {
-    use super::*;
 
     // Tests for GuiMessage enum variants
     // These tests will verify the enhanced message system once implemented
@@ -120,62 +119,53 @@ mod gui_message_tests {
     fn test_gui_message_enum_structure() {
         // This test will be expanded once GuiMessage is refactored
         // to be accessible from tests
-        assert!(true);
     }
 
     #[test]
     fn test_service_management_messages() {
         // Test that service management message variants can be created
         // Will test: StartService, StopService, RefreshServices, ServiceStatusChanged
-        assert!(true);
     }
 
     #[test]
     fn test_ai_generation_messages() {
         // Test existing AI message variants: AiGenerate, AiApplyYaml
         // Plus new variants: AiGenerationComplete
-        assert!(true);
     }
 
     #[test]
     fn test_recording_messages() {
         // Test recording message variants:
         // StartRecording, StopRecording, CaptureRequest, GenerateFromRecording
-        assert!(true);
     }
 
     #[test]
     fn test_editor_messages() {
         // Test editor message variants:
         // LoadServiceInEditor, SaveEditorContent, EditorContentChanged
-        assert!(true);
     }
 
     #[test]
     fn test_import_export_messages() {
         // Test import/export message variants:
         // ImportFile, ExportService, BatchImport
-        assert!(true);
     }
 
     #[test]
     fn test_code_generation_messages() {
         // Test code generation message variants:
         // GenerateCode, CopyToClipboard, SaveGeneratedCode
-        assert!(true);
     }
 
     #[test]
     fn test_log_messages() {
         // Test log message variants:
         // NewRequestLog, ClearLogs, FilterLogsBy
-        assert!(true);
     }
 
     #[test]
     fn test_config_messages() {
         // Test configuration message variants:
         // UpdateConfig, SaveConfig, LoadConfig
-        assert!(true);
     }
 }
