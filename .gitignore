@@ -3,3 +3,6 @@ node_modules/
 .kiro
 apicentric.db
 .env
+mobile/build/
+mobile/.dart_tool/
+mobile/.pub/

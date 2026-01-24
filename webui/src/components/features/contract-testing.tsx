@@ -141,7 +141,7 @@ export function ContractTesting({ services }: ContractTestingProps) {
                     {isRunningTests && (
                         <div className="rounded-md border min-h-[200px] flex flex-col items-center justify-center bg-muted/50 p-8">
                              <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                            <p className="mb-4">Testing endpoints for "{selectedService?.name}"...</p>
+                            <p className="mb-4">Testing endpoints for &quot;{selectedService?.name}&quot;...</p>
                         </div>
                     )}
                     {error && (

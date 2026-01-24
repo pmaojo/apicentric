@@ -1,6 +1,6 @@
 {
   "name": "apicentric",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "A powerful CLI tool and API simulator platform for developers who love the terminal",
   "bin": {
     "apicentric": "bin/apicentric.js"

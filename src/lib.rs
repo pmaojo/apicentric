@@ -710,7 +710,7 @@ pub mod simulator;
 // CLI module
 #[cfg(not(target_arch = "wasm32"))]
 pub mod cli;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "tui"))]
 pub mod cli_ui;
 
 // IoT module
