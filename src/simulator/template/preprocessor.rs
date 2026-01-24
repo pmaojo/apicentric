@@ -151,21 +151,21 @@ mod tests {
 
     #[test]
     fn converts_bucket_helpers() {
-        let pre = TemplatePreprocessor;
+        let pre = TemplatePreprocessor::default();
         let result = pre.preprocess("{{ bucket.set \"foo\" 1 }}");
         assert_eq!(result, "{{bucket_set \"foo\" 1}}");
     }
 
     #[test]
     fn converts_simple_fixture_access() {
-        let pre = TemplatePreprocessor;
+        let pre = TemplatePreprocessor::default();
         let result = pre.preprocess("{{ fixtures.user }}");
         assert_eq!(result, "{{json fixtures.user}}");
     }
 
     #[test]
     fn handles_pipe_expression() {
-        let pre = TemplatePreprocessor;
+        let pre = TemplatePreprocessor::default();
         let tpl = "{{ fixtures.users | find(id=params.id) }}";
         let result = pre.preprocess(tpl);
         assert_eq!(result, "{{find_by_field fixtures.users \"id\" params.id}}");

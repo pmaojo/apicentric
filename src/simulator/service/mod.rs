@@ -44,17 +44,6 @@ use tokio::net::TcpListener;
 use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
 
-#[derive(Clone)]
-struct ServiceHandlerContext {
-    definition: Arc<StdRwLock<ServiceDefinition>>,
-    state: Arc<RwLock<ServiceState>>,
-    template_engine: Arc<TemplateEngine>,
-    scripting_engine: Arc<ScriptingEngine>,
-    active_scenario: Arc<RwLock<Option<String>>>,
-    graphql: Option<Arc<GraphQLMocks>>,
-    storage: Arc<dyn Storage>,
-}
-
 /// Individual service instance with HTTP server capabilities
 pub struct ServiceInstance {
     definition: Arc<StdRwLock<ServiceDefinition>>,
@@ -161,20 +150,18 @@ impl ServiceInstance {
         })?;
 
         // Clone necessary data for the server task
-        let context = ServiceHandlerContext {
-            definition: Arc::clone(&self.definition),
-            state: Arc::clone(&self.state),
-            template_engine: Arc::clone(&self.template_engine),
-            scripting_engine: Arc::clone(&self.scripting_engine),
-            active_scenario: Arc::clone(&self.active_scenario),
-            graphql: self.graphql.clone(),
-            storage: Arc::clone(&self.storage),
-        };
+        let definition = Arc::clone(&self.definition);
+        let state = Arc::clone(&self.state);
+        let template_engine = Arc::clone(&self.template_engine);
+        let scripting_engine = Arc::clone(&self.scripting_engine);
+        let active_scenario = Arc::clone(&self.active_scenario);
+        let graphql = self.graphql.clone();
+        let storage = Arc::clone(&self.storage);
 
         // Spawn the HTTP server task
         let server_handle = tokio::spawn(async move {
             Self::record_log(
-                &context.state,
+                &state,
                 &service_name,
                 None,
                 "SYSTEM",
@@ -190,15 +177,38 @@ impl ServiceInstance {
                         let io = TokioIo::new(stream);
                         let service_name_for_request = service_name.clone();
                         let service_name_for_error = service_name.clone();
-                        let context = context.clone();
+                        let definition = Arc::clone(&definition);
+                        let state = Arc::clone(&state);
+                        let template_engine = Arc::clone(&template_engine);
+                        let scripting_engine = Arc::clone(&scripting_engine);
+                        let scenario_cfg_outer = Arc::clone(&active_scenario);
+                        let graphql_cfg_outer = graphql.clone();
+                        let storage = Arc::clone(&storage);
 
                         tokio::task::spawn(async move {
                             let service = service_fn(move |req| {
                                 let service_name = service_name_for_request.clone();
-                                let context = context.clone();
+                                let definition = Arc::clone(&definition);
+                                let state = Arc::clone(&state);
+                                let template_engine = Arc::clone(&template_engine);
+                                let scripting_engine = Arc::clone(&scripting_engine);
+                                let scenario_cfg = Arc::clone(&scenario_cfg_outer);
+                                let graphql_cfg = graphql_cfg_outer.clone();
+                                let storage = Arc::clone(&storage);
 
                                 async move {
-                                    match Self::handle_request_static(req, context).await {
+                                    match Self::handle_request_static(
+                                        req,
+                                        Arc::clone(&definition),
+                                        state,
+                                        template_engine,
+                                        scripting_engine,
+                                        scenario_cfg,
+                                        graphql_cfg,
+                                        storage,
+                                    )
+                                    .await
+                                    {
                                         Ok(resp) => Ok::<_, Infallible>(resp),
                                         Err(err) => {
                                             eprintln!(
@@ -287,17 +297,17 @@ impl ServiceInstance {
             ));
         }
 
-        let context = ServiceHandlerContext {
-            definition: Arc::clone(&self.definition),
-            state: Arc::clone(&self.state),
-            template_engine: Arc::clone(&self.template_engine),
-            scripting_engine: Arc::clone(&self.scripting_engine),
-            active_scenario: Arc::clone(&self.active_scenario),
-            graphql: self.graphql.clone(),
-            storage: Arc::clone(&self.storage),
-        };
-
-        Self::handle_request_static(req, context).await
+        Self::handle_request_static(
+            req,
+            Arc::clone(&self.definition),
+            Arc::clone(&self.state),
+            Arc::clone(&self.template_engine),
+            Arc::clone(&self.scripting_engine),
+            Arc::clone(&self.active_scenario),
+            self.graphql.clone(),
+            Arc::clone(&self.storage),
+        )
+        .await
     }
 
     /// Check if the service is currently running
@@ -659,10 +669,16 @@ impl ServiceInstance {
     /// Static request handler for use in the HTTP server
     async fn handle_request_static(
         req: Request<hyper::body::Incoming>,
-        context: ServiceHandlerContext,
+        definition: Arc<StdRwLock<ServiceDefinition>>,
+        state: Arc<RwLock<ServiceState>>,
+        template_engine: Arc<TemplateEngine>,
+        scripting_engine: Arc<ScriptingEngine>,
+        active_scenario: Arc<RwLock<Option<String>>>,
+        graphql: Option<Arc<GraphQLMocks>>,
+        storage: Arc<dyn Storage>,
     ) -> ApicentricResult<Response<Full<Bytes>>> {
         let (service_name, base_path, endpoints, cors_cfg, proxy_base_url, record_unknown) = {
-            let def = context.definition.read().unwrap();
+            let def = definition.read().unwrap();
             let (base_path, cors_cfg, proxy_cfg, record_unknown) = if let Some(server) = &def.server
             {
                 (
@@ -691,7 +707,7 @@ impl ServiceInstance {
 
         // Log incoming request
         Self::record_log(
-            &context.state,
+            &state,
             &service_name,
             None,
             "DEBUG",
@@ -806,7 +822,7 @@ impl ServiceInstance {
                 })?;
 
             Self::record_log(
-                &context.state,
+                &state,
                 &service_name,
                 None,
                 "DEBUG",
@@ -816,7 +832,7 @@ impl ServiceInstance {
             )
             .await;
             Self::record_log(
-                &context.state,
+                &state,
                 &service_name,
                 None,
                 method,
@@ -845,7 +861,7 @@ impl ServiceInstance {
                         )
                     })?;
                 Self::record_log(
-                    &context.state,
+                    &state,
                     &service_name,
                     None,
                     method,
@@ -861,7 +877,7 @@ impl ServiceInstance {
         let request_body = if !body_bytes.is_empty() {
             let body_str = String::from_utf8_lossy(&body_bytes);
             Self::record_log(
-                &context.state,
+                &state,
                 &service_name,
                 None,
                 "DEBUG",
@@ -909,7 +925,7 @@ impl ServiceInstance {
         };
 
         // Handle GraphQL endpoint if configured
-        if let Some(gql) = &context.graphql {
+        if let Some(gql) = &graphql {
             if let Some((resp, status)) = handle_graphql_request(
                 gql,
                 method,
@@ -917,23 +933,14 @@ impl ServiceInstance {
                 &body_bytes,
                 &query_params,
                 &headers,
-                &context.template_engine,
-                &context.state,
+                &template_engine,
+                &state,
                 &service_name,
                 path,
             )
             .await
             {
-                Self::record_log(
-                    &context.state,
-                    &service_name,
-                    None,
-                    method,
-                    path,
-                    status,
-                    None,
-                )
-                .await;
+                Self::record_log(&state, &service_name, None, method, path, status, None).await;
                 return Ok(resp);
             }
         }
@@ -950,7 +957,7 @@ impl ServiceInstance {
                 .get("status")
                 .and_then(|v| v.parse::<u16>().ok());
             let logs = {
-                let state = context.state.read().await;
+                let state = state.read().await;
                 state.query_logs(
                     Some(&service_name),
                     route_filter,
@@ -970,7 +977,7 @@ impl ServiceInstance {
                         None::<String>,
                     )
                 })?;
-            Self::record_log(&context.state, &service_name, None, method, path, 200, None).await;
+            Self::record_log(&state, &service_name, None, method, path, 200, None).await;
             return Ok(resp);
         }
 
@@ -985,10 +992,10 @@ impl ServiceInstance {
                 let mut selected_status = 200u16;
 
                 // Try to match explicit or rotating scenarios
-                let active = context.active_scenario.read().await.clone();
+                let active = active_scenario.read().await.clone();
                 if let Some((status, resp)) = Self::match_scenario(
                     &route_match.endpoint,
-                    &context.state,
+                    &state,
                     route_match.endpoint_index,
                     active,
                     &query_params,
@@ -1004,7 +1011,7 @@ impl ServiceInstance {
                     for (status_code, response_def) in &route_match.endpoint.responses {
                         if let Some(ref condition) = response_def.condition {
                             // Create template context for condition evaluation
-                            let state_guard = context.state.read().await;
+                            let state_guard = state.read().await;
                             let request_context = RequestContext::from_request_data(
                                 method.to_string(),
                                 relative_path.clone(),
@@ -1020,7 +1027,7 @@ impl ServiceInstance {
                             );
 
                             // Evaluate condition
-                            match context.template_engine.render(condition, &template_context) {
+                            match template_engine.render(condition, &template_context) {
                                 Ok(result) => {
                                     // Check if condition evaluates to truthy
                                     let is_truthy = !result.trim().is_empty()
@@ -1073,8 +1080,8 @@ impl ServiceInstance {
                     if let Some(ref script_path) = response_def.script {
                         match Self::execute_script(
                             script_path.as_path(),
-                            &context.state,
-                            &context.scripting_engine,
+                            &state,
+                            &scripting_engine,
                             &route_match.path_params,
                             &request_context,
                         )
@@ -1091,7 +1098,7 @@ impl ServiceInstance {
                         }
                     }
 
-                    let state_guard = context.state.read().await;
+                    let state_guard = state.read().await;
                     let template_context = TemplateContext::new(
                         &state_guard,
                         &route_match.path_params,
@@ -1113,7 +1120,7 @@ impl ServiceInstance {
                         match Self::process_response_body_template(
                             &response_body,
                             &template_context,
-                            &context.template_engine,
+                            &template_engine,
                             &service_name,
                             method,
                             path,
@@ -1134,13 +1141,13 @@ impl ServiceInstance {
                     };
 
                     if let Some(ref side_effects) = response_def.side_effects {
-                        let mut state_guard = context.state.write().await;
+                        let mut state_guard = state.write().await;
                         for side_effect in side_effects {
                             if let Err(e) = Self::process_side_effect(
                                 side_effect,
                                 &mut state_guard,
                                 &template_context,
-                                &context.template_engine,
+                                &template_engine,
                             ) {
                                 log::warn!("Side effect processing error: {}", e);
                             }
@@ -1154,7 +1161,7 @@ impl ServiceInstance {
                     if let Some(ref headers_map) = response_def.headers {
                         for (key, value) in headers_map {
                             let header_value = if value.contains("{{") {
-                                match context.template_engine.render(value, &template_context) {
+                                match template_engine.render(value, &template_context) {
                                     Ok(v) => v,
                                     Err(e) => {
                                         log::warn!("Header template rendering error: {}", e);
@@ -1222,7 +1229,7 @@ impl ServiceInstance {
                         })?;
 
                     Self::record_log(
-                        &context.state,
+                        &state,
                         &service_name,
                         Some(route_match.endpoint_index),
                         method,
@@ -1247,7 +1254,7 @@ impl ServiceInstance {
                             )
                         })?;
                     Self::record_log(
-                        &context.state,
+                        &state,
                         &service_name,
                         Some(route_match.endpoint_index),
                         method,
@@ -1312,7 +1319,7 @@ impl ServiceInstance {
                                 )
                             })?;
                             Self::record_log(
-                                &context.state,
+                                &state,
                                 &service_name,
                                 None,
                                 method,
@@ -1338,7 +1345,7 @@ impl ServiceInstance {
                                     )
                                 })?;
                             Self::record_log(
-                                &context.state,
+                                &state,
                                 &service_name,
                                 None,
                                 method,
@@ -1355,7 +1362,7 @@ impl ServiceInstance {
                         Self::build_recorded_endpoint(method, &relative_path);
 
                     let saved_definition = {
-                        let mut def = context.definition.write().unwrap();
+                        let mut def = definition.write().unwrap();
                         match def.endpoints.as_mut() {
                             Some(endpoints) => endpoints.push(placeholder_endpoint),
                             None => def.endpoints = Some(vec![placeholder_endpoint]),
@@ -1363,7 +1370,7 @@ impl ServiceInstance {
                         def.clone()
                     };
 
-                    if let Err(err) = context.storage.save_service(&saved_definition) {
+                    if let Err(err) = storage.save_service(&saved_definition) {
                         log::warn!(
                             "Failed to persist recorded endpoint for {} {}: {}",
                             method,
@@ -1430,7 +1437,7 @@ impl ServiceInstance {
                             )
                         })?;
                     Self::record_log(
-                        &context.state,
+                        &state,
                         &service_name,
                         None,
                         method,
@@ -1455,7 +1462,7 @@ impl ServiceInstance {
                             )
                         })?;
                     Self::record_log(
-                        &context.state,
+                        &state,
                         &service_name,
                         None,
                         method,

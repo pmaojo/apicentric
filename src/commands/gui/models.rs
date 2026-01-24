@@ -73,9 +73,8 @@ impl RequestLogEntry {
 }
 
 /// Filter for request logs
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LogFilter {
-    #[default]
     All,
     Service(String),
     StatusCode(u16),
@@ -91,6 +90,12 @@ impl LogFilter {
             LogFilter::StatusCode(code) => entry.status_code == *code,
             LogFilter::Method(method) => entry.method == *method,
         }
+    }
+}
+
+impl Default for LogFilter {
+    fn default() -> Self {
+        LogFilter::All
     }
 }
 
@@ -241,13 +246,25 @@ pub struct RecordingSession {
 }
 
 /// Editor state
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct EditorState {
     pub content: String,
     pub dirty: bool,
     pub selected_service: Option<String>,
     pub loading: bool,
     pub saving: bool,
+}
+
+impl Default for EditorState {
+    fn default() -> Self {
+        Self {
+            content: String::new(),
+            dirty: false,
+            selected_service: None,
+            loading: false,
+            saving: false,
+        }
+    }
 }
 
 /// GUI configuration

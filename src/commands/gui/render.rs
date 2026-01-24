@@ -2,6 +2,8 @@
 //!
 //! This module contains the rendering logic for the `egui` application.
 
+#![cfg(feature = "gui")]
+
 use super::messages::GuiSystemEvent;
 use super::models::{EditorState, LogFilter, RequestLogEntry, ServiceStatus};
 use super::state::GuiAppState;

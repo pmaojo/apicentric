@@ -8,12 +8,6 @@ pub struct ScriptingEngine {
     engine: Arc<Mutex<Engine>>,
 }
 
-impl Default for ScriptingEngine {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ScriptingEngine {
     pub fn new() -> Self {
         let mut engine = Engine::new();
