@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::process::Command;
 
-use anyhow::{anyhow, Context, Result};
+use crate::errors::{ApicentricResult, ApicentricError};
 use tempfile::NamedTempFile;
 
 use super::openapi;
@@ -11,30 +11,33 @@ use crate::simulator::config::ServiceDefinition;
 ///
 /// This helper converts the simulator's `ServiceDefinition` into an OpenAPI
 /// 3.0 spec and runs `openapi-typescript` to produce TypeScript definitions.
-pub fn to_typescript(service: &ServiceDefinition) -> Result<String> {
+pub fn to_typescript(service: &ServiceDefinition) -> ApicentricResult<String> {
     // Convert to OpenAPI 3.0
     let spec = openapi::to_openapi(service);
-    let spec_json = serde_json::to_string(&spec).context("serialize OpenAPI spec")?;
+    let spec_json = serde_json::to_string(&spec).map_err(ApicentricError::Json)?;
 
     // Write spec to temporary file
-    let mut spec_file = NamedTempFile::new().context("create temp spec file")?;
+    let mut spec_file = NamedTempFile::new().map_err(ApicentricError::Io)?;
     spec_file
         .write_all(spec_json.as_bytes())
-        .context("write spec to temp file")?;
+        .map_err(ApicentricError::Io)?;
     let spec_path = spec_file.path().to_path_buf();
 
     // Run openapi-typescript
     let output = Command::new("npx")
         .args(["-y", "openapi-typescript", spec_path.to_str().unwrap()])
         .output()
-        .context("running openapi-typescript")?;
+        .map_err(ApicentricError::Io)?;
     if !output.status.success() {
-        return Err(anyhow!(
-            "openapi-typescript failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
+        return Err(ApicentricError::Runtime {
+            message: format!("openapi-typescript failed: {}", String::from_utf8_lossy(&output.stderr)),
+            suggestion: Some("Ensure npx and openapi-typescript are available".to_string())
+        });
     }
 
-    let types = String::from_utf8(output.stdout).context("parse openapi-typescript output")?;
+    let types = String::from_utf8(output.stdout).map_err(|e| ApicentricError::Data {
+        message: format!("Failed to parse openapi-typescript output: {}", e),
+        suggestion: None
+    })?;
     Ok(types)
 }

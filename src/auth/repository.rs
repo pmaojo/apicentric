@@ -4,6 +4,7 @@
 //! retrieve user data from a SQLite database.
 
 use crate::auth::model::User;
+use crate::errors::{ApicentricResult, ApicentricError};
 use rusqlite::{params, Connection};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -20,8 +21,12 @@ impl AuthRepository {
     /// # Arguments
     ///
     /// * `path` - The path to the SQLite database file.
-    pub fn new<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let conn = Connection::open(path)?;
+    pub fn new<P: AsRef<Path>>(path: P) -> ApicentricResult<Self> {
+        let conn = Connection::open(path).map_err(|e| ApicentricError::Database {
+            message: e.to_string(),
+            suggestion: Some("Check database path permissions".to_string())
+        })?;
+
         conn.execute(
             "CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +35,11 @@ impl AuthRepository {
                 created_at TEXT NOT NULL
             )",
             [],
-        )?;
+        ).map_err(|e| ApicentricError::Database {
+            message: format!("Failed to initialize database: {}", e),
+            suggestion: None
+        })?;
+
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -50,15 +59,23 @@ impl AuthRepository {
         &self,
         username: String,
         password_hash: String,
-    ) -> anyhow::Result<User> {
+    ) -> ApicentricResult<User> {
         let conn = self.conn.clone();
         tokio::task::spawn_blocking(move || {
             let now = chrono::Utc::now().to_rfc3339();
-            let c = conn.lock().unwrap();
+            let c = conn.lock().map_err(|_| ApicentricError::Database {
+                message: "Failed to acquire database lock".to_string(),
+                suggestion: None
+            })?;
+
             c.execute(
                 "INSERT INTO users (username, password_hash, created_at) VALUES (?1, ?2, ?3)",
                 params![username, password_hash, now],
-            )?;
+            ).map_err(|e| ApicentricError::Database {
+                message: format!("Failed to create user: {}", e),
+                suggestion: Some("Check if username already exists".to_string())
+            })?;
+
             let id = c.last_insert_rowid();
             Ok(User {
                 id,
@@ -67,7 +84,11 @@ impl AuthRepository {
                 created_at: now,
             })
         })
-        .await?
+        .await
+        .map_err(|e| ApicentricError::Runtime {
+            message: format!("Database task join error: {}", e),
+            suggestion: None
+        })?
     }
 
     /// Finds a user by their username.
@@ -80,25 +101,44 @@ impl AuthRepository {
     ///
     /// An `Option` containing the user if they were found, or `None` if they
     /// were not.
-    pub async fn find_by_username(&self, username: String) -> anyhow::Result<Option<User>> {
+    pub async fn find_by_username(&self, username: String) -> ApicentricResult<Option<User>> {
         let conn = self.conn.clone();
         tokio::task::spawn_blocking(move || {
-            let c = conn.lock().unwrap();
+            let c = conn.lock().map_err(|_| ApicentricError::Database {
+                message: "Failed to acquire database lock".to_string(),
+                suggestion: None
+            })?;
+
             let mut stmt = c.prepare(
                 "SELECT id, username, password_hash, created_at FROM users WHERE username = ?1",
-            )?;
-            let mut rows = stmt.query(params![username])?;
-            if let Some(row) = rows.next()? {
+            ).map_err(|e| ApicentricError::Database {
+                message: format!("Failed to prepare query: {}", e),
+                suggestion: None
+            })?;
+
+            let mut rows = stmt.query(params![username]).map_err(|e| ApicentricError::Database {
+                message: format!("Failed to execute query: {}", e),
+                suggestion: None
+            })?;
+
+            if let Some(row) = rows.next().map_err(|e| ApicentricError::Database {
+                message: format!("Failed to fetch row: {}", e),
+                suggestion: None
+            })? {
                 Ok(Some(User {
-                    id: row.get(0)?,
-                    username: row.get(1)?,
-                    password_hash: row.get(2)?,
-                    created_at: row.get(3)?,
+                    id: row.get(0).map_err(|e| ApicentricError::Database { message: e.to_string(), suggestion: None })?,
+                    username: row.get(1).map_err(|e| ApicentricError::Database { message: e.to_string(), suggestion: None })?,
+                    password_hash: row.get(2).map_err(|e| ApicentricError::Database { message: e.to_string(), suggestion: None })?,
+                    created_at: row.get(3).map_err(|e| ApicentricError::Database { message: e.to_string(), suggestion: None })?,
                 }))
             } else {
                 Ok(None)
             }
         })
-        .await?
+        .await
+        .map_err(|e| ApicentricError::Runtime {
+            message: format!("Database task join error: {}", e),
+            suggestion: None
+        })?
     }
 }

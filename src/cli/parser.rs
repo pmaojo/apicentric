@@ -3,6 +3,11 @@
 //! This module implements a manual command-line argument parser to replace `clap`.
 //! It supports recursive descent parsing for subcommands and strongly-typed argument handling.
 
+// We use `while let` on iterators to manually parse arguments which might consume
+// extra items (e.g. flag values). Clippy prefers `for` loops but they borrow the iterator
+// preventing manual `next()` calls inside the loop.
+#![allow(clippy::while_let_on_iterator)]
+
 use crate::cli::args::{
     AiAction, Cli, CliExecutionMode, Commands, ExportFormat, SimulatorAction,
 };

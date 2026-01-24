@@ -1,5 +1,6 @@
 use crate::iot::model::VariableValue;
 use crate::iot::traits::SimulationStrategy;
+use crate::errors::{ApicentricResult, ApicentricError};
 use async_trait::async_trait;
 use std::time::SystemTime;
 
@@ -25,9 +26,13 @@ impl SineWaveStrategy {
 
 #[async_trait]
 impl SimulationStrategy for SineWaveStrategy {
-    async fn tick(&self, state: &mut crate::iot::model::DigitalTwinState) -> anyhow::Result<()> {
+    async fn tick(&self, state: &mut crate::iot::model::DigitalTwinState) -> ApicentricResult<()> {
         let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map_err(|e| ApicentricError::Runtime {
+                message: format!("Time calculation error: {}", e),
+                suggestion: None
+            })?
             .as_secs_f64();
         // A * sin(wt) + offset
         // Amplitude A = (max - min) / 2

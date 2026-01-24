@@ -1,5 +1,6 @@
 use crate::iot::model::{DigitalTwinState, VariableValue};
 use crate::iot::traits::SimulationStrategy;
+use crate::errors::{ApicentricResult, ApicentricError};
 use async_trait::async_trait;
 use log::warn;
 use std::path::Path;
@@ -20,7 +21,7 @@ impl ReplayStrategy {
         variable_name: String,
         column_name: Option<String>,
         loop_data: bool,
-    ) -> anyhow::Result<Self> {
+    ) -> ApicentricResult<Self> {
         let mut data = Vec::new();
         let mut rdr = csv::Reader::from_path(file_path)?;
 
@@ -30,7 +31,10 @@ impl ReplayStrategy {
             headers
                 .iter()
                 .position(|h| h == col)
-                .ok_or_else(|| anyhow::anyhow!("Column '{}' not found in CSV file", col))?
+                .ok_or_else(|| ApicentricError::Data {
+                    message: format!("Column '{}' not found in CSV file", col),
+                    suggestion: Some("Check CSV headers".to_string())
+                })?
         } else {
             0 // Default to first column
         };
@@ -55,7 +59,10 @@ impl ReplayStrategy {
         }
 
         if data.is_empty() {
-            return Err(anyhow::anyhow!("CSV file contains no data"));
+            return Err(ApicentricError::Data {
+                message: "CSV file contains no data".to_string(),
+                suggestion: Some("Ensure the CSV file is not empty".to_string())
+            });
         }
 
         Ok(Self {
@@ -69,8 +76,11 @@ impl ReplayStrategy {
 
 #[async_trait]
 impl SimulationStrategy for ReplayStrategy {
-    async fn tick(&self, state: &mut DigitalTwinState) -> anyhow::Result<()> {
-        let mut idx = self.index.lock().unwrap();
+    async fn tick(&self, state: &mut DigitalTwinState) -> ApicentricResult<()> {
+        let mut idx = self.index.lock().map_err(|_| ApicentricError::Runtime {
+            message: "Failed to lock replay index".to_string(),
+            suggestion: None
+        })?;
 
         if *idx >= self.data.len() {
             if self.loop_data {
