@@ -37,7 +37,7 @@ COPY src/ ./src/
 COPY examples/ ./examples/
 
 # Build with all features for cloud deployment
-RUN cargo build --release --bin apicentric --features "gui,cloud"
+RUN cargo build --release --bin apicentric
 
 # Stage 3: Runtime
 FROM debian:bookworm-slim
@@ -61,20 +61,20 @@ COPY --from=frontend-builder /app/webui/public ./webui/public
 RUN mkdir -p /app/data /app/services
 
 # Set environment variables
-ENV APICENTRIC_PORT=8000
+ENV APICENTRIC_PORT=8080
 ENV APICENTRIC_HOST=0.0.0.0
 ENV APICENTRIC_DATA_DIR=/app/data
 ENV APICENTRIC_SERVICES_DIR=/app/services
 ENV RUST_LOG=info,apicentric=debug
 
 # Expose ports
-# 8000: Backend API and WebSocket
+# 8080: Backend API and WebSocket
 # 3000: Frontend (if running separately)
-EXPOSE 8000 3000
+EXPOSE 8080 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 
 # Default command: start cloud server
-CMD ["apicentric", "cloud", "--port", "8000"]
+CMD ["apicentric", "cloud"]
