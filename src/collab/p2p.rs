@@ -28,13 +28,13 @@ struct CollabBehaviour {
 
 #[derive(Debug)]
 pub enum CollabBehaviourEvent {
-    Gossipsub(gossipsub::Event),
+    Gossipsub(Box<gossipsub::Event>),
     Mdns(mdns::Event),
 }
 
 impl From<gossipsub::Event> for CollabBehaviourEvent {
     fn from(event: gossipsub::Event) -> Self {
-        CollabBehaviourEvent::Gossipsub(event)
+        CollabBehaviourEvent::Gossipsub(Box::new(event))
     }
 }
 
@@ -118,7 +118,7 @@ pub async fn spawn() -> Result<
                             }
                         }
                         SwarmEvent::Behaviour(CollabBehaviourEvent::Gossipsub(ev)) => {
-                            if let gossipsub::Event::Message { message, .. } = ev {
+                            if let gossipsub::Event::Message { message, .. } = *ev {
                                 let _ = tx_events.send(message.data);
                             }
                         }

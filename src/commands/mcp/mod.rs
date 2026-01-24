@@ -3,8 +3,6 @@
 //! This command starts the MCP server, allowing AI agents to interact with
 //! `apicentric`'s mock services.
 
-#![cfg(feature = "mcp")]
-
 pub mod server;
 
 use apicentric::{ApicentricError, ApicentricResult, Context, ExecutionContext};

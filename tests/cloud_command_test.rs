@@ -37,6 +37,7 @@ fn test_cloud_command_starts_server() {
 
     // Kill the server process regardless of the outcome
     child.kill().expect("Failed to kill child process");
+    child.wait().expect("Failed to wait on child");
 
     // Assert that the server responded successfully
     let response = response.expect("Server did not become available within 30 seconds");

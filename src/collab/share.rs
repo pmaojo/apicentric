@@ -180,76 +180,70 @@ pub async fn share_service(port: u16) -> Result<(PeerId, String), Box<dyn Error>
     tokio::spawn(async move {
         loop {
             match swarm.select_next_some().await {
-                SwarmEvent::Behaviour(ShareBehaviourEvent::RequestResponse(ev)) => match ev {
+                SwarmEvent::Behaviour(ShareBehaviourEvent::RequestResponse(
                     request_response::Event::Message {
-                        peer: _, message, ..
-                    } => {
-                        if let request_response::Message::Request {
-                            request, channel, ..
-                        } = message
-                        {
-                            if let Ok(req_msg) = serde_json::from_slice::<HttpRequestMsg>(&request)
-                            {
-                                if req_msg.token != token_clone {
-                                    let _ = swarm
-                                        .behaviour_mut()
-                                        .request_response
-                                        .send_response(channel, Bytes::new());
-                                    continue;
-                                }
-                                let method = req_msg.method.parse().unwrap_or(hyper::Method::GET);
-                                let mut builder = Request::builder()
-                                    .method(method)
-                                    .uri(format!("http://127.0.0.1:{}{}", port, req_msg.path));
-                                for (k, v) in req_msg.headers {
-                                    builder = builder.header(&k, v);
-                                }
-                                let req = builder
-                                    .body(Full::from(req_msg.body))
-                                    .expect("valid request");
-                                let resp_msg = match client.request(req).await {
-                                    Ok(resp) => {
-                                        let status = resp.status().as_u16();
-                                        let headers = resp
-                                            .headers()
-                                            .iter()
-                                            .map(|(k, v)| {
-                                                (
-                                                    k.to_string(),
-                                                    v.to_str().unwrap_or_default().to_string(),
-                                                )
-                                            })
-                                            .collect();
-                                        let body = resp
-                                            .into_body()
-                                            .collect()
-                                            .await
-                                            .unwrap_or_default()
-                                            .to_bytes()
-                                            .to_vec();
-                                        HttpResponseMsg {
-                                            status,
-                                            headers,
-                                            body,
-                                        }
-                                    }
-                                    Err(_) => HttpResponseMsg {
-                                        status: 500,
-                                        headers: vec![],
-                                        body: vec![],
-                                    },
-                                };
-                                if let Ok(data) = serde_json::to_vec(&resp_msg) {
-                                    let _ = swarm
-                                        .behaviour_mut()
-                                        .request_response
-                                        .send_response(channel, Bytes::from(data));
+                        message:
+                            request_response::Message::Request {
+                                request, channel, ..
+                            },
+                        ..
+                    },
+                )) => {
+                    if let Ok(req_msg) = serde_json::from_slice::<HttpRequestMsg>(&request) {
+                        if req_msg.token != token_clone {
+                            let _ = swarm
+                                .behaviour_mut()
+                                .request_response
+                                .send_response(channel, Bytes::new());
+                            continue;
+                        }
+                        let method = req_msg.method.parse().unwrap_or(hyper::Method::GET);
+                        let mut builder = Request::builder()
+                            .method(method)
+                            .uri(format!("http://127.0.0.1:{}{}", port, req_msg.path));
+                        for (k, v) in req_msg.headers {
+                            builder = builder.header(&k, v);
+                        }
+                        let req = builder
+                            .body(Full::from(req_msg.body))
+                            .expect("valid request");
+                        let resp_msg = match client.request(req).await {
+                            Ok(resp) => {
+                                let status = resp.status().as_u16();
+                                let headers = resp
+                                    .headers()
+                                    .iter()
+                                    .map(|(k, v)| {
+                                        (k.to_string(), v.to_str().unwrap_or_default().to_string())
+                                    })
+                                    .collect();
+                                let body = resp
+                                    .into_body()
+                                    .collect()
+                                    .await
+                                    .unwrap_or_default()
+                                    .to_bytes()
+                                    .to_vec();
+                                HttpResponseMsg {
+                                    status,
+                                    headers,
+                                    body,
                                 }
                             }
+                            Err(_) => HttpResponseMsg {
+                                status: 500,
+                                headers: vec![],
+                                body: vec![],
+                            },
+                        };
+                        if let Ok(data) = serde_json::to_vec(&resp_msg) {
+                            let _ = swarm
+                                .behaviour_mut()
+                                .request_response
+                                .send_response(channel, Bytes::from(data));
                         }
                     }
-                    _ => {}
-                },
+                }
                 SwarmEvent::Behaviour(ShareBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
                     for (peer, addr) in list {
                         swarm.add_peer_address(peer, addr);
@@ -303,7 +297,7 @@ pub async fn connect_service(
 
     swarm.listen_on("/ip4/0.0.0.0/udp/0/quic-v1".parse()?)?;
 
-    let peer_clone = peer_id.clone();
+    let peer_clone = peer_id;
 
     tokio::spawn(async move {
         loop {
@@ -315,11 +309,17 @@ pub async fn connect_service(
                 event = swarm.select_next_some() => {
                     match event {
                         SwarmEvent::Behaviour(ShareBehaviourEvent::RequestResponse(ev)) => match ev {
-                            request_response::Event::Message { message, .. } => {
-                                if let request_response::Message::Response { request_id, response, .. } = message {
-                                    if let Some(tx) = pending_swarm.write().await.remove(&request_id) {
-                                        let _ = tx.send(response);
-                                    }
+                            request_response::Event::Message {
+                                message:
+                                    request_response::Message::Response {
+                                        request_id,
+                                        response,
+                                        ..
+                                    },
+                                ..
+                            } => {
+                                if let Some(tx) = pending_swarm.write().await.remove(&request_id) {
+                                    let _ = tx.send(response);
                                 }
                             }
                             request_response::Event::OutboundFailure { request_id, .. } => {

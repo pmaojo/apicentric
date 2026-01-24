@@ -97,6 +97,7 @@ impl ApicentricMcpService {
                         .unwrap_or_else(|| "application/json".to_string()),
                     body: endpoint.response.body_template,
                     script: None,
+                    schema: None,
                     headers: Some(endpoint.response.headers),
                     side_effects: None,
                 },

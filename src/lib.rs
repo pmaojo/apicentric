@@ -11,8 +11,9 @@
 //! - 🎯 **Mock APIs** with simple YAML configuration
 //! - ✅ **Test API contracts** between services
 //! - 🔄 **Generate code** (TypeScript types, React Query hooks)
+//! - ✨ **MCP** Power your agent with API mocking tools
+//! - 🏭 **IoT Digital Twins** Simulate industrial devices with MQTT and Modbus
 //! - 🖥️ **TUI (Terminal User Interface)** for visual service management
-//! - 🌐 **P2P collaboration** on service definitions (optional)
 //!
 //! Perfect for frontend developers who need backend APIs, teams doing contract testing, or anyone who loves working in the terminal.
 //!
@@ -24,6 +25,7 @@
 //! - **Simulator**: A local server that serves the mock APIs defined in your service definitions.
 //! - **Contract Testing**: A feature that allows you to validate that your mock APIs match the real APIs they are mocking.
 //! - **Code Generation**: A feature that allows you to generate client code from your service definitions.
+//! - **Digital Twin**: An actor-based simulation of a physical device with state, physics, and network protocols.
 //! - **TUI**: A terminal user interface that provides a visual way to manage your services.
 //!
 //! ## Real-World Example: E-commerce API
@@ -593,17 +595,329 @@
 //! - Start/stop services
 //! - Keyboard-driven workflow
 //!
+//! ### 🤖 AI Integration with MCP (Model Context Protocol)
+//!
+//! Apicentric supports the **Model Context Protocol (MCP)**, allowing AI assistants like Claude, ChatGPT, and other MCP-compatible tools to interact with your API simulator programmatically.
+//!
+//! #### What is MCP?
+//!
+//! MCP is an open protocol that enables AI models to securely access external tools and data sources. With MCP, AI assistants can:
+//!
+//! - Create and manage mock API services
+//! - Start/stop services dynamically
+//! - Monitor service logs and status
+//! - Generate service definitions from natural language descriptions
+//!
+//! #### Quick MCP Setup
+//!
+//! 1. **Install with MCP support:**
+//!
+//!    ```bash
+//!    cargo install apicentric --features mcp
+//!    # or
+//!    brew install pmaojo/tap/apicentric  # includes MCP
+//!    ```
+//!
+//! 2. **Configure your AI assistant:**
+//!
+//!    For **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+//!
+//!    ```json
+//!    {
+//!      "mcpServers": {
+//!        "apicentric": {
+//!          "command": "apicentric",
+//!          "args": ["mcp"]
+//!        }
+//!      }
+//!    }
+//!    ```
+//!
+//!    For **VS Code** (`.vscode/mcp.json`):
+//!
+//!    ```json
+//!    {
+//!      "servers": {
+//!        "apicentric": {
+//!          "type": "stdio",
+//!          "command": "apicentric",
+//!          "args": ["mcp"]
+//!        }
+//!      }
+//!    }
+//!    ```
+//!
+//! 3. **Start using MCP tools in your AI assistant:**
+//!
+//!    ```
+//!    "Create a mock API for a user management system with login and profile endpoints"
+//!    ```
+//!
+//!    The AI will use MCP tools to automatically create and start the service!
+//!
+//! #### Available MCP Tools
+//!
+//! - **`list_services`**: List all available mock services
+//! - **`create_service`**: Create a new service from YAML definition
+//! - **`start_service`**: Start a specific mock service
+//! - **`stop_service`**: Stop a running service
+//! - **`get_service_logs`**: Retrieve logs for a service
+//!
+//! #### MCP Example Workflow
+//!
+//! **User:** "Create a REST API for managing books with CRUD operations"
+//!
+//! **AI Assistant (using MCP tools):**
+//!
+//! 1. Uses `create_service` to generate a books API YAML
+//! 2. Uses `start_service` to launch the API on a port
+//! 3. Confirms with `get_service_logs` that it's running
+//! 4. Provides curl examples for testing
+//!
+//! **Result:** A fully functional mock API ready for testing!
+//!
+//! #### MCP Benefits
+//!
+//! - **Natural Language API Creation**: Describe your API in plain English
+//! - **Automated Testing Setup**: AI handles service creation and configuration
+//! - **Integrated Development**: Seamless workflow between AI assistance and API development
+//! - **Rapid Prototyping**: Go from idea to working mock API in seconds
+//!
+//! ### 🏭 IoT Digital Twins
+//!
+//! Transform Apicentric into a multi-protocol simulation engine for IoT and Industrial devices.
+//!
+//! - **Actor Model**: Each twin runs as an independent lightweight process with its own state loop.
+//! - **Physics Simulation**: Define variable behaviors using strategies (e.g., sine waves, noise) or custom Rhai scripts.
+//! - **Protocol Support**:
+//!   - **MQTT**: Publish simulated telemetry to any MQTT broker.
+//!   - **Modbus TCP**: Act as a Modbus server exposing registers.
+//!
+//! #### Example Device Definition
+//!
+//! ```yaml
+//! twin:
+//!   name: "Sensor_Presion_01"
+//!   physics:
+//!     - variable: "pressure"
+//!       strategy: "script"
+//!       params:
+//!         code: "value + 1.5"
+//!
+//!   transports:
+//!     - type: "mqtt"
+//!       broker_url: "localhost"
+//!       port: 1883
+//!       topic_prefix: "sensors/pressure"
+//!       client_id: "sensor_01"
+//! ```
+//!
+//! #### Running a Twin
+//!
+//! ```bash
+//! apicentric twin run --device assets/library/demo_device.yaml
+//! ```
+//!
 //! ### 🌐 Advanced Features (Optional)
 //!
 //! - **P2P Collaboration**: Share services with team members
 //! - **GraphQL Mocking**: Mock GraphQL APIs with schema
 //! - **JavaScript Plugins**: Extend with custom logic
 //!
+//! ## Utility Commands
+//!
+//! Apicentric includes built-in tools to help you manage your environment:
+//!
+//! ### 🏥 Doctor
+//!
+//! Diagnose issues with your installation or environment:
+//!
+//! ```bash
+//! apicentric doctor
+//! ```
+//!
+//! ### 🌐 Open WebUI
+//!
+//! Quickly open the WebUI in your default browser:
+//!
+//! ```bash
+//! apicentric open
+//! # Or specify a custom port
+//! apicentric open --port 9002
+//! ```
+//!
+//! ## Troubleshooting
+//!
+//! ### Command not found
+//!
+//! **Issue:** `apicentric: command not found` after installation
+//!
+//! **Solutions:**
+//!
+//! - **Homebrew:** Ensure Homebrew's bin directory is in your PATH:
+//!   ```bash
+//!   echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.bashrc  # or ~/.zshrc
+//!   source ~/.bashrc
+//!   ```
+//!
+//! - **Install script:** Verify `/usr/local/bin` is in your PATH:
+//!   ```bash
+//!   echo $PATH | grep -q "/usr/local/bin" && echo "✓ In PATH" || echo "✗ Not in PATH"
+//!   ```
+//!
+//! - **Windows:** Restart your terminal or PowerShell after installation to refresh PATH
+//!
+//! - **Cargo:** Ensure `~/.cargo/bin` is in your PATH:
+//!   ```bash
+//!   echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
+//!   source ~/.bashrc
+//!   ```
+//!
+//! ### Permission denied
+//!
+//! **Issue:** Permission errors during installation
+//!
+//! **Solutions:**
+//!
+//! - **Unix install script:** The script requires sudo for `/usr/local/bin`. Use custom directory:
+//!   ```bash
+//!   INSTALL_DIR=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/install.sh | sh
+//!   ```
+//!   Then add to PATH:
+//!   ```bash
+//!   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+//!   source ~/.bashrc
+//!   ```
+//!
+//! - **Manual installation:** Use `sudo` when moving to system directories:
+//!   ```bash
+//!   sudo mv apicentric /usr/local/bin/
+//!   sudo chmod +x /usr/local/bin/apicentric
+//!   ```
+//!
+//! ### Checksum verification failed
+//!
+//! **Issue:** Checksum mismatch during installation
+//!
+//! **Solutions:**
+//!
+//! - Download may be corrupted. Delete and try again:
+//!   ```bash
+//!   rm apicentric-*.tar.gz
+//!   curl -LO https://github.com/pmaojo/apicentric/releases/latest/download/apicentric-linux-x64.tar.gz
+//!   ```
+//!
+//! - Verify you're downloading from the official repository
+//! - Check your internet connection
+//!
+//! ### Cargo build fails
+//!
+//! **Issue:** Compilation errors when building from source
+//!
+//! **Solutions:**
+//!
+//! - **Update Rust:** Ensure you have the latest stable Rust:
+//!   ```bash
+//!   rustup update stable
+//!   ```
+//!
+//! - **Missing dependencies:** Install required system dependencies:
+//!   - **Ubuntu/Debian:**
+//!     ```bash
+//!     sudo apt-get update
+//!     sudo apt-get install build-essential pkg-config libssl-dev
+//!     ```
+//!   - **macOS:**
+//!     ```bash
+//!     xcode-select --install
+//!     ```
+//!   - **Windows:** Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
+//!
+//! - **Try minimal build:** If full build fails, try minimal:
+//!   ```bash
+//!   cargo install apicentric --no-default-features --features minimal
+//!   ```
+//!
+//! ### Feature not available
+//!
+//! **Issue:** Command shows "Feature not available in this build"
+//!
+//! **Solutions:**
+//!
+//! - You installed a minimal build. Reinstall with desired features:
+//!   ```bash
+//!   cargo install apicentric --features cli-tools --force
+//!   ```
+//!
+//! - Or install full version:
+//!   ```bash
+//!   brew reinstall apicentric  # Homebrew includes cli-tools features
+//!   ```
+//!
+//! ### macOS security warning
+//!
+//! **Issue:** "apicentric cannot be opened because it is from an unidentified developer"
+//!
+//! **Solutions:**
+//!
+//! - **Option 1:** Use Homebrew installation (recommended):
+//!   ```bash
+//!   brew install pmaojo/tap/apicentric
+//!   ```
+//!
+//! - **Option 2:** Allow the binary manually:
+//!   ```bash
+//!   xattr -d com.apple.quarantine /usr/local/bin/apicentric
+//!   ```
+//!
+//! - **Option 3:** Build from source with Cargo:
+//!   ```bash
+//!   cargo install apicentric --features cli-tools
+//!   ```
+//!
+//! ### Still having issues?
+//!
+//! If you're still experiencing problems:
+//!
+//! 1. Check [GitHub Issues](https://github.com/pmaojo/apicentric/issues) for similar problems
+//! 2. Create a new issue with:
+//!    - Your operating system and version
+//!    - Installation method used
+//!    - Complete error message
+//!    - Output of `apicentric --version` (if available)
+//! 3. Join our [Discussions](https://github.com/pmaojo/apicentric/discussions) for community support
+//!
+//! ## Development
+//!
+//! Apicentric includes a comprehensive developer toolkit to streamline local work:
+//!
+//! ### 🛠️ Makefile
+//!
+//! We use a supercomplete `Makefile` for all common tasks:
+//!
+//! - `make build`: Build both backend and frontend
+//! - `make dev`: Start a parallel development environment
+//! - `make test`: Run the full test suite
+//! - `make help`: View all available targets (with a fancy ASCII logo!)
+//!
+//! ### 🧙 Management Wizard
+//!
+//! For a guided experience, run our interactive wizard:
+//!
+//! ```bash
+//! make wizard
+//! ```
+//!
+//! This provides a numeric menu to build, test, and manage the project without remembering individual commands.
+//!
 //! ## Documentation
 //!
+//! - [Developer Experience Guide](docs/guides/developer-experience.md)
 //! - [Quick Start Guide](docs/guides/quick-start.md)
 //! - [Request Recording Guide](docs/guides/request-recording.md)
 //! - [Installation Guide](docs/guides/installation.md)
+//! - [Troubleshooting & Doctor](docs/guides/troubleshooting.md)
+//! - [Publishing Guide](docs/guides/publishing.md)
 //! - [Simulator Guide](docs/guides/simulator.md)
 //! - [TUI Guide](docs/guides/tui.md)
 //! - [Architecture](ARCHITECTURE.md)
@@ -642,6 +956,26 @@
 //! - `cli` and `cli_ui`: CLI and text-based UI front-ends.
 //!
 //! Refer to the module documentation for deeper implementation details.
+//!
+//! ## Recording View Walkthrough
+//!
+//! Here is a visual walkthrough of the recording feature:
+//!
+//! ### 1. Initial State
+//!
+//! ![Initial View](assets/screenshots/recording-view-initial.png)
+//!
+//! ### 2. Recording Active
+//!
+//! ![Recording Active](assets/screenshots/recording-view-active.png)
+//!
+//! ### 3. Captured Requests
+//!
+//! ![Captured Requests](assets/screenshots/recording-view-captured.png)
+//!
+//! ### 4. Recording Stopped
+//!
+//! ![Recording Stopped](assets/screenshots/recording-view-stopped.png)
 
 // Enhanced error handling and validation
 #[cfg(target_arch = "wasm32")]
