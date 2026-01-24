@@ -7,20 +7,27 @@ use apicentric::iot::physics::replay::ReplayStrategy;
 use apicentric::iot::physics::scripting::RhaiScriptStrategy;
 use apicentric::iot::physics::sine::SineWaveStrategy;
 use apicentric::iot::traits::{ProtocolAdapter, SimulationStrategy};
+use apicentric::errors::{ApicentricResult, ApicentricError};
 use log::{error, info};
 use std::path::Path;
 use tokio::time::{sleep, Duration, Instant};
 
-pub async fn run(args: TwinRunArgs) -> anyhow::Result<()> {
+pub async fn run(args: TwinRunArgs) -> ApicentricResult<()> {
     info!("Starting Digital Twin simulation...");
 
     // Load device definition
     let device_path = Path::new(&args.device);
     let config_content = tokio::fs::read_to_string(device_path)
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to read device file '{}': {}", args.device, e))?;
+        .map_err(|e| ApicentricError::FileSystem {
+            message: format!("Failed to read device file '{}': {}", args.device, e),
+            suggestion: Some("Check if the file exists and is readable".to_string())
+        })?;
 
-    let config: TwinConfig = serde_yaml::from_str(&config_content)?;
+    let config: TwinConfig = serde_yaml::from_str(&config_content).map_err(|e| ApicentricError::Configuration {
+        message: format!("Failed to parse device config: {}", e),
+        suggestion: Some("Check YAML syntax".to_string())
+    })?;
 
     info!("Loaded twin definition: {}", config.twin.name);
 
@@ -89,7 +96,10 @@ pub async fn run(args: TwinRunArgs) -> anyhow::Result<()> {
                     .get("file")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| {
-                        anyhow::anyhow!("Missing 'file' parameter for replay strategy")
+                        ApicentricError::Configuration {
+                            message: "Missing 'file' parameter for replay strategy".to_string(),
+                            suggestion: Some("Add 'file: path/to/data.csv' to params".to_string())
+                        }
                     })?;
 
                 let column = physics

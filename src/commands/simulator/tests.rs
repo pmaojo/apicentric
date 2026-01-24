@@ -1,6 +1,7 @@
 use super::*;
 use apicentric::config::ApicentricConfig;
 use apicentric::context::{ContextBuilder, ExecutionContext};
+use apicentric::cli::args::ExportFormat;
 use std::fs;
 use tempfile::TempDir;
 

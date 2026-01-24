@@ -1276,7 +1276,7 @@ pub async fn generate_react_query(
     State(simulator): State<Arc<ApiSimulatorManager>>,
     Json(request): Json<ReactQueryGenerateRequest>,
 ) -> Result<Json<ApiResponse<ReactQueryGenerateResponse>>, ApiError> {
-    use crate::simulator::react_query::to_react_query;
+    use crate::simulator::react_query::generate_react_query_hooks;
 
     // Validate service name
     validation::validate_service_name(&request.service_name).map_err(ApiError::from)?;
@@ -1295,7 +1295,7 @@ pub async fn generate_react_query(
     let definition = service.definition();
 
     // Generate React Query hooks
-    match to_react_query(&definition) {
+    match generate_react_query_hooks(&definition) {
         Ok(code) => {
             let response = ReactQueryGenerateResponse { code };
             Ok(Json(ApiResponse::success(response)))
@@ -1319,7 +1319,7 @@ pub async fn generate_axios(
     State(simulator): State<Arc<ApiSimulatorManager>>,
     Json(request): Json<AxiosGenerateRequest>,
 ) -> Result<Json<ApiResponse<AxiosGenerateResponse>>, ApiError> {
-    use crate::simulator::axios_client::to_axios_client;
+    use crate::simulator::axios_client::generate_axios_client;
 
     // Validate service name
     validation::validate_service_name(&request.service_name).map_err(ApiError::from)?;
@@ -1338,7 +1338,7 @@ pub async fn generate_axios(
     let definition = service.definition();
 
     // Generate Axios client
-    match to_axios_client(&definition) {
+    match generate_axios_client(&definition) {
         Ok(code) => {
             let response = AxiosGenerateResponse { code };
             Ok(Json(ApiResponse::success(response)))

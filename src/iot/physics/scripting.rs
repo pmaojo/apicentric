@@ -1,5 +1,6 @@
 use crate::iot::model::{DigitalTwinState, VariableValue};
 use crate::iot::traits::SimulationStrategy;
+use crate::errors::{ApicentricResult, ApicentricError};
 use async_trait::async_trait;
 use log::error;
 use rhai::{Engine, Scope, AST};
@@ -20,9 +21,12 @@ pub struct RhaiScriptStrategy {
 
 impl RhaiScriptStrategy {
     /// Create a new script strategy from a script string
-    pub fn new(script: &str, variable_name: String) -> anyhow::Result<Self> {
+    pub fn new(script: &str, variable_name: String) -> ApicentricResult<Self> {
         let engine = Engine::new();
-        let ast = engine.compile(script)?;
+        let ast = engine.compile(script).map_err(|e| ApicentricError::Scripting {
+            message: e.to_string(),
+            suggestion: Some("Check Rhai script syntax".to_string())
+        })?;
         Ok(Self {
             engine: Arc::new(Mutex::new(engine)),
             ast,
@@ -33,7 +37,7 @@ impl RhaiScriptStrategy {
 
 #[async_trait]
 impl SimulationStrategy for RhaiScriptStrategy {
-    async fn tick(&self, state: &mut DigitalTwinState) -> anyhow::Result<()> {
+    async fn tick(&self, state: &mut DigitalTwinState) -> ApicentricResult<()> {
         let mut scope = Scope::new();
 
         // Expose current state to script
@@ -59,7 +63,10 @@ impl SimulationStrategy for RhaiScriptStrategy {
 
         // Execute script
         // Lock engine
-        let engine = self.engine.lock().unwrap();
+        let engine = self.engine.lock().map_err(|_| ApicentricError::Runtime {
+            message: "Failed to lock script engine".to_string(),
+            suggestion: None
+        })?;
         let result = engine.eval_ast_with_scope::<f64>(&mut scope, &self.ast);
 
         match result {
@@ -70,6 +77,8 @@ impl SimulationStrategy for RhaiScriptStrategy {
             }
             Err(e) => {
                 error!("Script execution failed for {}: {}", self.variable_name, e);
+                // We log the error but don't fail the tick entirely to keep simulation running
+                // Alternatively, we could return Err(e) if we want strict failure
             }
         }
         Ok(())

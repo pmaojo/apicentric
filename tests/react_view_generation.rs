@@ -3,16 +3,16 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use apicentric::simulator::config::ServiceDefinition;
-use apicentric::simulator::react_query::to_react_query;
-use apicentric::simulator::react_view::to_react_view;
+use apicentric::simulator::react_query::generate_react_query_hooks;
+use apicentric::simulator::react_view::generate_react_view;
 use tempfile::tempdir;
 
 #[test]
 fn generated_view_compiles_and_composes_with_hooks() {
     let yaml = std::fs::read_to_string("tests/data/service_hooks.yaml").unwrap();
     let service: ServiceDefinition = serde_yaml::from_str(&yaml).unwrap();
-    let hooks_ts = to_react_query(&service).unwrap();
-    let view_tsx = to_react_view(&service).unwrap();
+    let hooks_ts = generate_react_query_hooks(&service).unwrap();
+    let view_tsx = generate_react_view(&service).unwrap();
 
     let dir = tempdir().unwrap();
     let hooks_path = dir.path().join("hooks.ts");

@@ -667,6 +667,7 @@ impl ServiceInstance {
     }
 
     /// Static request handler for use in the HTTP server
+    #[allow(clippy::too_many_arguments)]
     async fn handle_request_static(
         req: Request<hyper::body::Incoming>,
         definition: Arc<StdRwLock<ServiceDefinition>>,
@@ -1671,7 +1672,7 @@ impl ServiceInstance {
         });
         drop(state_guard);
 
-        let result = scripting_engine.execute(&script_source, context)?;
+        let result = scripting_engine.execute(&script_source, &context)?;
 
         if let serde_json::Value::Object(ref map) = result {
             let mut state_guard = state.write().await;

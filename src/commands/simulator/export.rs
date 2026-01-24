@@ -102,9 +102,14 @@ pub async fn handle_export_query(
         .map_err(|e| {
             ApicentricError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;
-    let ts = apicentric::simulator::react_query::to_react_query(&service).map_err(|e| {
-        ApicentricError::runtime_error(format!("Failed to generate hooks: {}", e), None::<String>)
-    })?;
+    let ts = apicentric::simulator::react_query::generate_react_query_hooks(&service).map_err(
+        |e| {
+            ApicentricError::runtime_error(
+                format!("Failed to generate hooks: {}", e),
+                None::<String>,
+            )
+        },
+    )?;
     std::fs::write(output, ts).map_err(|e| {
         ApicentricError::runtime_error(format!("Failed to write hooks file: {}", e), None::<String>)
     })?;
@@ -131,7 +136,7 @@ pub async fn handle_export_view(
         .map_err(|e| {
             ApicentricError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;
-    let tsx = apicentric::simulator::react_view::to_react_view(&service).map_err(|e| {
+    let tsx = apicentric::simulator::react_view::generate_react_view(&service).map_err(|e| {
         ApicentricError::runtime_error(format!("Failed to generate view: {}", e), None::<String>)
     })?;
     std::fs::write(output, tsx).map_err(|e| {

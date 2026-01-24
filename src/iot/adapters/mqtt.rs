@@ -1,6 +1,7 @@
 use crate::iot::config::AdapterConfig;
 use crate::iot::model::VariableValue;
 use crate::iot::traits::ProtocolAdapter;
+use crate::errors::{ApicentricResult, ApicentricError};
 use async_trait::async_trait;
 use log::{error, info};
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
@@ -36,7 +37,7 @@ impl MqttAdapter {
 
 #[async_trait]
 impl ProtocolAdapter for MqttAdapter {
-    async fn init(&mut self, config: &AdapterConfig) -> anyhow::Result<()> {
+    async fn init(&mut self, config: &AdapterConfig) -> ApicentricResult<()> {
         let broker_url = config
             .params
             .get("broker_url")
@@ -116,7 +117,7 @@ impl ProtocolAdapter for MqttAdapter {
         Ok(())
     }
 
-    async fn publish(&self, key: &str, value: &VariableValue) -> anyhow::Result<()> {
+    async fn publish(&self, key: &str, value: &VariableValue) -> ApicentricResult<()> {
         if let Some(client) = &self.client {
             let topic = format!("{}/{}", self.topic_prefix, key);
             let payload = match value {
@@ -128,15 +129,23 @@ impl ProtocolAdapter for MqttAdapter {
 
             client
                 .publish(topic, QoS::AtLeastOnce, false, payload)
-                .await?;
+                .await
+                .map_err(|e| ApicentricError::Mqtt {
+                    message: e.to_string(),
+                    suggestion: Some("Check connection to MQTT broker".to_string())
+                })?;
         }
         Ok(())
     }
 
-    async fn subscribe(&mut self, topic: &str) -> anyhow::Result<()> {
+    async fn subscribe(&mut self, topic: &str) -> ApicentricResult<()> {
         if let Some(client) = &self.client {
             let full_topic = format!("{}/{}", self.topic_prefix, topic);
-            client.subscribe(full_topic, QoS::AtLeastOnce).await?;
+            client.subscribe(full_topic, QoS::AtLeastOnce).await
+                .map_err(|e| ApicentricError::Mqtt {
+                    message: e.to_string(),
+                    suggestion: Some("Check connection to MQTT broker".to_string())
+                })?;
         }
         Ok(())
     }

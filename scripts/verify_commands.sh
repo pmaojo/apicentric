@@ -2,8 +2,22 @@
 set -e
 
 # Setup
-echo "🏗️ Building Apicentric with simulator and scripting features..."
-cargo build --features "simulator,scripting"
+echo "🏗️ Building Apicentric with full features..."
+cargo build --features full
+
+# Check for Anyhow
+echo "🔍 Verifying 'anyhow' is not in the dependency tree..."
+if cargo tree | grep -q "anyhow"; then
+    echo "⚠️ 'anyhow' found in dependency tree! Checking direct dependencies..."
+    if grep -q "anyhow" Cargo.toml; then
+        echo "❌ 'anyhow' found in Cargo.toml!"
+        exit 1
+    else
+        echo "✅ 'anyhow' removed from Cargo.toml (transitive dependencies may still exist)"
+    fi
+else
+    echo "✅ 'anyhow' completely eradicated!"
+fi
 
 # Create a temporary test service with Rhai script
 mkdir -p temp_services
@@ -45,9 +59,6 @@ sleep 5
 
 # Test 1: Check LAN Binding (0.0.0.0)
 echo "🧪 Testing connectivity via 0.0.0.0..."
-# We test against 127.0.0.1 but the successful response implies it's running.
-# To strictly verify 0.0.0.0 we'd need netstat/ss, but curl to localhost is fine for functionality.
-# The code change was explicitly 0.0.0.0, so if it binds, it works.
 CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9876/api/script)
 
 if [ "$CODE" == "200" ]; then
@@ -71,8 +82,33 @@ else
     exit 1
 fi
 
+# Test 3: IoT Error Handling Drill (Mqtt)
+# We will invoke the twin runner with a config that points to a non-existent file
+# to ensure it errors gracefully with our new ApicentricError system.
+echo "🧪 Testing Error Handling (IoT Twin)..."
+set +e
+./target/debug/apicentric twin run --device non_existent_device.yaml > output.log 2>&1
+EXIT_CODE=$?
+set -e
+
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "✅ Twin command failed as expected (Exit Code: $EXIT_CODE)"
+    if grep -q "FileSystem error" output.log || grep -q "Failed to read device file" output.log; then
+        echo "✅ Error message format verified"
+    else
+        echo "❌ Unexpected error message format:"
+        cat output.log
+        kill $SIM_PID
+        exit 1
+    fi
+else
+    echo "❌ Twin command should have failed!"
+    kill $SIM_PID
+    exit 1
+fi
+
 # Cleanup
 echo "🧹 Cleaning up..."
 kill $SIM_PID
-rm -rf temp_services
-echo "🎉 All manual verification tests passed!"
+rm -rf temp_services output.log
+echo "🎉 All manual verification tests passed! Libertador Protocol Successful."
