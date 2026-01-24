@@ -59,7 +59,7 @@ pub async fn handle_share(
 
     let (peer_id, token) = share::share_service(port).await.map_err(|e| {
         ApicentricError::config_error(
-            &format!("Failed to share service: {}", e),
+            format!("Failed to share service: {}", e),
             Some("Check network connectivity and firewall settings"),
         )
     })?;
@@ -124,7 +124,7 @@ pub async fn handle_connect(
 
     let peer_id = peer.parse::<PeerId>().map_err(|e| {
         ApicentricError::config_error(
-            &format!("Invalid peer ID: {}", e),
+            format!("Invalid peer ID: {}", e),
             Some("Check the peer ID format from the sharing peer"),
         )
     })?;
@@ -139,7 +139,7 @@ pub async fn handle_connect(
         .await
         .map_err(|e| {
             ApicentricError::config_error(
-                &format!("Failed to connect to peer: {}", e),
+                format!("Failed to connect to peer: {}", e),
                 Some("Check network connectivity and verify peer ID and token"),
             )
         })?;

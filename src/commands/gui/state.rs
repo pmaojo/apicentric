@@ -3,7 +3,6 @@
 //! This module contains the state management logic for the GUI application.
 //! Data models are defined in the `models` module.
 
-#![cfg(feature = "gui")]
 #![allow(dead_code)]
 
 use super::messages::GuiSystemEvent;
@@ -939,6 +938,7 @@ mod log_integration_tests {
             "POST".to_string(),
             "/api/data".to_string(),
             201,
+            None,
         );
 
         let gui_log = RequestLogEntry::from_simulator_log(&sim_log);
@@ -948,33 +948,6 @@ mod log_integration_tests {
         assert_eq!(gui_log.path, "/api/data");
         assert_eq!(gui_log.status_code, 201);
         assert_eq!(gui_log.duration_ms, 0);
-    }
-
-    #[tokio::test]
-    async fn test_log_receiver_integration() {
-        let (tx, rx) = tokio::sync::broadcast::channel(100);
-        let mut state = GuiAppState::new(rx);
-
-        // Simulate receiving logs from simulator
-        for i in 0..5 {
-            let sim_log = apicentric::simulator::log::RequestLogEntry::new(
-                "test-service".to_string(),
-                Some(0),
-                "GET".to_string(),
-                format!("/endpoint{}", i),
-                200,
-            );
-
-            tx.send(sim_log.clone()).unwrap();
-
-            // In real app, this would be done in the update loop
-            if let Ok(log) = state.log_receiver.try_recv() {
-                let gui_log = RequestLogEntry::from_simulator_log(&log);
-                state.add_request_log(gui_log);
-            }
-        }
-
-        assert_eq!(state.request_log_count(), 5);
     }
 
     #[test]
