@@ -12,9 +12,9 @@ services:
       dockerfile: Dockerfile
       target: backend-builder
     ports:
-      - "8000:8000"
+      - "8080:8080"
     environment:
-      - APICENTRIC_PORT=8000
+      - APICENTRIC_PORT=8080
       - APICENTRIC_HOST=0.0.0.0
       - APICENTRIC_PROTECT_SERVICES=false
       - APICENTRIC_JWT_SECRET=dev-secret-change-in-production
@@ -24,7 +24,7 @@ services:
       - ./services:/app/services
       - ./data:/app/data
       - ./src:/app/src:ro
-    command: ["cargo", "run", "--features", "gui,cloud", "--", "cloud", "--port", "8000"]
+    command: ["cargo", "run", "--", "cloud"]
     profiles:
       - dev
     restart: unless-stopped
@@ -37,8 +37,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
       - NODE_ENV=development
     volumes:
       - ./webui/src:/app/src
@@ -60,9 +60,9 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8080:8080"
     environment:
-      - APICENTRIC_PORT=8000
+      - APICENTRIC_PORT=8080
       - APICENTRIC_HOST=0.0.0.0
       - APICENTRIC_PROTECT_SERVICES=${APICENTRIC_PROTECT_SERVICES:-true}
       - APICENTRIC_JWT_SECRET=${APICENTRIC_JWT_SECRET}
@@ -73,7 +73,7 @@ services:
       - ./services:/app/services
       - apicentric_data:/app/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       timeout: 5s
       interval: 30s
       retries: 3
