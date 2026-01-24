@@ -9,6 +9,16 @@ use crate::cloud::error::{ApiError, ApiErrorCode, ErrorResponse};
 use crate::cloud::handlers::ApiResponse;
 use crate::iot::config::TwinConfig;
 
+fn sanitize_twin_name(name: &str) -> Result<String, ApiError> {
+    std::path::Path::new(name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| {
+            ApiError::bad_request(ApiErrorCode::InvalidParameter, "Invalid twin name".to_string())
+        })
+        .map(|s| s.to_string())
+}
+
 /// Lists all available twins.
 pub async fn list_twins() -> Result<Json<ApiResponse<Vec<String>>>, ApiError> {
     let iot_dir = std::env::var("APICENTRIC_IOT_DIR").unwrap_or_else(|_| "iot".to_string());
@@ -53,7 +63,11 @@ pub async fn get_twin(
     Path(name): Path<String>,
 ) -> Result<Json<ApiResponse<TwinDetailResponse>>, ApiError> {
     let iot_dir = std::env::var("APICENTRIC_IOT_DIR").unwrap_or_else(|_| "iot".to_string());
-    let path = std::path::Path::new(&iot_dir).join(format!("{}.yaml", name));
+
+    // Sentinel: Sanitize filename to prevent directory traversal
+    let safe_name = sanitize_twin_name(&name)?;
+
+    let path = std::path::Path::new(&iot_dir).join(format!("{}.yaml", safe_name));
 
     if !path.exists() {
         return Err(ErrorResponse::service_not_found(&name).into()); // Reuse service not found or generic not found
@@ -96,7 +110,10 @@ pub async fn save_twin(
         })?;
     }
 
-    let path = dir_path.join(format!("{}.yaml", name));
+    // Sentinel: Sanitize filename to prevent directory traversal
+    let safe_name = sanitize_twin_name(&name)?;
+
+    let path = dir_path.join(format!("{}.yaml", safe_name));
 
     // Validate YAML
     let _: TwinConfig = serde_yaml::from_str(&request.yaml).map_err(|e| {
@@ -117,7 +134,11 @@ pub async fn save_twin(
 /// Deletes a twin.
 pub async fn delete_twin(Path(name): Path<String>) -> Result<Json<ApiResponse<String>>, ApiError> {
     let iot_dir = std::env::var("APICENTRIC_IOT_DIR").unwrap_or_else(|_| "iot".to_string());
-    let path = std::path::Path::new(&iot_dir).join(format!("{}.yaml", name));
+
+    // Sentinel: Sanitize filename to prevent directory traversal
+    let safe_name = sanitize_twin_name(&name)?;
+
+    let path = std::path::Path::new(&iot_dir).join(format!("{}.yaml", safe_name));
 
     if !path.exists() {
         return Err(ErrorResponse::service_not_found(&name).into());
