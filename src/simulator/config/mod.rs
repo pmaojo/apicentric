@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
 pub mod endpoint;
@@ -104,7 +104,7 @@ pub struct ServiceDefinition {
     pub version: Option<String>,
     pub description: Option<String>,
     pub server: Option<ServerConfig>,
-    pub models: Option<HashMap<String, serde_json::Value>>, // JSON Schema definitions
+    pub models: Option<BTreeMap<String, serde_json::Value>>, // JSON Schema definitions
     pub fixtures: Option<HashMap<String, serde_json::Value>>,
     #[serde(default)]
     pub bucket: Option<HashMap<String, serde_json::Value>>,

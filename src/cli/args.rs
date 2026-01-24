@@ -176,6 +176,7 @@ pub enum SimulatorAction {
         path: String,
         url: String,
         env: String,
+        quiet: bool,
     },
 }
 

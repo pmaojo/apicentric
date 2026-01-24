@@ -497,17 +497,19 @@ where
                  let mut path = String::new();
                  let mut url = String::new();
                  let mut env = "default".to_string();
+                 let mut quiet = false;
                  while let Some(arg) = iter.next() {
                      match arg.as_str() {
                         "--path" | "-p" => path = iter.next().ok_or(ParseError::MissingArgument("--path".into()))?.clone(),
                         "--url" | "-u" => url = iter.next().ok_or(ParseError::MissingArgument("--url".into()))?.clone(),
                         "--env" => env = iter.next().ok_or(ParseError::MissingArgument("--env".into()))?.clone(),
+                        "--quiet" | "-q" => quiet = true,
                          _ => return Err(ParseError::UnknownArgument(arg.clone())),
                      }
                  }
                  if path.is_empty() { return Err(ParseError::MissingArgument("--path".into())); }
                  if url.is_empty() { return Err(ParseError::MissingArgument("--url".into())); }
-                 Ok(Some(SimulatorAction::Test { path, url, env }))
+                 Ok(Some(SimulatorAction::Test { path, url, env, quiet }))
             }
             _ => Err(ParseError::UnknownSubcommand(action.clone())),
         }

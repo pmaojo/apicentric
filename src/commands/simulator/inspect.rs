@@ -54,8 +54,13 @@ pub async fn handle_validate(
     );
     if valid == files.len() {
         println!("✅ All files valid");
+        Ok(())
+    } else {
+        Err(ApicentricError::config_error(
+            format!("Validation failed for {} files", files.len() - valid),
+            Some("Check the error messages above and fix the service definitions"),
+        ))
     }
-    Ok(())
 }
 
 use apicentric::adapters::{
@@ -72,6 +77,7 @@ pub async fn handle_contract_test(
     path: &str,
     url: &str,
     env: &str,
+    quiet: bool,
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
@@ -82,10 +88,12 @@ pub async fn handle_contract_test(
         return Ok(());
     }
 
-    println!("🚀 Running contract tests...");
-    println!("   Contract: {}", path);
-    println!("   API URL:  {}", url);
-    println!("   Env:      {}", env);
+    if !quiet {
+        println!("🚀 Running contract tests...");
+        println!("   Contract: {}", path);
+        println!("   API URL:  {}", url);
+        println!("   Env:      {}", env);
+    }
 
     let spec_loader = YamlServiceSpecLoader::new();
     let spec_validator = SpecValidationUseCase::new(spec_loader);
@@ -108,7 +116,9 @@ pub async fn handle_contract_test(
             return Ok(());
         }
     };
-    println!("\n🔬 Found {} test scenarios.", scenarios.len());
+    if !quiet {
+        println!("\n🔬 Found {} test scenarios.", scenarios.len());
+    }
 
     let http_client = ReqwestHttpClientAdapter::new();
     let mock_runner = SimulatorManagerAdapter::new();
@@ -137,7 +147,7 @@ pub async fn handle_contract_test(
         .await
     {
         Ok(result) => {
-            print_result(&result);
+            print_result(&result, quiet);
         }
         Err(e) => {
             println!("\n❌ Error executing contract tests: {}", e);
@@ -147,7 +157,19 @@ pub async fn handle_contract_test(
     Ok(())
 }
 
-fn print_result(result: &ContractValidationResult) {
+fn print_result(result: &ContractValidationResult, quiet: bool) {
+    let passed = result.scenario_results.iter().filter(|r| r.compliance_issue.is_none()).count();
+    let failed = result.scenario_results.len() - passed;
+
+    if quiet {
+        if result.is_compatible {
+             println!("✅ Contract Tests Passed: {} Passed, {} Failed", passed, failed);
+        } else {
+             println!("❌ Contract Tests Failed: {} Passed, {} Failed", passed, failed);
+        }
+        return;
+    }
+
     let timestamp: DateTime<Utc> = result.validation_timestamp.into();
     println!("\n🏁 Contract Test Results:");
     println!("   ID:         {}", result.contract_id);
@@ -158,6 +180,7 @@ fn print_result(result: &ContractValidationResult) {
         if result.is_compatible { "✅" } else { "❌" }
     );
     println!("   Score:      {:.2}%", result.compliance_score * 100.0);
+    println!("   Summary:    {} Passed, {} Failed", passed, failed);
 
     if !result.issues.is_empty() {
         println!("\n🚨 Found {} compatibility issues:", result.issues.len());

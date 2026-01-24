@@ -41,7 +41,12 @@ pub async fn handle_dockerize(
     fs::create_dir_all(&services_dir)?;
 
     for input in inputs {
-        let service_content = fs::read_to_string(input)?;
+        let service_content = fs::read_to_string(input).map_err(|e| {
+            apicentric::ApicentricError::fs_error(
+                format!("Failed to read service file '{}': {}", input, e),
+                Some("Check if the file exists and is readable"),
+            )
+        })?;
         let service_def: ServiceInfo = serde_yaml::from_str(&service_content).map_err(|e| {
             apicentric::ApicentricError::validation_error(
                 format!("Failed to parse service definition '{}': {}", input, e),

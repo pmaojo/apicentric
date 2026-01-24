@@ -72,9 +72,16 @@ impl ProtocolAdapter for MqttAdapter {
 
         // Spawn event loop handler
         tokio::spawn(async move {
+            let mut retry_delay = Duration::from_secs(1);
+            let max_delay = Duration::from_secs(30);
+
             loop {
                 match eventloop.poll().await {
                     Ok(event) => {
+                        // Reset backoff on successful event (if it wasn't just a keepalive)
+                        // Ideally we reset on ConnAck, but any event implies liveness
+                        retry_delay = Duration::from_secs(1);
+
                         if let Event::Incoming(Packet::Publish(p)) = event {
                             let topic = p.topic;
                             // Remove prefix if present to get the variable name
@@ -103,8 +110,9 @@ impl ProtocolAdapter for MqttAdapter {
                     }
                     Err(_e) => {
                         // Connection errors are expected during reconnections
-                        // Just log trace to avoid noise
-                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        // Use exponential backoff to avoid log flooding
+                        tokio::time::sleep(retry_delay).await;
+                        retry_delay = std::cmp::min(retry_delay * 2, max_delay);
                     }
                 }
             }
