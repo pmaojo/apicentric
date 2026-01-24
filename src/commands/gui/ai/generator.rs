@@ -199,47 +199,43 @@ impl AiServiceGenerator {
         let error_str = error.to_string();
 
         if error_str.contains("AI provider not configured") {
-            format!(
-                "❌ AI Provider Not Configured\n\n\
+            "❌ AI Provider Not Configured\n\n\
                  The AI generation feature requires configuration.\n\n\
                  To fix this:\n\
                  1. Open apicentric.json\n\
                  2. Add an 'ai' section with your provider settings\n\n\
                  Example:\n\
-                 {{\n\
-                   \"ai\": {{\n\
+                 {\n\
+                   \"ai\": {\n\
                      \"provider\": \"openai\",\n\
                      \"api_key\": \"your-api-key\",\n\
                      \"model\": \"gpt-3.5-turbo\"\n\
-                   }}\n\
-                 }}"
-            )
+                   }\n\
+                 }"
+            .to_string()
         } else if error_str.contains("API key missing") {
-            format!(
-                "❌ API Key Missing\n\n\
+            "❌ API Key Missing\n\n\
                  Your AI provider requires an API key.\n\n\
                  To fix this:\n\
                  1. Open apicentric.json\n\
                  2. Add your API key to the 'ai.api_key' field\n\n\
                  For OpenAI: Get your key from https://platform.openai.com/api-keys\n\
                  For Gemini: Set GEMINI_API_KEY environment variable or add to config"
-            )
+                .to_string()
         } else if error_str.contains("Network") || error_str.contains("connection") {
-            format!(
-                "❌ Network Error\n\n\
+            "❌ Network Error\n\n\
                  Failed to connect to the AI provider.\n\n\
                  Possible causes:\n\
                  • No internet connection\n\
                  • AI provider service is down\n\
                  • Firewall blocking the connection\n\n\
                  Please check your connection and try again."
-            )
+                .to_string()
         } else if error_str.contains("Rate limit") {
-            format!(
-                "⚠️ Rate Limit Exceeded\n\n\
+            "⚠️ Rate Limit Exceeded\n\n\
                  You've made too many requests to the AI provider.\n\n\
                  Please wait a moment and try again."
-            )
+                .to_string()
         } else {
             format!("❌ AI Generation Error\n\n{}", error_str)
         }

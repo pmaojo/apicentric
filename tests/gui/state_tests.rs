@@ -246,10 +246,11 @@ mod enhanced_state_tests {
 
     #[test]
     fn test_ai_state_fields() {
-        let mut state = TestGuiAppState::default();
-
-        state.ai_prompt = "Generate a user API".to_string();
-        state.ai_generation_in_progress = true;
+        let state = TestGuiAppState {
+            ai_prompt: "Generate a user API".to_string(),
+            ai_generation_in_progress: true,
+            ..Default::default()
+        };
 
         assert_eq!(state.ai_prompt, "Generate a user API");
         assert!(state.ai_generation_in_progress);
@@ -259,11 +260,11 @@ mod enhanced_state_tests {
 
     #[test]
     fn test_ai_generation_success() {
-        let mut state = TestGuiAppState::default();
-
-        state.ai_generation_in_progress = true;
-        state.ai_generated_yaml = Some("name: generated-service".to_string());
-        state.ai_generation_in_progress = false;
+        let state = TestGuiAppState {
+            ai_generation_in_progress: false,
+            ai_generated_yaml: Some("name: generated-service".to_string()),
+            ..Default::default()
+        };
 
         assert!(!state.ai_generation_in_progress);
         assert!(state.ai_generated_yaml.is_some());
@@ -272,11 +273,11 @@ mod enhanced_state_tests {
 
     #[test]
     fn test_ai_generation_error() {
-        let mut state = TestGuiAppState::default();
-
-        state.ai_generation_in_progress = true;
-        state.ai_error = Some("API key invalid".to_string());
-        state.ai_generation_in_progress = false;
+        let state = TestGuiAppState {
+            ai_generation_in_progress: false,
+            ai_error: Some("API key invalid".to_string()),
+            ..Default::default()
+        };
 
         assert!(!state.ai_generation_in_progress);
         assert!(state.ai_generated_yaml.is_none());

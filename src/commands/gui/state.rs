@@ -30,7 +30,7 @@ pub struct GuiAppState {
     pub logs: Vec<String>, // Keep for backward compatibility
     pub request_logs: VecDeque<RequestLogEntry>,
     pub log_filter: LogFilter,
-    // pub log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
+    pub log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
 
     // System events channel
     pub system_event_rx: mpsc::Receiver<GuiSystemEvent>,
@@ -99,7 +99,7 @@ impl GuiAppState {
     }
 
     pub fn new(
-        _log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
+        log_receiver: broadcast::Receiver<apicentric::simulator::log::RequestLogEntry>,
     ) -> Self {
         let (tx, rx) = mpsc::channel();
         Self {
@@ -115,7 +115,7 @@ impl GuiAppState {
             logs: Vec::new(), // Keep for backward compatibility
             request_logs: VecDeque::new(),
             log_filter: LogFilter::default(),
-            // log_receiver,
+            log_receiver,
             system_event_rx: rx,
             system_event_tx: tx,
             recording_session: None,
@@ -938,6 +938,7 @@ mod log_integration_tests {
             "POST".to_string(),
             "/api/data".to_string(),
             201,
+            None,
         );
 
         let gui_log = RequestLogEntry::from_simulator_log(&sim_log);
@@ -962,6 +963,7 @@ mod log_integration_tests {
                 "GET".to_string(),
                 format!("/endpoint{}", i),
                 200,
+                None,
             );
 
             tx.send(sim_log.clone()).unwrap();

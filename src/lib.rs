@@ -701,7 +701,7 @@
 //!
 //! 3. **Start using MCP tools in your AI assistant:**
 //!
-//!    ```
+//!    ```text
 //!    "Create a mock API for a user management system with login and profile endpoints"
 //!    ```
 //!
