@@ -464,6 +464,9 @@ export function LogsViewer({ services }: LogsViewerProps) {
                     return (
                       <div
                         key={virtualRow.index}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${log.method} request to ${log.path} returned ${log.status}`}
                         style={{
                           position: 'absolute',
                           top: 0,
@@ -472,8 +475,14 @@ export function LogsViewer({ services }: LogsViewerProps) {
                           height: `${virtualRow.size}px`,
                           transform: `translateY(${virtualRow.start}px)`,
                         }}
-                        className="border-b hover:bg-accent/50 cursor-pointer transition-colors"
+                        className="border-b hover:bg-accent/50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                         onClick={() => handleLogClick(log)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleLogClick(log);
+                          }
+                        }}
                       >
                         <div className="flex items-center gap-4 p-4">
                           <div className="flex-shrink-0 w-40 text-xs text-muted-foreground">
