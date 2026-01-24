@@ -68,7 +68,6 @@ indexmap = "2.12.0"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # Core CLI dependencies
 anyhow = "1.0.99"
-clap = { version = "4.4.8", features = ["derive"] }
 glob = "0.3.3"
 log = "0.4.20"
 env_logger = "0.10"
