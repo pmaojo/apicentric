@@ -2,7 +2,7 @@
 //!
 //! This module includes the main `ApicentricError` enum, which represents all possible
 //! errors that can occur within the application. It provides structured error types
-//! with contextual information and actionable suggestions for common problems.
+//! with contextual information and actionable suggestions for common issues.
 
 use std::fmt;
 
@@ -88,6 +88,38 @@ pub enum ApicentricError {
         suggestion: Option<String>,
     },
 
+    /// Errors related to scripting (Rhai, etc).
+    Scripting {
+        message: String,
+        suggestion: Option<String>,
+    },
+
+    /// Errors related to MQTT operations.
+    #[cfg(feature = "iot")]
+    Mqtt {
+        message: String,
+        suggestion: Option<String>,
+    },
+
+    /// Errors related to Modbus operations.
+    #[cfg(feature = "iot")]
+    Modbus {
+        message: String,
+        suggestion: Option<String>,
+    },
+
+    /// Errors related to CSV parsing.
+    Csv {
+        message: String,
+        suggestion: Option<String>,
+    },
+
+    /// General data processing errors.
+    Data {
+        message: String,
+        suggestion: Option<String>,
+    },
+
     /// An I/O error.
     Io(std::io::Error),
 
@@ -99,9 +131,6 @@ pub enum ApicentricError {
 
     /// An error in a glob pattern.
     Pattern(glob::PatternError),
-
-    /// An error from the `anyhow` crate.
-    Anyhow(anyhow::Error),
 }
 
 impl fmt::Display for ApicentricError {
@@ -149,11 +178,17 @@ impl fmt::Display for ApicentricError {
                 }
             }
             Self::Database { message, .. } => write!(f, "Database error: {}", message),
+            Self::Scripting { message, .. } => write!(f, "Scripting error: {}", message),
+            #[cfg(feature = "iot")]
+            Self::Mqtt { message, .. } => write!(f, "MQTT error: {}", message),
+            #[cfg(feature = "iot")]
+            Self::Modbus { message, .. } => write!(f, "Modbus error: {}", message),
+            Self::Csv { message, .. } => write!(f, "CSV error: {}", message),
+            Self::Data { message, .. } => write!(f, "Data error: {}", message),
             Self::Io(err) => write!(f, "IO error: {}", err),
             Self::Json(err) => write!(f, "JSON parsing error: {}", err),
             Self::Glob(err) => write!(f, "Glob pattern error: {}", err),
             Self::Pattern(err) => write!(f, "Pattern error: {}", err),
-            Self::Anyhow(err) => write!(f, "Anyhow error: {}", err),
         }
     }
 }
@@ -165,7 +200,6 @@ impl std::error::Error for ApicentricError {
             Self::Json(err) => Some(err),
             Self::Glob(err) => Some(err),
             Self::Pattern(err) => Some(err),
-            Self::Anyhow(err) => Some(err.as_ref()),
             _ => None,
         }
     }
@@ -173,15 +207,6 @@ impl std::error::Error for ApicentricError {
 
 impl ApicentricError {
     /// Creates a new configuration error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn config_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::Configuration {
             message: message.into(),
@@ -190,16 +215,6 @@ impl ApicentricError {
     }
 
     /// Creates a new validation error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `field` - The name of the field that failed validation.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn validation_error(
         message: impl Into<String>,
         field: Option<impl Into<String>>,
@@ -213,15 +228,6 @@ impl ApicentricError {
     }
 
     /// Creates a new file system error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn fs_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::FileSystem {
             message: message.into(),
@@ -230,15 +236,6 @@ impl ApicentricError {
     }
 
     /// Creates a new server error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn server_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::Server {
             message: message.into(),
@@ -247,15 +244,6 @@ impl ApicentricError {
     }
 
     /// Creates a new test execution error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn test_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::TestExecution {
             message: message.into(),
@@ -264,15 +252,6 @@ impl ApicentricError {
     }
 
     /// Creates a new runtime error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn runtime_error(
         message: impl Into<String>,
         suggestion: Option<impl Into<String>>,
@@ -284,16 +263,6 @@ impl ApicentricError {
     }
 
     /// Creates a new service error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `service_name` - The name of the service that caused the error.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn service_error(
         message: impl Into<String>,
         service_name: Option<impl Into<String>>,
@@ -307,16 +276,6 @@ impl ApicentricError {
     }
 
     /// Creates a new AI error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `provider` - The AI provider that caused the error.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn ai_error(
         message: impl Into<String>,
         provider: Option<impl Into<String>>,
@@ -330,15 +289,6 @@ impl ApicentricError {
     }
 
     /// Creates a new recording error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn recording_error(
         message: impl Into<String>,
         suggestion: Option<impl Into<String>>,
@@ -350,15 +300,6 @@ impl ApicentricError {
     }
 
     /// Creates a new authentication error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn auth_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
         Self::Authentication {
             message: message.into(),
@@ -367,16 +308,6 @@ impl ApicentricError {
     }
 
     /// Creates a new network error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `url` - The URL that caused the error.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn network_error(
         message: impl Into<String>,
         url: Option<impl Into<String>>,
@@ -390,15 +321,6 @@ impl ApicentricError {
     }
 
     /// Creates a new database error.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The error message.
-    /// * `suggestion` - An optional suggestion for how to fix the error.
-    ///
-    /// # Returns
-    ///
-    /// A new `ApicentricError` instance.
     pub fn database_error(
         message: impl Into<String>,
         suggestion: Option<impl Into<String>>,
@@ -409,12 +331,26 @@ impl ApicentricError {
         }
     }
 
+    /// Creates a new scripting error.
+    pub fn scripting_error(
+        message: impl Into<String>,
+        suggestion: Option<impl Into<String>>,
+    ) -> Self {
+        Self::Scripting {
+            message: message.into(),
+            suggestion: suggestion.map(|s| s.into()),
+        }
+    }
+
+    /// Creates a new data error.
+    pub fn data_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
+        Self::Data {
+            message: message.into(),
+            suggestion: suggestion.map(|s| s.into()),
+        }
+    }
+
     /// Returns the suggestion for this error, if any.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing the suggestion string, or `None` if there is no
-    /// suggestion.
     pub fn suggestion(&self) -> Option<&str> {
         match self {
             Self::Configuration { suggestion, .. }
@@ -428,17 +364,19 @@ impl ApicentricError {
             | Self::Recording { suggestion, .. }
             | Self::Authentication { suggestion, .. }
             | Self::Network { suggestion, .. }
-            | Self::Database { suggestion, .. } => suggestion.as_deref(),
+            | Self::Database { suggestion, .. }
+            | Self::Scripting { suggestion, .. }
+            | Self::Csv { suggestion, .. }
+            | Self::Data { suggestion, .. } => suggestion.as_deref(),
+            #[cfg(feature = "iot")]
+            Self::Mqtt { suggestion, .. } | Self::Modbus { suggestion, .. } => {
+                suggestion.as_deref()
+            }
             _ => None,
         }
     }
 
     /// Returns the field name for validation errors, if any.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing the field name, or `None` if the error is not a
-    /// validation error.
     pub fn field(&self) -> Option<&str> {
         match self {
             Self::Validation { field, .. } => field.as_deref(),
@@ -447,11 +385,6 @@ impl ApicentricError {
     }
 
     /// Returns the service name for service errors, if any.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing the service name, or `None` if the error is not a
-    /// service error.
     pub fn service_name(&self) -> Option<&str> {
         match self {
             Self::Service { service_name, .. } => service_name.as_deref(),
@@ -460,11 +393,6 @@ impl ApicentricError {
     }
 
     /// Returns the AI provider for AI errors, if any.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing the provider name, or `None` if the error is not an
-    /// AI error.
     pub fn ai_provider(&self) -> Option<&str> {
         match self {
             Self::Ai { provider, .. } => provider.as_deref(),
@@ -473,11 +401,6 @@ impl ApicentricError {
     }
 
     /// Returns the URL for network errors, if any.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing the URL, or `None` if the error is not a
-    /// network error.
     pub fn url(&self) -> Option<&str> {
         match self {
             Self::Network { url, .. } => url.as_deref(),
@@ -598,9 +521,43 @@ impl From<glob::PatternError> for ApicentricError {
     }
 }
 
-impl From<anyhow::Error> for ApicentricError {
-    fn from(err: anyhow::Error) -> Self {
-        Self::Anyhow(err)
+#[cfg(feature = "scripting")]
+impl From<rhai::ParseError> for ApicentricError {
+    fn from(err: rhai::ParseError) -> Self {
+        Self::Scripting {
+            message: format!("Rhai parse error: {}", err),
+            suggestion: Some("Check script syntax".to_string()),
+        }
+    }
+}
+
+#[cfg(feature = "scripting")]
+impl From<Box<rhai::EvalAltResult>> for ApicentricError {
+    fn from(err: Box<rhai::EvalAltResult>) -> Self {
+        Self::Scripting {
+            message: format!("Rhai execution error: {}", err),
+            suggestion: Some("Check runtime logic".to_string()),
+        }
+    }
+}
+
+#[cfg(feature = "iot")]
+impl From<rumqttc::ClientError> for ApicentricError {
+    fn from(err: rumqttc::ClientError) -> Self {
+        Self::Mqtt {
+            message: err.to_string(),
+            suggestion: Some("Check MQTT broker connection details".to_string()),
+        }
+    }
+}
+
+#[cfg(feature = "iot")]
+impl From<csv::Error> for ApicentricError {
+    fn from(err: csv::Error) -> Self {
+        Self::Csv {
+            message: err.to_string(),
+            suggestion: Some("Check CSV format".to_string()),
+        }
     }
 }
 

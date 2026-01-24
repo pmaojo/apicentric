@@ -1,30 +1,33 @@
-use anyhow::Result;
-
+use crate::errors::ApicentricResult;
 use crate::simulator::config::{EndpointDefinition, EndpointKind, ServiceDefinition};
 
 /// Generate React Query hooks for a service definition.
 ///
 /// Each HTTP endpoint becomes either a `useQuery` (for GET) or `useMutation`
-/// (for other methods) hook. The module only performs code generation,
-/// keeping I/O concerns in higher layers.
-pub fn to_react_query(service: &ServiceDefinition) -> Result<String> {
+/// (for other methods) hook.
+pub fn generate_react_query_hooks(service: &ServiceDefinition) -> ApicentricResult<String> {
     let mut out = String::new();
     out.push_str("import { useQuery, useMutation } from '@tanstack/react-query';\n\n");
 
     let endpoints = service.endpoints.as_ref().cloned().unwrap_or_default();
-    let base_path = service
-        .server
-        .as_ref()
-        .map(|s| s.base_path.as_str())
-        .unwrap_or("/");
+
+    // Correctly handle the base_path mapping
+    // service.server is Option<ServerConfig>
+    // server.base_path is String
+    let base_path = if let Some(server) = &service.server {
+        server.base_path.clone()
+    } else {
+        "/".to_string()
+    };
+
     for ep in &endpoints {
         if ep.kind != EndpointKind::Http {
             continue;
         }
         if ep.method.eq_ignore_ascii_case("GET") {
-            out.push_str(&generate_query_hook(ep, base_path));
+            out.push_str(&generate_query_hook(ep, &base_path));
         } else {
-            out.push_str(&generate_mutation_hook(ep, base_path));
+            out.push_str(&generate_mutation_hook(ep, &base_path));
         }
         out.push('\n');
     }
@@ -173,7 +176,7 @@ mod tests {
             behavior: None,
             twin: None,
         };
-        let ts = to_react_query(&service).unwrap();
+        let ts = generate_react_query_hooks(&service).unwrap();
         assert!(ts.contains("usePetsQuery"));
         assert!(ts.contains("usePostPetsMutation"));
         assert!(ts.contains("/api/pets"));

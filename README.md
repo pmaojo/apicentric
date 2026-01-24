@@ -773,7 +773,6 @@ apicentric twin run --device assets/library/demo_device.yaml
 
 ### 🌐 Advanced Features (Optional)
 
-- **P2P Collaboration**: Share services with team members
 - **GraphQL Mocking**: Mock GraphQL APIs with schema
 - **JavaScript Plugins**: Extend with custom logic
 

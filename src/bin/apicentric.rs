@@ -3,10 +3,12 @@
 //! This module is responsible for parsing command-line arguments, initializing
 //! the application context, and dispatching to the appropriate command handler.
 
+use apicentric::cli::args::SimulatorAction;
+use apicentric::cli::{parse, Cli, Commands};
 use apicentric::context::init;
 pub use apicentric::{ApicentricError, ApicentricResult as _ApicentricResult};
 use apicentric::{ApicentricResult, ContextBuilder, ExecutionContext};
-use clap::{Parser, Subcommand, ValueEnum};
+
 #[path = "../commands/ai.rs"]
 mod ai_cmd;
 #[path = "../commands/shared.rs"]
@@ -47,7 +49,7 @@ mod new_cmd;
 mod open_cmd;
 
 #[cfg(feature = "iot")]
-use apicentric::iot::args::TwinCommands;
+use apicentric::cli::args::TwinCommands;
 
 #[cfg(feature = "iot")]
 #[path = "../commands/twin.rs"]
@@ -63,103 +65,6 @@ mod commands {
 //     pub use apicentric::collab::*;
 // }
 
-/// The command-line interface for `apicentric`.
-#[derive(Parser)]
-#[command(author, version, about = "apicentric CLI (lightweight)")]
-struct Cli {
-    /// The path to the `apicentric.json` config file.
-    #[arg(short, long, default_value = "apicentric.json")]
-    config: String,
-
-    /// The execution mode (overrides config).
-    #[arg(long, value_enum)]
-    mode: Option<CliExecutionMode>,
-
-    /// Enables dry-run mode (shows what would be executed).
-    #[arg(long)]
-    dry_run: bool,
-
-    /// Enables verbose output.
-    #[arg(short, long)]
-    verbose: bool,
-
-    /// The path to the SQLite database for simulator storage.
-    #[arg(long, default_value = "apicentric.db")]
-    db_path: String,
-
-    #[command(subcommand)]
-    command: Commands,
-}
-
-/// The execution mode for the CLI.
-#[derive(Clone, ValueEnum)]
-enum CliExecutionMode {
-    CI,
-    Development,
-    Debug,
-}
-
-impl From<CliExecutionMode> for apicentric::config::ExecutionMode {
-    fn from(cli_mode: CliExecutionMode) -> Self {
-        match cli_mode {
-            CliExecutionMode::CI => apicentric::config::ExecutionMode::CI,
-            CliExecutionMode::Development => apicentric::config::ExecutionMode::Development,
-            CliExecutionMode::Debug => apicentric::config::ExecutionMode::Debug,
-        }
-    }
-}
-
-/// The commands available in the `apicentric` CLI.
-#[derive(Subcommand)]
-enum Commands {
-    /// API Simulator operations.
-    Simulator {
-        #[command(subcommand)]
-        action: Option<simulator_cmd::SimulatorAction>,
-    },
-    /// AI-assisted generation.
-    Ai {
-        #[command(subcommand)]
-        action: ai_cmd::AiAction,
-    },
-    /// Launches the terminal dashboard (requires the 'tui' feature).
-    #[cfg(feature = "tui")]
-    Tui,
-    /// Launches the graphical user interface (requires the 'gui' feature).
-    #[cfg(feature = "gui")]
-    Gui,
-    /// Launches the cloud API server (requires the 'webui' feature).
-    #[cfg(feature = "webui")]
-    Cloud,
-    /// Creates a new service from a template.
-    ///
-    /// Downloads and installs a service definition from the marketplace templates.
-    New {
-        /// The name of the new service.
-        name: String,
-        /// The template ID to use (e.g., stripe, slack, petstore).
-        #[arg(long, short)]
-        template: Option<String>,
-    },
-    /// Starts the MCP server for AI agent interaction (requires the 'mcp' feature).
-    #[cfg(feature = "mcp")]
-    Mcp(mcp_cmd::Mcp),
-    /// Diagnose environment issues
-    Doctor,
-    /// Open the WebUI in default browser
-    Open {
-        /// Port number (default: 9002)
-        #[arg(short, long)]
-        port: Option<u16>,
-    },
-    /// Manage IoT Digital Twins (requires the 'iot' feature).
-    #[cfg(feature = "iot")]
-    Twin {
-        #[command(subcommand)]
-        command: TwinCommands,
-    },
-}
-
 /// The entry point for the `apicentric` CLI.
 #[tokio::main]
 async fn main() {
@@ -172,7 +77,7 @@ async fn main() {
         apicentric::logging::init();
     }
 
-    let cli = Cli::parse();
+    let cli = parse();
 
     if let Err(e) = run(cli).await {
         eprintln!("Error: {}", e);
@@ -198,10 +103,9 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
     // Override config with CLI args
     if let Commands::Simulator {
         action:
-            Some(simulator_cmd::SimulatorAction::Start {
+            Some(SimulatorAction::Start {
                 services_dir,
                 force: _,
-                p2p: _,
                 template: _,
             }),
     } = &cli.command
@@ -239,10 +143,9 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
     match cli.command {
         Commands::Simulator { action } => match action {
             Some(action) => match &action {
-                simulator_cmd::SimulatorAction::Start {
+                SimulatorAction::Start {
                     services_dir,
                     force: _,
-                    p2p,
                     template,
                 } => {
                     // Start and block to keep services alive
@@ -267,9 +170,6 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                         if exec_ctx.dry_run {
                             println!("🏃 Dry run: Would start API simulator");
                             return Ok(());
-                        }
-                        if *p2p {
-                            sim.enable_p2p(true).await;
                         }
                         println!("🚀 Starting API Simulator (blocking)…");
                         sim.start().await?;

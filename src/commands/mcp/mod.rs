@@ -3,22 +3,13 @@
 //! This command starts the MCP server, allowing AI agents to interact with
 //! `apicentric`'s mock services.
 
-#![cfg(feature = "mcp")]
-
 pub mod server;
 
+use apicentric::cli::args::Mcp;
 use apicentric::{ApicentricError, ApicentricResult, Context, ExecutionContext};
-use clap::Parser;
 use rmcp::ServiceExt;
 use server::ApicentricMcpService;
 use tokio::io::{stdin, stdout};
-
-#[derive(Parser, Debug)]
-pub struct Mcp {
-    /// Runs the server in test mode, processing one request and then exiting.
-    #[arg(long, hide = true)]
-    pub test: bool,
-}
 
 /// Starts the `apicentric` MCP server.
 ///

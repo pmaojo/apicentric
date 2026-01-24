@@ -3,7 +3,6 @@
 //! This module contains the state management logic for the GUI application.
 //! Data models are defined in the `models` module.
 
-#![cfg(feature = "gui")]
 #![allow(dead_code)]
 
 use super::messages::GuiSystemEvent;

@@ -1,3 +1,4 @@
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::iot::config::AdapterConfig;
 use crate::iot::model::VariableValue;
 use crate::iot::traits::ProtocolAdapter;
@@ -40,7 +41,7 @@ impl ModbusAdapter {
 
 #[async_trait]
 impl ProtocolAdapter for ModbusAdapter {
-    async fn init(&mut self, config: &AdapterConfig) -> anyhow::Result<()> {
+    async fn init(&mut self, config: &AdapterConfig) -> ApicentricResult<()> {
         let port = config
             .params
             .get("port")
@@ -55,10 +56,16 @@ impl ProtocolAdapter for ModbusAdapter {
                 Ok(listener) => {
                     info!("Modbus TCP Server listening on {}", addr);
                     loop {
-                        if let Ok((socket, peer)) = listener.accept().await {
-                            info!("Modbus connection from {}", peer);
-                            let store_clone = store.clone();
-                            tokio::spawn(handle_connection(socket, store_clone));
+                        match listener.accept().await {
+                            Ok((socket, peer)) => {
+                                info!("Modbus connection from {}", peer);
+                                let store_clone = store.clone();
+                                tokio::spawn(handle_connection(socket, store_clone));
+                            }
+                            Err(e) => {
+                                error!("Accept error: {}", e);
+                                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                            }
                         }
                     }
                 }
@@ -71,7 +78,7 @@ impl ProtocolAdapter for ModbusAdapter {
         Ok(())
     }
 
-    async fn publish(&self, key: &str, value: &VariableValue) -> anyhow::Result<()> {
+    async fn publish(&self, key: &str, value: &VariableValue) -> ApicentricResult<()> {
         // Map key to register address. For MVP assume key is "addr_100"
         if let Some(addr_str) = key.strip_prefix("addr_") {
             if let Ok(addr) = addr_str.parse::<u16>() {
@@ -87,14 +94,17 @@ impl ProtocolAdapter for ModbusAdapter {
                     }
                     _ => 0,
                 };
-                let mut store = self.store.lock().unwrap();
+                let mut store = self.store.lock().map_err(|_| ApicentricError::Data {
+                    message: "Failed to acquire lock on modbus store".to_string(),
+                    suggestion: None,
+                })?;
                 store.holding_registers.insert(addr, val_u16);
             }
         }
         Ok(())
     }
 
-    async fn subscribe(&mut self, _topic: &str) -> anyhow::Result<()> {
+    async fn subscribe(&mut self, _topic: &str) -> ApicentricResult<()> {
         // Not implemented for Modbus
         Ok(())
     }
@@ -163,12 +173,14 @@ async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<M
                         let mut data = Vec::new();
 
                         {
-                            let store = store.lock().unwrap();
-                            for i in 0..count {
-                                let addr = start_addr.wrapping_add(i);
-                                let val = store.holding_registers.get(&addr).copied().unwrap_or(0);
-                                data.extend_from_slice(&val.to_be_bytes());
-                                byte_count += 2;
+                            if let Ok(store) = store.lock() {
+                                for i in 0..count {
+                                    let addr = start_addr.wrapping_add(i);
+                                    let val =
+                                        store.holding_registers.get(&addr).copied().unwrap_or(0);
+                                    data.extend_from_slice(&val.to_be_bytes());
+                                    byte_count += 2;
+                                }
                             }
                         }
 
@@ -188,8 +200,9 @@ async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<M
                         let val = u16::from_be_bytes([frame[10], frame[11]]);
 
                         {
-                            let mut store = store.lock().unwrap();
-                            store.holding_registers.insert(addr, val);
+                            if let Ok(mut store) = store.lock() {
+                                store.holding_registers.insert(addr, val);
+                            }
                         }
 
                         // Echo request

@@ -1,3 +1,4 @@
+//!
 //! # Apicentric
 //!
 //! > A powerful CLI tool and API simulator platform for developers who love the terminal
@@ -11,8 +12,9 @@
 //! - 🎯 **Mock APIs** with simple YAML configuration
 //! - ✅ **Test API contracts** between services
 //! - 🔄 **Generate code** (TypeScript types, React Query hooks)
+//! - ✨ **MCP** Power your agent with API mocking tools
+//! - 🏭 **IoT Digital Twins** Simulate industrial devices with MQTT and Modbus
 //! - 🖥️ **TUI (Terminal User Interface)** for visual service management
-//! - 🌐 **P2P collaboration** on service definitions (optional)
 //!
 //! Perfect for frontend developers who need backend APIs, teams doing contract testing, or anyone who loves working in the terminal.
 //!
@@ -24,6 +26,7 @@
 //! - **Simulator**: A local server that serves the mock APIs defined in your service definitions.
 //! - **Contract Testing**: A feature that allows you to validate that your mock APIs match the real APIs they are mocking.
 //! - **Code Generation**: A feature that allows you to generate client code from your service definitions.
+//! - **Digital Twin**: An actor-based simulation of a physical device with state, physics, and network protocols.
 //! - **TUI**: A terminal user interface that provides a visual way to manage your services.
 //!
 //! ## Real-World Example: E-commerce API
@@ -188,6 +191,7 @@
 //! ```
 //!
 //! This example demonstrates features like:
+//!
 //! - **Fixtures**: Reusable data for your endpoints.
 //! - **Dynamic Responses**: Handlebars templating for realistic data.
 //! - **Request Validation**: Conditional responses based on the request body.
@@ -197,9 +201,10 @@
 //!
 //! Create a portable Docker image for your service:
 //!
+//! ````bash
 //! ```bash
-//! apicentric simulator dockerize --services ecommerce-api.yaml --output ./ecommerce-docker
-//! ```
+//! apicentric simulator dockerize --file ecommerce-api.yaml --output ./ecommerce-docker
+//! ````
 //!
 //! This will create a `Dockerfile` and copy the service definition into the `ecommerce-docker` directory. You can then build and run the image:
 //!
@@ -212,6 +217,20 @@
 //! ## Installation
 //!
 //! Apicentric provides multiple installation methods to suit your workflow. Choose the one that works best for you.
+//!
+//! ### NPM / Node.js (Quickest)
+//!
+//! If you have Node.js installed, you can run Apicentric directly without installation:
+//!
+//! ```bash
+//! npx apicentric simulator start
+//! ```
+//!
+//! Or install it globally:
+//!
+//! ```bash
+//! npm install -g apicentric
+//! ```
 //!
 //! ### Homebrew (macOS/Linux) - Recommended
 //!
@@ -242,6 +261,7 @@
 //! ```
 //!
 //! This script will:
+//!
 //! - Detect your platform and architecture automatically
 //! - Download the appropriate binary
 //! - Verify checksums for security
@@ -268,6 +288,7 @@
 //! ```
 //!
 //! This script will:
+//!
 //! - Download the Windows x64 binary
 //! - Verify checksums
 //! - Extract to `%USERPROFILE%\.apicentric\bin`
@@ -326,6 +347,7 @@
 //! Download pre-built binaries for your platform from [GitHub Releases](https://github.com/pmaojo/apicentric/releases).
 //!
 //! **Available platforms:**
+//!
 //! - Linux x64 (`apicentric-linux-x64.tar.gz`)
 //! - macOS x64 (`apicentric-macos-x64.tar.gz`)
 //! - macOS ARM64 (`apicentric-macos-arm64.tar.gz`)
@@ -369,7 +391,7 @@
 //! You can use the `dockerize` command to create a self-contained Docker image for your services.
 //!
 //! ```bash
-//! apicentric simulator dockerize --services <service1>.yaml [<service2>.yaml ...] --output ./my-service-docker
+//! apicentric simulator dockerize --file <service1>.yaml [<service2>.yaml ...] --output ./my-service-docker
 //! ```
 //!
 //! This will generate a `Dockerfile` and a `.dockerignore` file in the output directory, along with a `services` directory containing your service definitions.
@@ -399,6 +421,28 @@
 //!
 //! Expected output should show version information and available commands.
 //!
+//! ## Utility Commands
+//!
+//! Apicentric includes built-in tools to help you manage your environment:
+//!
+//! ### 🏥 Doctor
+//!
+//! Diagnose issues with your installation or environment:
+//!
+//! ```bash
+//! apicentric doctor
+//! ```
+//!
+//! ### 🌐 Open WebUI
+//!
+//! Quickly open the WebUI in your default browser:
+//!
+//! ```bash
+//! apicentric open
+//! # Or specify a custom port
+//! apicentric open --port 9002
+//! ```
+//!
 //! ## Troubleshooting
 //!
 //! ### Command not found
@@ -408,12 +452,14 @@
 //! **Solutions:**
 //!
 //! - **Homebrew:** Ensure Homebrew's bin directory is in your PATH:
+//!
 //!   ```bash
 //!   echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.bashrc  # or ~/.zshrc
 //!   source ~/.bashrc
 //!   ```
 //!
 //! - **Install script:** Verify `/usr/local/bin` is in your PATH:
+//!
 //!   ```bash
 //!   echo $PATH | grep -q "/usr/local/bin" && echo "✓ In PATH" || echo "✗ Not in PATH"
 //!   ```
@@ -433,10 +479,13 @@
 //! **Solutions:**
 //!
 //! - **Unix install script:** The script requires sudo for `/usr/local/bin`. Use custom directory:
+//!
 //!   ```bash
 //!   INSTALL_DIR=$HOME/.local/bin curl -fsSL https://raw.githubusercontent.com/pmaojo/apicentric/main/scripts/install.sh | sh
 //!   ```
+//!
 //!   Then add to PATH:
+//!
 //!   ```bash
 //!   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 //!   source ~/.bashrc
@@ -455,6 +504,7 @@
 //! **Solutions:**
 //!
 //! - Download may be corrupted. Delete and try again:
+//!
 //!   ```bash
 //!   rm apicentric-*.tar.gz
 //!   curl -LO https://github.com/pmaojo/apicentric/releases/latest/download/apicentric-linux-x64.tar.gz
@@ -470,6 +520,7 @@
 //! **Solutions:**
 //!
 //! - **Update Rust:** Ensure you have the latest stable Rust:
+//!
 //!   ```bash
 //!   rustup update stable
 //!   ```
@@ -498,6 +549,7 @@
 //! **Solutions:**
 //!
 //! - You installed a minimal build. Reinstall with desired features:
+//!
 //!   ```bash
 //!   cargo install apicentric --features cli-tools --force
 //!   ```
@@ -514,11 +566,13 @@
 //! **Solutions:**
 //!
 //! - **Option 1:** Use Homebrew installation (recommended):
+//!
 //!   ```bash
 //!   brew install pmaojo/tap/apicentric
 //!   ```
 //!
 //! - **Option 2:** Allow the binary manually:
+//!
 //!   ```bash
 //!   xattr -d com.apple.quarantine /usr/local/bin/apicentric
 //!   ```
@@ -579,10 +633,10 @@
 //!
 //! Generate client code from service definitions or export to standard formats:
 //!
-//! - **Generate TypeScript types**: `apicentric simulator generate-types`
-//! - **Generate React Query hooks**: `apicentric simulator generate-query`
-//! - **Export to OpenAPI**: `apicentric simulator export --format openapi`
-//! - **Export to Postman**: `apicentric simulator export --format postman`
+//! - **Generate TypeScript types**: `apicentric simulator generate-types --file <service.yaml> --output <output.ts>`
+//! - **Generate React Query hooks**: `apicentric simulator generate-query --file <service.yaml> --output <output.ts>`
+//! - **Export to OpenAPI**: `apicentric simulator export --file <service.yaml> --output <openapi.json> --format openapi`
+//! - **Export to Postman**: `apicentric simulator export --file <service.yaml> --output <collection.json> --format postman`
 //!
 //! ### 🖥️ TUI (Terminal User Interface)
 //!
@@ -593,17 +647,165 @@
 //! - Start/stop services
 //! - Keyboard-driven workflow
 //!
+//! ### 🤖 AI Integration with MCP (Model Context Protocol)
+//!
+//! Apicentric supports the **Model Context Protocol (MCP)**, allowing AI assistants like Claude, ChatGPT, and other MCP-compatible tools to interact with your API simulator programmatically.
+//!
+//! #### What is MCP?
+//!
+//! MCP is an open protocol that enables AI models to securely access external tools and data sources. With MCP, AI assistants can:
+//!
+//! - Create and manage mock API services
+//! - Start/stop services dynamically
+//! - Monitor service logs and status
+//! - Generate service definitions from natural language descriptions
+//!
+//! #### Quick MCP Setup
+//!
+//! 1. **Install with MCP support:**
+//!
+//!    ```bash
+//!    cargo install apicentric --features mcp
+//!    # or
+//!    brew install pmaojo/tap/apicentric  # includes MCP
+//!    ```
+//!
+//! 2. **Configure your AI assistant:**
+//!
+//!    For **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+//!
+//!    ```json
+//!    {
+//!      "mcpServers": {
+//!        "apicentric": {
+//!          "command": "apicentric",
+//!          "args": ["mcp"]
+//!        }
+//!      }
+//!    }
+//!    ```
+//!
+//!    For **VS Code** (`.vscode/mcp.json`):
+//!
+//!    ```json
+//!    {
+//!      "servers": {
+//!        "apicentric": {
+//!          "type": "stdio",
+//!          "command": "apicentric",
+//!          "args": ["mcp"]
+//!        }
+//!      }
+//!    }
+//!    ```
+//!
+//! 3. **Start using MCP tools in your AI assistant:**
+//!
+//!    ```
+//!    "Create a mock API for a user management system with login and profile endpoints"
+//!    ```
+//!
+//!    The AI will use MCP tools to automatically create and start the service!
+//!
+//! #### Available MCP Tools
+//!
+//! - **`list_services`**: List all available mock services
+//! - **`create_service`**: Create a new service from YAML definition
+//! - **`start_service`**: Start a specific mock service
+//! - **`stop_service`**: Stop a running service
+//! - **`get_service_logs`**: Retrieve logs for a service
+//!
+//! #### MCP Example Workflow
+//!
+//! **User:** "Create a REST API for managing books with CRUD operations"
+//!
+//! **AI Assistant (using MCP tools):**
+//!
+//! 1. Uses `create_service` to generate a books API YAML
+//! 2. Uses `start_service` to launch the API on a port
+//! 3. Confirms with `get_service_logs` that it's running
+//! 4. Provides curl examples for testing
+//!
+//! **Result:** A fully functional mock API ready for testing!
+//!
+//! #### MCP Benefits
+//!
+//! - **Natural Language API Creation**: Describe your API in plain English
+//! - **Automated Testing Setup**: AI handles service creation and configuration
+//! - **Integrated Development**: Seamless workflow between AI assistance and API development
+//! - **Rapid Prototyping**: Go from idea to working mock API in seconds
+//!
+//! ### 🏭 IoT Digital Twins
+//!
+//! Transform Apicentric into a multi-protocol simulation engine for IoT and Industrial devices.
+//!
+//! - **Actor Model**: Each twin runs as an independent lightweight process with its own state loop.
+//! - **Physics Simulation**: Define variable behaviors using strategies (e.g., sine waves, noise) or custom Rhai scripts.
+//! - **Protocol Support**:
+//!   - **MQTT**: Publish simulated telemetry to any MQTT broker.
+//!   - **Modbus TCP**: Act as a Modbus server exposing registers.
+//!
+//! #### Example Device Definition
+//!
+//! ```yaml
+//! twin:
+//!   name: "Sensor_Presion_01"
+//!   physics:
+//!     - variable: "pressure"
+//!       strategy: "script"
+//!       params:
+//!         code: "value + 1.5"
+//!
+//!   transports:
+//!     - type: "mqtt"
+//!       broker_url: "localhost"
+//!       port: 1883
+//!       topic_prefix: "sensors/pressure"
+//!       client_id: "sensor_01"
+//! ```
+//!
+//! #### Running a Twin
+//!
+//! ```bash
+//! apicentric twin run --device assets/library/demo_device.yaml
+//! ```
+//!
 //! ### 🌐 Advanced Features (Optional)
 //!
-//! - **P2P Collaboration**: Share services with team members
 //! - **GraphQL Mocking**: Mock GraphQL APIs with schema
 //! - **JavaScript Plugins**: Extend with custom logic
 //!
+//! ## Development
+//!
+//! Apicentric includes a comprehensive developer toolkit to streamline local work:
+//!
+//! ### 🛠️ Makefile
+//!
+//! We use a supercomplete `Makefile` for all common tasks:
+//!
+//! - `make build`: Build both backend and frontend
+//! - `make dev`: Start a parallel development environment
+//! - `make test`: Run the full test suite
+//! - `make help`: View all available targets (with a fancy ASCII logo!)
+//!
+//! ### 🧙 Management Wizard
+//!
+//! For a guided experience, run our interactive wizard:
+//!
+//! ```bash
+//! make wizard
+//! ```
+//!
+//! This provides a numeric menu to build, test, and manage the project without remembering individual commands.
+//!
 //! ## Documentation
 //!
+//! - [Developer Experience Guide](docs/guides/developer-experience.md)
 //! - [Quick Start Guide](docs/guides/quick-start.md)
 //! - [Request Recording Guide](docs/guides/request-recording.md)
 //! - [Installation Guide](docs/guides/installation.md)
+//! - [Troubleshooting & Doctor](docs/guides/troubleshooting.md)
+//! - [Publishing Guide](docs/guides/publishing.md)
 //! - [Simulator Guide](docs/guides/simulator.md)
 //! - [TUI Guide](docs/guides/tui.md)
 //! - [Architecture](ARCHITECTURE.md)
@@ -620,6 +822,7 @@
 //!
 //! - [GitHub Issues](https://github.com/pmaojo/apicentric/issues)
 //! - [Discussions](https://github.com/pmaojo/apicentric/discussions)
+//!
 //! ## Crate Modules
 //!
 //! The crate follows hexagonal architecture principles and exposes the following modules:
@@ -641,7 +844,30 @@
 //! - `simulator`: The API simulator runtime.
 //! - `cli` and `cli_ui`: CLI and text-based UI front-ends.
 //!
+//!   <img width="2752" height="1536" alt="image" src="https://github.com/user-attachments/assets/52ef5f9c-149d-45cf-ab56-3fc8d4345f55" />
+//!
 //! Refer to the module documentation for deeper implementation details.
+//!
+//! ## Recording View Walkthrough
+//!
+//! Here is a visual walkthrough of the recording feature:
+//!
+//! ### 1. Initial State
+//!
+//! ![Initial View](assets/screenshots/recording-view-initial.png)
+//!
+//! ### 2. Recording Active
+//!
+//! ![Recording Active](assets/screenshots/recording-view-active.png)
+//!
+//! ### 3. Captured Requests
+//!
+//! ![Captured Requests](assets/screenshots/recording-view-captured.png)
+//!
+//! ### 4. Recording Stopped
+//!
+//! ![Recording Stopped](assets/screenshots/recording-view-stopped.png)
+//!
 
 // Enhanced error handling and validation
 #[cfg(target_arch = "wasm32")]
@@ -655,8 +881,6 @@ pub mod app;
 pub mod auth;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod cloud;
-#[cfg(all(not(target_arch = "wasm32"), feature = "p2p"))]
-pub mod collab;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod config;
 #[cfg(not(target_arch = "wasm32"))]

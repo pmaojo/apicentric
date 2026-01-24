@@ -1,15 +1,6 @@
 use apicentric::ai;
+use apicentric::cli::args::AiAction;
 use apicentric::{ApicentricResult, Context, ExecutionContext};
-use clap::Subcommand;
-
-#[derive(Subcommand, Debug)]
-pub enum AiAction {
-    /// Generate a service definition or endpoints from a prompt
-    Generate {
-        /// Natural language description of the service or endpoints
-        prompt: String,
-    },
-}
 
 pub async fn ai_command(
     action: &AiAction,

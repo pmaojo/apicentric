@@ -1,6 +1,7 @@
 use crate::{ApicentricError, ApicentricResult};
 use apicentric::simulator::config::{
     EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
+    UnifiedConfig,
 };
 use inquire::{Confirm, Select, Text};
 use std::collections::HashMap;
@@ -24,7 +25,7 @@ pub fn find_yaml_files(dir: &Path, recursive: bool) -> ApicentricResult<Vec<Path
     Ok(files)
 }
 
-/// Validates that a file contains valid YAML syntax.
+/// Validates that a file contains valid YAML syntax and conforms to the ServiceDefinition schema.
 ///
 /// # Arguments
 /// * `file_path` - The path to the YAML file to validate
@@ -35,6 +36,8 @@ pub fn validate_yaml_file(file_path: &Path) -> ApicentricResult<()> {
             Some("Ensure the file exists and is readable"),
         )
     })?;
+
+    // First check YAML syntax
     let _value: serde_yaml::Value = serde_yaml::from_str(&content).map_err(|e| {
         ApicentricError::validation_error(
             format!("Invalid YAML: {}", e),
@@ -42,6 +45,16 @@ pub fn validate_yaml_file(file_path: &Path) -> ApicentricResult<()> {
             Some("Check YAML syntax"),
         )
     })?;
+
+    // Then check if it matches UnifiedConfig (Service or Twin)
+    let _: UnifiedConfig = serde_yaml::from_str(&content).map_err(|e| {
+        ApicentricError::validation_error(
+            format!("Schema validation failed: {}", e),
+            None::<String>,
+            Some("Ensure the file structure matches the ServiceDefinition or TwinDefinition schema (e.g., missing 'name' field)"),
+        )
+    })?;
+
     Ok(())
 }
 

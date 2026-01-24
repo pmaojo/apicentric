@@ -99,6 +99,7 @@ impl ApicentricMcpService {
                     script: None,
                     headers: Some(endpoint.response.headers),
                     side_effects: None,
+                    schema: None,
                 },
             );
 

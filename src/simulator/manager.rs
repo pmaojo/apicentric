@@ -1,7 +1,5 @@
 //! API Simulator Manager - Central coordinator for the simulator functionality
 
-#[cfg(feature = "p2p")]
-use crate::collab::crdt::{CrdtMessage, ServiceCrdt};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     admin_server::AdminServer,
@@ -15,12 +13,10 @@ use crate::simulator::{
     ConfigChange, SimulatorStatus,
 };
 use crate::storage::sqlite::SqliteStorage;
-#[cfg(feature = "p2p")]
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{broadcast, RwLock};
 use tracing::info;
 
 /// Result of an endpoint test
@@ -38,12 +34,6 @@ pub struct ApiSimulatorManager {
     route_registry: Arc<RwLock<RequestRouter>>,
     config_loader: ConfigLoader,
     is_active: Arc<RwLock<bool>>,
-    #[allow(dead_code)]
-    p2p_enabled: Arc<RwLock<bool>>,
-    #[allow(dead_code)]
-    collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
-    #[cfg(feature = "p2p")]
-    crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
     log_sender: broadcast::Sender<RequestLogEntry>,
     lifecycle: SimulatorLifecycle<RequestRouter>,
     recorder: ProxyRecorder,
@@ -67,10 +57,6 @@ impl ApiSimulatorManager {
         let route_registry = Arc::new(RwLock::new(RequestRouter::new()));
         let is_active = Arc::new(RwLock::new(false));
         let config_watcher: Arc<RwLock<Option<ConfigWatcher>>> = Arc::new(RwLock::new(None));
-        let p2p_enabled = Arc::new(RwLock::new(false));
-        let collab_sender = Arc::new(RwLock::new(None));
-        #[cfg(feature = "p2p")]
-        let crdts = Arc::new(RwLock::new(HashMap::new()));
 
         let lifecycle = SimulatorLifecycle::new(
             config.clone(),
@@ -79,10 +65,6 @@ impl ApiSimulatorManager {
             config_loader.clone(),
             is_active.clone(),
             config_watcher.clone(),
-            p2p_enabled.clone(),
-            collab_sender.clone(),
-            #[cfg(feature = "p2p")]
-            crdts.clone(),
             log_sender.clone(),
         );
         let recorder = ProxyRecorder;
@@ -94,10 +76,6 @@ impl ApiSimulatorManager {
             route_registry,
             config_loader,
             is_active,
-            p2p_enabled,
-            collab_sender,
-            #[cfg(feature = "p2p")]
-            crdts,
             log_sender,
             lifecycle,
             recorder,
@@ -111,12 +89,6 @@ impl ApiSimulatorManager {
         let mut reg = self.service_registry.write().await;
         reg.set_storage(storage);
         Ok(())
-    }
-
-    /// Enable or disable peer-to-peer collaboration.
-    pub async fn enable_p2p(&self, enabled: bool) {
-        let mut flag = self.p2p_enabled.write().await;
-        *flag = enabled;
     }
 
     /// Subscribe to log events
@@ -156,42 +128,7 @@ impl ApiSimulatorManager {
         self.lifecycle.reload_services_internal().await
     }
 
-    /// Apply a service definition and update CRDT state.
-    #[cfg(feature = "p2p")]
-    pub async fn apply_service_definition(
-        &self,
-        service_def: ServiceDefinition,
-    ) -> ApicentricResult<()> {
-        let service_name = service_def.name.clone();
-        self.lifecycle
-            .apply_remote_service(service_def.clone())
-            .await?;
-        {
-            let mut crdts = self.crdts.write().await;
-            if let Some(doc) = crdts.get_mut(&service_name) {
-                doc.apply_local_change(service_def.clone());
-            } else {
-                crdts.insert(service_name.clone(), ServiceCrdt::new(service_def.clone()));
-            }
-
-            if *self.p2p_enabled.read().await {
-                if let Some(tx) = self.collab_sender.read().await.clone() {
-                    if let Some(doc) = crdts.get_mut(&service_name) {
-                        if let Ok(data) = serde_json::to_vec(&CrdtMessage {
-                            name: service_name.clone(),
-                            data: doc.encode(),
-                        }) {
-                            let _ = tx.send(data);
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Apply a service definition (P2P feature disabled)
-    #[cfg(not(feature = "p2p"))]
+    /// Apply a service definition
     pub async fn apply_service_definition(
         &self,
         service_def: ServiceDefinition,
