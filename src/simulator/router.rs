@@ -22,6 +22,8 @@ use tracing::info;
 pub struct RequestRouter {
     /// Maps base paths to service names
     service_mappings: HashMap<String, String>,
+    /// Sorted list of base paths (descending length) for optimized routing
+    sorted_paths: Vec<String>,
 }
 
 impl RequestRouter {
@@ -29,29 +31,30 @@ impl RequestRouter {
     pub fn new() -> Self {
         Self {
             service_mappings: HashMap::new(),
+            sorted_paths: Vec::new(),
         }
+    }
+
+    /// Rebuild the sorted paths list
+    fn update_sorted_paths(&mut self) {
+        let mut paths: Vec<String> = self.service_mappings.keys().cloned().collect();
+        // Sort by length descending, then by string to be deterministic
+        paths.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+        self.sorted_paths = paths;
     }
 
     /// Route a request to the appropriate service
     /// Returns the service name if a match is found
     pub fn route_request(&self, request_path: &str) -> Option<String> {
         // Find the longest matching base path
-        let mut best_match: Option<(&String, &String)> = None;
-
-        for (base_path, service_name) in &self.service_mappings {
+        // self.sorted_paths is sorted by length (descending), so the first match is the longest.
+        for base_path in &self.sorted_paths {
             if request_path.starts_with(base_path) {
-                match best_match {
-                    None => best_match = Some((base_path, service_name)),
-                    Some((current_best_path, _)) => {
-                        if base_path.len() > current_best_path.len() {
-                            best_match = Some((base_path, service_name));
-                        }
-                    }
-                }
+                return self.service_mappings.get(base_path).cloned();
             }
         }
 
-        best_match.map(|(_, service_name)| service_name.clone())
+        None
     }
 
     /// Register service routes for a service
@@ -61,6 +64,8 @@ impl RequestRouter {
 
         self.service_mappings
             .insert(normalized_path, service_name.to_string());
+
+        self.update_sorted_paths();
 
         info!(
             target: "simulator",
@@ -84,6 +89,8 @@ impl RequestRouter {
             self.service_mappings.remove(&path);
         }
 
+        self.update_sorted_paths();
+
         info!(
             target: "simulator",
             service = %service_name,
@@ -94,6 +101,7 @@ impl RequestRouter {
     /// Clear all route mappings
     pub fn clear_all_routes(&mut self) {
         self.service_mappings.clear();
+        self.sorted_paths.clear();
         info!(target: "simulator", "All route mappings cleared");
     }
 
