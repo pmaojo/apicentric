@@ -1,15 +1,8 @@
-#[cfg(feature = "p2p")]
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use tokio::sync::{broadcast, mpsc, RwLock};
 
-#[cfg(feature = "p2p")]
-use crate::collab::{
-    crdt::{CrdtMessage, ServiceCrdt},
-    p2p,
-};
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
     config::{ConfigLoader, ServiceDefinition, SimulatorConfig},
@@ -36,10 +29,6 @@ pub struct SimulatorLifecycle<R: RouteRegistry + Send + Sync> {
     pub(crate) config_loader: ConfigLoader,
     pub(crate) is_active: Arc<RwLock<bool>>,
     pub(crate) config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
-    pub(crate) p2p_enabled: Arc<RwLock<bool>>,
-    pub(crate) collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
-    #[cfg(feature = "p2p")]
-    pub(crate) crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
     pub(crate) log_sender: broadcast::Sender<RequestLogEntry>,
 }
 
@@ -52,9 +41,6 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         config_loader: ConfigLoader,
         is_active: Arc<RwLock<bool>>,
         config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
-        p2p_enabled: Arc<RwLock<bool>>,
-        collab_sender: Arc<RwLock<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
-        #[cfg(feature = "p2p")] crdts: Arc<RwLock<HashMap<String, ServiceCrdt>>>,
         log_sender: broadcast::Sender<RequestLogEntry>,
     ) -> Self {
         Self {
@@ -64,10 +50,6 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
             config_loader,
             is_active,
             config_watcher,
-            p2p_enabled,
-            collab_sender,
-            #[cfg(feature = "p2p")]
-            crdts,
             log_sender,
         }
     }
@@ -106,9 +88,6 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         let mut registry = self.service_registry.write().await;
         let mut router = self.route_registry.write().await;
 
-        #[cfg(feature = "p2p")]
-        let mut crdts_map = self.crdts.write().await;
-
         for service_def in services {
             let service_name = service_def.name.clone();
             let base_path = service_def
@@ -119,13 +98,7 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
 
             registry.register_service(service_def.clone()).await?;
             router.register_service(&service_name, &base_path);
-
-            #[cfg(feature = "p2p")]
-            crdts_map.insert(service_name, ServiceCrdt::new(service_def));
         }
-
-        #[cfg(feature = "p2p")]
-        drop(crdts_map);
 
         registry.start_all_services().await?;
         let service_count = registry.services_count();
@@ -162,56 +135,6 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
             }
         });
 
-        // Start peer-to-peer collaboration if enabled.
-        #[cfg(feature = "p2p")]
-        if *self.p2p_enabled.read().await {
-            match p2p::spawn().await {
-                Ok((tx, mut rx_net)) => {
-                    {
-                        let mut guard = self.collab_sender.write().await;
-                        *guard = Some(tx.clone());
-                    }
-
-                    // Broadcast initial state for all services.
-                    let mut crdts = self.crdts.write().await;
-                    for (name, doc) in crdts.iter_mut() {
-                        if let Ok(data) = serde_json::to_vec(&CrdtMessage {
-                            name: name.clone(),
-                            data: doc.encode(),
-                        }) {
-                            let _ = tx.send(data);
-                        }
-                    }
-                    drop(crdts);
-
-                    let manager_clone = self.clone();
-                    let crdts_map = self.crdts.clone();
-                    tokio::spawn(async move {
-                        while let Some(data) = rx_net.recv().await {
-                            if let Ok(msg) = serde_json::from_slice::<CrdtMessage>(&data) {
-                                let mut map = crdts_map.write().await;
-                                if let Some(existing) = map.get_mut(&msg.name) {
-                                    existing.merge_bytes(&msg.data);
-                                } else if let Some(new_doc) = ServiceCrdt::from_bytes(&msg.data) {
-                                    map.insert(msg.name.clone(), new_doc);
-                                }
-                                if let Some(doc) = map.get(&msg.name) {
-                                    let service = doc.to_service();
-                                    drop(map);
-                                    if let Err(err) =
-                                        manager_clone.apply_remote_service(service).await
-                                    {
-                                        eprintln!("Failed to apply remote update: {}", err);
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-                Err(e) => eprintln!("Failed to start P2P session: {}", e),
-            }
-        }
-
         Ok(())
     }
 
@@ -247,10 +170,6 @@ impl<R: RouteRegistry + Send + Sync> Clone for SimulatorLifecycle<R> {
             config_loader: self.config_loader.clone(),
             is_active: self.is_active.clone(),
             config_watcher: self.config_watcher.clone(),
-            p2p_enabled: self.p2p_enabled.clone(),
-            collab_sender: self.collab_sender.clone(),
-            #[cfg(feature = "p2p")]
-            crdts: self.crdts.clone(),
             log_sender: self.log_sender.clone(),
         }
     }
@@ -298,16 +217,6 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
 
         registry.clear_all_services().await?;
         router.clear_all();
-
-        #[cfg(feature = "p2p")]
-        {
-            let mut crdts_map = self.crdts.write().await;
-            crdts_map.clear();
-            for service_def in services.clone() {
-                let service_name = service_def.name.clone();
-                crdts_map.insert(service_name, ServiceCrdt::new(service_def));
-            }
-        }
 
         for service_def in services {
             let service_name = service_def.name.clone();

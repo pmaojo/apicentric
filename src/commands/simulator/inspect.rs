@@ -158,14 +158,24 @@ pub async fn handle_contract_test(
 }
 
 fn print_result(result: &ContractValidationResult, quiet: bool) {
-    let passed = result.scenario_results.iter().filter(|r| r.compliance_issue.is_none()).count();
+    let passed = result
+        .scenario_results
+        .iter()
+        .filter(|r| r.compliance_issue.is_none())
+        .count();
     let failed = result.scenario_results.len() - passed;
 
     if quiet {
         if result.is_compatible {
-             println!("✅ Contract Tests Passed: {} Passed, {} Failed", passed, failed);
+            println!(
+                "✅ Contract Tests Passed: {} Passed, {} Failed",
+                passed, failed
+            );
         } else {
-             println!("❌ Contract Tests Failed: {} Passed, {} Failed", passed, failed);
+            println!(
+                "❌ Contract Tests Failed: {} Passed, {} Failed",
+                passed, failed
+            );
         }
         return;
     }

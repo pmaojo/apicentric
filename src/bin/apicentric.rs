@@ -3,11 +3,11 @@
 //! This module is responsible for parsing command-line arguments, initializing
 //! the application context, and dispatching to the appropriate command handler.
 
+use apicentric::cli::args::SimulatorAction;
+use apicentric::cli::{parse, Cli, Commands};
 use apicentric::context::init;
 pub use apicentric::{ApicentricError, ApicentricResult as _ApicentricResult};
 use apicentric::{ApicentricResult, ContextBuilder, ExecutionContext};
-use apicentric::cli::{Cli, Commands, parse};
-use apicentric::cli::args::SimulatorAction;
 
 #[path = "../commands/ai.rs"]
 mod ai_cmd;
@@ -106,7 +106,6 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
             Some(SimulatorAction::Start {
                 services_dir,
                 force: _,
-                p2p: _,
                 template: _,
             }),
     } = &cli.command
@@ -147,7 +146,6 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                 SimulatorAction::Start {
                     services_dir,
                     force: _,
-                    p2p,
                     template,
                 } => {
                     // Start and block to keep services alive
@@ -172,9 +170,6 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                         if exec_ctx.dry_run {
                             println!("🏃 Dry run: Would start API simulator");
                             return Ok(());
-                        }
-                        if *p2p {
-                            sim.enable_p2p(true).await;
                         }
                         println!("🚀 Starting API Simulator (blocking)…");
                         sim.start().await?;

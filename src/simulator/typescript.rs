@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::process::Command;
 
-use crate::errors::{ApicentricResult, ApicentricError};
+use crate::errors::{ApicentricError, ApicentricResult};
 use tempfile::NamedTempFile;
 
 use super::openapi;
@@ -30,14 +30,17 @@ pub fn to_typescript(service: &ServiceDefinition) -> ApicentricResult<String> {
         .map_err(ApicentricError::Io)?;
     if !output.status.success() {
         return Err(ApicentricError::Runtime {
-            message: format!("openapi-typescript failed: {}", String::from_utf8_lossy(&output.stderr)),
-            suggestion: Some("Ensure npx and openapi-typescript are available".to_string())
+            message: format!(
+                "openapi-typescript failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ),
+            suggestion: Some("Ensure npx and openapi-typescript are available".to_string()),
         });
     }
 
     let types = String::from_utf8(output.stdout).map_err(|e| ApicentricError::Data {
         message: format!("Failed to parse openapi-typescript output: {}", e),
-        suggestion: None
+        suggestion: None,
     })?;
     Ok(types)
 }

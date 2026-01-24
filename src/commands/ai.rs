@@ -1,6 +1,6 @@
 use apicentric::ai;
-use apicentric::{ApicentricResult, Context, ExecutionContext};
 use apicentric::cli::args::AiAction;
+use apicentric::{ApicentricResult, Context, ExecutionContext};
 
 pub async fn ai_command(
     action: &AiAction,

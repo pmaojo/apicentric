@@ -1,7 +1,7 @@
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::iot::config::AdapterConfig;
 use crate::iot::model::VariableValue;
 use crate::iot::traits::ProtocolAdapter;
-use crate::errors::{ApicentricResult, ApicentricError};
 use async_trait::async_trait;
 use log::{error, info};
 use std::collections::HashMap;
@@ -94,11 +94,9 @@ impl ProtocolAdapter for ModbusAdapter {
                     }
                     _ => 0,
                 };
-                let mut store = self.store.lock().map_err(|_| {
-                     ApicentricError::Data {
-                        message: "Failed to acquire lock on modbus store".to_string(),
-                        suggestion: None
-                    }
+                let mut store = self.store.lock().map_err(|_| ApicentricError::Data {
+                    message: "Failed to acquire lock on modbus store".to_string(),
+                    suggestion: None,
                 })?;
                 store.holding_registers.insert(addr, val_u16);
             }
@@ -178,7 +176,8 @@ async fn handle_connection(mut stream: tokio::net::TcpStream, store: Arc<Mutex<M
                             if let Ok(store) = store.lock() {
                                 for i in 0..count {
                                     let addr = start_addr.wrapping_add(i);
-                                    let val = store.holding_registers.get(&addr).copied().unwrap_or(0);
+                                    let val =
+                                        store.holding_registers.get(&addr).copied().unwrap_or(0);
                                     data.extend_from_slice(&val.to_be_bytes());
                                     byte_count += 2;
                                 }

@@ -1,6 +1,7 @@
 use crate::{ApicentricError, ApicentricResult};
 use apicentric::simulator::config::{
-    EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition, UnifiedConfig,
+    EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
+    UnifiedConfig,
 };
 use inquire::{Confirm, Select, Text};
 use std::collections::HashMap;

@@ -1,7 +1,7 @@
 use super::*;
+use apicentric::cli::args::ExportFormat;
 use apicentric::config::ApicentricConfig;
 use apicentric::context::{ContextBuilder, ExecutionContext};
-use apicentric::cli::args::ExportFormat;
 use std::fs;
 use tempfile::TempDir;
 
@@ -26,7 +26,6 @@ async fn start_runs() {
         &SimulatorAction::Start {
             services_dir: "services".into(),
             force: false,
-            p2p: false,
             template: None,
         },
         &ctx,

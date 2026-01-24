@@ -4,7 +4,6 @@ pub async fn handle_start(
     context: &Context,
     services_dir: &str,
     force: bool,
-    p2p: bool,
     template: Option<&str>,
     exec_ctx: &ExecutionContext,
 ) -> ApicentricResult<()> {
@@ -40,9 +39,6 @@ pub async fn handle_start(
         if force && simulator.is_active().await {
             println!("🔄 Force stopping existing simulator...");
             simulator.stop().await?;
-        }
-        if p2p {
-            simulator.enable_p2p(true).await;
         }
         match simulator.start().await {
             Ok(_) => {

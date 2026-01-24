@@ -1,5 +1,5 @@
-use crate::simulator::config::{EndpointDefinition, EndpointKind, ServiceDefinition};
 use crate::errors::ApicentricResult;
+use crate::simulator::config::{EndpointDefinition, EndpointKind, ServiceDefinition};
 
 /// Generate React Query hooks for a service definition.
 ///
