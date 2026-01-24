@@ -18,18 +18,10 @@ pub async fn simulator_command(
         SimulatorAction::Start {
             services_dir,
             force,
-            p2p,
             template,
         } => {
-            control::handle_start(
-                context,
-                services_dir,
-                *force,
-                *p2p,
-                template.as_deref(),
-                exec_ctx,
-            )
-            .await
+            control::handle_start(context, services_dir, *force, template.as_deref(), exec_ctx)
+                .await
         }
         SimulatorAction::Stop { force } => control::handle_stop(context, *force, exec_ctx).await,
         SimulatorAction::Status { detailed } => {
@@ -93,15 +85,6 @@ pub async fn simulator_command(
         SimulatorAction::Record { output, url } => {
             service::handle_record(context, output, url, exec_ctx).await
         }
-        SimulatorAction::Share { service } => {
-            service::handle_share(context, service, exec_ctx).await
-        }
-        SimulatorAction::Connect {
-            peer,
-            service,
-            port,
-            token,
-        } => service::handle_connect(peer, service, *port, token.as_deref(), exec_ctx).await,
         SimulatorAction::Dockerize { file, output } => {
             dockerize::handle_dockerize(file, output, exec_ctx).await
         }

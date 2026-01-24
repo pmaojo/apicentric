@@ -94,7 +94,6 @@ pub enum SimulatorAction {
     Start {
         services_dir: String,
         force: bool,
-        p2p: bool,
         template: Option<String>,
     },
     Stop {
@@ -159,15 +158,6 @@ pub enum SimulatorAction {
         output: String,
         url: Option<String>,
     },
-    Share {
-        service: String,
-    },
-    Connect {
-        peer: String,
-        service: String,
-        port: u16,
-        token: Option<String>,
-    },
     Dockerize {
         file: Vec<String>,
         output: String,
@@ -188,9 +178,7 @@ pub enum ExportFormat {
 
 #[derive(Debug, Clone)]
 pub enum AiAction {
-    Generate {
-        prompt: String,
-    },
+    Generate { prompt: String },
 }
 
 #[cfg(feature = "iot")]

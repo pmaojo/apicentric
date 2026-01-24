@@ -1,7 +1,7 @@
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::iot::config::AdapterConfig;
 use crate::iot::model::VariableValue;
 use crate::iot::traits::ProtocolAdapter;
-use crate::errors::{ApicentricResult, ApicentricError};
 use async_trait::async_trait;
 use log::{error, info};
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
@@ -140,7 +140,7 @@ impl ProtocolAdapter for MqttAdapter {
                 .await
                 .map_err(|e| ApicentricError::Mqtt {
                     message: e.to_string(),
-                    suggestion: Some("Check connection to MQTT broker".to_string())
+                    suggestion: Some("Check connection to MQTT broker".to_string()),
                 })?;
         }
         Ok(())
@@ -149,10 +149,12 @@ impl ProtocolAdapter for MqttAdapter {
     async fn subscribe(&mut self, topic: &str) -> ApicentricResult<()> {
         if let Some(client) = &self.client {
             let full_topic = format!("{}/{}", self.topic_prefix, topic);
-            client.subscribe(full_topic, QoS::AtLeastOnce).await
+            client
+                .subscribe(full_topic, QoS::AtLeastOnce)
+                .await
                 .map_err(|e| ApicentricError::Mqtt {
                     message: e.to_string(),
-                    suggestion: Some("Check connection to MQTT broker".to_string())
+                    suggestion: Some("Check connection to MQTT broker".to_string()),
                 })?;
         }
         Ok(())

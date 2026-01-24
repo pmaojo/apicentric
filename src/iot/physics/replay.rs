@@ -1,6 +1,6 @@
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::iot::model::{DigitalTwinState, VariableValue};
 use crate::iot::traits::SimulationStrategy;
-use crate::errors::{ApicentricResult, ApicentricError};
 use async_trait::async_trait;
 use log::warn;
 use std::path::Path;
@@ -33,7 +33,7 @@ impl ReplayStrategy {
                 .position(|h| h == col)
                 .ok_or_else(|| ApicentricError::Data {
                     message: format!("Column '{}' not found in CSV file", col),
-                    suggestion: Some("Check CSV headers".to_string())
+                    suggestion: Some("Check CSV headers".to_string()),
                 })?
         } else {
             0 // Default to first column
@@ -61,7 +61,7 @@ impl ReplayStrategy {
         if data.is_empty() {
             return Err(ApicentricError::Data {
                 message: "CSV file contains no data".to_string(),
-                suggestion: Some("Ensure the CSV file is not empty".to_string())
+                suggestion: Some("Ensure the CSV file is not empty".to_string()),
             });
         }
 
@@ -79,7 +79,7 @@ impl SimulationStrategy for ReplayStrategy {
     async fn tick(&self, state: &mut DigitalTwinState) -> ApicentricResult<()> {
         let mut idx = self.index.lock().map_err(|_| ApicentricError::Runtime {
             message: "Failed to lock replay index".to_string(),
-            suggestion: None
+            suggestion: None,
         })?;
 
         if *idx >= self.data.len() {

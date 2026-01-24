@@ -33,11 +33,7 @@ impl ScriptingEngine {
     }
 
     /// Execute a script in the context of a request
-    pub fn execute(
-        &self,
-        script: &str,
-        context: &Value,
-    ) -> ApicentricResult<Value> {
+    pub fn execute(&self, script: &str, context: &Value) -> ApicentricResult<Value> {
         let engine = self.engine.lock().unwrap();
         let mut cache = self.cache.lock().unwrap();
 

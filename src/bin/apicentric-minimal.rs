@@ -26,17 +26,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut path = None;
             let mut i = 2;
             while i < args.len() {
-                if args[i] == "--path" || args[i] == "-p" {
-                    if i + 1 < args.len() {
-                        path = Some(args[i+1].clone());
-                        i += 1;
-                    }
+                if (args[i] == "--path" || args[i] == "-p") && i + 1 < args.len() {
+                    path = Some(args[i + 1].clone());
+                    i += 1;
                 }
                 i += 1;
             }
 
             if let Some(p) = path {
-                 validate_file(&p);
+                validate_file(&p);
             } else {
                 println!("{}", "❌ Missing required argument: --path".red());
                 print_help();

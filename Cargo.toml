@@ -19,10 +19,6 @@ contract-testing = ["reqwest", "dep:async-trait"]
 graphql = ["dep:async-graphql", "dep:async-graphql-parser"]
 
 # Optional modular features
-# P2P: Peer-to-peer collaboration features (CRDT, libp2p networking, sharing)
-# Adds ~5-10MB to binary size. Disable for lightweight deployments.
-p2p = ["dep:libp2p", "dep:automerge", "dep:async-trait"]
-
 # TUI: Terminal-based user interface using ratatui
 # Provides interactive terminal UI for service management and monitoring
 tui = ["ratatui", "crossterm", "indicatif", "console", "inquire", "reqwest"]
@@ -57,10 +53,7 @@ cli-tools = ["simulator", "contract-testing", "tui"]
 minimal = ["simulator"]
 
 # full: All features including P2P, desktop GUI, and WebUI
-full = ["p2p", "gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql", "iot"]
-
-# no-p2p: Everything except P2P (useful for lightweight deployments)
-no-p2p = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "iot"]
+full = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql", "iot"]
 
 [dependencies]
 indexmap = "2.12.0"
@@ -101,10 +94,6 @@ jsonwebtoken = "9.2"
 
 # WebSocket support (optional)
 tokio-tungstenite = { version = "0.21", optional = true }
-
-# P2P networking support (optional, heavy)
-libp2p = { version = "0.55", optional = true, features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "request-response", "tokio", "quic", "macros"] }
-automerge = { version = "0.5", optional = true }
 
 # GraphQL support (optional)
 async-graphql = { version = "7.0", optional = true }

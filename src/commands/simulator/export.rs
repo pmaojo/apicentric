@@ -102,14 +102,13 @@ pub async fn handle_export_query(
         .map_err(|e| {
             ApicentricError::runtime_error(format!("Invalid service YAML: {}", e), None::<String>)
         })?;
-    let ts = apicentric::simulator::react_query::generate_react_query_hooks(&service).map_err(
-        |e| {
+    let ts =
+        apicentric::simulator::react_query::generate_react_query_hooks(&service).map_err(|e| {
             ApicentricError::runtime_error(
                 format!("Failed to generate hooks: {}", e),
                 None::<String>,
             )
-        },
-    )?;
+        })?;
     std::fs::write(output, ts).map_err(|e| {
         ApicentricError::runtime_error(format!("Failed to write hooks file: {}", e), None::<String>)
     })?;

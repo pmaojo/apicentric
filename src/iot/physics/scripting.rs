@@ -1,6 +1,6 @@
+use crate::errors::{ApicentricError, ApicentricResult};
 use crate::iot::model::{DigitalTwinState, VariableValue};
 use crate::iot::traits::SimulationStrategy;
-use crate::errors::{ApicentricResult, ApicentricError};
 use async_trait::async_trait;
 use log::error;
 use rhai::{Engine, Scope, AST};
@@ -23,10 +23,12 @@ impl RhaiScriptStrategy {
     /// Create a new script strategy from a script string
     pub fn new(script: &str, variable_name: String) -> ApicentricResult<Self> {
         let engine = Engine::new();
-        let ast = engine.compile(script).map_err(|e| ApicentricError::Scripting {
-            message: e.to_string(),
-            suggestion: Some("Check Rhai script syntax".to_string())
-        })?;
+        let ast = engine
+            .compile(script)
+            .map_err(|e| ApicentricError::Scripting {
+                message: e.to_string(),
+                suggestion: Some("Check Rhai script syntax".to_string()),
+            })?;
         Ok(Self {
             engine: Arc::new(Mutex::new(engine)),
             ast,
@@ -65,7 +67,7 @@ impl SimulationStrategy for RhaiScriptStrategy {
         // Lock engine
         let engine = self.engine.lock().map_err(|_| ApicentricError::Runtime {
             message: "Failed to lock script engine".to_string(),
-            suggestion: None
+            suggestion: None,
         })?;
         let result = engine.eval_ast_with_scope::<f64>(&mut scope, &self.ast);
 

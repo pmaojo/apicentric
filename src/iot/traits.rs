@@ -1,6 +1,6 @@
+use crate::errors::ApicentricResult;
 use crate::iot::config::AdapterConfig;
 use crate::iot::model::VariableValue;
-use crate::errors::ApicentricResult;
 use async_trait::async_trait;
 
 /// Trait for protocol adapters (transports)

@@ -15,7 +15,8 @@ pub fn generate_react_view(service: &ServiceDefinition) -> ApicentricResult<Stri
     out.push_str("// Import generated hooks\n");
 
     let endpoints = service.endpoints.as_ref().cloned().unwrap_or_default();
-    let http_endpoints: Vec<&EndpointDefinition> = endpoints.iter()
+    let http_endpoints: Vec<&EndpointDefinition> = endpoints
+        .iter()
         .filter(|ep| ep.kind == EndpointKind::Http)
         .collect();
 
@@ -28,7 +29,10 @@ pub fn generate_react_view(service: &ServiceDefinition) -> ApicentricResult<Stri
     out.push_str("} from './hooks';\n\n");
 
     let component_name = format!("{}View", service.name.replace(' ', ""));
-    out.push_str(&format!("export const {}: React.FC = () => {{\n", component_name));
+    out.push_str(&format!(
+        "export const {}: React.FC = () => {{\n",
+        component_name
+    ));
     out.push_str("    const queryClient = useQueryClient();\n\n");
 
     // Form instances for mutations
@@ -45,9 +49,15 @@ pub fn generate_react_view(service: &ServiceDefinition) -> ApicentricResult<Stri
         if ep.method == "GET" {
             // Assume no params for simple view, or pass empty/defaults
             // This is a simplification for the view generator
-            out.push_str(&format!("    const {{ data: data{}, isLoading: isLoading{}, error: error{} }} = {}('');\n", i, i, i, hook));
+            out.push_str(&format!(
+                "    const {{ data: data{}, isLoading: isLoading{}, error: error{} }} = {}('');\n",
+                i, i, i, hook
+            ));
         } else {
-            out.push_str(&format!("    const {{ mutate: mutate{}, isPending: isPending{} }} = {}('');\n", i, i, hook));
+            out.push_str(&format!(
+                "    const {{ mutate: mutate{}, isPending: isPending{} }} = {}('');\n",
+                i, i, hook
+            ));
         }
     }
     out.push('\n');
@@ -55,18 +65,27 @@ pub fn generate_react_view(service: &ServiceDefinition) -> ApicentricResult<Stri
     // Render
     out.push_str("    return (\n");
     out.push_str("        <Space direction=\"vertical\" style={{ width: '100%' }}>\n");
-    out.push_str(&format!("            <Card title=\"{} Management\">\n", service.name));
+    out.push_str(&format!(
+        "            <Card title=\"{} Management\">\n",
+        service.name
+    ));
 
     for (i, ep) in http_endpoints.iter().enumerate() {
-        out.push_str(&format!("                <Card type=\"inner\" title=\"{} {}\">\n", ep.method, ep.path));
+        out.push_str(&format!(
+            "                <Card type=\"inner\" title=\"{} {}\">\n",
+            ep.method, ep.path
+        ));
 
         if ep.method == "GET" {
             out.push_str(&format!("                    {{isLoading{} ? (\n", i));
             out.push_str("                        <p>Loading...</p>\n");
             out.push_str(&format!("                    ) : error{} ? (\n", i));
-            out.push_str(&format!("                        <p>Error: {{(error{} as any).message}}</p>\n", i));
+            out.push_str(&format!(
+                "                        <p>Error: {{(error{} as any).message}}</p>\n",
+                i
+            ));
             out.push_str("                    ) : (\n");
-            out.push_str(&format!("                        <Table\n"));
+            out.push_str("                        <Table\n");
             out.push_str(&format!("                            dataSource={{Array.isArray(data{}) ? data{} : [data{}]}}\n", i, i, i));
             out.push_str("                            columns={[\n");
             out.push_str("                                { title: 'Data', dataIndex: 'id', key: 'id', render: (val: any, record: any) => JSON.stringify(record) }\n");
@@ -75,20 +94,28 @@ pub fn generate_react_view(service: &ServiceDefinition) -> ApicentricResult<Stri
             out.push_str("                        />\n");
             out.push_str("                    )}\n");
         } else {
-            out.push_str(&format!("                    <Form\n"));
+            out.push_str("                    <Form\n");
             out.push_str(&format!("                        form={{form{}}}\n", i));
             out.push_str("                        layout=\"inline\"\n");
             out.push_str("                        onFinish={(values) => {\n");
-            out.push_str(&format!("                            mutate{}(values, {{\n", i));
+            out.push_str(&format!(
+                "                            mutate{}(values, {{\n",
+                i
+            ));
             out.push_str("                                onSuccess: () => {\n");
             out.push_str("                                    queryClient.invalidateQueries();\n");
-            out.push_str(&format!("                                    form{}.resetFields();\n", i));
+            out.push_str(&format!(
+                "                                    form{}.resetFields();\n",
+                i
+            ));
             out.push_str("                                }\n");
             out.push_str("                            });\n");
             out.push_str("                        }}\n");
             out.push_str("                    >\n");
             out.push_str("                        <Form.Item name=\"payload\">\n");
-            out.push_str("                            <Input.TextArea placeholder=\"JSON Payload\" />\n");
+            out.push_str(
+                "                            <Input.TextArea placeholder=\"JSON Payload\" />\n",
+            );
             out.push_str("                        </Form.Item>\n");
             out.push_str("                        <Form.Item>\n");
             out.push_str(&format!("                            <Button type=\"primary\" htmlType=\"submit\" loading={{isPending{}}}>\n", i));
