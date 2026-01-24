@@ -967,7 +967,6 @@ mod tests {
         let manager = create_test_manager();
         let _handler = EventHandler::new(manager);
         // Just verify it can be created
-        assert!(true);
     }
 
     #[tokio::test]

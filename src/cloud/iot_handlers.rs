@@ -14,7 +14,10 @@ fn sanitize_twin_name(name: &str) -> Result<String, ApiError> {
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or_else(|| {
-            ApiError::bad_request(ApiErrorCode::InvalidParameter, "Invalid twin name".to_string())
+            ApiError::bad_request(
+                ApiErrorCode::InvalidParameter,
+                "Invalid twin name".to_string(),
+            )
         })
         .map(|s| s.to_string())
 }

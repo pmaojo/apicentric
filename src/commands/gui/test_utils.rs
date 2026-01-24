@@ -2,6 +2,8 @@
 //!
 //! This module provides common test fixtures and utilities.
 
+#![allow(dead_code)]
+
 use tokio::sync::broadcast;
 
 use super::state::GuiAppState;

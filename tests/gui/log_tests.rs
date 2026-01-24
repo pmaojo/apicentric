@@ -649,6 +649,7 @@ mod integration_tests {
             "GET".to_string(),
             "/api/users".to_string(),
             200,
+            None,
         );
 
         tx.send(sim_log.clone()).unwrap();
@@ -675,6 +676,7 @@ mod integration_tests {
                 "GET".to_string(),
                 format!("/path{}", i),
                 200,
+                None,
             );
 
             tx.send(sim_log.clone()).unwrap();
@@ -701,6 +703,7 @@ mod integration_tests {
                 "GET".to_string(),
                 format!("/endpoint{}", i % 10),
                 200,
+                None,
             );
 
             tx.send(sim_log.clone()).unwrap();
@@ -729,6 +732,7 @@ mod integration_tests {
                 "POST".to_string(),
                 format!("/data/{}", i),
                 201,
+                None,
             );
 
             tx.send(sim_log.clone()).unwrap();
@@ -804,6 +808,7 @@ mod integration_tests {
                         "GET".to_string(),
                         format!("/path{}", i),
                         200,
+                        None,
                     );
 
                     let _ = tx_clone.send(sim_log);
@@ -820,7 +825,7 @@ mod integration_tests {
 
         // Collect all logs (in real app, this would be done by the receiver)
         // For this test, we'll just verify the channel works
-        assert!(true); // Channel operations succeeded
+        // Channel operations succeeded
     }
 
     #[tokio::test]
@@ -871,6 +876,7 @@ mod integration_tests {
             "POST".to_string(),
             "/api/data".to_string(),
             201,
+            None,
         );
 
         let gui_log = RequestLogEntry::from_simulator_log(&sim_log);
