@@ -77,11 +77,21 @@ fn is_mockoon(value: &JsonValue) -> bool {
 async fn import_openapi(content: &str, output: &str) -> ApicentricResult<()> {
     let spec: YamlValue = serde_yaml::from_str(content).map_err(|e| {
         ApicentricError::validation_error(
-            e.to_string(),
+            format!("Invalid YAML/JSON format: {}", e),
             Option::<String>::None,
-            Option::<String>::None,
+            Some("Ensure the file content is valid YAML or JSON"),
         )
     })?;
+
+    // Validate that it looks like an OpenAPI document
+    if spec.get("openapi").is_none() && spec.get("swagger").is_none() {
+        return Err(ApicentricError::validation_error(
+            "Could not detect OpenAPI version (missing 'openapi' or 'swagger' field)",
+            None::<String>,
+            Some("Ensure the file is a valid OpenAPI 3.0 or Swagger 2.0 document"),
+        ));
+    }
+
     let service = apicentric::simulator::openapi::from_openapi(&spec);
     write_service_file(service, output, "OpenAPI")
 }

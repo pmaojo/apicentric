@@ -105,9 +105,12 @@ pub async fn simulator_command(
         SimulatorAction::Dockerize { file, output } => {
             dockerize::handle_dockerize(file, output, exec_ctx).await
         }
-        SimulatorAction::Test { path, url, env } => {
-            inspect::handle_contract_test(path, url, env, exec_ctx).await
-        }
+        SimulatorAction::Test {
+            path,
+            url,
+            env,
+            quiet,
+        } => inspect::handle_contract_test(path, url, env, *quiet, exec_ctx).await,
     }
 }
 #[cfg(test)]

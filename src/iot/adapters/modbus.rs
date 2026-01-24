@@ -56,10 +56,16 @@ impl ProtocolAdapter for ModbusAdapter {
                 Ok(listener) => {
                     info!("Modbus TCP Server listening on {}", addr);
                     loop {
-                        if let Ok((socket, peer)) = listener.accept().await {
-                            info!("Modbus connection from {}", peer);
-                            let store_clone = store.clone();
-                            tokio::spawn(handle_connection(socket, store_clone));
+                        match listener.accept().await {
+                            Ok((socket, peer)) => {
+                                info!("Modbus connection from {}", peer);
+                                let store_clone = store.clone();
+                                tokio::spawn(handle_connection(socket, store_clone));
+                            }
+                            Err(e) => {
+                                error!("Accept error: {}", e);
+                                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                            }
                         }
                     }
                 }
