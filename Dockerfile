@@ -37,7 +37,7 @@ COPY src/ ./src/
 COPY examples/ ./examples/
 
 # Build with all features for cloud deployment
-RUN cargo build --release --bin apicentric --features "gui,cloud"
+RUN cargo build --release --bin apicentric
 
 # Stage 3: Runtime
 FROM debian:bookworm-slim
