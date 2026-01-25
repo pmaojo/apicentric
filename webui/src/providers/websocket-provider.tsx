@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { logger } from '../infrastructure/logger';
 
 /**
  * WebSocket message types from the Rust backend
@@ -115,7 +116,7 @@ export function WebSocketProvider({
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message));
     } else {
-      console.warn('WebSocket is not connected. Cannot send message:', message);
+      logger.warn('WebSocket is not connected. Cannot send message:', message);
     }
   }, []);
 
@@ -139,12 +140,12 @@ export function WebSocketProvider({
           try {
             callback(message.data);
           } catch (error) {
-            console.error(`Error in WebSocket subscriber for type ${message.type}:`, error);
+            logger.error(`Error in WebSocket subscriber for type ${message.type}:`, error);
           }
         });
       }
     } catch (error) {
-      console.error('Failed to parse WebSocket message:', error);
+      logger.error('Failed to parse WebSocket message:', error);
     }
   }, [send]);
 
@@ -173,7 +174,7 @@ export function WebSocketProvider({
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('✅ WebSocket connected');
+        logger.log('✅ WebSocket connected');
         setIsConnected(true);
         setConnectionState('connected');
         reconnectAttemptsRef.current = 0;
@@ -183,7 +184,7 @@ export function WebSocketProvider({
       ws.onmessage = handleMessage;
 
       ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
+        logger.log('WebSocket closed:', event.code, event.reason);
         setIsConnected(false);
         setConnectionState('disconnected');
         wsRef.current = null;
@@ -191,7 +192,7 @@ export function WebSocketProvider({
         // Only attempt to reconnect if it wasn't a manual close and we haven't exceeded max attempts
         if (enabled && event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           const delay = getReconnectDelay();
-          console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
+          logger.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptsRef.current++;
@@ -204,13 +205,13 @@ export function WebSocketProvider({
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        logger.error('WebSocket error:', error);
         setConnectionState('error');
         setLastError('WebSocket connection error');
       };
 
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
+      logger.error('Failed to create WebSocket connection:', error);
       setConnectionState('error');
       setLastError(error instanceof Error ? error.message : 'Unknown connection error');
     }
