@@ -350,6 +350,14 @@ pub fn get_marketplace_items() -> Vec<MarketplaceItem> {
             logo_url: None,
             definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/gateway/edge-gateway.yaml".to_string(),
         },
+        MarketplaceItem {
+            id: "iot/rfid/zebra-fx9600".to_string(),
+            name: "Zebra FX9600 RFID Reader".to_string(),
+            description: "Digital Twin of a Zebra FX9600 RFID Reader with IoT Connector.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/rfid/zebra-fx9600.yaml".to_string(),
+        },
     ]
 }
 
@@ -470,7 +478,7 @@ mod tests {
 
         // Check for IoT items
         let iot_items: Vec<_> = items.iter().filter(|i| i.category == "IoT Twin").collect();
-        assert_eq!(iot_items.len(), 29);
+        assert_eq!(iot_items.len(), 30);
 
         // Verify specific new template exists
         assert!(items
