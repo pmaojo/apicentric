@@ -42,4 +42,12 @@ async fn loads_plugins_from_directory() {
     let mut res = Response::new(Vec::new());
     manager.on_request(&mut req).await;
     manager.on_response(&mut res).await;
+
+    // On Windows, dropping the PluginManager (and thus unloading the DLL) while the
+    // plugin's memory was allocated by a different allocator (in the DLL) can cause
+    // a STATUS_ACCESS_VIOLATION (0xc0000005).
+    // To prevent this crash during test teardown, we explicitly leak the manager,
+    // keeping the DLL loaded and avoiding the deallocation of the plugin struct
+    // across the FFI boundary. The OS will clean up when the process exits.
+    std::mem::forget(manager);
 }
