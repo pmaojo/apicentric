@@ -146,6 +146,8 @@ pub async fn handle_new_graphql(
         behavior: None,
         #[cfg(feature = "iot")]
         twin: None,
+        #[cfg(feature = "bluetooth")]
+        bluetooth: None,
     };
 
     let gql_schema_filename = format!("{}.gql", service_name);

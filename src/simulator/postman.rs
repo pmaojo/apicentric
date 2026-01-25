@@ -62,8 +62,9 @@ fn convert_postman(v: &Value) -> ServiceDefinition {
         graphql: None,
         behavior: None,
         #[cfg(feature = "iot")]
-        #[cfg(feature = "iot")]
         twin: None,
+        #[cfg(feature = "bluetooth")]
+        bluetooth: None,
     }
 }
 
@@ -263,6 +264,8 @@ fn convert_insomnia(v: &Value) -> ServiceDefinition {
         behavior: None,
         #[cfg(feature = "iot")]
         twin: None,
+        #[cfg(feature = "bluetooth")]
+        bluetooth: None,
     }
 }
 

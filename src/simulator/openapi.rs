@@ -52,6 +52,8 @@ fn from_openapi_v3(raw: &Value) -> ServiceDefinition {
             behavior: None,
             #[cfg(feature = "iot")]
             twin: None,
+            #[cfg(feature = "bluetooth")]
+            bluetooth: None,
         },
     }
 }
@@ -197,6 +199,8 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
         behavior: None,
         #[cfg(feature = "iot")]
         twin: None,
+        #[cfg(feature = "bluetooth")]
+        bluetooth: None,
     }
 }
 

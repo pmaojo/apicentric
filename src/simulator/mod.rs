@@ -20,6 +20,8 @@ pub mod route_registry;
 pub mod router;
 pub mod scripting;
 pub mod service;
+#[cfg(feature = "bluetooth")]
+pub mod bluetooth;
 pub mod template;
 pub mod typescript;
 #[cfg(feature = "file-watch")]

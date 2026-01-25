@@ -1120,6 +1120,8 @@ pub async fn generate_service_from_recording(
         graphql: None,
         behavior: None,
         twin: None,
+        #[cfg(feature = "bluetooth")]
+        bluetooth: None,
     };
 
     // Convert to YAML
