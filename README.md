@@ -774,6 +774,7 @@ apicentric twin run --device assets/library/demo_device.yaml
 
 - **GraphQL Mocking**: Mock GraphQL APIs with schema
 - **JavaScript Plugins**: Extend with custom logic
+  > **Note for Windows Users:** The Plugin System is currently experimental and not supported on Windows environments due to dynamic library loading constraints.
 
 ## Development
 
