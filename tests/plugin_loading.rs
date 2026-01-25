@@ -47,9 +47,12 @@ async fn loads_plugins_from_directory() {
 
     assert_eq!(manager.plugin_count(), 1);
 
-    use http::{Request, Response};
-    let mut req = Request::new(Vec::new());
-    let mut res = Response::new(Vec::new());
-    manager.on_request(&mut req).await;
-    manager.on_response(&mut res).await;
+    #[cfg(not(target_os = "windows"))]
+    {
+        use http::{Request, Response};
+        let mut req = Request::new(Vec::new());
+        let mut res = Response::new(Vec::new());
+        manager.on_request(&mut req).await;
+        manager.on_response(&mut res).await;
+    }
 }

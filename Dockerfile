@@ -11,7 +11,7 @@ WORKDIR /app/webui
 
 # Copy package files
 COPY webui/package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy frontend source
 COPY webui/ ./
@@ -20,7 +20,7 @@ COPY webui/ ./
 RUN npm run build
 
 # Stage 2: Build Backend
-FROM rust:1.75-bookworm AS backend-builder
+FROM rust:1.84-bookworm AS backend-builder
 WORKDIR /app
 
 # Install build dependencies
