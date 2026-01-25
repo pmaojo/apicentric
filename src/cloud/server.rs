@@ -212,6 +212,7 @@ impl CloudServer {
             .layer(
                 ServiceBuilder::new()
                     .layer(create_cors_layer())
+                    .layer(axum::middleware::from_fn(add_security_headers))
                     .into_inner(),
             )
             // Share the simulator manager state across all handlers
@@ -238,4 +239,59 @@ async fn health_check() -> Json<serde_json::Value> {
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "uptime_seconds": uptime,
     }))
+}
+
+/// Middleware to add security headers to every response.
+async fn add_security_headers(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> impl axum::response::IntoResponse {
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+
+    headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
+    headers.insert("X-Frame-Options", "SAMEORIGIN".parse().unwrap());
+    headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
+    headers.insert(
+        "Referrer-Policy",
+        "strict-origin-when-cross-origin".parse().unwrap(),
+    );
+    headers.insert(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws:; font-src 'self' data:; object-src 'none'; media-src 'none'; frame-src 'none';"
+            .parse()
+            .unwrap(),
+    );
+
+    response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::Service;
+
+    #[tokio::test]
+    async fn test_security_headers_middleware() {
+        // Create a simple router that uses the middleware
+        let mut app = Router::new()
+            .route("/", get(|| async { "Hello" }))
+            .layer(axum::middleware::from_fn(add_security_headers));
+
+        let req = Request::builder().uri("/").body(Body::empty()).unwrap();
+        let response = app.call(req).await.unwrap();
+
+        let headers = response.headers();
+
+        assert_eq!(headers.get("X-Content-Type-Options").unwrap(), "nosniff");
+        assert_eq!(headers.get("X-Frame-Options").unwrap(), "SAMEORIGIN");
+        assert_eq!(headers.get("X-XSS-Protection").unwrap(), "1; mode=block");
+        assert_eq!(
+            headers.get("Referrer-Policy").unwrap(),
+            "strict-origin-when-cross-origin"
+        );
+        assert!(headers.contains_key("Content-Security-Policy"));
+    }
 }
