@@ -89,6 +89,7 @@ pub enum ParameterLocation {
 /// Request body definition
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RequestBodyDefinition {
+    #[serde(default)]
     pub required: bool,
     pub schema: Option<String>, // Reference to model name
     pub content_type: Option<String>,

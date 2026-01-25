@@ -53,6 +53,8 @@ pub struct ServiceInstance {
     template_engine: Arc<TemplateEngine>,
     scripting_engine: Arc<ScriptingEngine>,
     server_handle: Option<JoinHandle<()>>,
+    #[cfg(feature = "iot")]
+    twin_handle: Option<JoinHandle<()>>,
     is_running: bool,
     active_scenario: Arc<RwLock<Option<String>>>,
     graphql: Option<Arc<GraphQLMocks>>,
@@ -97,6 +99,8 @@ impl ServiceInstance {
             template_engine: Arc::new(template_engine),
             scripting_engine,
             server_handle: None,
+            #[cfg(feature = "iot")]
+            twin_handle: None,
             is_running: false,
             active_scenario: Arc::new(RwLock::new(None)),
             graphql,
@@ -120,7 +124,7 @@ impl ServiceInstance {
         {
             let twin_def = self.definition.read().unwrap().twin.clone();
             if let Some(twin_def) = twin_def {
-                return self.start_twin_runner(twin_def).await;
+                self.start_twin_runner(twin_def).await?;
             }
         }
 
@@ -133,12 +137,20 @@ impl ServiceInstance {
         };
 
         // Standard HTTP service
-        let server_cfg = server_cfg.ok_or_else(|| {
-            ApicentricError::config_error(
-                format!("Service '{}' has no server configuration", service_name),
-                Some("Add a 'server' block or a 'twin' block to the configuration"),
-            )
-        })?;
+        let server_cfg = match server_cfg {
+            Some(cfg) => cfg,
+            None => {
+                if self.is_running {
+                    // Twin started, no server config needed
+                    return Ok(());
+                } else {
+                    return Err(ApicentricError::config_error(
+                        format!("Service '{}' has no server configuration", service_name),
+                        Some("Add a 'server' block or a 'twin' block to the configuration"),
+                    ));
+                }
+            }
+        };
 
         let base_path = server_cfg.base_path.clone();
 
@@ -270,8 +282,15 @@ impl ServiceInstance {
         // Stop the server if it's running
         if let Some(handle) = self.server_handle.take() {
             handle.abort();
+        }
 
-            // Wait a moment for graceful shutdown
+        #[cfg(feature = "iot")]
+        if let Some(handle) = self.twin_handle.take() {
+            handle.abort();
+        }
+
+        // Wait a moment for graceful shutdown
+        if self.is_running {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
 

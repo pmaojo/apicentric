@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use log::error;
 use rhai::{Engine, Scope, AST};
 use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// A simulation strategy that executes Rhai scripts to determine variable values.
 pub struct RhaiScriptStrategy {
@@ -42,6 +43,14 @@ impl SimulationStrategy for RhaiScriptStrategy {
     async fn tick(&self, state: &mut DigitalTwinState) -> ApicentricResult<()> {
         let mut scope = Scope::new();
 
+        // Inject timestamp
+        let start = SystemTime::now();
+        let timestamp = start
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+        scope.push("timestamp", timestamp);
+
         // Expose current state to script
         let current_val = state
             .variables
@@ -69,13 +78,28 @@ impl SimulationStrategy for RhaiScriptStrategy {
             message: "Failed to lock script engine".to_string(),
             suggestion: None,
         })?;
-        let result = engine.eval_ast_with_scope::<f64>(&mut scope, &self.ast);
+        let result = engine.eval_ast_with_scope::<rhai::Dynamic>(&mut scope, &self.ast);
 
         match result {
-            Ok(new_val) => {
-                state
-                    .variables
-                    .insert(self.variable_name.clone(), VariableValue::Float(new_val));
+            Ok(val) => {
+                let var_val = if val.is_int() {
+                    VariableValue::Integer(val.as_int().unwrap())
+                } else if val.is_float() {
+                    VariableValue::Float(val.as_float().unwrap())
+                } else if val.is_bool() {
+                    VariableValue::Boolean(val.as_bool().unwrap())
+                } else if val.is_string() {
+                    VariableValue::String(val.into_string().unwrap())
+                } else if val.is_map() {
+                    match serde_json::to_string(&val) {
+                        Ok(s) => VariableValue::String(s),
+                        Err(_) => VariableValue::String(format!("{:?}", val)),
+                    }
+                } else {
+                    VariableValue::String(format!("{}", val))
+                };
+
+                state.variables.insert(self.variable_name.clone(), var_val);
             }
             Err(e) => {
                 error!("Script execution failed for {}: {}", self.variable_name, e);

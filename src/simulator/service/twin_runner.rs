@@ -17,7 +17,7 @@ impl ServiceInstance {
         let service_name = twin_def.name.clone();
         let state = Arc::clone(&self.state);
 
-        let server_handle = tokio::spawn(async move {
+        let twin_runner_handle = tokio::spawn(async move {
             info!(target: "simulator", service = %service_name, "🚀 Starting Digital Twin runner");
 
             let mut twin = DigitalTwin::new(service_name.clone());
@@ -130,7 +130,7 @@ impl ServiceInstance {
             }
         });
 
-        self.server_handle = Some(server_handle);
+        self.twin_handle = Some(twin_runner_handle);
         self.is_running = true;
         Ok(())
     }
