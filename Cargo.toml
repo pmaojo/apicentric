@@ -161,6 +161,10 @@ reqwest = { version = "0.11", features = ["blocking", "json", "multipart"] }
 name = "apicentric"
 path = "src/bin/apicentric.rs"
 
+[[bin]]
+name = "apicentric-minimal"
+path = "src/bin/apicentric-minimal.rs"
+
 [profile.release]
 # Enable Link Time Optimization for better optimization across crates
 lto = true

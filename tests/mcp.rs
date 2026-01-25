@@ -85,10 +85,8 @@ fn test_mcp_create_service_tool() {
     // Consume stderr in a separate thread to prevent blocking and allow debugging
     std::thread::spawn(move || {
         let reader = BufReader::new(stderr);
-        for line in reader.lines() {
-            if let Ok(l) = line {
-                println!("[MCP Stderr] {}", l);
-            }
+        for l in reader.lines().map_while(Result::ok) {
+            println!("[MCP Stderr] {}", l);
         }
     });
 
@@ -125,5 +123,8 @@ fn test_mcp_create_service_tool() {
         println!("MCP Response (Accumulated): {}", accumulated_response);
     }
 
-    assert!(found, "Did not find expected success message in MCP response");
+    assert!(
+        found,
+        "Did not find expected success message in MCP response"
+    );
 }
