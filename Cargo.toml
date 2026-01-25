@@ -53,7 +53,7 @@ cli-tools = ["simulator", "contract-testing", "tui"]
 minimal = ["simulator"]
 
 # full: All features including P2P, desktop GUI, and WebUI
-full = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql", "iot"]
+full = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql", "iot", "mcp"]
 
 [dependencies]
 indexmap = "2.12.0"
