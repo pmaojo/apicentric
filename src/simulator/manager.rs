@@ -9,9 +9,11 @@ use crate::simulator::{
     recording_proxy::{ProxyRecorder, RecordingProxy},
     registry::ServiceRegistry,
     router::RequestRouter,
-    watcher::ConfigWatcher,
     ConfigChange, SimulatorStatus,
 };
+
+#[cfg(feature = "file-watch")]
+use crate::simulator::watcher::ConfigWatcher;
 use crate::storage::sqlite::SqliteStorage;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -56,6 +58,8 @@ impl ApiSimulatorManager {
         )));
         let route_registry = Arc::new(RwLock::new(RequestRouter::new()));
         let is_active = Arc::new(RwLock::new(false));
+
+        #[cfg(feature = "file-watch")]
         let config_watcher: Arc<RwLock<Option<ConfigWatcher>>> = Arc::new(RwLock::new(None));
 
         let lifecycle = SimulatorLifecycle::new(
@@ -64,6 +68,7 @@ impl ApiSimulatorManager {
             route_registry.clone(),
             config_loader.clone(),
             is_active.clone(),
+            #[cfg(feature = "file-watch")]
             config_watcher.clone(),
             log_sender.clone(),
         );

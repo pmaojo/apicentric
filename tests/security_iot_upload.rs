@@ -1,3 +1,5 @@
+#![cfg(all(not(target_arch = "wasm32"), feature = "webui"))]
+
 use apicentric::cloud::CloudServer;
 use apicentric::simulator::{config::SimulatorConfig, ApiSimulatorManager};
 use std::time::Duration;

@@ -1,3 +1,5 @@
+#![cfg(feature = "contract-testing")]
+
 use apicentric::adapters::service_spec_loader::YamlServiceSpecLoader;
 use apicentric::domain::ports::contract::ServiceSpecLoader;
 use apicentric::simulator::{ApiSimulatorManager, SimulatorConfig};

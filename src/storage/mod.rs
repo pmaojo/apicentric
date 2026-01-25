@@ -17,4 +17,5 @@ pub trait Storage: Send + Sync {
     fn clear_logs(&self) -> ApicentricResult<()>;
 }
 
+#[cfg(feature = "database")]
 pub mod sqlite;

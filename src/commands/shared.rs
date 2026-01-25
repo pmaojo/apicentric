@@ -3,6 +3,7 @@ use apicentric::simulator::config::{
     EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
     UnifiedConfig,
 };
+#[cfg(feature = "tui")]
 use inquire::{Confirm, Select, Text};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -113,17 +114,18 @@ fn find_yaml_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Apicentric
 }
 
 /// Prompt the user to create a new [`ServiceDefinition`]
+#[cfg(feature = "tui")]
 pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
     let name = Text::new("Service name:")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?;
 
     let description = Text::new("Description (optional):")
         .prompt_skippable()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?;
@@ -131,7 +133,7 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
     let base_path = Text::new("Base path:")
         .with_default("/api")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?;
@@ -139,7 +141,7 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
     let port_str = Text::new("Port:")
         .with_default("9000")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?;
@@ -152,7 +154,7 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
         let add_more = Confirm::new("Add another endpoint?")
             .with_default(false)
             .prompt()
-            .map_err(|e| ApicentricError::runtime_error(
+            .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
                 e.to_string(),
                 Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
             ))?;
@@ -164,7 +166,7 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
     Ok(ServiceDefinition {
         name,
         version: None,
-        description: description.filter(|s| !s.is_empty()),
+        description: description.filter(|s: &String| !s.is_empty()),
         server: Some(ServerConfig {
             port: Some(port),
             base_path,
@@ -178,16 +180,18 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
         endpoints: Some(endpoints),
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
         twin: None,
     })
 }
 
 /// Prompt the user to create a new [`EndpointDefinition`]
+#[cfg(feature = "tui")]
 pub fn scaffold_endpoint_definition() -> ApicentricResult<EndpointDefinition> {
     let methods = vec!["GET", "POST", "PUT", "DELETE"];
     let method = Select::new("HTTP method:", methods)
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?
@@ -195,14 +199,14 @@ pub fn scaffold_endpoint_definition() -> ApicentricResult<EndpointDefinition> {
 
     let path = Text::new("Path:")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?;
 
     let description = Text::new("Description (optional):")
         .prompt_skippable()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?;
@@ -210,7 +214,7 @@ pub fn scaffold_endpoint_definition() -> ApicentricResult<EndpointDefinition> {
     let status_str = Text::new("Response status code:")
         .with_default("200")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?;
@@ -219,7 +223,7 @@ pub fn scaffold_endpoint_definition() -> ApicentricResult<EndpointDefinition> {
     let content_type = Text::new("Content type:")
         .with_default("application/json")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?;
@@ -227,7 +231,7 @@ pub fn scaffold_endpoint_definition() -> ApicentricResult<EndpointDefinition> {
     let body = Text::new("Response body:")
         .with_default("{\"message\":\"ok\"}")
         .prompt()
-        .map_err(|e| ApicentricError::runtime_error(
+        .map_err(|e: inquire::InquireError| ApicentricError::runtime_error(
             e.to_string(),
             Some("Interactive prompt failed. Try using non-interactive mode or check terminal compatibility")
         ))?;
@@ -251,7 +255,7 @@ pub fn scaffold_endpoint_definition() -> ApicentricResult<EndpointDefinition> {
         method,
         path,
         header_match: None,
-        description: description.filter(|s| !s.is_empty()),
+        description: description.filter(|s: &String| !s.is_empty()),
         parameters: None,
         request_body: None,
         responses,

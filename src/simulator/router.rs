@@ -5,13 +5,16 @@ use std::convert::Infallible;
 use std::sync::Arc;
 
 use bytes::Bytes;
+#[cfg(feature = "websockets")]
 use futures_util::SinkExt;
 use http_body_util::{Full, StreamBody};
 use hyper::{Request, Response, StatusCode};
+#[cfg(feature = "websockets")]
 use hyper_util::rt::TokioIo;
 use tokio::sync::mpsc;
 use tokio::time::{interval, Duration};
 use tokio_stream::wrappers::UnboundedReceiverStream;
+#[cfg(feature = "websockets")]
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
 use crate::simulator::config::EndpointDefinition;
@@ -183,6 +186,7 @@ impl RequestRouter {
 }
 
 /// Handle a WebSocket upgrade and send templated messages
+#[cfg(feature = "websockets")]
 pub async fn handle_websocket_connection(
     req: Request<hyper::body::Incoming>,
     endpoint: &EndpointDefinition,
@@ -233,6 +237,19 @@ pub async fn handle_websocket_connection(
     });
 
     response
+}
+
+#[cfg(not(feature = "websockets"))]
+pub async fn handle_websocket_connection(
+    _req: Request<hyper::body::Incoming>,
+    _endpoint: &EndpointDefinition,
+    _engine: Arc<TemplateEngine>,
+    _context: TemplateContext,
+) -> Response<Full<Bytes>> {
+    Response::builder()
+        .status(StatusCode::NOT_IMPLEMENTED)
+        .body(Full::new(Bytes::from("WebSockets not enabled")))
+        .unwrap()
 }
 
 /// Create a Server-Sent Events response with optional periodic messages
