@@ -99,9 +99,7 @@ impl SimulationStrategy for RhaiScriptStrategy {
                     VariableValue::String(format!("{}", val))
                 };
 
-                state
-                    .variables
-                    .insert(self.variable_name.clone(), var_val);
+                state.variables.insert(self.variable_name.clone(), var_val);
             }
             Err(e) => {
                 error!("Script execution failed for {}: {}", self.variable_name, e);
