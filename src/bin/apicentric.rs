@@ -61,7 +61,6 @@ mod commands {
     }
 }
 
-
 /// The entry point for the `apicentric` CLI.
 #[tokio::main]
 async fn main() {

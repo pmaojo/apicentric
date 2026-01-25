@@ -1,10 +1,12 @@
 use crate::{ApicentricError, ApicentricResult};
+use apicentric::simulator::config::UnifiedConfig;
+#[cfg(feature = "tui")]
 use apicentric::simulator::config::{
     EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
-    UnifiedConfig,
 };
 #[cfg(feature = "tui")]
 use inquire::{Confirm, Select, Text};
+#[cfg(feature = "tui")]
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
