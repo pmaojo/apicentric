@@ -66,6 +66,13 @@ fn test_mcp_create_service_tool() {
     config_file.write_all(config_content.as_bytes()).unwrap();
     let config_path = config_file.path();
 
+    // Ensure the binary is built with the mcp feature enabled
+    let build_status = StdCommand::new("cargo")
+        .args(["build", "--bin", "apicentric", "--features", "mcp"])
+        .status()
+        .expect("Failed to build apicentric binary");
+    assert!(build_status.success(), "Failed to build apicentric binary");
+
     let cargo_bin = env!("CARGO_BIN_EXE_apicentric");
     let mut child = StdCommand::new(cargo_bin)
         .arg("--config")
