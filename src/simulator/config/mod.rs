@@ -2,10 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
+#[cfg(feature = "bluetooth")]
+pub mod bluetooth;
 pub mod endpoint;
 pub mod server;
 pub mod validation;
 
+#[cfg(feature = "bluetooth")]
+pub use bluetooth::BluetoothConfig;
 pub use endpoint::{
     EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, PeriodicMessage,
     RequestBodyDefinition, ResponseDefinition, ScenarioConditions, ScenarioDefinition,
@@ -119,6 +123,11 @@ pub struct ServiceDefinition {
     #[serde(default)]
     #[cfg(feature = "iot")]
     pub twin: Option<TwinDefinition>,
+
+    // Bluetooth support
+    #[serde(default)]
+    #[cfg(feature = "bluetooth")]
+    pub bluetooth: Option<BluetoothConfig>,
 }
 
 /// Helper for untagged deserialization of service files
@@ -149,6 +158,8 @@ impl From<UnifiedConfig> for ServiceDefinition {
                 graphql: None,
                 behavior: None,
                 twin: Some(twin),
+                #[cfg(feature = "bluetooth")]
+                bluetooth: None,
             },
         }
     }

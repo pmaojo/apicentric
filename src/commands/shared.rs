@@ -182,6 +182,8 @@ pub fn scaffold_service_definition() -> ApicentricResult<ServiceDefinition> {
         behavior: None,
         #[cfg(feature = "iot")]
         twin: None,
+        #[cfg(feature = "bluetooth")]
+        bluetooth: None,
     })
 }
 

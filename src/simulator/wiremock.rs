@@ -144,6 +144,8 @@ fn convert(stubs: &[WiremockStub], meta: Option<&WiremockMeta>) -> ServiceDefini
         behavior: None,
         #[cfg(feature = "iot")]
         twin: None,
+        #[cfg(feature = "bluetooth")]
+        bluetooth: None,
     }
 }
 

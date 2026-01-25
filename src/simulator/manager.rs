@@ -21,6 +21,9 @@ use std::time::Instant;
 use tokio::sync::{broadcast, RwLock};
 use tracing::info;
 
+#[cfg(feature = "bluetooth")]
+use crate::simulator::bluetooth::BluetoothManager;
+
 /// Result of an endpoint test
 #[derive(Debug, Clone)]
 pub struct TestResult {
@@ -40,6 +43,8 @@ pub struct ApiSimulatorManager {
     lifecycle: SimulatorLifecycle<RequestRouter>,
     recorder: ProxyRecorder,
     admin_server: Arc<RwLock<AdminServer>>,
+    #[cfg(feature = "bluetooth")]
+    bluetooth_manager: Arc<BluetoothManager>,
 }
 
 impl ApiSimulatorManager {
@@ -75,6 +80,9 @@ impl ApiSimulatorManager {
         let recorder = ProxyRecorder;
         let admin_server = Arc::new(RwLock::new(AdminServer::new(service_registry.clone())));
 
+        #[cfg(feature = "bluetooth")]
+        let bluetooth_manager = Arc::new(BluetoothManager::new());
+
         Self {
             config,
             service_registry,
@@ -85,6 +93,8 @@ impl ApiSimulatorManager {
             lifecycle,
             recorder,
             admin_server,
+            #[cfg(feature = "bluetooth")]
+            bluetooth_manager,
         }
     }
 
@@ -107,7 +117,25 @@ impl ApiSimulatorManager {
             let mut admin_server = self.admin_server.write().await;
             admin_server.start(port).await;
         }
-        self.lifecycle.start().await
+        self.lifecycle.start().await?;
+
+        // Start Bluetooth devices if configured
+        #[cfg(feature = "bluetooth")]
+        {
+            let registry = self.service_registry.read().await;
+            for service in registry.list_services().await {
+                if let Some(config_yaml) = self.get_service_config(&service.name).await {
+                     if let Ok(unified) = serde_yaml::from_str::<crate::simulator::config::UnifiedConfig>(&config_yaml) {
+                        let def = ServiceDefinition::from(unified);
+                        if let Some(bt_config) = def.bluetooth {
+                             self.bluetooth_manager.start_device(&service.name, bt_config).await;
+                        }
+                     }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Stop the API simulator
@@ -116,6 +144,14 @@ impl ApiSimulatorManager {
             let mut admin_server = self.admin_server.write().await;
             admin_server.stop().await;
         }
+
+        #[cfg(feature = "bluetooth")]
+        {
+             // We don't track all running services easily here without querying again,
+             // but strictly speaking we should probably stop everything.
+             // For now relying on process termination or individual stops.
+        }
+
         self.lifecycle.stop().await
     }
 

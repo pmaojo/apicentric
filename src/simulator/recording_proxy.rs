@@ -242,6 +242,8 @@ impl RecordingProxy for ProxyRecorder {
             behavior: None,
             #[cfg(feature = "iot")]
             twin: None,
+            #[cfg(feature = "bluetooth")]
+            bluetooth: None,
         };
 
         std::fs::create_dir_all(&output_dir).map_err(|e| {
@@ -568,6 +570,8 @@ mod tests {
             behavior: None,
             #[cfg(feature = "iot")]
             twin: None,
+            #[cfg(feature = "bluetooth")]
+            bluetooth: None,
         };
 
         let storage = Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap());

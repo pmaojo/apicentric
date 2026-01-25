@@ -120,6 +120,8 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
         behavior: None,
         #[cfg(feature = "iot")]
         twin: None,
+        #[cfg(feature = "bluetooth")]
+        bluetooth: None,
     }
 }
 

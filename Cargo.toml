@@ -45,6 +45,11 @@ mcp = ["dep:rmcp", "simulator"]
 # IoT: Digital Twin capabilities
 iot = ["dep:rumqttc", "dep:tokio-modbus", "dep:rhai", "dep:csv"]
 
+# Bluetooth: Bluetooth Low Energy (BLE) emulation
+# Currently provides configuration and mock emulation.
+# Real hardware support requires 'btleplug' or 'bluer' (not yet enabled to avoid cross-compilation issues)
+bluetooth = []
+
 # Convenience bundles
 # cli-tools: Essential CLI functionality with TUI but without desktop GUI/WebUI
 cli-tools = ["simulator", "contract-testing", "tui"]
@@ -53,7 +58,7 @@ cli-tools = ["simulator", "contract-testing", "tui"]
 minimal = ["simulator"]
 
 # full: All features including P2P, desktop GUI, and WebUI
-full = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql", "iot"]
+full = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql", "iot", "bluetooth"]
 
 [dependencies]
 indexmap = "2.12.0"
