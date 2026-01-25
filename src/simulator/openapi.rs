@@ -30,7 +30,10 @@ pub fn from_openapi(doc: &Value) -> Result<ServiceDefinition, String> {
         }
     }
 
-    Err("Unsupported API specification version. Only OpenAPI 3.0+ and Swagger 2.0 are supported.".to_string())
+    Err(
+        "Unsupported API specification version. Only OpenAPI 3.0+ and Swagger 2.0 are supported."
+            .to_string(),
+    )
 }
 
 fn from_openapi_v3(raw: &Value) -> Result<ServiceDefinition, String> {
@@ -99,7 +102,9 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                     Some(
                         op.parameters
                             .iter()
-                            .filter_map(|p| serde_yaml::from_value::<OpenApi3Parameter>(p.clone()).ok())
+                            .filter_map(|p| {
+                                serde_yaml::from_value::<OpenApi3Parameter>(p.clone()).ok()
+                            })
                             .map(convert_openapi3_parameter)
                             .collect(),
                     )
@@ -124,27 +129,30 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
 
                 let mut responses_map = HashMap::new();
                 for (status, resp_val) in &op.responses {
-                    if let Ok(response) = serde_yaml::from_value::<OpenApi3Response>(resp_val.clone()) {
+                    if let Ok(response) =
+                        serde_yaml::from_value::<OpenApi3Response>(resp_val.clone())
+                    {
                         if let Ok(code) = status.parse::<u16>() {
                             let (content_type, example) =
                                 extract_example_from_v3(&response, component_schemas);
-                        let body = example
-                            .map(|value| format_json_value(&value))
-                            .unwrap_or_else(|| {
-                                response
-                                    .description
-                                    .clone()
-                                    .unwrap_or_else(|| "".to_string())
-                            });
+                            let body = example
+                                .map(|value| format_json_value(&value))
+                                .unwrap_or_else(|| {
+                                    response
+                                        .description
+                                        .clone()
+                                        .unwrap_or_else(|| "".to_string())
+                                });
 
-                        let schema = pick_media_type(&response.content).and_then(|(_, media)| {
-                            media.schema.as_ref().and_then(|s| {
-                                s.get("$ref")
-                                    .and_then(|r| r.as_str())
-                                    .and_then(|r| r.split('/').next_back())
-                                    .map(|s| s.to_string())
-                            })
-                        });
+                            let schema =
+                                pick_media_type(&response.content).and_then(|(_, media)| {
+                                    media.schema.as_ref().and_then(|s| {
+                                        s.get("$ref")
+                                            .and_then(|r| r.as_str())
+                                            .and_then(|r| r.split('/').next_back())
+                                            .map(|s| s.to_string())
+                                    })
+                                });
 
                             responses_map.insert(
                                 code,
@@ -511,7 +519,7 @@ fn convert_swagger2(doc: &Swagger2Document) -> ServiceDefinition {
         .title
         .to_lowercase()
         .replace(|c: char| !c.is_alphanumeric() && c != '-' && c != '_', "-");
-    
+
     // Collapse hyphens
     let mut name = String::new();
     let mut last_was_dash = false;
@@ -529,7 +537,7 @@ fn convert_swagger2(doc: &Swagger2Document) -> ServiceDefinition {
     let name = name.trim_matches('-').to_string();
 
     let base_path = doc.base_path.clone().unwrap_or_else(|| "/".to_string());
-    
+
     let mut endpoints = Vec::new();
     for (path, item) in &doc.paths {
         let methods: Vec<(&str, Option<&OpenApi3Operation>)> = vec![
@@ -542,21 +550,32 @@ fn convert_swagger2(doc: &Swagger2Document) -> ServiceDefinition {
 
         for (method, op_opt) in methods {
             if let Some(op) = op_opt {
-                let ok_response_val = op.responses.get("200").or_else(|| op.responses.get("201")).or_else(|| op.responses.get("default"));
-                let ok_response = ok_response_val.and_then(|v| serde_yaml::from_value::<OpenApi3Response>(v.clone()).ok());
-                
-                let body = ok_response.as_ref().and_then(|r| r.description.clone()).unwrap_or_else(|| "Success".to_string());
-                
+                let ok_response_val = op
+                    .responses
+                    .get("200")
+                    .or_else(|| op.responses.get("201"))
+                    .or_else(|| op.responses.get("default"));
+                let ok_response = ok_response_val
+                    .and_then(|v| serde_yaml::from_value::<OpenApi3Response>(v.clone()).ok());
+
+                let body = ok_response
+                    .as_ref()
+                    .and_then(|r| r.description.clone())
+                    .unwrap_or_else(|| "Success".to_string());
+
                 let mut responses = HashMap::new();
-                responses.insert(200, ResponseDefinition {
-                    condition: None,
-                    content_type: "application/json".to_string(),
-                    body,
-                    schema: None,
-                    script: None,
-                    headers: None,
-                    side_effects: None,
-                });
+                responses.insert(
+                    200,
+                    ResponseDefinition {
+                        condition: None,
+                        content_type: "application/json".to_string(),
+                        body,
+                        schema: None,
+                        script: None,
+                        headers: None,
+                        side_effects: None,
+                    },
+                );
 
                 endpoints.push(EndpointDefinition {
                     kind: EndpointKind::Http,
@@ -564,7 +583,7 @@ fn convert_swagger2(doc: &Swagger2Document) -> ServiceDefinition {
                     path: path.clone(),
                     description: op.summary.clone().or(op.description.clone()),
                     header_match: None,
-                    parameters: None, // Simplification for now
+                    parameters: None,   // Simplification for now
                     request_body: None, // Simplification for now
                     responses,
                     scenarios: None,

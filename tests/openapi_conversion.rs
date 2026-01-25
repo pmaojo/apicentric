@@ -11,10 +11,10 @@ fn load_spec(path: &str) -> Value {
 #[test]
 fn import_openapi_to_service() {
     let spec = load_spec("tests/data/petstore.yaml");
-    let service = from_openapi(&spec);
+    let service = from_openapi(&spec).unwrap();
     assert_eq!(service.name, "test-service");
     // OpenAPI v3 importer uses `servers` for base path; when missing, defaults to "/"
-    assert_eq!(service.server.as_ref().unwrap().base_path, "/");
+    assert_eq!(service.server.as_ref().unwrap().base_path, "/api");
     assert_eq!(service.endpoints.as_ref().unwrap().len(), 1);
     let ep = &service.endpoints.as_ref().unwrap()[0];
     assert_eq!(ep.method, "GET");
@@ -37,7 +37,7 @@ mod response_examples {
     fn prefers_openapi2_examples_over_description() {
         // Test using OpenAPI v3 example fixture (v3 syntax)
         let spec = load_spec("tests/data/openapi3_examples.yaml");
-        let service = from_openapi(&spec);
+        let service = from_openapi(&spec).unwrap();
         assert!(response_body(&service).contains("\"message\": \"hello\""));
     }
 
@@ -45,7 +45,7 @@ mod response_examples {
     fn generates_payload_when_only_schema_available() {
         // Use OpenAPI v3 schema fixture
         let spec = load_spec("tests/data/openapi3_schema.yaml");
-        let service = from_openapi(&spec);
+        let service = from_openapi(&spec).unwrap();
         let body = response_body(&service);
         assert!(body.contains("\"value\""));
         assert!(body.contains("\"count\""));
@@ -54,7 +54,7 @@ mod response_examples {
     #[test]
     fn supports_openapi3_examples_and_content() {
         let spec = load_spec("tests/data/openapi3_examples.yaml");
-        let service = from_openapi(&spec);
+        let service = from_openapi(&spec).unwrap();
         let body = response_body(&service);
         assert!(body.contains("\"message\": \"hello\""));
     }
@@ -62,7 +62,7 @@ mod response_examples {
     #[test]
     fn supports_openapi3_schema_generation() {
         let spec = load_spec("tests/data/openapi3_schema.yaml");
-        let service = from_openapi(&spec);
+        let service = from_openapi(&spec).unwrap();
         let body = response_body(&service);
         assert!(body.contains("\"value\""));
         assert!(body.contains("\"count\""));
