@@ -14,7 +14,7 @@ crate-type = ["rlib"]
 default = ["tui", "webui", "simulator", "contract-testing", "mock-data", "database", "file-watch", "websockets", "scripting", "iot"]
 
 # Core features
-simulator = []
+simulator = ["database", "dep:async-trait", "dep:rand", "reqwest", "dep:fake"]
 contract-testing = ["reqwest", "dep:async-trait"]
 graphql = ["dep:async-graphql", "dep:async-graphql-parser"]
 
@@ -33,7 +33,7 @@ gui = ["dep:eframe", "dep:egui", "mock-data"]
 webui = ["websockets"]
 
 # Optional heavy features
-mock-data = ["fake", "rand"]
+mock-data = ["dep:fake", "dep:rand"]
 database = ["rusqlite"]
 file-watch = ["notify"]
 websockets = ["tokio-tungstenite", "futures-util/sink"]

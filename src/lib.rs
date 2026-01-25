@@ -879,7 +879,7 @@ pub mod ai;
 pub mod app;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod auth;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "webui"))]
 pub mod cloud;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod config;
@@ -903,26 +903,39 @@ pub mod validation;
 pub mod domain;
 
 // Contract modules (execution, scenarios, reporting)
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "contract-testing"))]
 pub mod contract;
 
 // Adapter layer (implementations of domain ports)
 #[cfg(not(target_arch = "wasm32"))]
 pub mod adapters {
+    #[cfg(feature = "contract-testing")]
     pub mod contract_repository;
+    #[cfg(feature = "contract-testing")]
     pub mod http_client;
+    #[cfg(feature = "contract-testing")]
     pub mod mock_server;
+    #[cfg(feature = "contract-testing")]
     pub mod noop_telemetry;
+    #[cfg(feature = "contract-testing")]
     pub mod report_sink;
+    #[cfg(feature = "contract-testing")]
     pub mod service_spec_loader;
+    #[cfg(feature = "contract-testing")]
     pub mod simulator_manager_adapter;
     pub mod ui_cli;
 
+    #[cfg(feature = "contract-testing")]
     pub use contract_repository::*;
+    #[cfg(feature = "contract-testing")]
     pub use http_client::*;
+    #[cfg(feature = "contract-testing")]
     pub use noop_telemetry::*;
+    #[cfg(feature = "contract-testing")]
     pub use report_sink::*;
+    #[cfg(feature = "contract-testing")]
     pub use service_spec_loader::*;
+    #[cfg(feature = "contract-testing")]
     pub use simulator_manager_adapter::*;
     pub use ui_cli::*;
 }
@@ -952,9 +965,9 @@ pub use errors::{ApicentricError, ApicentricResult};
 pub use simulator::{ApiSimulatorManager, ServiceDefinition, SimulatorConfig};
 
 // Re-export contract testing functionality
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "contract-testing"))]
 pub use domain::contract::*;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "contract-testing"))]
 pub use domain::contract_testing::*;
 
 /// Re-exports from the infrastructure layer.
@@ -966,7 +979,7 @@ pub mod infrastructure {
 pub use infrastructure::*;
 
 /// Re-export of the mock API facade.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "contract-testing"))]
 pub mod mock {
     pub use crate::adapters::mock_server::{load_spec, run_mock_server, MockApiSpec};
 }

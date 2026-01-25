@@ -1,3 +1,5 @@
+#![cfg(all(not(target_arch = "wasm32"), feature = "webui"))]
+
 use apicentric::cloud::CloudServer;
 use apicentric::simulator::{
     config::{
@@ -53,6 +55,7 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
         }]),
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
         twin: None,
     }
 }

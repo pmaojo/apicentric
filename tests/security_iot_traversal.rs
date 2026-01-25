@@ -1,3 +1,5 @@
+#![cfg(all(not(target_arch = "wasm32"), feature = "webui"))]
+
 use apicentric::cloud::iot_handlers::{delete_twin, save_twin, SaveTwinRequest};
 use axum::extract::{Json, Path};
 use std::env;

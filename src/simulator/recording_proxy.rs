@@ -240,6 +240,7 @@ impl RecordingProxy for ProxyRecorder {
             endpoints: Some(map.values().cloned().collect()),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
             twin: None,
         };
 
@@ -565,6 +566,7 @@ mod tests {
             endpoints: Some(map.values().cloned().collect()),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
             twin: None,
         };
 

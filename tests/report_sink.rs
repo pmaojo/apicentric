@@ -1,3 +1,5 @@
+#![cfg(feature = "contract-testing")]
+
 use apicentric::adapters::report_sink::FileReportSink;
 use apicentric::domain::contract_testing::*;
 use apicentric::domain::ports::contract::{ContractReportSink, ReportFormat};

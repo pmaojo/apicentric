@@ -1,3 +1,5 @@
+#![cfg(feature = "contract-testing")]
+
 use apicentric::domain::contract::*;
 use apicentric::domain::contract_testing::*;
 use apicentric::domain::ports::contract::*;

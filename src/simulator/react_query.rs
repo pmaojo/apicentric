@@ -174,6 +174,7 @@ mod tests {
             ]),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
             twin: None,
         };
         let ts = generate_react_query_hooks(&service).unwrap();

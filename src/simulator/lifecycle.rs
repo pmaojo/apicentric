@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{broadcast, RwLock};
+#[cfg(feature = "file-watch")]
+use tokio::sync::mpsc;
 
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
@@ -9,9 +11,11 @@ use crate::simulator::{
     log::RequestLogEntry,
     registry::ServiceRegistry,
     route_registry::RouteRegistry,
-    watcher::ConfigWatcher,
     ConfigChange,
 };
+
+#[cfg(feature = "file-watch")]
+use crate::simulator::watcher::ConfigWatcher;
 use tracing::info;
 
 /// Trait for managing simulator lifecycle.
@@ -28,6 +32,7 @@ pub struct SimulatorLifecycle<R: RouteRegistry + Send + Sync> {
     pub(crate) route_registry: Arc<RwLock<R>>,
     pub(crate) config_loader: ConfigLoader,
     pub(crate) is_active: Arc<RwLock<bool>>,
+    #[cfg(feature = "file-watch")]
     pub(crate) config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
     pub(crate) log_sender: broadcast::Sender<RequestLogEntry>,
 }
@@ -40,6 +45,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         route_registry: Arc<RwLock<R>>,
         config_loader: ConfigLoader,
         is_active: Arc<RwLock<bool>>,
+        #[cfg(feature = "file-watch")]
         config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
         log_sender: broadcast::Sender<RequestLogEntry>,
     ) -> Self {
@@ -49,6 +55,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
             route_registry,
             config_loader,
             is_active,
+            #[cfg(feature = "file-watch")]
             config_watcher,
             log_sender,
         }
@@ -112,28 +119,32 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
             service_count = service_count,
             "API Simulator started"
         );
-        // Spawn configuration watcher for automatic reloads
-        let (tx, mut rx) = mpsc::channel(16);
-        let watcher = ConfigWatcher::new(self.config.services_dir.clone(), tx).map_err(|e| {
-            ApicentricError::runtime_error(
-                format!("Failed to watch services directory: {}", e),
-                None::<String>,
-            )
-        })?;
 
+        #[cfg(feature = "file-watch")]
         {
-            let mut guard = self.config_watcher.write().await;
-            *guard = Some(watcher);
-        }
+            // Spawn configuration watcher for automatic reloads
+            let (tx, mut rx) = mpsc::channel(16);
+            let watcher = ConfigWatcher::new(self.config.services_dir.clone(), tx).map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to watch services directory: {}", e),
+                    None::<String>,
+                )
+            })?;
 
-        let manager_clone = self.clone();
-        tokio::spawn(async move {
-            while let Some(change) = rx.recv().await {
-                if let Err(e) = manager_clone.handle_config_change(change).await {
-                    eprintln!("Error handling config change: {}", e);
-                }
+            {
+                let mut guard = self.config_watcher.write().await;
+                *guard = Some(watcher);
             }
-        });
+
+            let manager_clone = self.clone();
+            tokio::spawn(async move {
+                while let Some(change) = rx.recv().await {
+                    if let Err(e) = manager_clone.handle_config_change(change).await {
+                        eprintln!("Error handling config change: {}", e);
+                    }
+                }
+            });
+        }
 
         Ok(())
     }
@@ -169,6 +180,7 @@ impl<R: RouteRegistry + Send + Sync> Clone for SimulatorLifecycle<R> {
             route_registry: self.route_registry.clone(),
             config_loader: self.config_loader.clone(),
             is_active: self.is_active.clone(),
+            #[cfg(feature = "file-watch")]
             config_watcher: self.config_watcher.clone(),
             log_sender: self.log_sender.clone(),
         }

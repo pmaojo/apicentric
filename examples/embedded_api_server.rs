@@ -113,6 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         endpoints: Some(endpoints),
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
         twin: None,
     };
 

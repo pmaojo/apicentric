@@ -7,6 +7,7 @@ pub mod routing;
 pub mod scenario;
 pub mod state;
 pub mod state_service;
+#[cfg(feature = "iot")]
 pub mod twin_runner;
 
 pub use graphql::*;
@@ -115,19 +116,21 @@ impl ServiceInstance {
             ));
         }
 
-        let (twin_def, server_cfg, service_name) = {
+        #[cfg(feature = "iot")]
+        {
+            let twin_def = self.definition.read().unwrap().twin.clone();
+            if let Some(twin_def) = twin_def {
+                return self.start_twin_runner(twin_def).await;
+            }
+        }
+
+        let (server_cfg, service_name) = {
             let definition_guard = self.definition.read().unwrap();
             (
-                definition_guard.twin.clone(),
                 definition_guard.server.clone(),
                 definition_guard.name.clone(),
             )
         };
-
-        // Check if it's a digital twin
-        if let Some(twin_def) = twin_def {
-            return self.start_twin_runner(twin_def).await;
-        }
 
         // Standard HTTP service
         let server_cfg = server_cfg.ok_or_else(|| {
@@ -2120,6 +2123,7 @@ mod tests {
             ]),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
             twin: None,
         }
     }
@@ -2602,6 +2606,7 @@ mod tests {
             ]),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
             twin: None,
         }
     }
@@ -2683,6 +2688,7 @@ mod tests {
             ]),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
             twin: None,
         }
     }
