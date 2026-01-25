@@ -30,11 +30,21 @@ async fn loads_plugins_from_directory() {
     assert!(plugin_path.exists(), "plugin dylib missing");
 
     let temp_dir = tempfile::tempdir().unwrap();
+
+    // Prevent STATUS_ACCESS_VIOLATION on Windows by never dropping temp_dir
+    #[cfg(target_os = "windows")]
+    let temp_dir = std::mem::ManuallyDrop::new(temp_dir);
+
     let dest = temp_dir.path().join(plugin_path.file_name().unwrap());
     std::fs::copy(&plugin_path, &dest).unwrap();
 
     let manager = PluginManager::load_from_directory(temp_dir.path())
         .expect("plugin directory should load successfully");
+
+    // Prevent STATUS_ACCESS_VIOLATION on Windows by never dropping PluginManager (and thus unloading the DLL)
+    #[cfg(target_os = "windows")]
+    let manager = std::mem::ManuallyDrop::new(manager);
+
     assert_eq!(manager.plugin_count(), 1);
 
     use http::{Request, Response};
@@ -42,11 +52,4 @@ async fn loads_plugins_from_directory() {
     let mut res = Response::new(Vec::new());
     manager.on_request(&mut req).await;
     manager.on_response(&mut res).await;
-
-    // Prevent STATUS_ACCESS_VIOLATION on Windows due to drop order/DLL unloading
-    #[cfg(target_os = "windows")]
-    {
-        std::mem::forget(manager);
-        std::mem::forget(temp_dir);
-    }
 }
