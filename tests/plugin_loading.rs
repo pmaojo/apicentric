@@ -45,5 +45,8 @@ async fn loads_plugins_from_directory() {
 
     // Prevent STATUS_ACCESS_VIOLATION on Windows due to drop order/DLL unloading
     #[cfg(target_os = "windows")]
-    std::mem::forget(manager);
+    {
+        std::mem::forget(manager);
+        std::mem::forget(temp_dir);
+    }
 }
