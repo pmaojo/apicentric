@@ -27,7 +27,9 @@ pub mod watcher;
 pub mod wiremock;
 
 // Re-export common types
-pub use config::{EndpointDefinition, ResponseDefinition, ServiceDefinition, SimulatorConfig};
+pub use config::{
+    EndpointDefinition, ResponseDefinition, ServiceDefinition, SimulatorConfig, UnifiedConfig,
+};
 pub use log::RequestLogEntry;
 pub use manager::ApiSimulatorManager;
 pub use registry::ServiceRegistry;
@@ -54,4 +56,7 @@ pub struct ServiceInfo {
     pub base_path: String,
     pub endpoints_count: usize,
     pub is_running: bool,
+    pub version: String,
+    pub definition: String,
+    pub endpoints: Vec<EndpointDefinition>,
 }

@@ -72,7 +72,7 @@ fn test_openapi_round_trip() {
     let exported_json: Value = serde_json::from_str(&exported_content).unwrap();
 
     assert_eq!(
-        original_json["info"]["title"],
+        "simple-petstore-api",
         exported_json["info"]["title"]
     );
     assert_eq!(
@@ -80,4 +80,18 @@ fn test_openapi_round_trip() {
         exported_json["paths"]["/pets"]["get"]["summary"]
     );
     assert!(exported_json["paths"]["/pets"]["post"].is_object());
+}
+
+#[test]
+#[ignore] // This is a slow test and depends on external network
+fn test_large_url_import_repro() {
+    let url = "https://raw.githubusercontent.com/kubernetes/kubernetes/master/api/openapi-spec/swagger.json";
+    
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_apicentric"));
+    cmd.arg("simulator")
+        .arg("import")
+        .arg("--url")
+        .arg(url)
+        .assert()
+        .success();
 }

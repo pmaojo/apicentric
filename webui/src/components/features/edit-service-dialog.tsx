@@ -89,10 +89,9 @@ export function EditServiceDialog({ service, onUpdateService, onOpenChange }: Ed
         // Try to reconstruct YAML from the service response
         // If the backend returns the raw YAML, use it directly
         // Otherwise, we'll use the existing definition
-        if (fullService && typeof fullService === 'object') {
-          // For now, use the existing definition
-          // In a real implementation, the backend should return the raw YAML
-          setYamlContent(service.definition);
+        if (fullService && fullService.yaml) {
+          setYamlContent(fullService.yaml);
+          form.setValue('definition', fullService.yaml);
         }
       } catch (error) {
         console.error('Failed to load service:', error);

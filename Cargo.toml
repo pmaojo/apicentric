@@ -5,13 +5,14 @@ edition = "2021"
 description = "Toolkit for building, recording, and sharing mock APIs"
 repository = "https://github.com/pmaojo/apicentric"
 license = "MIT"
+default-run = "apicentric"
 
 [lib]
 crate-type = ["rlib"]
 
 [features]
-# Default includes TUI and WebUI for backward compatibility, but excludes P2P and desktop GUI
-default = ["tui", "webui", "simulator", "contract-testing", "mock-data", "database", "file-watch", "websockets", "scripting", "iot"]
+# Default includes TUI and WebUI for backward compatibility, but excludes desktop GUI
+default = ["tui", "webui", "simulator", "contract-testing", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql", "iot"]
 
 # Core features
 simulator = ["database", "dep:async-trait", "dep:rand", "reqwest", "dep:fake"]
@@ -52,7 +53,7 @@ cli-tools = ["simulator", "contract-testing", "tui"]
 # minimal: Bare minimum for API simulation only
 minimal = ["simulator"]
 
-# full: All features including P2P, desktop GUI, and WebUI
+# full: All features including desktop GUI, and WebUI
 full = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "database", "file-watch", "websockets", "scripting", "graphql", "iot", "mcp"]
 
 [dependencies]

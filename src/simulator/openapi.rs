@@ -16,43 +16,34 @@ use crate::simulator::config::{
     RequestBodyDefinition, ResponseDefinition, ServerConfig, ServiceDefinition,
 };
 
-/// Convert an OpenAPI spec into a `ServiceDefinition` used by the simulator
-pub fn from_openapi(doc: &Value) -> ServiceDefinition {
-    from_openapi_v3(doc)
+/// Convert an OpenAPI/Swagger spec into a `ServiceDefinition` used by the simulator
+pub fn from_openapi(doc: &Value) -> Result<ServiceDefinition, String> {
+    if let Some(version) = doc.get("openapi").and_then(|v| v.as_str()) {
+        if version.starts_with('3') {
+            return from_openapi_v3(doc);
+        }
+    }
+
+    if let Some(version) = doc.get("swagger").and_then(|v| v.as_str()) {
+        if version == "2.0" {
+            return from_swagger_v2(doc);
+        }
+    }
+
+    Err("Unsupported API specification version. Only OpenAPI 3.0+ and Swagger 2.0 are supported.".to_string())
 }
 
-fn from_openapi_v3(raw: &Value) -> ServiceDefinition {
+fn from_openapi_v3(raw: &Value) -> Result<ServiceDefinition, String> {
     match serde_yaml::from_value::<OpenApi3Document>(raw.clone()) {
-        Ok(doc) => convert_openapi3(&doc),
-        Err(_) => ServiceDefinition {
-            name: raw
-                .get("info")
-                .and_then(|info| info.get("title"))
-                .and_then(|t| t.as_str())
-                .unwrap_or_default()
-                .to_string(),
-            version: raw
-                .get("info")
-                .and_then(|info| info.get("version"))
-                .and_then(|v| v.as_str())
-                .map(|v| v.to_string()),
-            description: None,
-            server: Some(ServerConfig {
-                port: None,
-                base_path: "/".to_string(),
-                proxy_base_url: None,
-                cors: None,
-                record_unknown: false,
-            }),
-            models: None,
-            fixtures: None,
-            bucket: None,
-            endpoints: Some(Vec::new()),
-            graphql: None,
-            behavior: None,
-            #[cfg(feature = "iot")]
-            twin: None,
-        },
+        Ok(doc) => Ok(convert_openapi3(&doc)),
+        Err(e) => Err(format!("Failed to parse OpenAPI 3.0 document: {}", e)),
+    }
+}
+
+fn from_swagger_v2(raw: &Value) -> Result<ServiceDefinition, String> {
+    match serde_yaml::from_value::<Swagger2Document>(raw.clone()) {
+        Ok(doc) => Ok(convert_swagger2(&doc)),
+        Err(e) => Err(format!("Failed to parse Swagger 2.0 document: {}", e)),
     }
 }
 
@@ -108,6 +99,7 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                     Some(
                         op.parameters
                             .iter()
+                            .filter_map(|p| serde_yaml::from_value::<OpenApi3Parameter>(p.clone()).ok())
                             .map(convert_openapi3_parameter)
                             .collect(),
                     )
@@ -131,10 +123,11 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                 });
 
                 let mut responses_map = HashMap::new();
-                for (status, response) in &op.responses {
-                    if let Ok(code) = status.parse::<u16>() {
-                        let (content_type, example) =
-                            extract_example_from_v3(response, component_schemas);
+                for (status, resp_val) in &op.responses {
+                    if let Ok(response) = serde_yaml::from_value::<OpenApi3Response>(resp_val.clone()) {
+                        if let Ok(code) = status.parse::<u16>() {
+                            let (content_type, example) =
+                                extract_example_from_v3(&response, component_schemas);
                         let body = example
                             .map(|value| format_json_value(&value))
                             .unwrap_or_else(|| {
@@ -153,18 +146,19 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
                             })
                         });
 
-                        responses_map.insert(
-                            code,
-                            ResponseDefinition {
-                                condition: None,
-                                content_type,
-                                body,
-                                schema,
-                                script: None,
-                                headers: None,
-                                side_effects: None,
-                            },
-                        );
+                            responses_map.insert(
+                                code,
+                                ResponseDefinition {
+                                    condition: None,
+                                    content_type,
+                                    body,
+                                    schema,
+                                    script: None,
+                                    headers: None,
+                                    side_effects: None,
+                                },
+                            );
+                        }
                     }
                 }
 
@@ -184,8 +178,32 @@ fn convert_openapi3(doc: &OpenApi3Document) -> ServiceDefinition {
         }
     }
 
+    let name = doc
+        .info
+        .title
+        .to_lowercase()
+        .replace(|c: char| !c.is_alphanumeric() && c != '-' && c != '_', "-")
+        .trim_matches('-')
+        .to_string();
+
+    // Collapse multiple hyphens
+    let mut sanitized_name = String::new();
+    let mut last_was_hyphen = false;
+    for c in name.chars() {
+        if c == '-' {
+            if !last_was_hyphen {
+                sanitized_name.push('-');
+                last_was_hyphen = true;
+            }
+        } else {
+            sanitized_name.push(c);
+            last_was_hyphen = false;
+        }
+    }
+    let name = sanitized_name;
+
     ServiceDefinition {
-        name: doc.info.title.clone(),
+        name,
         version: Some(doc.info.version.clone()),
         description: None,
         server: Some(server),
@@ -211,7 +229,7 @@ fn format_json_value(value: &JsonValue) -> String {
     }
 }
 
-fn convert_openapi3_parameter(param: &OpenApi3Parameter) -> ParameterDefinition {
+fn convert_openapi3_parameter(param: OpenApi3Parameter) -> ParameterDefinition {
     let schema = param.schema.as_ref().or_else(|| {
         param.content.as_ref().and_then(|content| {
             pick_media_type(content).and_then(|(_, media)| media.schema.as_ref())
@@ -219,7 +237,7 @@ fn convert_openapi3_parameter(param: &OpenApi3Parameter) -> ParameterDefinition 
     });
 
     ParameterDefinition {
-        name: param.name.clone(),
+        name: param.name,
         location: match param.location.as_str() {
             "path" => ParameterLocation::Path,
             "query" => ParameterLocation::Query,
@@ -228,7 +246,7 @@ fn convert_openapi3_parameter(param: &OpenApi3Parameter) -> ParameterDefinition 
         },
         param_type: infer_schema_type(schema),
         required: param.required,
-        description: param.description.clone(),
+        description: param.description,
     }
 }
 
@@ -470,6 +488,115 @@ struct OpenApi3Document {
 }
 
 #[derive(Debug, Deserialize)]
+struct Swagger2Document {
+    pub info: OpenApi3Info,
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub host: Option<String>,
+    #[serde(default)]
+    #[serde(rename = "basePath")]
+    pub base_path: Option<String>,
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub schemes: Vec<String>,
+    pub paths: BTreeMap<String, OpenApi3PathItem>,
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub definitions: BTreeMap<String, Value>,
+}
+
+fn convert_swagger2(doc: &Swagger2Document) -> ServiceDefinition {
+    let sanitized_name = doc
+        .info
+        .title
+        .to_lowercase()
+        .replace(|c: char| !c.is_alphanumeric() && c != '-' && c != '_', "-");
+    
+    // Collapse hyphens
+    let mut name = String::new();
+    let mut last_was_dash = false;
+    for c in sanitized_name.chars() {
+        if c == '-' {
+            if !last_was_dash {
+                name.push(c);
+                last_was_dash = true;
+            }
+        } else {
+            name.push(c);
+            last_was_dash = false;
+        }
+    }
+    let name = name.trim_matches('-').to_string();
+
+    let base_path = doc.base_path.clone().unwrap_or_else(|| "/".to_string());
+    
+    let mut endpoints = Vec::new();
+    for (path, item) in &doc.paths {
+        let methods: Vec<(&str, Option<&OpenApi3Operation>)> = vec![
+            ("get", item.get.as_ref()),
+            ("post", item.post.as_ref()),
+            ("put", item.put.as_ref()),
+            ("patch", item.patch.as_ref()),
+            ("delete", item.delete.as_ref()),
+        ];
+
+        for (method, op_opt) in methods {
+            if let Some(op) = op_opt {
+                let ok_response_val = op.responses.get("200").or_else(|| op.responses.get("201")).or_else(|| op.responses.get("default"));
+                let ok_response = ok_response_val.and_then(|v| serde_yaml::from_value::<OpenApi3Response>(v.clone()).ok());
+                
+                let body = ok_response.as_ref().and_then(|r| r.description.clone()).unwrap_or_else(|| "Success".to_string());
+                
+                let mut responses = HashMap::new();
+                responses.insert(200, ResponseDefinition {
+                    condition: None,
+                    content_type: "application/json".to_string(),
+                    body,
+                    schema: None,
+                    script: None,
+                    headers: None,
+                    side_effects: None,
+                });
+
+                endpoints.push(EndpointDefinition {
+                    kind: EndpointKind::Http,
+                    method: method.to_uppercase(),
+                    path: path.clone(),
+                    description: op.summary.clone().or(op.description.clone()),
+                    header_match: None,
+                    parameters: None, // Simplification for now
+                    request_body: None, // Simplification for now
+                    responses,
+                    scenarios: None,
+                    stream: None,
+                });
+            }
+        }
+    }
+
+    ServiceDefinition {
+        name,
+        version: Some(doc.info.version.clone()),
+        description: None,
+        server: Some(ServerConfig {
+            port: None,
+            base_path,
+            proxy_base_url: None,
+            cors: None,
+            record_unknown: false,
+        }),
+        models: None, // Simplification
+        fixtures: None,
+        bucket: None,
+        endpoints: Some(endpoints),
+        graphql: None,
+        behavior: None,
+        #[cfg(feature = "iot")]
+        twin: None,
+    }
+}
+
+#[derive(Debug, Deserialize)]
 struct OpenApi3Info {
     pub title: String,
     pub version: String,
@@ -502,11 +629,11 @@ struct OpenApi3Operation {
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
-    pub parameters: Vec<OpenApi3Parameter>,
+    pub parameters: Vec<Value>, // Use Value to handle both items and references
     #[serde(default)]
     pub request_body: Option<OpenApi3RequestBody>,
     #[serde(default)]
-    pub responses: BTreeMap<String, OpenApi3Response>,
+    pub responses: BTreeMap<String, Value>, // Use Value to handle both items and references
 }
 
 #[derive(Debug, Deserialize)]
@@ -538,6 +665,9 @@ struct OpenApi3Response {
     pub description: Option<String>,
     #[serde(default)]
     pub content: BTreeMap<String, OpenApi3MediaType>,
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub schema: Option<JsonValue>,
 }
 
 #[derive(Debug, Deserialize, Default)]

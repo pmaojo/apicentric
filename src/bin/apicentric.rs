@@ -60,10 +60,7 @@ mod commands {
         pub use crate::shared_impl::*;
     }
 }
-// Disabled heavy P2P dependencies for lighter CLI build
-// mod collab {
-//     pub use apicentric::collab::*;
-// }
+
 
 /// The entry point for the `apicentric` CLI.
 #[tokio::main]

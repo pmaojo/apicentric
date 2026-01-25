@@ -419,7 +419,13 @@ pub async fn install_template(
     })?;
 
     let mut definition = if value.get("openapi").is_some() || value.get("swagger").is_some() {
-        from_openapi(&value)
+        from_openapi(&value).map_err(|e| {
+            ApicentricError::validation_error(
+                format!("Failed to parse OpenAPI/Swagger spec: {}", e),
+                None::<String>,
+                Some("Check the template syntax"),
+            )
+        })?
     } else {
         serde_yaml::from_value::<ServiceDefinition>(value).map_err(|e| {
             ApicentricError::validation_error(

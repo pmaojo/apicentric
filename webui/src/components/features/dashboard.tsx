@@ -27,16 +27,16 @@ import { useWebSocketSubscription, type ServiceStatusUpdate } from '@/providers/
 import { SystemMetrics } from './system-metrics';
 import type { Service } from '@/lib/types';
 import { startService, stopService, reloadServices } from '@/services/api';
-import { CheckCircle, ExternalLink, Play, Power, Square, XCircle, RefreshCw, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { CheckCircle, ExternalLink, Play, Power, Square, XCircle, RefreshCw, Loader2, Edit } from 'lucide-react';
 import * as React from 'react';
 
 type DashboardProps = {
   services: Service[];
-  onToggleService: (serviceId: string, status: 'running' | 'stopped') => void;
   onServiceUpdate?: (serviceName: string, updates: Partial<Service>) => void;
 };
 
-export function Dashboard({ services, onToggleService, onServiceUpdate }: DashboardProps) {
+export function Dashboard({ services, onServiceUpdate }: DashboardProps) {
   const { toast } = useToast();
   const [loadingServices, setLoadingServices] = React.useState<Set<string>>(new Set());
   const [reloadingAll, setReloadingAll] = React.useState(false);
@@ -277,7 +277,15 @@ function ServiceCard({
           </div>
         </CardContent>
         <CardFooter className="grid grid-cols-2 gap-2">
-          <ServiceDetailsDialog service={service} />
+          <div className="col-span-2 grid grid-cols-2 gap-2 mb-2">
+            <ServiceDetailsDialog service={service} />
+            <Button variant="secondary" asChild className="w-full">
+              <Link href={`/editor?service=${service.name}`}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
+          </div>
           {service.status === 'running' ? (
             <Button
               variant="destructive"
@@ -325,6 +333,9 @@ function ServiceCard({
   );
 }
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ApiDocs } from "./api-docs"
+
 function ServiceDetailsDialog({ service }: { service: Service }) {
   return (
     <Dialog>
@@ -334,45 +345,72 @@ function ServiceDetailsDialog({ service }: { service: Service }) {
           <ExternalLink className="ml-2 h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{service.name} - v{service.version}</DialogTitle>
           <DialogDescription>
             Detailed information for the {service.name} service.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="flex items-center gap-4">
-            <Badge variant={service.status === 'running' ? 'default' : 'destructive'} className={`${service.status === 'running' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
-              {service.status === 'running' ? 'Running' : 'Stopped'}
-            </Badge>
-            <Separator orientation="vertical" className="h-6" />
-            <p className="text-sm">
-              <span className="text-muted-foreground">Port: </span>
-              <span className="font-mono">{service.port}</span>
-            </p>
-          </div>
-          <Separator />
-          <div className="space-y-2">
-            <h4 className="font-semibold">Endpoints</h4>
-            <div className="max-h-60 overflow-y-auto rounded-md border p-2">
-              {service.endpoints.map((endpoint, index) => (
-                <div key={index} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
-                   <Badge variant="secondary" className="w-20 justify-center font-mono">{endpoint.method}</Badge>
-                   <p className="font-mono text-sm">{endpoint.path}</p>
+        
+        <Tabs defaultValue="endpoints" className="w-full flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="endpoints">Endpoints</TabsTrigger>
+            <TabsTrigger value="definition">Definition (YAML)</TabsTrigger>
+            <TabsTrigger value="docs">Live Documentation</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex-1 overflow-y-auto mt-4 px-1">
+            <TabsContent value="endpoints" className="mt-0 space-y-4">
+              <div className="flex items-center gap-4 mb-4">
+                <Badge variant={service.status === 'running' ? 'default' : 'destructive'} className={`${service.status === 'running' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
+                  {service.status === 'running' ? 'Running' : 'Stopped'}
+                </Badge>
+                <Separator orientation="vertical" className="h-6" />
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Port: </span>
+                  <span className="font-mono">{service.port}</span>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-semibold">Endpoints</h4>
+                <div className="rounded-md border p-2">
+                  {service.endpoints.length > 0 ? (
+                    service.endpoints.map((endpoint, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50">
+                        <Badge variant="secondary" className="w-20 justify-center font-mono">{endpoint.method}</Badge>
+                        <p className="font-mono text-sm">{endpoint.path}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <p className="text-sm text-muted-foreground italic">
+                        {service.definition.includes('graphql:') ? 'This is a GraphQL service. Endpoints are managed via the /graphql path.' : 'No standard HTTP endpoints defined for this service.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="definition" className="mt-0 h-full">
+              <div className="rounded-md border bg-muted/50 p-4 h-full overflow-auto">
+                {service.definition ? (
+                  <pre className="text-xs font-mono">
+                    <code>{service.definition}</code>
+                  </pre>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">No definition available.</p>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="docs" className="mt-0 h-full">
+               <ApiDocs serviceName={service.name} />
+            </TabsContent>
           </div>
-           <div className="space-y-2">
-            <h4 className="font-semibold">Service Definition</h4>
-            <div className="max-h-60 overflow-y-auto rounded-md border bg-muted/50 p-4">
-              <pre className="text-xs font-mono">
-                <code>{service.definition}</code>
-              </pre>
-            </div>
-          </div>
-        </div>
+        </Tabs>
       </DialogContent>
     </Dialog>
   )
