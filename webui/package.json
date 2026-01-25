@@ -9,7 +9,7 @@
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "install:backend": "bash scripts/install-backend.sh",
-    "build": "npm run install:backend && NODE_ENV=production next build",
+    "build": "NODE_ENV=production next build",
     "build:analyze": "ANALYZE=true NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
