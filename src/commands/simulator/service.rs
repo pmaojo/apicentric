@@ -1,3 +1,4 @@
+#[cfg(feature = "tui")]
 use crate::commands::shared::{scaffold_endpoint_definition, scaffold_service_definition};
 use apicentric::{ApicentricError, ApicentricResult, Context, ExecutionContext};
 
@@ -30,6 +31,7 @@ pub async fn handle_record(
     }
 }
 
+#[cfg(feature = "tui")]
 pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!("🏃 Dry run: Would scaffold new service in {}", output);
@@ -74,6 +76,7 @@ pub async fn handle_new(output: &str, exec_ctx: &ExecutionContext) -> Apicentric
     Ok(())
 }
 
+#[cfg(feature = "tui")]
 pub async fn handle_edit(input: &str, exec_ctx: &ExecutionContext) -> ApicentricResult<()> {
     if exec_ctx.dry_run {
         println!("🏃 Dry run: Would edit service {}", input);
@@ -141,6 +144,7 @@ pub async fn handle_new_graphql(
         endpoints: Some(Vec::new()),
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
         twin: None,
     };
 

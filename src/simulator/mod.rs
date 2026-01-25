@@ -22,6 +22,7 @@ pub mod scripting;
 pub mod service;
 pub mod template;
 pub mod typescript;
+#[cfg(feature = "file-watch")]
 pub mod watcher;
 pub mod wiremock;
 

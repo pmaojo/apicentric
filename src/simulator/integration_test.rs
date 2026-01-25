@@ -167,6 +167,7 @@ mod tests {
             ]),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
             twin: None,
         }
     }
@@ -189,6 +190,7 @@ mod tests {
             endpoints: Some(Vec::new()),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
             twin: None,
         }
     }

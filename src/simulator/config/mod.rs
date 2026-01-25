@@ -15,6 +15,7 @@ pub use server::{CorsConfig, ServerConfig};
 pub use validation::{ConfigLoader, LoadError, LoadErrorType, LoadResult, ValidationSummary};
 
 // Import IoT types
+#[cfg(feature = "iot")]
 use crate::iot::config::TwinDefinition;
 
 fn default_db_path() -> PathBuf {
@@ -116,6 +117,7 @@ pub struct ServiceDefinition {
     pub behavior: Option<BehaviorConfig>,
     // Digital Twin support
     #[serde(default)]
+    #[cfg(feature = "iot")]
     pub twin: Option<TwinDefinition>,
 }
 
@@ -126,6 +128,7 @@ pub enum UnifiedConfig {
     /// Standard service with name at top level
     Service(Box<ServiceDefinition>),
     /// Digital twin with 'twin' key at top level
+    #[cfg(feature = "iot")]
     Twin { twin: TwinDefinition },
 }
 
@@ -133,6 +136,7 @@ impl From<UnifiedConfig> for ServiceDefinition {
     fn from(config: UnifiedConfig) -> Self {
         match config {
             UnifiedConfig::Service(def) => *def,
+            #[cfg(feature = "iot")]
             UnifiedConfig::Twin { twin } => ServiceDefinition {
                 name: twin.name.clone(),
                 version: None,

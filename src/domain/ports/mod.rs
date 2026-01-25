@@ -1,3 +1,4 @@
+#[cfg(feature = "contract-testing")]
 pub mod contract;
 pub mod plugin;
 pub mod system;

@@ -122,6 +122,7 @@ async fn export_runs() {
 }
 
 #[tokio::test]
+#[cfg(feature = "tui")]
 async fn new_runs() {
     let (ctx, exec) = build();
     simulator_command(

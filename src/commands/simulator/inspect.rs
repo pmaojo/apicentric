@@ -63,16 +63,19 @@ pub async fn handle_validate(
     }
 }
 
+#[cfg(feature = "contract-testing")]
 use apicentric::adapters::{
     noop_telemetry::{NoOpMetrics, NoOpPublisher, NoOpTracer},
     simulator_manager_adapter::SimulatorManagerAdapter,
     ReqwestHttpClientAdapter, YamlServiceSpecLoader,
 };
+#[cfg(feature = "contract-testing")]
 use apicentric::{
     Contract, ContractId, ContractValidationResult, RealApiConfig, RetryAttempts,
     ScenarioExecutionUseCase, SpecValidationUseCase,
 };
 
+#[cfg(feature = "contract-testing")]
 pub async fn handle_contract_test(
     path: &str,
     url: &str,
@@ -157,6 +160,7 @@ pub async fn handle_contract_test(
     Ok(())
 }
 
+#[cfg(feature = "contract-testing")]
 fn print_result(result: &ContractValidationResult, quiet: bool) {
     let passed = result
         .scenario_results

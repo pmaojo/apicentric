@@ -41,13 +41,23 @@ impl ConfigValidator for ServiceDefinition {
             errors.push(e);
         }
 
-        if let Some(ref twin) = self.twin {
-            if twin.name.is_empty() {
-                errors.push(ValidationError {
-                    field: "twin.name".to_string(),
-                    message: "Twin name cannot be empty".to_string(),
-                    suggestion: Some("Provide a name for the digital twin".to_string()),
-                });
+        #[cfg(feature = "iot")]
+        let has_twin = self.twin.is_some();
+        #[cfg(not(feature = "iot"))]
+        let has_twin = false;
+
+        if has_twin {
+            #[cfg(feature = "iot")]
+            {
+                if let Some(ref twin) = self.twin {
+                    if twin.name.is_empty() {
+                        errors.push(ValidationError {
+                            field: "twin.name".to_string(),
+                            message: "Twin name cannot be empty".to_string(),
+                            suggestion: Some("Provide a name for the digital twin".to_string()),
+                        });
+                    }
+                }
             }
         } else {
             // Standard service validation
@@ -226,6 +236,7 @@ mod tests {
             endpoints: Some(vec![endpoint]),
             graphql: None,
             behavior: None,
+            #[cfg(feature = "iot")]
             twin: None,
         };
         let mut names = HashSet::new();

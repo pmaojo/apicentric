@@ -118,6 +118,7 @@ fn convert(env: &MockoonEnvironment) -> ServiceDefinition {
         endpoints: Some(endpoints),
         graphql: None,
         behavior: None,
+        #[cfg(feature = "iot")]
         twin: None,
     }
 }

@@ -77,10 +77,12 @@ pub async fn simulator_command(
         SimulatorAction::GenerateView { file, output } => {
             export::handle_export_view(file, output, exec_ctx).await
         }
+        #[cfg(feature = "tui")]
         SimulatorAction::New { output } => service::handle_new(output, exec_ctx).await,
         SimulatorAction::NewGraphql { name, output } => {
             service::handle_new_graphql(name, output, exec_ctx).await
         }
+        #[cfg(feature = "tui")]
         SimulatorAction::Edit { file } => service::handle_edit(file, exec_ctx).await,
         SimulatorAction::Record { output, url } => {
             service::handle_record(context, output, url, exec_ctx).await
@@ -88,6 +90,7 @@ pub async fn simulator_command(
         SimulatorAction::Dockerize { file, output } => {
             dockerize::handle_dockerize(file, output, exec_ctx).await
         }
+        #[cfg(feature = "contract-testing")]
         SimulatorAction::Test {
             path,
             url,

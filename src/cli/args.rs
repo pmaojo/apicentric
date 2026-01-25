@@ -144,6 +144,7 @@ pub enum SimulatorAction {
         file: String,
         output: String,
     },
+    #[cfg(feature = "tui")]
     New {
         output: String,
     },
@@ -151,6 +152,7 @@ pub enum SimulatorAction {
         name: String,
         output: String,
     },
+    #[cfg(feature = "tui")]
     Edit {
         file: String,
     },
@@ -162,6 +164,7 @@ pub enum SimulatorAction {
         file: Vec<String>,
         output: String,
     },
+    #[cfg(feature = "contract-testing")]
     Test {
         path: String,
         url: String,

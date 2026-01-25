@@ -576,6 +576,7 @@ where
                 }
                 Ok(Some(SimulatorAction::GenerateView { file, output }))
             }
+            #[cfg(feature = "tui")]
             "new" => {
                 let mut output = "services".to_string();
                 while let Some(arg) = iter.next() {
@@ -610,6 +611,7 @@ where
                 }
                 Ok(Some(SimulatorAction::NewGraphql { name, output }))
             }
+            #[cfg(feature = "tui")]
             "edit" => {
                 let mut file = String::new();
                 while let Some(arg) = iter.next() {
@@ -688,6 +690,7 @@ where
                     output,
                 }))
             }
+            #[cfg(feature = "contract-testing")]
             "test" => {
                 let mut path = String::new();
                 let mut url = String::new();
