@@ -2,7 +2,7 @@ name: Pets API
 version: "1.0"
 description: Pet service with fixtures and template rendering
 server:
-  port: 9002
+  port: 9006
   base_path: /api/v1
   cors:
     enabled: true

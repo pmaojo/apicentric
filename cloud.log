@@ -1,0 +1,26 @@
+  [2m2026-01-25T22:31:23.580083Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+Error: Unknown argument: --port
+Usage: apicentric [OPTIONS] <COMMAND>
+
+Options:
+  -c, --config <FILE>    Path to config file (default: apicentric.json)
+      --mode <MODE>      Execution mode (CI, Development, Debug)
+      --dry-run          Enable dry-run mode
+  -v, --verbose          Enable verbose output
+      --db-path <PATH>   Path to SQLite database (default: apicentric.db)
+  -h, --help             Print help
+  -V, --version          Print version
+
+Commands:
+  simulator (sim)        Manage API simulator
+  ai                     AI-assisted generation
+  tui                    Launch terminal UI
+  gui                    Launch graphical UI
+  cloud                  Launch cloud server
+  new                    Create new service from template
+  doctor                 Diagnose environment
+  open                   Open WebUI
+  twin                   Manage IoT Digital Twins
+

@@ -65,7 +65,7 @@ export function ContractTesting({ services }: ContractTestingProps) {
     };
 
     const overallCompatibility = React.useMemo(() => {
-        if (!testResults) return null;
+        if (!testResults || !Array.isArray(testResults) || testResults.length === 0) return null;
         const compatibleCount = testResults.filter(r => r.compatible).length;
         return (compatibleCount / testResults.length) * 100;
     }, [testResults]);
@@ -164,7 +164,7 @@ export function ContractTesting({ services }: ContractTestingProps) {
                                 <div>
                                     <p className="text-xl font-bold">{overallCompatibility?.toFixed(0)}% Compatible</p>
                                     <p className="text-muted-foreground">
-                                        {testResults.filter(r => r.compatible).length} of {testResults.length} endpoints are compatible.
+                                        {Array.isArray(testResults) ? testResults.filter(r => r.compatible).length : 0} of {Array.isArray(testResults) ? testResults.length : 0} endpoints are compatible.
                                     </p>
                                 </div>
                             </div>
@@ -179,7 +179,7 @@ export function ContractTesting({ services }: ContractTestingProps) {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {testResults.map(result => (
+                                        {Array.isArray(testResults) ? testResults.map(result => (
                                             <TableRow key={result.endpoint + result.method}>
                                                 <TableCell className="font-mono">{result.method} {result.endpoint}</TableCell>
                                                 <TableCell><Badge variant="outline" className={getStatusColor(result.mockStatus)}>{result.mockStatus}</Badge></TableCell>
@@ -188,7 +188,13 @@ export function ContractTesting({ services }: ContractTestingProps) {
                                                     {result.compatible ? <CheckCircle2 className="h-5 w-5 text-green-500 ml-auto" /> : <XCircle className="h-5 w-5 text-red-500 ml-auto" />}
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        )) : (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                                                    No results found
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>

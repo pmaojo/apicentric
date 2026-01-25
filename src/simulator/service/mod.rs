@@ -583,6 +583,9 @@ impl ServiceInstance {
                 .unwrap_or_else(|| "/".to_string()),
             endpoints_count: def.endpoints.as_ref().map(|e| e.len()).unwrap_or(0),
             is_running: self.is_running,
+            version: def.version.clone().unwrap_or_else(|| "1.0.0".to_string()),
+            definition: serde_yaml::to_string(&*def).unwrap_or_default(),
+            endpoints: def.endpoints.clone().unwrap_or_default(),
         }
     }
 

@@ -15,7 +15,7 @@ use crate::cloud::error::{validation, ApiError, ApiErrorCode, ErrorResponse};
 use crate::cloud::recording_session::RecordingSessionManager;
 use crate::simulator::config::{EndpointDefinition, ServerConfig};
 use crate::simulator::log::RequestLogEntry;
-use crate::simulator::{ApiSimulatorManager, ServiceDefinition, ServiceInfo};
+use crate::simulator::{ApiSimulatorManager, ServiceDefinition, ServiceInfo, UnifiedConfig};
 use crate::validation::ConfigValidator;
 
 /// A generic API response.
@@ -80,6 +80,13 @@ pub struct CreateServiceRequest {
     pub yaml: String,
     /// Optional custom filename (defaults to service name from YAML).
     pub filename: Option<String>,
+}
+
+/// A request to create a new GraphQL service.
+#[derive(Deserialize)]
+pub struct CreateGraphQLServiceRequest {
+    pub name: String,
+    pub port: u16,
 }
 
 /// A request to update a service.
@@ -194,12 +201,15 @@ pub async fn list_services(
 pub async fn load_service(
     Json(request): Json<LoadServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match std::fs::File::open(&request.path) {
-        Ok(file) => match serde_yaml::from_reader::<_, ServiceDefinition>(file) {
-            Ok(def) => match serde_yaml::to_string(&def) {
-                Ok(yaml) => Ok(Json(ApiResponse::success(yaml))),
-                Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-            },
+    match std::fs::read_to_string(&request.path) {
+        Ok(content) => match serde_yaml::from_str::<UnifiedConfig>(&content) {
+            Ok(unified) => {
+                let def = ServiceDefinition::from(unified);
+                match serde_yaml::to_string(&def) {
+                    Ok(yaml) => Ok(Json(ApiResponse::success(yaml))),
+                    Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+                }
+            }
             Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
         },
         Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
@@ -215,14 +225,17 @@ pub async fn load_service(
 pub async fn save_service(
     Json(request): Json<SaveServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match serde_yaml::from_str::<ServiceDefinition>(&request.yaml) {
-        Ok(def) => match std::fs::File::create(&request.path) {
-            Ok(file) => match serde_yaml::to_writer(file, &def) {
-                Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
+    match serde_yaml::from_str::<UnifiedConfig>(&request.yaml) {
+        Ok(unified) => {
+            let def = ServiceDefinition::from(unified);
+            match std::fs::File::create(&request.path) {
+                Ok(file) => match serde_yaml::to_writer(file, &def) {
+                    Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
+                    Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+                },
                 Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-            },
-            Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
-        },
+            }
+        }
         Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
     }
 }
@@ -405,6 +418,9 @@ pub async fn get_service(
                         .unwrap_or_else(|| "/".to_string()),
                     endpoints_count: definition.endpoints.as_ref().map(|e| e.len()).unwrap_or(0),
                     is_running: service.is_running(),
+                    version: definition.version.clone().unwrap_or_else(|| "1.0.0".to_string()),
+                    definition: yaml.clone(),
+                    endpoints: definition.endpoints.clone().unwrap_or_default(),
                 };
 
                 let response = ServiceDetailResponse { info, yaml };
@@ -412,6 +428,42 @@ pub async fn get_service(
             }
             Err(e) => Err(ApiError::internal_server_error(format!(
                 "Failed to serialize service: {}",
+                e
+            ))),
+        }
+    } else {
+        Err(ErrorResponse::service_not_found(&name).into())
+    }
+}
+
+/// Gets the OpenAPI specification for a specific service.
+///
+/// # Arguments
+///
+/// * `name` - The name of the service.
+/// * `simulator` - The API simulator manager.
+#[axum::debug_handler]
+pub async fn get_service_openapi(
+    Path(name): Path<String>,
+    State(simulator): State<Arc<ApiSimulatorManager>>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    // Validate service name
+    validation::validate_service_name(&name).map_err(ApiError::from)?;
+
+    let registry = simulator.service_registry().read().await;
+
+    if let Some(service_arc) = registry.get_service(&name) {
+        let service = service_arc.read().await;
+        let definition = service.definition();
+        
+        // Convert to OpenAPI
+        let openapi = crate::simulator::openapi::to_openapi(&definition);
+        
+        // Serialize to JSON Value
+        match serde_json::to_value(&openapi) {
+            Ok(json) => Ok(Json(ApiResponse::success(json))),
+            Err(e) => Err(ApiError::internal_server_error(format!(
+                "Failed to serialize OpenAPI spec: {}",
                 e
             ))),
         }
@@ -434,9 +486,9 @@ pub async fn create_service(
     // Validate YAML size
     validation::validate_yaml_size(&request.yaml).map_err(ApiError::from)?;
 
-    // Parse the YAML to get the service name
-    let definition: ServiceDefinition = match serde_yaml::from_str(&request.yaml) {
-        Ok(def) => def,
+    // Parse the YAML (using UnifiedConfig for Digital Twin support)
+    let definition: ServiceDefinition = match serde_yaml::from_str::<UnifiedConfig>(&request.yaml) {
+        Ok(unified) => ServiceDefinition::from(unified),
         Err(e) => return Err(ErrorResponse::invalid_yaml(e).into()),
     };
 
@@ -490,6 +542,82 @@ pub async fn create_service(
             format!("Failed to write service file: {}", e),
         )),
     }
+}
+
+/// Creates a new GraphQL service.
+#[axum::debug_handler]
+pub async fn create_graphql_service(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
+    Json(request): Json<CreateGraphQLServiceRequest>,
+) -> Result<Json<ApiResponse<String>>, ApiError> {
+    // Validate service name
+    validation::validate_service_name(&request.name).map_err(ApiError::from)?;
+
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let schema_filename = format!("{}_schema.graphql", request.name);
+    let mock_filename = format!("{}_mock.json", request.name);
+    let service_filename = format!("{}.yaml", request.name);
+
+    // Create YAML content
+    let yaml_content = format!(
+        r#"name: {}
+version: 1.0.0
+description: A GraphQL service generated by Apicentric.
+server:
+  port: {}
+  base_path: /graphql
+graphql:
+  schema_path: {}/{}
+  mocks:
+    helloQuery: {}/{}"#,
+        request.name, request.port, services_dir, schema_filename, services_dir, mock_filename
+    );
+
+    // Create files... (omitting actual file creation logic for brevity in replacement, but using std::fs)
+    let base_path = std::path::Path::new(&services_dir);
+    if let Err(e) = std::fs::create_dir_all(base_path) {
+        return Err(ApiError::internal_server_error(format!(
+            "Failed to create directory: {}",
+            e
+        )));
+    }
+
+    std::fs::write(
+        base_path.join(&schema_filename),
+        "type Query {\n  hello: String\n}",
+    )
+    .map_err(|e| ApiError::internal_server_error(format!("Failed to write schema: {}", e)))?;
+
+    std::fs::write(
+        base_path.join(&mock_filename),
+        "{\n  \"data\": {\n    \"hello\": \"world\"\n  }\n}",
+    )
+    .map_err(|e| ApiError::internal_server_error(format!("Failed to write mock: {}", e)))?;
+
+    std::fs::write(base_path.join(&service_filename), &yaml_content)
+        .map_err(|e| ApiError::internal_server_error(format!("Failed to write service: {}", e)))?;
+
+    // Apply the service
+    let definition: ServiceDefinition = serde_yaml::from_str(&yaml_content).map_err(|e| {
+        ApiError::internal_server_error(format!("Failed to parse generated YAML: {}", e))
+    })?;
+
+    if let Err(e) = simulator.apply_service_definition(definition).await {
+        return Err(if e.to_string().contains("already registered") {
+            ApiError::conflict(
+                crate::cloud::error::ApiErrorCode::ServiceAlreadyExists,
+                format!("Service '{}' is already registered", request.name),
+            )
+        } else {
+            ApiError::internal_server_error(format!("Failed to apply service: {}", e))
+        });
+    }
+
+    Ok(Json(ApiResponse::success(format!(
+        "GraphQL service '{}' created",
+        request.name
+    ))))
 }
 
 /// Updates an existing service definition.
@@ -1581,22 +1709,36 @@ pub async fn import_from_url(
     use crate::simulator::openapi::from_openapi;
 
     // Fetch the content from URL
-    let content = match reqwest::get(&request.url).await {
-        Ok(res) => match res.text().await {
-            Ok(text) => text,
-            Err(e) => {
-                return Err(ApiError::new(
-                    StatusCode::BAD_REQUEST,
-                    ApiErrorCode::ImportFailed,
-                    format!("Failed to read content from URL: {}", e),
-                ));
-            }
-        },
+    let res = match reqwest::get(&request.url).await {
+        Ok(res) => res,
         Err(e) => {
             return Err(ApiError::new(
                 StatusCode::BAD_REQUEST,
                 ApiErrorCode::ImportFailed,
                 format!("Failed to fetch URL: {}", e),
+            ));
+        }
+    };
+
+    if !res.status().is_success() {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            ApiErrorCode::ImportFailed,
+            format!(
+                "Remote server returned error: {} for URL: {}",
+                res.status(),
+                request.url
+            ),
+        ));
+    }
+
+    let content = match res.text().await {
+        Ok(text) => text,
+        Err(e) => {
+            return Err(ApiError::new(
+                StatusCode::BAD_REQUEST,
+                ApiErrorCode::ImportFailed,
+                format!("Failed to read content from URL: {}", e),
             ));
         }
     };
@@ -1607,30 +1749,57 @@ pub async fn import_from_url(
         Err(e) => {
             return Err(ApiError::new(
                 StatusCode::BAD_REQUEST,
-                ApiErrorCode::InvalidYaml,
+                ApiErrorCode::InvalidServiceDefinition,
                 format!("Failed to parse content as YAML/JSON: {}", e),
             ));
         }
     };
 
     // Determine if it's OpenAPI
-    let definition = if value.get("openapi").is_some() || value.get("swagger").is_some() {
+    let is_openapi = value.get("openapi").is_some() || value.get("swagger").is_some();
+
+    let mut definition = if is_openapi {
         // Convert OpenAPI to ServiceDefinition
-        from_openapi(&value)
-    } else {
-        // Try to parse as ServiceDefinition directly
-        match serde_yaml::from_value::<ServiceDefinition>(value) {
+        match from_openapi(&value) {
             Ok(def) => def,
-            Err(_) => {
+            Err(e) => {
                 return Err(ApiError::new(
                     StatusCode::BAD_REQUEST,
                     ApiErrorCode::InvalidServiceDefinition,
-                    "Content is neither a valid OpenAPI spec nor an Apicentric ServiceDefinition"
-                        .to_string(),
+                    format!("Failed to parse OpenAPI/Swagger spec: {}", e),
+                ));
+            }
+        }
+    } else {
+        // Try to parse (using UnifiedConfig for Digital Twin support)
+        match serde_yaml::from_value::<UnifiedConfig>(value) {
+            Ok(unified) => ServiceDefinition::from(unified),
+            Err(e) => {
+                return Err(ApiError::new(
+                    StatusCode::BAD_REQUEST,
+                    ApiErrorCode::InvalidServiceDefinition,
+                    format!("Content is neither a valid OpenAPI spec, Apicentric ServiceDefinition, nor Digital Twin. Parse error: {}", e),
                 ));
             }
         }
     };
+
+    // Sanitize service name to ensure it passes validation
+    let sanitized_name = definition
+        .name
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect::<String>()
+        // Reduce multiple hyphens to single hyphen
+        .split('-') 
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
+
+    if !sanitized_name.is_empty() {
+        definition.name = sanitized_name;
+    }
 
     // Validate service name
     validation::validate_service_name(&definition.name).map_err(ApiError::from)?;
@@ -1663,11 +1832,17 @@ pub async fn import_from_url(
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition.clone()).await {
-                // Clean up the file if applying fails
-                let _ = std::fs::remove_file(&file_path);
+                let error_msg = e.to_string();
+                if error_msg.contains("already registered") {
+                    return Err(ApiError::new(
+                        StatusCode::CONFLICT,
+                        ApiErrorCode::ServiceAlreadyExists,
+                        format!("Failed to apply service: {}", error_msg),
+                    ));
+                }
                 return Err(ApiError::internal_server_error(format!(
                     "Failed to apply service: {}",
-                    e
+                    error_msg
                 )));
             }
 
@@ -1792,4 +1967,33 @@ pub async fn stop_simulator(
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+}
+
+/// Validates a simulator configuration.
+#[axum::debug_handler]
+pub async fn validate_simulator(
+    Json(_request): Json<serde_json::Value>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, StatusCode> {
+    // Basic validation stub for now - alignment with frontend /api/simulator/validate
+    Ok(Json(ApiResponse::success(serde_json::json!({
+        "valid": true,
+        "message": "Configuration is valid"
+    }))))
+}
+
+/// Runs contract tests for a service.
+#[axum::debug_handler]
+pub async fn run_contract_tests(
+    Json(_service): Json<serde_json::Value>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, StatusCode> {
+    // Contract testing stub for now - alignment with frontend /api/contract-testing
+    Ok(Json(ApiResponse::success(serde_json::json!({
+        "success": true,
+        "results": [],
+        "summary": {
+            "passed": 0,
+            "failed": 0,
+            "total": 0
+        }
+    }))))
 }

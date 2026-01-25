@@ -4,8 +4,8 @@ import { useState, useEffect, lazy, Suspense, useMemo, useCallback, memo } from 
 import type { ApiService, View, Service, SimulatorStatus } from '@/lib/types';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Dashboard } from '@/components/features/dashboard';
-import { QueryClient, QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query';
-import { fetchSimulatorStatus, startSimulator, stopSimulator } from '@/services/api';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { fetchSimulatorStatus } from '@/services/api';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { BackendConnectionError } from '@/components/features/backend-connection-error';
@@ -84,56 +84,7 @@ function AppContent() {
     }
   }, [mappedServices]);
 
-  const startMutation = useMutation({
-    mutationFn: startSimulator,
-    onSuccess: () => {
-      toast({
-        title: 'Simulator Started',
-        description: 'The API simulator has been started successfully.',
-      });
-      refetch();
-    },
-    onError: (err) => {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to Start Simulator',
-        description: err.message,
-      });
-    },
-  });
-
-  const stopMutation = useMutation({
-    mutationFn: stopSimulator,
-    onSuccess: () => {
-      toast({
-        title: 'Simulator Stopped',
-        description: 'The API simulator has been stopped.',
-      });
-      refetch();
-    },
-    onError: (err) => {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to Stop Simulator',
-        description: err.message,
-      });
-    },
-  });
-
-  // Memoize callbacks to prevent unnecessary re-renders
-  const handleToggleAllServices = useCallback(() => {
-    if (simulatorStatus?.is_active) {
-      stopMutation.mutate();
-    } else {
-      startMutation.mutate();
-    }
-  }, [simulatorStatus?.is_active, stopMutation, startMutation]);
-  
-  const handleToggleService = useCallback((serviceId: string, status: 'running' | 'stopped') => {
-    // This would ideally be a per-service start/stop endpoint
-    // For now, we just toggle the whole simulator
-    handleToggleAllServices();
-  }, [handleToggleAllServices]);
+  // Mutations and toggle logic removed as per UI cleanup
 
   /**
    * Adds a new service to the list after parsing its YAML definition.
@@ -256,7 +207,7 @@ function AppContent() {
     
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard services={services} onToggleService={handleToggleService} />;
+        return <Dashboard services={services} />;
       case 'services':
         return (
           <Suspense fallback={<ComponentLoader />}>
@@ -323,9 +274,9 @@ function AppContent() {
           </Suspense>
         );
       default:
-        return <Dashboard services={services} onToggleService={handleToggleService} />;
+        return <Dashboard services={services} />;
     }
-  }, [activeView, services, handleToggleService, handleAddService, handleUpdateService, handleDeleteService, isLoading, error, simulatorStatus, refetch]);
+  }, [activeView, services, handleAddService, handleUpdateService, handleDeleteService, isLoading, error, simulatorStatus, refetch]);
 
   /**
    * A map of view names to their corresponding display titles.
@@ -350,8 +301,6 @@ function AppContent() {
       activeView={activeView}
       setActiveView={setActiveView}
       title={viewTitles[activeView]}
-      isSimulatorRunning={simulatorStatus?.is_active ?? false}
-      onToggleAllServices={handleToggleAllServices}
     >
       {renderContent}
     </MainLayout>

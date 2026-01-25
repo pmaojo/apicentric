@@ -75,6 +75,8 @@ export function LogsViewer({ services }: LogsViewerProps) {
   // Memoized filtered logs
   // Optimized: Use useMemo to prevent unnecessary re-renders when logs update
   const filteredLogs = React.useMemo(() => {
+    if (!logs || !Array.isArray(logs)) return [];
+    
     return logs.filter((log) => {
       const statusClass = Math.floor(log.status / 100);
       const statusFilterMatch =
@@ -146,7 +148,7 @@ export function LogsViewer({ services }: LogsViewerProps) {
       try {
         setIsLoading(true);
         const response = await queryLogs({ limit: 1000 });
-        setLogs(response.logs);
+        setLogs(response?.logs || []);
       } catch (error) {
         console.error('Failed to load logs:', error);
         toast({
