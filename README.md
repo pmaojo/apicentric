@@ -1,4 +1,3 @@
-<!-- cargo-rdme start -->
 
 # Apicentric
 
@@ -869,4 +868,3 @@ Here is a visual walkthrough of the recording feature:
 
 ![Recording Stopped](assets/screenshots/recording-view-stopped.png)
 
-<!-- cargo-rdme end -->
