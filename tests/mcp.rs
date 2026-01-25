@@ -66,12 +66,20 @@ fn test_mcp_create_service_tool() {
     config_file.write_all(config_content.as_bytes()).unwrap();
     let config_path = config_file.path();
 
-    let cargo_bin = env!("CARGO_BIN_EXE_apicentric");
-    let mut child = StdCommand::new(cargo_bin)
-        .arg("--config")
-        .arg(config_path)
-        .arg("mcp")
-        .arg("--test")
+    // Use cargo run to ensure features are enabled, as CARGO_BIN_EXE might point to a binary built without them
+    let mut child = StdCommand::new("cargo")
+        .args([
+            "run",
+            "--features",
+            "mcp",
+            "--bin",
+            "apicentric",
+            "--",
+            "--config",
+            config_path.to_str().unwrap(),
+            "mcp",
+            "--test",
+        ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
