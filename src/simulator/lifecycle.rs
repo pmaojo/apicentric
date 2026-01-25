@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::sync::{broadcast, RwLock};
 #[cfg(feature = "file-watch")]
 use tokio::sync::mpsc;
+use tokio::sync::{broadcast, RwLock};
 
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::{
@@ -45,8 +45,7 @@ impl<R: RouteRegistry + Send + Sync> SimulatorLifecycle<R> {
         route_registry: Arc<RwLock<R>>,
         config_loader: ConfigLoader,
         is_active: Arc<RwLock<bool>>,
-        #[cfg(feature = "file-watch")]
-        config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
+        #[cfg(feature = "file-watch")] config_watcher: Arc<RwLock<Option<ConfigWatcher>>>,
         log_sender: broadcast::Sender<RequestLogEntry>,
     ) -> Self {
         Self {
@@ -124,12 +123,13 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
         {
             // Spawn configuration watcher for automatic reloads
             let (tx, mut rx) = mpsc::channel(16);
-            let watcher = ConfigWatcher::new(self.config.services_dir.clone(), tx).map_err(|e| {
-                ApicentricError::runtime_error(
-                    format!("Failed to watch services directory: {}", e),
-                    None::<String>,
-                )
-            })?;
+            let watcher =
+                ConfigWatcher::new(self.config.services_dir.clone(), tx).map_err(|e| {
+                    ApicentricError::runtime_error(
+                        format!("Failed to watch services directory: {}", e),
+                        None::<String>,
+                    )
+                })?;
 
             {
                 let mut guard = self.config_watcher.write().await;
