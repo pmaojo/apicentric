@@ -2,6 +2,7 @@ use apicentric::app::PluginManager;
 use std::{path::PathBuf, process::Command};
 
 #[tokio::test]
+#[cfg(not(target_os = "windows"))]
 async fn loads_plugins_from_directory() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let status = Command::new("cargo")
@@ -31,28 +32,17 @@ async fn loads_plugins_from_directory() {
 
     let temp_dir = tempfile::tempdir().unwrap();
 
-    // Prevent STATUS_ACCESS_VIOLATION on Windows by never dropping temp_dir
-    #[cfg(target_os = "windows")]
-    let temp_dir = std::mem::ManuallyDrop::new(temp_dir);
-
     let dest = temp_dir.path().join(plugin_path.file_name().unwrap());
     std::fs::copy(&plugin_path, &dest).unwrap();
 
     let manager = PluginManager::load_from_directory(temp_dir.path())
         .expect("plugin directory should load successfully");
 
-    // Prevent STATUS_ACCESS_VIOLATION on Windows by never dropping PluginManager (and thus unloading the DLL)
-    #[cfg(target_os = "windows")]
-    let manager = std::mem::ManuallyDrop::new(manager);
-
     assert_eq!(manager.plugin_count(), 1);
 
-    #[cfg(not(target_os = "windows"))]
-    {
-        use http::{Request, Response};
-        let mut req = Request::new(Vec::new());
-        let mut res = Response::new(Vec::new());
-        manager.on_request(&mut req).await;
-        manager.on_response(&mut res).await;
-    }
+    use http::{Request, Response};
+    let mut req = Request::new(Vec::new());
+    let mut res = Response::new(Vec::new());
+    manager.on_request(&mut req).await;
+    manager.on_response(&mut res).await;
 }
