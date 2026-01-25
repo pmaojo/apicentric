@@ -6,7 +6,7 @@
 # ============================================
 
 # Stage 1: Build Frontend
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 WORKDIR /app/webui
 
 # Copy package files
@@ -20,7 +20,7 @@ COPY webui/ ./
 RUN npm run build
 
 # Stage 2: Build Backend
-FROM rust:1.84-bookworm AS backend-builder
+FROM rust:1.92-bookworm AS backend-builder
 WORKDIR /app
 
 # Install build dependencies
