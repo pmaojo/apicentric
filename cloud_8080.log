@@ -1,0 +1,8 @@
+  [2m2026-01-25T22:31:52.608200Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+🚀 Starting Apicentric Cloud Server on port 8080...
+📝 API Documentation: http://localhost:8080/health
+🔐 Authentication is optional (set APICENTRIC_PROTECT_SERVICES=true to require auth)
+📁 Serving frontend from: webui/out
+Error: Runtime error: Failed to start cloud server: Address already in use (os error 48)

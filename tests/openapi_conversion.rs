@@ -12,7 +12,7 @@ fn load_spec(path: &str) -> Value {
 fn import_openapi_to_service() {
     let spec = load_spec("tests/data/petstore.yaml");
     let service = from_openapi(&spec);
-    assert_eq!(service.name, "Test Service");
+    assert_eq!(service.name, "test-service");
     // OpenAPI v3 importer uses `servers` for base path; when missing, defaults to "/"
     assert_eq!(service.server.as_ref().unwrap().base_path, "/");
     assert_eq!(service.endpoints.as_ref().unwrap().len(), 1);

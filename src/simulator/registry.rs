@@ -172,15 +172,9 @@ impl ServiceRegistry {
     pub async fn list_services(&self) -> Vec<ServiceInfo> {
         let mut services = Vec::new();
 
-        for (name, service_arc) in &self.services {
+        for (_, service_arc) in &self.services {
             let service = service_arc.read().await;
-            services.push(ServiceInfo {
-                name: name.clone(),
-                port: service.port(),
-                base_path: service.base_path(),
-                endpoints_count: service.endpoints_count(),
-                is_running: service.is_running(),
-            });
+            services.push(service.get_info());
         }
 
         services.sort_by(|a, b| a.name.cmp(&b.name));

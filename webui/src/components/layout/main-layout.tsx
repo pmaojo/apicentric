@@ -17,8 +17,6 @@ type MainLayoutProps = {
   activeView: View;
   setActiveView: (view: View) => void;
   title: string;
-  isSimulatorRunning: boolean;
-  onToggleAllServices: () => void;
 };
 
 export function MainLayout({
@@ -26,8 +24,6 @@ export function MainLayout({
   activeView,
   setActiveView,
   title,
-  isSimulatorRunning,
-  onToggleAllServices,
 }: MainLayoutProps) {
   return (
     <WebSocketProvider enabled={true}>
@@ -49,8 +45,6 @@ export function MainLayout({
         <SidebarInset className="flex flex-col">
           <Header 
               title={title} 
-              isSimulatorRunning={isSimulatorRunning}
-              onToggleSimulator={onToggleAllServices}
           />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
               {children}

@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   // Enable static optimization where possible
-  output: 'standalone',
+  output: 'export',
   // Optimize bundle size
   webpack: (config, { isServer }) => {
     return config;
