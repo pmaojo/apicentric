@@ -172,7 +172,7 @@ impl ServiceRegistry {
     pub async fn list_services(&self) -> Vec<ServiceInfo> {
         let mut services = Vec::new();
 
-        for (_, service_arc) in &self.services {
+        for service_arc in self.services.values() {
             let service = service_arc.read().await;
             services.push(service.get_info());
         }

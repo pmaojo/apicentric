@@ -418,7 +418,10 @@ pub async fn get_service(
                         .unwrap_or_else(|| "/".to_string()),
                     endpoints_count: definition.endpoints.as_ref().map(|e| e.len()).unwrap_or(0),
                     is_running: service.is_running(),
-                    version: definition.version.clone().unwrap_or_else(|| "1.0.0".to_string()),
+                    version: definition
+                        .version
+                        .clone()
+                        .unwrap_or_else(|| "1.0.0".to_string()),
                     definition: yaml.clone(),
                     endpoints: definition.endpoints.clone().unwrap_or_default(),
                 };
@@ -455,10 +458,10 @@ pub async fn get_service_openapi(
     if let Some(service_arc) = registry.get_service(&name) {
         let service = service_arc.read().await;
         let definition = service.definition();
-        
+
         // Convert to OpenAPI
         let openapi = crate::simulator::openapi::to_openapi(&definition);
-        
+
         // Serialize to JSON Value
         match serde_json::to_value(&openapi) {
             Ok(json) => Ok(Json(ApiResponse::success(json))),
@@ -1792,7 +1795,7 @@ pub async fn import_from_url(
         .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>()
         // Reduce multiple hyphens to single hyphen
-        .split('-') 
+        .split('-')
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join("-");
