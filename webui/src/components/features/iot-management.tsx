@@ -8,7 +8,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Save, Trash2, Upload, RefreshCw } from 'lucide-react';
 import { listTwins, getTwin, saveTwin, deleteTwin, uploadReplayData, getIotGraph, GraphResponse } from '@/services/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ReactFlow, Controls, Background, useNodesState, useEdgesState } from '@xyflow/react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { ReactFlow, Controls, Background, useNodesState, useEdgesState, type Node, type Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 export function IoTManagement() {
@@ -22,8 +28,8 @@ export function IoTManagement() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // React Flow state
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   React.useEffect(() => {
     fetchTwins();
@@ -179,7 +185,18 @@ export function IoTManagement() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Twins</CardTitle>
-                <Button size="sm" onClick={handleCreate}><Plus className="h-4 w-4" /></Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" onClick={handleCreate} aria-label="Create new twin">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Create new twin</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto">
@@ -190,8 +207,17 @@ export function IoTManagement() {
                   {twins.map(t => (
                     <div
                       key={t}
-                      className={`p-2 rounded cursor-pointer hover:bg-accent ${selectedTwin === t ? 'bg-accent' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-selected={selectedTwin === t}
+                      className={`p-2 rounded cursor-pointer hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedTwin === t ? 'bg-accent' : ''}`}
                       onClick={() => handleSelectTwin(t)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleSelectTwin(t);
+                        }
+                      }}
                     >
                       {t}
                     </div>
