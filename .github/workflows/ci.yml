@@ -47,21 +47,6 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  # readme:
-  #   name: README Sync
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #
-  #     - name: Install Rust
-  #       uses: dtolnay/rust-toolchain@stable
-  #
-  #     - name: Install cargo-rdme
-  #       run: cargo install cargo-rdme
-  #
-  #     - name: Verify README is up to date
-  #       run: cargo rdme --check
-
   lint:
     name: Clippy Lint
     runs-on: ubuntu-latest
