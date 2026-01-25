@@ -133,13 +133,31 @@ export function LogsViewer({ services }: LogsViewerProps) {
     setCurrentPage(1);
   }, [filters]);
 
+  // Log buffering to prevent excessive re-renders
+  const logBufferRef = React.useRef<RequestLogEntry[]>([]);
+
   // Subscribe to real-time log updates via WebSocket
   useWebSocketSubscription('request_log', (logEntry: RequestLogEntry) => {
-    setLogs((prev) => {
-      const newLogs = [...prev, logEntry];
-      // Keep only last 1000 logs in memory
-      return newLogs.slice(-1000);
-    });
+    logBufferRef.current.push(logEntry);
+  }, []);
+
+  // Flush log buffer to state periodically
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      if (logBufferRef.current.length > 0) {
+        // Create a copy of the current buffer and clear it immediately
+        const logsToAdd = [...logBufferRef.current];
+        logBufferRef.current = [];
+
+        setLogs((prev) => {
+          const newLogs = [...prev, ...logsToAdd];
+          // Keep only last 1000 logs in memory
+          return newLogs.slice(-1000);
+        });
+      }
+    }, 200); // Flush every 200ms
+
+    return () => clearInterval(interval);
   }, []);
 
   // Load initial logs
