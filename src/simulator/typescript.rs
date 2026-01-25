@@ -24,7 +24,8 @@ pub fn to_typescript(service: &ServiceDefinition) -> ApicentricResult<String> {
     let spec_path = spec_file.path().to_path_buf();
 
     // Run openapi-typescript
-    let output = Command::new("npx")
+    let cmd = if cfg!(windows) { "npx.cmd" } else { "npx" };
+    let output = Command::new(cmd)
         .args(["-y", "openapi-typescript", spec_path.to_str().unwrap()])
         .output()
         .map_err(ApicentricError::Io)?;

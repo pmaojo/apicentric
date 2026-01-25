@@ -816,7 +816,11 @@ mod tests {
         assert_eq!(resolved, temp_dir.path().join("config/apicentric.json"));
 
         // Test absolute path (should remain unchanged)
+        #[cfg(not(windows))]
         let absolute_path = Path::new("/absolute/path");
+        #[cfg(windows)]
+        let absolute_path = Path::new("C:\\absolute\\path");
+
         let resolved = context.resolve_path(absolute_path);
         assert_eq!(resolved, absolute_path);
     }
