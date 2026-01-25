@@ -1,0 +1,167 @@
+name: Zebra FX9600 Digital Twin
+version: "1.0.0"
+description: >
+  Digital Twin of a Zebra FX9600 RFID Reader running IoT Connector.
+  Simulates the Local REST API for control and an MQTT stream for tag data.
+
+server:
+  port: 8080
+  base_path: /cloud
+
+fixtures:
+  status:
+    connected: true
+    model: "FX9600"
+    serialNumber: "FX9600-12345678"
+    firmwareVersion: "3.10.25"
+    temperature: 42
+    radioActivity: "active"
+    antennas:
+      "1": "connected"
+      "2": "connected"
+      "3": "disconnected"
+      "4": "disconnected"
+    network:
+      ip: "192.168.1.100"
+      mac: "00:15:70:E4:00:01"
+
+  tags:
+    - epc: "300833B2DDD9014000000000"
+      antenna: 1
+      rssi: -55
+    - epc: "300833B2DDD9014000000001"
+      antenna: 2
+      rssi: -60
+    - epc: "300833B2DDD9014000000002"
+      antenna: 1
+      rssi: -48
+    - epc: "300833B2DDD9014000000003"
+      antenna: 1
+      rssi: -52
+
+endpoints:
+  - method: GET
+    path: /status
+    description: Retrieves the reader status including antenna connections and temperature.
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "code": 0,
+            "message": "OK",
+            "status": {
+              "connection": "connected",
+              "model": "{{fixtures.status.model}}",
+              "serialNumber": "{{fixtures.status.serialNumber}}",
+              "firmwareVersion": "{{fixtures.status.firmwareVersion}}",
+              "temperature": {{fixtures.status.temperature}},
+              "radioActivity": "{{fixtures.status.radioActivity}}",
+              "antennas": {{json fixtures.status.antennas}},
+              "network": {{json fixtures.status.network}}
+            }
+          }
+
+  - method: PUT
+    path: /reboot
+    description: Reboots the reader.
+    responses:
+      202:
+        content_type: application/json
+        body: |
+          {
+            "code": 0,
+            "message": "Reboot initiated"
+          }
+
+  - method: PUT
+    path: /start
+    description: Starts the inventory operation.
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "code": 0,
+            "message": "Inventory started"
+          }
+
+  - method: PUT
+    path: /stop
+    description: Stops the inventory operation.
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "code": 0,
+            "message": "Inventory stopped"
+          }
+
+  - method: GET
+    path: /gpo
+    description: Retrieves the status of General Purpose Outputs.
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "ports": [
+              {"id": 1, "state": false},
+              {"id": 2, "state": false},
+              {"id": 3, "state": false},
+              {"id": 4, "state": false}
+            ]
+          }
+
+  - method: PUT
+    path: /gpo
+    description: Sets the state of a General Purpose Output.
+    request_body:
+      content_type: application/json
+      schema: |
+        {
+          "port": "number",
+          "state": "boolean"
+        }
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "code": 0,
+            "message": "GPO state updated"
+          }
+
+twin:
+  name: "Zebra-FX9600-Twin"
+  physics:
+    - variable: "tag_stream"
+      strategy: "script"
+      params:
+        # Rhai script to generate a random tag event
+        code: |
+          let antennas = [1, 2];
+          let ant = antennas[timestamp % 2];
+          let rssi = -50 - (timestamp % 20);
+          let epc = "300833B2DDD90140" + (timestamp % 1000).to_string();
+
+          #{
+            "type": "TagData",
+            "timestamp": timestamp,
+            "data": [
+              #{
+                "idHex": epc,
+                "antenna": ant,
+                "peakRssi": rssi,
+                "readCount": 1
+              }
+            ]
+          }
+
+  transports:
+    - type: "mqtt"
+      broker_url: "localhost"
+      port: 1883
+      topic_prefix: "zebra/data"
+      client_id: "fx9600_twin"
