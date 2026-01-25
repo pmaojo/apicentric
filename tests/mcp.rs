@@ -4,8 +4,8 @@
 
 use assert_cmd::Command;
 use std::fs;
-use std::io::Write;
-use tempfile::NamedTempFile;
+use std::io::{BufRead, BufReader, Write};
+use tempfile::{tempdir, NamedTempFile};
 
 #[test]
 fn test_mcp_command_starts_server_and_responds_to_initialize() {
@@ -40,22 +40,30 @@ use std::process::{Command as StdCommand, Stdio};
 fn test_mcp_create_service_tool() {
     let request = fs::read_to_string("tests/mcp_create_request.json").unwrap();
 
+    let temp_dir = tempdir().unwrap();
+    let services_dir = temp_dir.path().join("services");
+    fs::create_dir_all(&services_dir).unwrap();
+    let services_dir_str = services_dir.to_str().unwrap().replace("\\", "\\\\");
+    let db_path = temp_dir.path().join("apicentric.db");
+    let db_path_str = db_path.to_str().unwrap().replace("\\", "\\\\");
+
     let mut config_file = NamedTempFile::new().unwrap();
-    config_file
-        .write_all(
-            br#"{
-  "ai": { "provider": "openai", "api_key": "test-key" },
-  "simulator": {
+    let config_content = format!(
+        r#"{{
+  "ai": {{ "provider": "openai", "api_key": "test-key" }},
+  "simulator": {{
     "enabled": true,
-    "services_dir": "services",
-    "port_range": { "start": 9000, "end": 9099 },
-    "db_path": "apicentric.db",
+    "services_dir": "{}",
+    "port_range": {{ "start": 9000, "end": 9099 }},
+    "db_path": "{}",
     "admin_port": null,
-    "global_behavior": { "latency": null, "error_simulation": null, "rate_limiting": null }
-  }
-}"#,
-        )
-        .unwrap();
+    "global_behavior": {{ "latency": null, "error_simulation": null, "rate_limiting": null }}
+  }}
+}}"#,
+        services_dir_str, db_path_str
+    );
+
+    config_file.write_all(config_content.as_bytes()).unwrap();
     let config_path = config_file.path();
 
     let cargo_bin = env!("CARGO_BIN_EXE_apicentric");
@@ -70,20 +78,52 @@ fn test_mcp_create_service_tool() {
         .spawn()
         .unwrap();
 
-    {
-        let stdin = child.stdin.as_mut().unwrap();
-        stdin.write_all(request.as_bytes()).unwrap();
-        std::thread::sleep(std::time::Duration::from_secs(2));
-    } // stdin is closed here
+    let mut stdin = child.stdin.take().unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
 
-    let output = child.wait_with_output().unwrap();
-    let response = String::from_utf8(output.stdout).unwrap();
-    let stderr = String::from_utf8(output.stderr).unwrap();
+    // Consume stderr in a separate thread to prevent blocking and allow debugging
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            if let Ok(l) = line {
+                println!("[MCP Stderr] {}", l);
+            }
+        }
+    });
 
-    println!("MCP Response: {}", response);
-    println!("MCP Stderr: {}", stderr);
+    // Write request and flush
+    stdin.write_all(request.as_bytes()).unwrap();
+    stdin.flush().unwrap();
 
-    assert!(response.contains("jsonrpc"));
-    assert!(response.contains("result"));
-    assert!(response.contains("Service 'test-service' created"));
+    // Do NOT close stdin immediately. Keep it open while we read the response.
+    // The server will shut down when we close stdin or kill the process later.
+
+    let mut reader = BufReader::new(stdout);
+    let mut found = false;
+    let mut line = String::new();
+    let mut accumulated_response = String::new();
+
+    // Read lines from stdout
+    while let Ok(n) = reader.read_line(&mut line) {
+        if n == 0 {
+            break; // EOF
+        }
+        accumulated_response.push_str(&line);
+        if line.contains("Service 'test-service' created") {
+            found = true;
+            break;
+        }
+        line.clear();
+    }
+
+    // Kill the child process
+    let _ = child.kill();
+    let _ = child.wait();
+
+    if !found {
+        println!("MCP Response (Accumulated): {}", accumulated_response);
+    }
+
+    assert!(found, "Did not find expected success message in MCP response");
 }
