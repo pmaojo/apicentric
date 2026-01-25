@@ -92,7 +92,13 @@ async fn import_openapi(content: &str, output: &str) -> ApicentricResult<()> {
         ));
     }
 
-    let service = apicentric::simulator::openapi::from_openapi(&spec);
+    let service = apicentric::simulator::openapi::from_openapi(&spec).map_err(|e| {
+        ApicentricError::validation_error(
+            format!("OpenAPI/Swagger conversion failed: {}", e),
+            None::<String>,
+            None::<String>,
+        )
+    })?;
     write_service_file(service, output, "OpenAPI")
 }
 

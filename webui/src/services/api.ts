@@ -280,12 +280,8 @@ export function isAuthenticated(): boolean {
 // ============================================================================
 
 export interface ServiceResponse {
-  name: string;
-  path: string;
-  status: 'stopped' | 'starting' | 'running' | 'stopping' | 'failed';
-  port: number;
-  endpoints: EndpointResponse[];
-  uptime_seconds?: number;
+  info: ApiService;
+  yaml: string;
 }
 
 export interface EndpointResponse {
@@ -371,6 +367,16 @@ export async function stopService(name: string): Promise<void> {
   await apiRequest(`/api/services/${encodeURIComponent(name)}/stop`, {
     method: 'POST',
   });
+}
+
+/**
+ * Fetches the OpenAPI specification for a service.
+ */
+export async function fetchServiceOpenApi(name: string): Promise<any> {
+  const response = await apiRequest<{ success: boolean; data: any }>(
+    `/api/services/${encodeURIComponent(name)}/openapi`
+  );
+  return response.data;
 }
 
 /**
@@ -848,21 +854,18 @@ export async function createGraphQLService(name: string, port: number): Promise<
 /**
  * Runs contract tests for a given service.
  * @param {Service} service - The service to test.
- * @returns {Promise<any>} A promise that resolves with the test results.
+ * @returns {Promise<any[]>} A promise that resolves with the test results array.
  */
-export async function runContractTests(service: Service): Promise<any> {
-    const response = await fetch(`${getApiUrl()}/api/contract-testing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(service),
-    });
+export async function runContractTests(service: Service): Promise<any[]> {
+    const response = await apiRequest<{ success: boolean; data: { results: any[] } }>(
+        '/api/contract-testing',
+        {
+            method: 'POST',
+            body: JSON.stringify(service),
+        }
+    );
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `Failed to run tests for ${service.name}` }));
-        throw new Error(errorData.error);
-    }
-
-    return response.json();
+    return response.data?.results || [];
 }
 
 /**

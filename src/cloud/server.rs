@@ -112,6 +112,10 @@ impl CloudServer {
                 "/api/services",
                 get(handlers::list_services).post(handlers::create_service),
             )
+            .route(
+                "/api/services/create-graphql",
+                post(handlers::create_graphql_service),
+            )
             // Marketplace and Import routes
             .route("/api/marketplace", get(handlers::marketplace_list))
             .route("/api/import/url", post(handlers::import_from_url))
@@ -123,6 +127,10 @@ impl CloudServer {
                 get(handlers::get_service)
                     .put(handlers::update_service)
                     .delete(handlers::delete_service),
+            )
+            .route(
+                "/api/services/:name/openapi",
+                get(handlers::get_service_openapi),
             )
             .route("/api/services/:name/start", post(handlers::start_service))
             .route("/api/services/:name/stop", post(handlers::stop_service))
@@ -168,14 +176,21 @@ impl CloudServer {
                 post(handlers::generate_react_query),
             )
             .route("/api/codegen/axios", post(handlers::generate_axios))
+            .route("/api/codegen", post(handlers::generate_typescript)) // Default to TS for generic endpoint
             // Configuration management routes
             .route(
                 "/api/config",
                 get(handlers::get_config).put(handlers::update_config),
             )
             .route("/api/config/validate", post(handlers::validate_config))
+            .route(
+                "/api/simulator/validate",
+                post(handlers::validate_simulator),
+            )
             // Monitoring and metrics routes
-            .route("/api/metrics", get(handlers::get_metrics));
+            .route("/api/metrics", get(handlers::get_metrics))
+            // Contract testing routes
+            .route("/api/contract-testing", post(handlers::run_contract_tests));
 
         // Apply authentication middleware to protected routes if enabled
         let protected_routes = if self.protect_services {

@@ -75,6 +75,8 @@ export function LogsViewer({ services }: LogsViewerProps) {
   // Memoized filtered logs
   // Optimized: Use useMemo to prevent unnecessary re-renders when logs update
   const filteredLogs = React.useMemo(() => {
+    if (!logs || !Array.isArray(logs)) return [];
+    
     return logs.filter((log) => {
       const statusClass = Math.floor(log.status / 100);
       const statusFilterMatch =
@@ -131,13 +133,31 @@ export function LogsViewer({ services }: LogsViewerProps) {
     setCurrentPage(1);
   }, [filters]);
 
+  // Log buffering to prevent excessive re-renders
+  const logBufferRef = React.useRef<RequestLogEntry[]>([]);
+
   // Subscribe to real-time log updates via WebSocket
   useWebSocketSubscription('request_log', (logEntry: RequestLogEntry) => {
-    setLogs((prev) => {
-      const newLogs = [...prev, logEntry];
-      // Keep only last 1000 logs in memory
-      return newLogs.slice(-1000);
-    });
+    logBufferRef.current.push(logEntry);
+  }, []);
+
+  // Flush log buffer to state periodically
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      if (logBufferRef.current.length > 0) {
+        // Create a copy of the current buffer and clear it immediately
+        const logsToAdd = [...logBufferRef.current];
+        logBufferRef.current = [];
+
+        setLogs((prev) => {
+          const newLogs = [...prev, ...logsToAdd];
+          // Keep only last 1000 logs in memory
+          return newLogs.slice(-1000);
+        });
+      }
+    }, 200); // Flush every 200ms
+
+    return () => clearInterval(interval);
   }, []);
 
   // Load initial logs
@@ -146,7 +166,7 @@ export function LogsViewer({ services }: LogsViewerProps) {
       try {
         setIsLoading(true);
         const response = await queryLogs({ limit: 1000 });
-        setLogs(response.logs);
+        setLogs(response?.logs || []);
       } catch (error) {
         console.error('Failed to load logs:', error);
         toast({
