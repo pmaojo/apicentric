@@ -13,7 +13,7 @@ endpoints:
     path: /users
     description: Get all users
     responses:
-      - status: 200
+      200:
         content_type: application/json
         body: |
           [
@@ -24,11 +24,11 @@ endpoints:
     path: /users/{id}
     description: Get user by ID
     responses:
-      - status: 200
+      200:
         content_type: application/json
         body: |
           {"id": 1, "name": "John Doe", "email": "john@example.com"}
-      - status: 404
+      404:
         content_type: application/json
         body: |
           {"error": "User not found"}
@@ -36,7 +36,7 @@ endpoints:
     path: /users
     description: Create a new user
     responses:
-      - status: 201
+      201:
         content_type: application/json
         body: |
           {"id": 3, "name": "New User", "email": "new@example.com"}
@@ -44,7 +44,7 @@ endpoints:
     path: /users/{id}
     description: Update user
     responses:
-      - status: 200
+      200:
         content_type: application/json
         body: |
           {"id": 1, "name": "Updated User", "email": "updated@example.com"}
@@ -52,7 +52,7 @@ endpoints:
     path: /users/{id}
     description: Delete user
     responses:
-      - status: 204
+      204:
         content_type: application/json
         body: ""`;
 
@@ -67,7 +67,7 @@ endpoints:
     path: /products
     description: Get all products
     responses:
-      - status: 200
+      200:
         content_type: application/json
         body: |
           [
@@ -78,7 +78,7 @@ endpoints:
     path: /products/{id}
     description: Get product by ID
     responses:
-      - status: 200
+      200:
         content_type: application/json
         body: |
           {"id": 1, "name": "Laptop", "price": 999.99, "category": "Electronics"}
@@ -86,7 +86,7 @@ endpoints:
     path: /orders
     description: Create a new order
     responses:
-      - status: 201
+      201:
         content_type: application/json
         body: |
           {"id": 1, "status": "pending", "total": 999.99, "items": [{"product_id": 1, "quantity": 1}]}
@@ -94,7 +94,7 @@ endpoints:
     path: /orders/{id}
     description: Get order by ID
     responses:
-      - status: 200
+      200:
         content_type: application/json
         body: |
           {"id": 1, "status": "completed", "total": 999.99, "items": [{"product_id": 1, "quantity": 1}]}`;
@@ -111,7 +111,7 @@ endpoints:
     path: /
     description: GraphQL endpoint
     responses:
-      - status: 200
+      200:
         content_type: application/json
         body: |
           {
