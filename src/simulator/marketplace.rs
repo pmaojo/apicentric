@@ -303,6 +303,14 @@ pub fn get_marketplace_items() -> Vec<MarketplaceItem> {
             definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/energy/smart-meter-electric.yaml".to_string(),
         },
         MarketplaceItem {
+            id: "iot/energy/solar-inverter".to_string(),
+            name: "Solar Inverter".to_string(),
+            description: "Digital Twin of a solar inverter (power, voltage). Modbus TCP.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/solar-inverter.yaml".to_string(),
+        },
+        MarketplaceItem {
             id: "iot/energy/wind-turbine".to_string(),
             name: "Wind Turbine".to_string(),
             description: "Turbine telemetry including wind speed and power curve.".to_string(),
@@ -317,6 +325,14 @@ pub fn get_marketplace_items() -> Vec<MarketplaceItem> {
             category: "IoT Twin".to_string(),
             logo_url: None,
             definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/agriculture/soil-moisture.yaml".to_string(),
+        },
+        MarketplaceItem {
+            id: "iot/agriculture/weather-station".to_string(),
+            name: "Weather Station".to_string(),
+            description: "Digital Twin of a weather station (wind, temp, humidity). MQTT.".to_string(),
+            category: "IoT Twin".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/examples/iot/weather-station.yaml".to_string(),
         },
         MarketplaceItem {
             id: "iot/manufacturing/conveyor-system".to_string(),
@@ -484,7 +500,7 @@ mod tests {
 
         // Check for IoT items
         let iot_items: Vec<_> = items.iter().filter(|i| i.category == "IoT Twin").collect();
-        assert_eq!(iot_items.len(), 30);
+        assert_eq!(iot_items.len(), 32);
 
         // Verify specific new template exists
         assert!(items
