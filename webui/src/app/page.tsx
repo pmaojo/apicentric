@@ -184,6 +184,20 @@ function AppContent() {
   }, [services, toast]);
 
   /**
+   * Handles real-time updates for a service via WebSocket.
+   * @param {string} serviceName - The name of the service to update.
+   * @param {Partial<Service>} updates - The updates to apply to the service.
+   */
+  const handleServiceUpdate = useCallback((serviceName: string, updates: Partial<Service>) => {
+    setServices(prevServices => prevServices.map(service => {
+      if (service.name === serviceName) {
+        return { ...service, ...updates };
+      }
+      return service;
+    }));
+  }, []);
+
+  /**
    * Renders the component for the currently active view.
    * @returns {React.ReactElement} The component to render.
    */
@@ -207,7 +221,7 @@ function AppContent() {
     
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard services={services} />;
+        return <Dashboard services={services} onServiceUpdate={handleServiceUpdate} />;
       case 'services':
         return (
           <Suspense fallback={<ComponentLoader />}>
@@ -216,6 +230,7 @@ function AppContent() {
               onAddService={handleAddService} 
               onUpdateService={handleUpdateService}
               onDeleteService={handleDeleteService}
+              onServiceUpdate={handleServiceUpdate}
             />
           </Suspense>
         );
@@ -274,9 +289,9 @@ function AppContent() {
           </Suspense>
         );
       default:
-        return <Dashboard services={services} />;
+        return <Dashboard services={services} onServiceUpdate={handleServiceUpdate} />;
     }
-  }, [activeView, services, handleAddService, handleUpdateService, handleDeleteService, isLoading, error, simulatorStatus, refetch]);
+  }, [activeView, services, handleAddService, handleUpdateService, handleDeleteService, isLoading, error, simulatorStatus, refetch, handleServiceUpdate]);
 
   /**
    * A map of view names to their corresponding display titles.
