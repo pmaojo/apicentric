@@ -63,9 +63,9 @@ function AppContent() {
 
   // Memoize the mapped services to avoid unnecessary recalculations
   const mappedServices = useMemo(() => {
-    if (!simulatorStatus) return [];
-    return simulatorStatus.active_services.map((apiService, index): Service => ({
-      id: apiService.id || `service-${index}-${Date.now()}`,
+    if (!simulatorStatus || !simulatorStatus.active_services) return [];
+    return simulatorStatus.active_services.map((apiService): Service => ({
+      id: apiService.id || `service-${apiService.name}`,
       name: apiService.name,
       status: (apiService.is_running ? 'running' : 'stopped') as 'running' | 'stopped',
       port: apiService.port,
@@ -79,10 +79,10 @@ function AppContent() {
   }, [simulatorStatus]);
 
   useEffect(() => {
-    if (mappedServices.length > 0) {
-      setServices(mappedServices);
+    if (simulatorStatus) {
+        setServices(mappedServices);
     }
-  }, [mappedServices]);
+  }, [mappedServices, simulatorStatus]);
 
   // Mutations and toggle logic removed as per UI cleanup
 

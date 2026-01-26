@@ -18,7 +18,7 @@ test.describe('Basic E2E Navigation Tests', () => {
     await expect(page).toHaveTitle(/Apicentric/);
     
     // Check that the sidebar is visible
-    await expect(page.getByText('Apicentric')).toBeVisible();
+    await expect(page.getByText('Apicentric', { exact: true })).toBeVisible();
     
     // Check that we're on the dashboard by default
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
@@ -61,42 +61,17 @@ test.describe('Basic E2E Navigation Tests', () => {
     }
   });
 
-  test('should display simulator status correctly', async ({ page }) => {
-    // Check that simulator toggle button is present
-    const simulatorToggle = await webUI.getSimulatorToggleButton();
-    await expect(simulatorToggle).toBeVisible();
+  test('should display simulator status card', async ({ page }) => {
+    // Check that simulator status card is present
+    await expect(page.getByText('Simulator Status')).toBeVisible();
     
-    // Button should have either "Start Simulator" or "Stop Simulator"
-    const buttonText = await simulatorToggle.textContent();
-    expect(buttonText).toMatch(/(Start|Stop) Simulator/);
-  });
-
-  test('should handle simulator toggle interaction', async ({ page }) => {
-    // Get initial simulator state
-    const simulatorToggle = await webUI.getSimulatorToggleButton();
-    const initialText = await simulatorToggle.textContent();
-    const wasRunning = initialText?.includes('Stop');
+    // Check for reload button
+    const reloadButton = await webUI.getReloadAllButton();
+    await expect(reloadButton).toBeVisible();
     
-    // Try to toggle simulator state (might fail if backend is not fully configured)
-    try {
-      await webUI.clickSimulatorToggle();
-      
-      // Wait a bit for state change
-      await page.waitForTimeout(2000);
-      
-      // Check if state changed
-      const newText = await simulatorToggle.textContent();
-      
-      if (wasRunning) {
-        expect(newText).toContain('Start Simulator');
-      } else {
-        expect(newText).toContain('Stop Simulator');
-      }
-    } catch (error) {
-      // If simulator toggle fails, it might be because backend is not fully set up
-      // This is acceptable for basic navigation tests
-      console.log('Simulator toggle failed (possibly expected):', error);
-    }
+    // Check for status text
+    const statusText = await webUI.getSimulatorStatusText();
+    expect(statusText).toMatch(/Simulator is (running|stopped)/);
   });
 
   test('should navigate back to dashboard from any view', async ({ page }) => {
@@ -121,9 +96,11 @@ test.describe('Basic E2E Navigation Tests', () => {
     await webUI.navigateToHome();
     
     // Check that the layout is responsive
-    await expect(page.getByText('Apicentric')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Toggle Sidebar' })).toBeVisible();
     
     // Try navigation on mobile
+    await page.getByRole('button', { name: 'Toggle Sidebar' }).click();
     await webUI.navigateToServices();
     await expect(page.getByRole('heading', { name: 'Service Definitions' })).toBeVisible();
   });

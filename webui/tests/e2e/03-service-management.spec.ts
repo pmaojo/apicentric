@@ -6,11 +6,12 @@ import { TEST_SCENARIOS, SAMPLE_SERVICE_YAML } from '../fixtures/test-data';
 test.describe('Service Management E2E Tests', () => {
   let webUI: WebUIHelper;
   let apiHelper: ApiTestHelper;
-  const testServiceName = `test-service-${Date.now()}`;
+  let testServiceName: string;
 
   test.beforeEach(async ({ page }) => {
     webUI = new WebUIHelper(page);
     apiHelper = new ApiTestHelper();
+    testServiceName = `test-service-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     await webUI.navigateToHome();
     await webUI.navigateToServices();
   });
@@ -85,10 +86,16 @@ test.describe('Service Management E2E Tests', () => {
   test('should create a new service via API and verify in UI', async ({ page }) => {
     try {
       // Create service via backend API
-      const serviceYaml = SAMPLE_SERVICE_YAML.replace('test-service', testServiceName);
+      let serviceYaml = SAMPLE_SERVICE_YAML.replace('test-service', testServiceName);
+      const port = 3000 + Math.floor(Math.random() * 1000);
+      serviceYaml = serviceYaml.replace('port: 3001', `port: ${port}`);
+
       await apiHelper.createService(serviceYaml, `${testServiceName}.yaml`);
       
       console.log(`✅ Service ${testServiceName} created via API`);
+
+      // Wait for service to be running in backend
+      await apiHelper.waitForServiceState(testServiceName, true);
       
       // Refresh the page to see the new service
       await page.reload();
@@ -109,7 +116,10 @@ test.describe('Service Management E2E Tests', () => {
   test('should start and stop service via UI', async ({ page }) => {
     try {
       // First create a service
-      const serviceYaml = SAMPLE_SERVICE_YAML.replace('test-service', testServiceName);
+      let serviceYaml = SAMPLE_SERVICE_YAML.replace('test-service', testServiceName);
+      const port = 3000 + Math.floor(Math.random() * 1000);
+      serviceYaml = serviceYaml.replace('port: 3001', `port: ${port}`);
+
       await apiHelper.createService(serviceYaml, `${testServiceName}.yaml`);
       
       // Refresh to see the service
@@ -220,7 +230,10 @@ test.describe('Service Management E2E Tests', () => {
   test('should handle service deletion confirmation', async ({ page }) => {
     try {
       // Create a test service first
-      const serviceYaml = SAMPLE_SERVICE_YAML.replace('test-service', testServiceName);
+      let serviceYaml = SAMPLE_SERVICE_YAML.replace('test-service', testServiceName);
+      const port = 3000 + Math.floor(Math.random() * 1000);
+      serviceYaml = serviceYaml.replace('port: 3001', `port: ${port}`);
+
       await apiHelper.createService(serviceYaml, `${testServiceName}.yaml`);
       
       // Refresh to see the service
@@ -266,7 +279,9 @@ test.describe('Service Management E2E Tests', () => {
       
       if (!status.active_services || status.active_services.length === 0) {
         // Should show empty state message
-        const emptyMessage = page.locator('text=/no services/i, text=/empty/i, [data-testid*="empty"]');
+        const emptyMessage = page.getByText(/no services/i)
+          .or(page.getByText(/empty/i))
+          .or(page.locator('[data-testid*="empty"]'));
         
         if (await emptyMessage.count() > 0) {
           await expect(emptyMessage.first()).toBeVisible();
@@ -288,7 +303,7 @@ test.describe('Service Management E2E Tests', () => {
       const backendServices = await apiHelper.listServices();
       
       // Count services in frontend
-      const frontendServiceElements = page.getByTestId(/^service-/);
+      const frontendServiceElements = page.locator('[data-testid^="service-"]');
       const frontendCount = await frontendServiceElements.count();
       
       console.log(`Backend: ${backendServices.length} services, Frontend: ${frontendCount} service elements`);

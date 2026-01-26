@@ -64,19 +64,19 @@ export class WebUIHelper {
   }
 
   // Simulator controls
-  async getSimulatorToggleButton(): Promise<Locator> {
-    return this.page.getByTestId('simulator-toggle');
+  async getSimulatorStatusText(): Promise<string> {
+    const statusText = this.page.getByText(/Simulator is (running|stopped)/);
+    return await statusText.textContent() || '';
   }
 
-  async clickSimulatorToggle() {
-    const toggle = await this.getSimulatorToggleButton();
-    await expect(toggle).toBeVisible();
-    await toggle.click();
+  async getReloadAllButton(): Promise<Locator> {
+    return this.page.getByRole('button', { name: 'Reload All' });
   }
 
-  async waitForSimulatorStatus(isRunning: boolean, timeoutMs: number = 10000) {
-    const expectedText = isRunning ? 'Stop Simulator' : 'Start Simulator';
-    await expect(this.page.getByTestId('simulator-toggle')).toContainText(expectedText, { timeout: timeoutMs });
+  async reloadAllServices() {
+    const button = await this.getReloadAllButton();
+    await expect(button).toBeVisible();
+    await button.click();
   }
 
   // Service management
