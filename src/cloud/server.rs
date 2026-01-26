@@ -23,6 +23,27 @@ use crate::cloud::recording_session::RecordingSessionManager;
 use crate::cloud::websocket::{ws_handler, WebSocketState};
 use crate::simulator::ApiSimulatorManager;
 use std::env;
+use uuid::Uuid;
+
+/// Determines the JWT secret to use.
+///
+/// If a secret is provided in the environment, it is used.
+/// If no secret is provided:
+/// - If `protect_services` is true, this function panics to prevent insecure deployment.
+/// - If `protect_services` is false, a random secret is generated.
+fn determine_jwt_secret(env_secret: Option<String>, protect_services: bool) -> String {
+    match env_secret {
+        Some(secret) if !secret.is_empty() => secret,
+        _ => {
+            if protect_services {
+                panic!("🚨 CRITICAL SECURITY ERROR: APICENTRIC_PROTECT_SERVICES is enabled, but APICENTRIC_JWT_SECRET is not set. You must provide a secure secret in production.");
+            } else {
+                println!("⚠️  WARNING: APICENTRIC_JWT_SECRET not set. Using a random secret. Sessions will not persist across restarts.");
+                Uuid::new_v4().to_string()
+            }
+        }
+    }
+}
 
 /// The cloud server.
 pub struct CloudServer {
@@ -44,8 +65,12 @@ impl CloudServer {
         let db_path = env::var("APICENTRIC_AUTH_DB").unwrap_or_else(|_| "data/auth.db".to_string());
         std::fs::create_dir_all("data").ok();
         let repo = AuthRepository::new(&db_path).expect("Failed to init auth repository");
-        let secret =
-            env::var("APICENTRIC_JWT_SECRET").unwrap_or_else(|_| "dev-secret-change-me".into());
+
+        let protect_services = env::var("APICENTRIC_PROTECT_SERVICES")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
+
+        let secret = determine_jwt_secret(env::var("APICENTRIC_JWT_SECRET").ok(), protect_services);
         let keys = JwtKeys::from_secret(&secret);
         let blacklist = crate::auth::blacklist::TokenBlacklist::new();
         let auth_state = Arc::new(AuthState {
@@ -56,9 +81,7 @@ impl CloudServer {
         let recording_manager = Arc::new(RecordingSessionManager::new());
         let simulator_manager_arc = Arc::new(simulator_manager);
         let websocket_state = Arc::new(WebSocketState::new(Arc::clone(&simulator_manager_arc)));
-        let protect_services = env::var("APICENTRIC_PROTECT_SERVICES")
-            .map(|v| v == "true" || v == "1")
-            .unwrap_or(false);
+
         Self {
             simulator_manager: simulator_manager_arc,
             auth_state,
@@ -253,4 +276,34 @@ async fn health_check() -> Json<serde_json::Value> {
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "uptime_seconds": uptime,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_jwt_secret_provided() {
+        let secret = determine_jwt_secret(Some("my-secure-secret".to_string()), true);
+        assert_eq!(secret, "my-secure-secret");
+
+        let secret = determine_jwt_secret(Some("my-secure-secret".to_string()), false);
+        assert_eq!(secret, "my-secure-secret");
+    }
+
+    #[test]
+    #[should_panic(expected = "APICENTRIC_PROTECT_SERVICES is enabled")]
+    fn test_jwt_secret_missing_protected() {
+        determine_jwt_secret(None, true);
+    }
+
+    #[test]
+    fn test_jwt_secret_missing_unprotected() {
+        let secret1 = determine_jwt_secret(None, false);
+        let secret2 = determine_jwt_secret(None, false);
+
+        assert_ne!(secret1, "dev-secret-change-me");
+        assert_ne!(secret1, secret2, "Should generate unique secrets");
+        assert_eq!(secret1.len(), 36, "Should be a UUID string"); // UUID string length is 36
+    }
 }
