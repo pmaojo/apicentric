@@ -379,7 +379,23 @@ export function ServiceManagement({
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {services.map((service) => {
+                    {services.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-48 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Box className="h-10 w-10 text-muted-foreground/50" />
+                            <h3 className="text-lg font-semibold">No services yet</h3>
+                            <p className="text-sm text-muted-foreground mb-4">
+                              Create your first service to get started with the simulator.
+                            </p>
+                            <CreateServiceDialog onAddService={handleAddService}>
+                              <Button><FilePlus className="mr-2 h-4 w-4" /> Create New Service</Button>
+                            </CreateServiceDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      services.map((service) => {
                       const isLoading = loadingServices.has(service.name);
                       const isSelected = selectedServices.has(service.id);
                       
@@ -499,7 +515,7 @@ export function ServiceManagement({
                           </TableCell>
                         </TableRow>
                       );
-                    })}
+                    }))}
                 </TableBody>
                 </Table>
             </div>
