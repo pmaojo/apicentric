@@ -84,6 +84,7 @@ impl ScriptingEngine {
 }
 
 #[cfg(test)]
+#[cfg(feature = "scripting")]
 mod tests {
     use super::*;
     use serde_json::json;
