@@ -6,3 +6,5 @@ apicentric.db
 mobile/build/
 mobile/.dart_tool/
 mobile/.pub/
+webui/test-results/
+webui/playwright-report/

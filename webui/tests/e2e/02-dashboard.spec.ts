@@ -18,32 +18,32 @@ test.describe('Dashboard E2E Tests', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
     
     // Check that we have sections for active and inactive services
-    await expect(page.getByText('Active Services')).toBeVisible();
-    await expect(page.getByText('Inactive Services')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Active Services', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Inactive Services', exact: true })).toBeVisible();
   });
 
   test('should show simulator status in dashboard', async ({ page }) => {
     try {
       // Try to get current simulator status from backend
       const status = await apiHelper.getSimulatorStatus();
+      const isActive = status.active_services && status.active_services.some(s => s.is_running);
       
       // Dashboard should reflect the simulator state
-      const simulatorToggle = await webUI.getSimulatorToggleButton();
-      const buttonText = await simulatorToggle.textContent();
+      const statusText = await webUI.getSimulatorStatusText();
       
-      if (status.is_active) {
-        expect(buttonText).toContain('Stop Simulator');
+      if (isActive) {
+        expect(statusText).toContain('Simulator is running');
       } else {
-        expect(buttonText).toContain('Start Simulator');
+        expect(statusText).toContain('Simulator is stopped');
       }
       
       console.log('✅ Simulator status consistent between backend and frontend');
     } catch (error) {
       console.log('⚠️ Could not verify simulator status consistency:', error);
       
-      // At minimum, button should be present and functional
-      const simulatorToggle = await webUI.getSimulatorToggleButton();
-      await expect(simulatorToggle).toBeVisible();
+      // At minimum, status should be visible
+      const statusText = await webUI.getSimulatorStatusText();
+      expect(statusText).toMatch(/Simulator is (running|stopped)/);
     }
   });
 
@@ -182,8 +182,8 @@ test.describe('Dashboard E2E Tests', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
     
     // Should show sections even if empty
-    const activeSection = page.getByText('Active Services');
-    const inactiveSection = page.getByText('Inactive Services');
+    const activeSection = page.getByRole('heading', { name: 'Active Services', exact: true });
+    const inactiveSection = page.getByRole('heading', { name: 'Inactive Services', exact: true });
     
     // At least one section should be visible
     const activeSectionVisible = await activeSection.isVisible();

@@ -384,7 +384,7 @@ export function ServiceManagement({
                       const isSelected = selectedServices.has(service.id);
                       
                       return (
-                        <TableRow key={service.id}>
+                        <TableRow key={service.id} data-testid={`service-${service.name}`}>
                           <TableCell>
                             <Checkbox
                               checked={isSelected}
