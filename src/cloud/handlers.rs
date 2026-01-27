@@ -201,7 +201,20 @@ pub async fn list_services(
 pub async fn load_service(
     Json(request): Json<LoadServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match std::fs::read_to_string(&request.path) {
+    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+
+    // Sentinel: Sanitize filename to prevent directory traversal
+    let filename = match std::path::Path::new(&request.path).file_name() {
+        Some(name) => match name.to_str() {
+            Some(s) => s,
+            None => return Ok(Json(ApiResponse::error("Invalid filename encoding".to_string()))),
+        },
+        None => return Ok(Json(ApiResponse::error("Invalid path".to_string()))),
+    };
+
+    let safe_path = std::path::Path::new(&services_dir).join(filename);
+
+    match std::fs::read_to_string(&safe_path) {
         Ok(content) => match serde_yaml::from_str::<UnifiedConfig>(&content) {
             Ok(unified) => {
                 let def = ServiceDefinition::from(unified);
@@ -225,10 +238,23 @@ pub async fn load_service(
 pub async fn save_service(
     Json(request): Json<SaveServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
+    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+
+    // Sentinel: Sanitize filename to prevent directory traversal
+    let filename = match std::path::Path::new(&request.path).file_name() {
+        Some(name) => match name.to_str() {
+            Some(s) => s,
+            None => return Ok(Json(ApiResponse::error("Invalid filename encoding".to_string()))),
+        },
+        None => return Ok(Json(ApiResponse::error("Invalid path".to_string()))),
+    };
+
+    let safe_path = std::path::Path::new(&services_dir).join(filename);
+
     match serde_yaml::from_str::<UnifiedConfig>(&request.yaml) {
         Ok(unified) => {
             let def = ServiceDefinition::from(unified);
-            match std::fs::File::create(&request.path) {
+            match std::fs::File::create(&safe_path) {
                 Ok(file) => match serde_yaml::to_writer(file, &def) {
                     Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
                     Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
