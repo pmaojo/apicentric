@@ -3,7 +3,7 @@
 //!
 //! > A powerful CLI tool and API simulator platform for developers who love the terminal
 //! >
-//! > https://apicentric.pelayomaojo.es
+//! > <https://apicentric.pelayomaojo.es>
 //!
 //! ## What is Apicentric?
 //!
