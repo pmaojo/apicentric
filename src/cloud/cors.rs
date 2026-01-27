@@ -11,7 +11,7 @@ use tower_http::cors::CorsLayer;
 ///
 /// # Environment Variables
 ///
-/// * `ALLOWED_ORIGINS` - Comma-separated list of allowed origins (e.g., "https://example.com,https://app.example.com")
+/// * `ALLOWED_ORIGINS` - Comma-separated list of allowed origins (e.g., "<https://example.com>,<https://app.example.com>")
 /// * `APICENTRIC_ENV` - Environment mode ("development" or "production")
 ///
 /// # Behavior
@@ -95,7 +95,7 @@ fn create_production_cors() -> CorsLayer {
 ///
 /// # Arguments
 ///
-/// * `origins` - A slice of origin strings (e.g., &["https://example.com"])
+/// * `origins` - A slice of origin strings (e.g., &["<https://example.com>"])
 ///
 /// # Returns
 ///
