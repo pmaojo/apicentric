@@ -1,5 +1,5 @@
 use crate::{ApicentricError, ApicentricResult};
-use apicentric::simulator::config::UnifiedConfig;
+use apicentric::simulator::config::validation::{ConfigFileLoader, ConfigRepository};
 #[cfg(feature = "tui")]
 use apicentric::simulator::config::{
     EndpointDefinition, EndpointKind, ResponseDefinition, ServerConfig, ServiceDefinition,
@@ -33,32 +33,14 @@ pub fn find_yaml_files(dir: &Path, recursive: bool) -> ApicentricResult<Vec<Path
 /// # Arguments
 /// * `file_path` - The path to the YAML file to validate
 pub fn validate_yaml_file(file_path: &Path) -> ApicentricResult<()> {
-    let content = std::fs::read_to_string(file_path).map_err(|e| {
-        ApicentricError::fs_error(
-            format!("Failed to read file {}: {}", file_path.display(), e),
-            Some("Ensure the file exists and is readable"),
-        )
-    })?;
+    // We use ConfigFileLoader which implements ConfigRepository.
+    // It requires a root directory, but for single file validation,
+    // we can use the file's parent.
+    let parent = file_path.parent().unwrap_or_else(|| Path::new("."));
+    let loader = ConfigFileLoader::new(parent.to_path_buf());
 
-    // First check YAML syntax
-    let _value: serde_yaml::Value = serde_yaml::from_str(&content).map_err(|e| {
-        ApicentricError::validation_error(
-            format!("Invalid YAML: {}", e),
-            None::<String>,
-            Some("Check YAML syntax"),
-        )
-    })?;
-
-    // Then check if it matches UnifiedConfig (Service or Twin)
-    let _: UnifiedConfig = serde_yaml::from_str(&content).map_err(|e| {
-        ApicentricError::validation_error(
-            format!("Schema validation failed: {}", e),
-            None::<String>,
-            Some("Ensure the file structure matches the ServiceDefinition or TwinDefinition schema (e.g., missing 'name' field)"),
-        )
-    })?;
-
-    Ok(())
+    // This will attempt to read the file and parse it into UnifiedConfig -> ServiceDefinition
+    loader.load_service(file_path).map(|_| ())
 }
 
 fn find_yaml_files_in_dir(dir: &Path, files: &mut Vec<PathBuf>) -> ApicentricResult<()> {
