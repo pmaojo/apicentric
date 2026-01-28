@@ -5,18 +5,29 @@
 
 use colored::*;
 use std::env;
+use std::error::Error;
 
 /// The entry point for the minimal build of `apicentric`.
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
-
-    // Default to help if no args
-    if args.len() < 2 {
-        print_help();
-        return Ok(());
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("{} {}", "❌ Error:".red(), e);
+        std::process::exit(1);
     }
+}
 
-    match args[1].as_str() {
+fn run() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = env::args().collect();
+    let mut iter = args.iter().skip(1); // Skip program name
+
+    let command = match iter.next() {
+        Some(cmd) => cmd,
+        None => {
+            print_help();
+            return Ok(());
+        }
+    };
+
+    match command.as_str() {
         "version" => {
             println!("{}", "apicentric CLI (minimal build)".green().bold());
             println!("✅ All heavy dependencies removed for faster compilation!");
@@ -24,28 +35,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         "validate" => {
             let mut path = None;
-            let mut i = 2;
-            while i < args.len() {
-                if (args[i] == "--path" || args[i] == "-p") && i + 1 < args.len() {
-                    path = Some(args[i + 1].clone());
-                    i += 1;
+            while let Some(arg) = iter.next() {
+                match arg.as_str() {
+                    "--path" | "-p" => {
+                        if let Some(p) = iter.next() {
+                            path = Some(p.clone());
+                        } else {
+                            return Err("Missing value for --path".into());
+                        }
+                    }
+                    _ => {
+                        return Err(format!("Unknown argument: {}", arg).into());
+                    }
                 }
-                i += 1;
             }
 
             if let Some(p) = path {
-                validate_file(&p);
+                validate_file(&p)?;
             } else {
-                println!("{}", "❌ Missing required argument: --path".red());
-                print_help();
-                std::process::exit(1);
+                return Err("Missing required argument: --path".into());
             }
         }
         "--help" | "-h" => print_help(),
         _ => {
-            println!("{} Unknown command: {}", "❌".red(), args[1]);
-            print_help();
-            std::process::exit(1);
+            return Err(format!("Unknown command: {}", command).into());
         }
     }
 
@@ -60,14 +73,15 @@ fn print_help() {
     println!("  validate     Validate a YAML service definition (--path <FILE>)");
 }
 
-fn validate_file(path: &str) {
+fn validate_file(path: &str) -> Result<(), Box<dyn Error>> {
     println!("{} {}", "🔍 Validating:".blue().bold(), path);
 
-    match std::fs::read_to_string(path) {
-        Ok(content) => match serde_yaml::from_str::<serde_json::Value>(&content) {
-            Ok(_) => println!("{}", "✅ Valid YAML structure".green()),
-            Err(e) => println!("{} {}", "❌ Invalid YAML:".red(), e),
-        },
-        Err(e) => println!("{} {}", "❌ Cannot read file:".red(), e),
-    }
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| format!("Cannot read file: {}", e))?;
+
+    serde_yaml::from_str::<serde_json::Value>(&content)
+        .map_err(|e| format!("Invalid YAML: {}", e))?;
+
+    println!("{}", "✅ Valid YAML structure".green());
+    Ok(())
 }
