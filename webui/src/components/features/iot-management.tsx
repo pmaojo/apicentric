@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Save, Trash2, Upload, RefreshCw } from 'lucide-react';
 import { listTwins, getTwin, saveTwin, deleteTwin, uploadReplayData, getIotGraph, GraphResponse } from '@/services/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ReactFlow, Controls, Background, useNodesState, useEdgesState } from '@xyflow/react';
+import { ReactFlow, Controls, Background, useNodesState, useEdgesState, type Node, type Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 export function IoTManagement() {
@@ -22,8 +22,8 @@ export function IoTManagement() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // React Flow state
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   React.useEffect(() => {
     fetchTwins();
@@ -190,8 +190,18 @@ export function IoTManagement() {
                   {twins.map(t => (
                     <div
                       key={t}
-                      className={`p-2 rounded cursor-pointer hover:bg-accent ${selectedTwin === t ? 'bg-accent' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      className={`p-2 rounded cursor-pointer hover:bg-accent ${selectedTwin === t ? 'bg-accent' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
                       onClick={() => handleSelectTwin(t)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleSelectTwin(t);
+                        }
+                      }}
+                      aria-current={selectedTwin === t ? 'true' : undefined}
+                      aria-label={`Select twin ${t}`}
                     >
                       {t}
                     </div>

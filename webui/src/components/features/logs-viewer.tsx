@@ -342,6 +342,7 @@ export function LogsViewer({ services }: LogsViewerProps) {
                 className="pl-10"
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
+                aria-label="Search logs"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -349,7 +350,7 @@ export function LogsViewer({ services }: LogsViewerProps) {
                 onValueChange={(value) => handleFilterChange('service', value)}
                 value={filters.service}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filter by service">
                   <SelectValue placeholder="Service" />
                 </SelectTrigger>
                 <SelectContent>
@@ -365,7 +366,7 @@ export function LogsViewer({ services }: LogsViewerProps) {
                 onValueChange={(value) => handleFilterChange('method', value)}
                 value={filters.method}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filter by method">
                   <SelectValue placeholder="Method" />
                 </SelectTrigger>
                 <SelectContent>
@@ -381,7 +382,7 @@ export function LogsViewer({ services }: LogsViewerProps) {
                 onValueChange={(value) => handleFilterChange('status', value)}
                 value={filters.status}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Filter by status">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
