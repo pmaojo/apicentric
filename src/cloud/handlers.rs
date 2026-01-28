@@ -179,6 +179,35 @@ pub struct GenerateServiceRequest {
     pub description: Option<String>,
 }
 
+fn sanitize_filename(path_str: &str) -> Result<String, ApiError> {
+    let path = std::path::Path::new(path_str);
+
+    // Sentinel: Extract file name to prevent directory traversal
+    let file_name = path.file_name().ok_or_else(|| {
+        ApiError::bad_request(
+            ApiErrorCode::InvalidParameter,
+            "Invalid filename: empty or cannot be extracted",
+        )
+    })?;
+
+    let file_name_str = file_name.to_str().ok_or_else(|| {
+        ApiError::bad_request(
+            ApiErrorCode::InvalidParameter,
+            "Invalid filename: contains invalid UTF-8 characters",
+        )
+    })?;
+
+    // Prevent "." and ".."
+    if file_name_str == "." || file_name_str == ".." || file_name_str.is_empty() {
+        return Err(ApiError::bad_request(
+            ApiErrorCode::InvalidParameter,
+            "Invalid filename",
+        ));
+    }
+
+    Ok(file_name_str.to_string())
+}
+
 /// Lists all active services.
 ///
 /// # Arguments
@@ -201,7 +230,17 @@ pub async fn list_services(
 pub async fn load_service(
     Json(request): Json<LoadServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match std::fs::read_to_string(&request.path) {
+    // Sentinel: Sanitize filename to prevent directory traversal
+    let filename = match sanitize_filename(&request.path) {
+        Ok(f) => f,
+        Err(e) => return Ok(Json(ApiResponse::error(e.response.message))),
+    };
+
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let path = std::path::Path::new(&services_dir).join(filename);
+
+    match std::fs::read_to_string(&path) {
         Ok(content) => match serde_yaml::from_str::<UnifiedConfig>(&content) {
             Ok(unified) => {
                 let def = ServiceDefinition::from(unified);
@@ -225,10 +264,20 @@ pub async fn load_service(
 pub async fn save_service(
     Json(request): Json<SaveServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
+    // Sentinel: Sanitize filename to prevent directory traversal
+    let filename = match sanitize_filename(&request.path) {
+        Ok(f) => f,
+        Err(e) => return Ok(Json(ApiResponse::error(e.response.message))),
+    };
+
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let path = std::path::Path::new(&services_dir).join(filename);
+
     match serde_yaml::from_str::<UnifiedConfig>(&request.yaml) {
         Ok(unified) => {
             let def = ServiceDefinition::from(unified);
-            match std::fs::File::create(&request.path) {
+            match std::fs::File::create(&path) {
                 Ok(file) => match serde_yaml::to_writer(file, &def) {
                     Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
                     Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
@@ -499,9 +548,13 @@ pub async fn create_service(
     validation::validate_service_name(&definition.name).map_err(ApiError::from)?;
 
     // Determine the filename
-    let filename = request
+    let raw_filename = request
         .filename
         .unwrap_or_else(|| format!("{}.yaml", definition.name));
+
+    // Sentinel: Sanitize filename to prevent directory traversal
+    let filename = sanitize_filename(&raw_filename).map_err(ApiError::from)?;
+
     let services_dir =
         std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
     let file_path = std::path::Path::new(&services_dir).join(&filename);
@@ -1999,4 +2052,29 @@ pub async fn run_contract_tests(
             "total": 0
         }
     }))))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_filename() {
+        // Normal case
+        assert_eq!(sanitize_filename("service.yaml").unwrap(), "service.yaml");
+
+        // Path traversal attempts
+        assert_eq!(sanitize_filename("../service.yaml").unwrap(), "service.yaml");
+        assert_eq!(sanitize_filename("../../service.yaml").unwrap(), "service.yaml");
+        assert_eq!(sanitize_filename("dir/service.yaml").unwrap(), "service.yaml");
+        assert_eq!(sanitize_filename("/etc/passwd").unwrap(), "passwd");
+
+        // Invalid cases
+        assert!(sanitize_filename("").is_err());
+        assert!(sanitize_filename(".").is_err());
+        assert!(sanitize_filename("..").is_err());
+        // Trailing slash results in empty filename component usually?
+        // Path::new("dir/").file_name() is None?
+        // Let's verify behavior, but for now assuming these are safe defaults.
+    }
 }
