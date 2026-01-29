@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use crate::config::ApicentricConfig;
 use crate::errors::{ApicentricError, ApicentricResult};
+#[cfg(feature = "simulator")]
 use crate::simulator::config::{PortRange, SimulatorConfig};
 
 /// Environment-driven configuration overrides for Apicentric.
@@ -65,24 +66,32 @@ impl EnvConfig {
 
     /// Apply the environment overrides to an in-memory configuration.
     pub fn apply(&self, config: &mut ApicentricConfig) {
-        let simulator = config
-            .simulator
-            .get_or_insert_with(SimulatorConfig::default_config);
+        #[cfg(feature = "simulator")]
+        {
+            let simulator = config
+                .simulator
+                .get_or_insert_with(SimulatorConfig::default_config);
 
-        if let Some(dir) = &self.services_dir {
-            simulator.services_dir = dir.clone();
+            if let Some(dir) = &self.services_dir {
+                simulator.services_dir = dir.clone();
+            }
+            if let (Some(start), Some(end)) = (self.port_start, self.port_end) {
+                simulator.port_range = PortRange { start, end };
+            }
+            if let Some(path) = &self.db_path {
+                simulator.db_path = path.clone();
+            }
+            if let Some(port) = self.admin_port {
+                simulator.admin_port = Some(port);
+            }
+            if let Some(enabled) = self.enable_simulator {
+                simulator.enabled = enabled;
+            }
         }
-        if let (Some(start), Some(end)) = (self.port_start, self.port_end) {
-            simulator.port_range = PortRange { start, end };
-        }
-        if let Some(path) = &self.db_path {
-            simulator.db_path = path.clone();
-        }
-        if let Some(port) = self.admin_port {
-            simulator.admin_port = Some(port);
-        }
-        if let Some(enabled) = self.enable_simulator {
-            simulator.enabled = enabled;
+        #[cfg(not(feature = "simulator"))]
+        {
+            // Suppress unused variable warnings when simulator is disabled
+            let _ = config;
         }
     }
 }
@@ -129,13 +138,16 @@ mod tests {
         let mut cfg = ApicentricConfig::default();
         env_cfg.apply(&mut cfg);
 
-        let simulator = cfg.simulator.unwrap();
-        assert_eq!(simulator.services_dir, PathBuf::from("/tmp/services"));
-        assert_eq!(simulator.port_range.start, 8100);
-        assert_eq!(simulator.port_range.end, 8200);
-        assert_eq!(simulator.db_path, PathBuf::from("./test.db"));
-        assert_eq!(simulator.admin_port, Some(9999));
-        assert!(simulator.enabled);
+        #[cfg(feature = "simulator")]
+        {
+            let simulator = cfg.simulator.unwrap();
+            assert_eq!(simulator.services_dir, PathBuf::from("/tmp/services"));
+            assert_eq!(simulator.port_range.start, 8100);
+            assert_eq!(simulator.port_range.end, 8200);
+            assert_eq!(simulator.db_path, PathBuf::from("./test.db"));
+            assert_eq!(simulator.admin_port, Some(9999));
+            assert!(simulator.enabled);
+        }
 
         // 3. Test invalid range
         clear_env();

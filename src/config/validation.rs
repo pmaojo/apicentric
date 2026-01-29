@@ -1,7 +1,10 @@
-use super::{AiConfig, AiProviderKind, ApicentricConfig};
+#[cfg(feature = "simulator")]
+use super::{AiConfig, AiProviderKind};
+use super::ApicentricConfig;
 use crate::errors::ValidationError;
 use crate::validation::ConfigValidator;
 
+#[cfg(feature = "simulator")]
 impl ConfigValidator for AiConfig {
     fn validate(&self) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
@@ -44,9 +47,11 @@ impl ConfigValidator for AiConfig {
 
 impl ConfigValidator for ApicentricConfig {
     fn validate(&self) -> Result<(), Vec<ValidationError>> {
+        #[allow(unused_mut)]
         let mut errors = Vec::new();
 
         // Validate AI config if present
+        #[cfg(feature = "simulator")]
         if let Some(ref ai) = self.ai {
             if let Err(mut ai_errors) = ai.validate() {
                 errors.append(&mut ai_errors);
@@ -54,6 +59,7 @@ impl ConfigValidator for ApicentricConfig {
         }
 
         // Validate simulator config if present
+        #[cfg(feature = "simulator")]
         if let Some(ref simulator) = self.simulator {
             if let Err(mut simulator_errors) = simulator.validate() {
                 errors.append(&mut simulator_errors);
@@ -73,6 +79,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "simulator")]
     fn ai_config_validation_gemini() {
         let config = AiConfig {
             provider: AiProviderKind::Gemini,
@@ -84,6 +91,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "simulator")]
     fn ai_config_validation_openai_missing_key() {
         let config = AiConfig {
             provider: AiProviderKind::Openai,

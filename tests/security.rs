@@ -1,4 +1,6 @@
-use apicentric::cloud::handlers::{load_service, save_service, LoadServiceRequest, SaveServiceRequest};
+use apicentric::cloud::handlers::{
+    load_service, save_service, LoadServiceRequest, SaveServiceRequest,
+};
 use axum::Json;
 use std::fs::File;
 use std::io::Write;
@@ -27,19 +29,15 @@ async fn test_path_traversal_prevention() {
     };
 
     let result = load_service(Json(request)).await;
-    match result {
-        Ok(Json(response)) => {
-            // It should fail because it looks for 'secret.yaml' inside services_dir, where it doesn't exist.
-            // Even though 'secret.yaml' exists outside, the sanitizer forces it to look inside.
-            if response.success {
-                panic!("Security regression: Successfully loaded file outside services directory!");
-            }
-            assert!(response.error.is_some());
+    if let Ok(Json(response)) = result {
+        // It should fail because it looks for 'secret.yaml' inside services_dir, where it doesn't exist.
+        // Even though 'secret.yaml' exists outside, the sanitizer forces it to look inside.
+        if response.success {
+            panic!("Security regression: Successfully loaded file outside services directory!");
         }
-        Err(_) => {
-             // HTTP Error is also acceptable
-        }
+        assert!(response.error.is_some());
     }
+    // HTTP Error is also acceptable
 
     // 2. Test Save Service Traversal
     let target_file = temp_dir.path().join("pwned.yaml");
@@ -50,24 +48,24 @@ async fn test_path_traversal_prevention() {
     };
 
     let result = save_service(Json(request)).await;
-     match result {
-        Ok(Json(response)) => {
-            // It might succeed, but it should write to services_dir/pwned.yaml, NOT target_file
-            if response.success {
-                // Verify it didn't write to the target location
-                if target_file.exists() {
-                     panic!("Security regression: Successfully wrote file using traversal path!");
-                }
-
-                // Verify it DID write to the safe location (sanitization behavior)
-                // The filename extracted from ".../pwned.yaml" is "pwned.yaml"
-                let safe_file = services_dir.join("pwned.yaml");
-                assert!(safe_file.exists(), "Should have written to safe location inside services dir");
-            } else {
-                // Failure is also safe
+    if let Ok(Json(response)) = result {
+        // It might succeed, but it should write to services_dir/pwned.yaml, NOT target_file
+        if response.success {
+            // Verify it didn't write to the target location
+            if target_file.exists() {
+                panic!("Security regression: Successfully wrote file using traversal path!");
             }
+
+            // Verify it DID write to the safe location (sanitization behavior)
+            // The filename extracted from ".../pwned.yaml" is "pwned.yaml"
+            let safe_file = services_dir.join("pwned.yaml");
+            assert!(
+                safe_file.exists(),
+                "Should have written to safe location inside services dir"
+            );
+        } else {
+            // Failure is also safe
         }
-        Err(_) => {}
     }
 
     // 3. Test Valid Operation
@@ -83,7 +81,10 @@ async fn test_path_traversal_prevention() {
     let result = load_service(Json(request)).await;
     match result {
         Ok(Json(response)) => {
-            assert!(response.success, "Should successfully load valid file in services dir");
+            assert!(
+                response.success,
+                "Should successfully load valid file in services dir"
+            );
             assert!(response.data.unwrap().contains("name: valid"));
         }
         Err(e) => panic!("Request failed: {:?}", e),

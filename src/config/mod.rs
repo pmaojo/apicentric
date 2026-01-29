@@ -12,10 +12,12 @@ pub use repository::{
 pub struct ApicentricConfig {
     /// AI generation configuration
     #[serde(default)]
+    #[cfg(feature = "simulator")]
     pub ai: Option<AiConfig>,
 
     /// API Simulator configuration (the main feature)
     #[serde(default)]
+    #[cfg(feature = "simulator")]
     pub simulator: Option<crate::simulator::config::SimulatorConfig>,
 }
 
@@ -25,6 +27,7 @@ pub struct ApicentricConfig {
 
 /// Configuration for AI assisted code generation.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[cfg(feature = "simulator")]
 pub struct AiConfig {
     /// Provider to use for text generation.
     pub provider: AiProviderKind,
@@ -42,6 +45,7 @@ pub struct AiConfig {
 /// Supported AI providers.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[cfg(feature = "simulator")]
 pub enum AiProviderKind {
     /// Use a local language model such as `llama-rs`.
     Local,
@@ -72,12 +76,14 @@ pub enum ExecutionMode {
 /// Generate a default configuration
 pub fn generate_default_config() -> ApicentricConfig {
     ApicentricConfig {
+        #[cfg(feature = "simulator")]
         ai: Some(AiConfig {
             provider: AiProviderKind::Gemini,
             model_path: None,
             api_key: Some("your-api-key-here".to_string()),
             model: Some("gemini-2.5-flash".to_string()),
         }),
+        #[cfg(feature = "simulator")]
         simulator: Some(crate::simulator::config::SimulatorConfig::default()),
     }
 }
@@ -89,14 +95,20 @@ mod tests {
     #[test]
     fn default_config_is_valid() {
         let config = ApicentricConfig::default();
-        assert!(config.ai.is_none());
-        assert!(config.simulator.is_none());
+        #[cfg(feature = "simulator")]
+        {
+            assert!(config.ai.is_none());
+            assert!(config.simulator.is_none());
+        }
     }
 
     #[test]
     fn generate_default_config_works() {
         let config = generate_default_config();
-        assert!(config.ai.is_some());
-        assert!(config.simulator.is_some());
+        #[cfg(feature = "simulator")]
+        {
+            assert!(config.ai.is_some());
+            assert!(config.simulator.is_some());
+        }
     }
 }

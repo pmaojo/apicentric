@@ -874,11 +874,11 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "simulator"))]
 pub mod ai;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "simulator"))]
 pub mod app;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "database"))]
 pub mod auth;
 #[cfg(all(not(target_arch = "wasm32"), feature = "webui"))]
 pub mod cloud;
@@ -892,7 +892,7 @@ pub mod env_config;
 pub mod errors;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod logging;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "simulator"))]
 pub mod storage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod utils;
@@ -942,7 +942,7 @@ pub mod adapters {
 }
 
 // API Simulator module
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "simulator"))]
 pub mod simulator;
 
 // CLI module
@@ -962,7 +962,7 @@ pub use config::ApicentricConfig;
 pub use context::{Context, ContextBuilder, ExecutionContext};
 #[cfg(not(target_arch = "wasm32"))]
 pub use errors::{ApicentricError, ApicentricResult};
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "simulator"))]
 pub use simulator::{ApiSimulatorManager, ServiceDefinition, SimulatorConfig};
 
 // Re-export contract testing functionality
