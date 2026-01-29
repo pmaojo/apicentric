@@ -81,6 +81,8 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "concurrently": "^9.2.1",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.10",
     "genkit-cli": "^1.20.0",
     "playwright": "^1.56.1",
     "postcss": "^8",
