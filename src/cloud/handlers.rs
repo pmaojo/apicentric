@@ -205,6 +205,14 @@ fn sanitize_filename(path_str: &str) -> Result<String, ApiError> {
         ));
     }
 
+    // Disallow any path separators inside the filename to ensure it is a single path component
+    if file_name_str.contains('/') || file_name_str.contains('\\') {
+        return Err(ApiError::bad_request(
+            ApiErrorCode::InvalidParameter,
+            "Invalid filename: must not contain path separators",
+        ));
+    }
+
     Ok(file_name_str.to_string())
 }
 
@@ -238,9 +246,35 @@ pub async fn load_service(
 
     let services_dir =
         std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let path = std::path::Path::new(&services_dir).join(filename);
+    let services_dir_path = std::path::Path::new(&services_dir);
+    let candidate_path = services_dir_path.join(&filename);
 
-    match std::fs::read_to_string(&path) {
+    // Canonicalize paths and ensure the resolved file stays within the services directory
+    let canonical_services_dir = match services_dir_path.canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            return Ok(Json(ApiResponse::error(format!(
+                "Failed to resolve services directory: {}",
+                e
+            ))))
+        }
+    };
+
+    let canonical_file_path = match candidate_path.canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            return Ok(Json(ApiResponse::error(e.to_string())));
+        }
+    };
+
+    // Ensure that the resolved file path is within the services directory
+    if !canonical_file_path.starts_with(&canonical_services_dir) {
+        return Ok(Json(ApiResponse::error(
+            "Invalid filename: outside of services directory".to_string(),
+        )));
+    }
+
+    match std::fs::read_to_string(&canonical_file_path) {
         Ok(content) => match serde_yaml::from_str::<UnifiedConfig>(&content) {
             Ok(unified) => {
                 let def = ServiceDefinition::from(unified);
