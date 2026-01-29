@@ -1,6 +1,10 @@
+#[cfg(feature = "simulator")]
 use std::sync::Arc;
 
-use crate::{config, ApicentricError, ApicentricResult};
+use crate::config;
+use crate::ApicentricResult;
+#[cfg(feature = "simulator")]
+use crate::ApicentricError;
 
 pub mod init;
 
@@ -8,6 +12,7 @@ pub mod init;
 #[derive(Clone)]
 pub struct Context {
     config: config::ApicentricConfig,
+    #[cfg(feature = "simulator")]
     api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
 }
 
@@ -16,10 +21,12 @@ impl Context {
         &self.config
     }
 
+    #[cfg(feature = "simulator")]
     pub fn api_simulator(&self) -> Option<&Arc<crate::simulator::ApiSimulatorManager>> {
         self.api_simulator.as_ref()
     }
 
+    #[cfg(feature = "simulator")]
     pub async fn start_api_simulator(&self) -> ApicentricResult<()> {
         if let Some(ref sim) = self.api_simulator {
             sim.start().await.map_err(|e| {
@@ -32,6 +39,7 @@ impl Context {
         Ok(())
     }
 
+    #[cfg(feature = "simulator")]
     pub async fn stop_api_simulator(&self) -> ApicentricResult<()> {
         if let Some(ref sim) = self.api_simulator {
             sim.stop().await.map_err(|e| {
@@ -44,6 +52,7 @@ impl Context {
         Ok(())
     }
 
+    #[cfg(feature = "simulator")]
     pub async fn api_simulator_status(&self) -> Option<crate::simulator::SimulatorStatus> {
         if let Some(ref sim) = self.api_simulator {
             Some(sim.get_status().await)
@@ -53,17 +62,18 @@ impl Context {
     }
 
     pub fn is_api_simulator_enabled(&self) -> bool {
+        #[cfg(feature = "simulator")]
         if let Some(ref c) = self.config.simulator {
-            c.is_enabled()
-        } else {
-            false
+            return c.is_enabled();
         }
+        false
     }
 }
 
 /// Builder for [`Context`].
 pub struct ContextBuilder {
     config: config::ApicentricConfig,
+    #[cfg(feature = "simulator")]
     api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
 }
 
@@ -71,10 +81,12 @@ impl ContextBuilder {
     pub fn new(config: config::ApicentricConfig) -> Self {
         Self {
             config,
+            #[cfg(feature = "simulator")]
             api_simulator: None,
         }
     }
 
+    #[cfg(feature = "simulator")]
     pub fn with_api_simulator(
         mut self,
         api_simulator: Option<Arc<crate::simulator::ApiSimulatorManager>>,
@@ -90,6 +102,7 @@ impl ContextBuilder {
     pub fn build(self) -> ApicentricResult<Context> {
         Ok(Context {
             config: self.config.clone(),
+            #[cfg(feature = "simulator")]
             api_simulator: self.api_simulator,
         })
     }

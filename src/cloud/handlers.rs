@@ -201,13 +201,18 @@ pub async fn list_services(
 pub async fn load_service(
     Json(request): Json<LoadServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
 
     // Sentinel: Sanitize filename to prevent directory traversal
     let filename = match std::path::Path::new(&request.path).file_name() {
         Some(name) => match name.to_str() {
             Some(s) => s,
-            None => return Ok(Json(ApiResponse::error("Invalid filename encoding".to_string()))),
+            None => {
+                return Ok(Json(ApiResponse::error(
+                    "Invalid filename encoding".to_string(),
+                )))
+            }
         },
         None => return Ok(Json(ApiResponse::error("Invalid path".to_string()))),
     };
@@ -238,13 +243,18 @@ pub async fn load_service(
 pub async fn save_service(
     Json(request): Json<SaveServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
 
     // Sentinel: Sanitize filename to prevent directory traversal
     let filename = match std::path::Path::new(&request.path).file_name() {
         Some(name) => match name.to_str() {
             Some(s) => s,
-            None => return Ok(Json(ApiResponse::error("Invalid filename encoding".to_string()))),
+            None => {
+                return Ok(Json(ApiResponse::error(
+                    "Invalid filename encoding".to_string(),
+                )))
+            }
         },
         None => return Ok(Json(ApiResponse::error("Invalid path".to_string()))),
     };
