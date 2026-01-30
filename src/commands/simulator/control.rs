@@ -54,6 +54,10 @@ pub async fn handle_start(
                         svc.name, svc.port, svc.base_path
                     );
                 }
+                println!("🔄 Simulator running... Press Ctrl+C to stop");
+                tokio::signal::ctrl_c().await.ok();
+                println!("🛑 Stopping simulator…");
+                simulator.stop().await.ok();
             }
             Err(e) => {
                 return Err(ApicentricError::runtime_error(

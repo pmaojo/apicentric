@@ -138,60 +138,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
 
     match cli.command {
         Commands::Simulator { action } => match action {
-            Some(action) => match &action {
-                SimulatorAction::Start {
-                    services_dir,
-                    force: _,
-                    template,
-                } => {
-                    // Start and block to keep services alive
-                    if let Some(sim) = context.api_simulator() {
-                        // Install template if provided
-                        if let Some(template_id) = template {
-                            if exec_ctx.dry_run {
-                                println!(
-                                    "🏃 Dry run: Would install template '{}' to '{}'",
-                                    template_id, services_dir
-                                );
-                            } else {
-                                apicentric::simulator::marketplace::install_template(
-                                    template_id,
-                                    std::path::Path::new(services_dir),
-                                    None,
-                                )
-                                .await?;
-                            }
-                        }
-
-                        if exec_ctx.dry_run {
-                            println!("🏃 Dry run: Would start API simulator");
-                            return Ok(());
-                        }
-                        println!("🚀 Starting API Simulator (blocking)…");
-                        sim.start().await?;
-                        let status = sim.get_status().await;
-                        println!(
-                            "✅ API Simulator started ({} services, {} active)",
-                            status.services_count,
-                            status.active_services.len()
-                        );
-                        for svc in &status.active_services {
-                            println!(
-                                "   - {}: http://localhost:{}{}",
-                                svc.name, svc.port, svc.base_path
-                            );
-                        }
-                        println!("🔄 Simulator running... Press Ctrl+C to stop");
-                        tokio::signal::ctrl_c().await.ok();
-                        println!("🛑 Stopping simulator…");
-                        sim.stop().await.ok();
-                        Ok(())
-                    } else {
-                        simulator_cmd::simulator_command(&action, &context, &exec_ctx).await
-                    }
-                }
-                _ => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
-            },
+            Some(action) => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
             None => {
                 use colored::Colorize;
                 println!("{}", "APICENTRIC SIMULATOR".bold().green());
