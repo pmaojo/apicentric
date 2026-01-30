@@ -61,7 +61,7 @@ endpoints: []
     // Should fail with exit code 1
     cmd.assert()
         .failure()
-        .stdout(predicate::str::contains("Schema validation failed"))
+        .stdout(predicate::str::contains("Invalid YAML"))
         .stderr(predicate::str::contains("Validation failed"));
 }
 
