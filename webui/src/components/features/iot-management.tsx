@@ -25,17 +25,7 @@ export function IoTManagement() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  React.useEffect(() => {
-    fetchTwins();
-  }, []);
-
-  React.useEffect(() => {
-    if (activeTab === 'graph') {
-      fetchGraph();
-    }
-  }, [activeTab]);
-
-  const fetchTwins = async () => {
+  const fetchTwins = React.useCallback(async () => {
     try {
       setLoading(true);
       const data = await listTwins();
@@ -49,9 +39,9 @@ export function IoTManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchGraph = async () => {
+  const fetchGraph = React.useCallback(async () => {
     try {
       setLoading(true);
       const data = await getIotGraph();
@@ -67,7 +57,17 @@ export function IoTManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setEdges, setNodes, toast]);
+
+  React.useEffect(() => {
+    fetchTwins();
+  }, [fetchTwins]);
+
+  React.useEffect(() => {
+    if (activeTab === 'graph') {
+      fetchGraph();
+    }
+  }, [activeTab, fetchGraph]);
 
   const handleSelectTwin = async (name: string) => {
     try {

@@ -166,7 +166,7 @@ function AppContent() {
         description: 'Could not parse the service definition. Please check the syntax.',
       });
     }
-  }, [services, toast]);
+  }, [toast]);
 
   /**
    * Deletes a service from the list.

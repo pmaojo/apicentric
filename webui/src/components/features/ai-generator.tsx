@@ -51,31 +51,30 @@ export function AiGenerator({ onAddService }: AiGeneratorProps) {
 
   // Load AI configuration on mount
   React.useEffect(() => {
-    loadAiConfig();
-  }, []);
+    async function loadAiConfig() {
+      setIsLoadingConfig(true);
+      try {
+        const config = await getAiConfig();
+        setAiConfig(config);
 
-  async function loadAiConfig() {
-    setIsLoadingConfig(true);
-    try {
-      const config = await getAiConfig();
-      setAiConfig(config);
-      
-      // Set default provider if available
-      if (config.provider) {
-        form.setValue('provider', config.provider as any);
-      }
-      
-      // Show config guide if not configured
-      if (!config.is_configured) {
+        // Set default provider if available
+        if (config.provider) {
+          form.setValue('provider', config.provider as any);
+        }
+
+        // Show config guide if not configured
+        if (!config.is_configured) {
+          setShowConfigGuide(true);
+        }
+      } catch (err) {
+        console.error('Failed to load AI config:', err);
         setShowConfigGuide(true);
+      } finally {
+        setIsLoadingConfig(false);
       }
-    } catch (err) {
-      console.error('Failed to load AI config:', err);
-      setShowConfigGuide(true);
-    } finally {
-      setIsLoadingConfig(false);
     }
-  }
+    loadAiConfig();
+  }, [form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
