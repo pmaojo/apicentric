@@ -72,6 +72,68 @@ const configSchema = z.object({
 
 type ConfigFormValues = z.infer<typeof configSchema>;
 
+const transformBackendToForm = (config: Record<string, any>): ConfigFormValues => {
+  // Transform backend configuration to form structure
+  return {
+    general: {
+      host: config.host || '0.0.0.0',
+      port: config.port || 8080,
+      services_directory: config.services_directory || './services',
+      protect_services: config.protect_services || false,
+    },
+    ai: {
+      enabled: config.ai_enabled || false,
+      provider: config.ai_provider || 'openai',
+      openai_api_key: config.openai_api_key,
+      openai_model: config.openai_model || 'gpt-4',
+      gemini_api_key: config.gemini_api_key,
+      gemini_model: config.gemini_model || 'gemini-pro',
+      local_endpoint: config.local_ai_endpoint,
+    },
+    services: {
+      auto_reload: config.auto_reload !== false,
+      default_port_range_start: config.default_port_range_start || 8000,
+      default_port_range_end: config.default_port_range_end || 9000,
+      enable_cors: config.enable_cors !== false,
+    },
+    advanced: {
+      log_level: config.log_level || 'info',
+      max_log_entries: config.max_log_entries || 10000,
+      jwt_secret: config.jwt_secret,
+      jwt_expiry_hours: config.jwt_expiry_hours || 24,
+      allowed_origins: config.allowed_origins || '*',
+      enable_websocket: config.enable_websocket !== false,
+    },
+  };
+};
+
+const transformFormToBackend = (values: ConfigFormValues): Record<string, any> => {
+  // Transform form values to backend configuration format
+  return {
+    host: values.general.host,
+    port: values.general.port,
+    services_directory: values.general.services_directory,
+    protect_services: values.general.protect_services,
+    ai_enabled: values.ai.enabled,
+    ai_provider: values.ai.provider,
+    openai_api_key: values.ai.openai_api_key,
+    openai_model: values.ai.openai_model,
+    gemini_api_key: values.ai.gemini_api_key,
+    gemini_model: values.ai.gemini_model,
+    local_ai_endpoint: values.ai.local_endpoint,
+    auto_reload: values.services.auto_reload,
+    default_port_range_start: values.services.default_port_range_start,
+    default_port_range_end: values.services.default_port_range_end,
+    enable_cors: values.services.enable_cors,
+    log_level: values.advanced.log_level,
+    max_log_entries: values.advanced.max_log_entries,
+    jwt_secret: values.advanced.jwt_secret,
+    jwt_expiry_hours: values.advanced.jwt_expiry_hours,
+    allowed_origins: values.advanced.allowed_origins,
+    enable_websocket: values.advanced.enable_websocket,
+  };
+};
+
 export function Configuration() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
@@ -113,33 +175,32 @@ export function Configuration() {
 
   // Load configuration on mount
   React.useEffect(() => {
-    loadConfiguration();
-  }, []);
+    const loadConfiguration = async () => {
+      setLoading(true);
+      try {
+        const config = await getConfig();
 
-  const loadConfiguration = async () => {
-    setLoading(true);
-    try {
-      const config = await getConfig();
-      
-      // Transform backend config to form values
-      const formValues = transformBackendToForm(config);
-      form.reset(formValues);
-      setOriginalConfig(formValues);
-      
-      toast({
-        title: 'Configuration Loaded',
-        description: 'Current configuration has been loaded successfully.',
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to Load Configuration',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Transform backend config to form values
+        const formValues = transformBackendToForm(config);
+        form.reset(formValues);
+        setOriginalConfig(formValues);
+
+        toast({
+          title: 'Configuration Loaded',
+          description: 'Current configuration has been loaded successfully.',
+        });
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Failed to Load Configuration',
+          description: error instanceof Error ? error.message : 'An unknown error occurred',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadConfiguration();
+  }, [form, toast]);
 
   const onSubmit = async (values: ConfigFormValues) => {
     setSaving(true);
@@ -202,68 +263,6 @@ export function Configuration() {
       }
       return next;
     });
-  };
-
-  const transformBackendToForm = (config: Record<string, any>): ConfigFormValues => {
-    // Transform backend configuration to form structure
-    return {
-      general: {
-        host: config.host || '0.0.0.0',
-        port: config.port || 8080,
-        services_directory: config.services_directory || './services',
-        protect_services: config.protect_services || false,
-      },
-      ai: {
-        enabled: config.ai_enabled || false,
-        provider: config.ai_provider || 'openai',
-        openai_api_key: config.openai_api_key,
-        openai_model: config.openai_model || 'gpt-4',
-        gemini_api_key: config.gemini_api_key,
-        gemini_model: config.gemini_model || 'gemini-pro',
-        local_endpoint: config.local_ai_endpoint,
-      },
-      services: {
-        auto_reload: config.auto_reload !== false,
-        default_port_range_start: config.default_port_range_start || 8000,
-        default_port_range_end: config.default_port_range_end || 9000,
-        enable_cors: config.enable_cors !== false,
-      },
-      advanced: {
-        log_level: config.log_level || 'info',
-        max_log_entries: config.max_log_entries || 10000,
-        jwt_secret: config.jwt_secret,
-        jwt_expiry_hours: config.jwt_expiry_hours || 24,
-        allowed_origins: config.allowed_origins || '*',
-        enable_websocket: config.enable_websocket !== false,
-      },
-    };
-  };
-
-  const transformFormToBackend = (values: ConfigFormValues): Record<string, any> => {
-    // Transform form values to backend configuration format
-    return {
-      host: values.general.host,
-      port: values.general.port,
-      services_directory: values.general.services_directory,
-      protect_services: values.general.protect_services,
-      ai_enabled: values.ai.enabled,
-      ai_provider: values.ai.provider,
-      openai_api_key: values.ai.openai_api_key,
-      openai_model: values.ai.openai_model,
-      gemini_api_key: values.ai.gemini_api_key,
-      gemini_model: values.ai.gemini_model,
-      local_ai_endpoint: values.ai.local_endpoint,
-      auto_reload: values.services.auto_reload,
-      default_port_range_start: values.services.default_port_range_start,
-      default_port_range_end: values.services.default_port_range_end,
-      enable_cors: values.services.enable_cors,
-      log_level: values.advanced.log_level,
-      max_log_entries: values.advanced.max_log_entries,
-      jwt_secret: values.advanced.jwt_secret,
-      jwt_expiry_hours: values.advanced.jwt_expiry_hours,
-      allowed_origins: values.advanced.allowed_origins,
-      enable_websocket: values.advanced.enable_websocket,
-    };
   };
 
   if (loading) {

@@ -106,7 +106,7 @@ export function EditServiceDialog({ service, onUpdateService, onOpenChange }: Ed
     };
 
     loadServiceDefinition();
-  }, [service.name, service.definition, toast]);
+  }, [service.name, service.definition, toast, form]);
 
   // Validate YAML in real-time
   const validateYaml = React.useCallback((content: string) => {
