@@ -194,6 +194,11 @@ impl ApiSimulatorManager {
         &self.route_registry
     }
 
+    /// Get the configured services directory
+    pub fn services_dir(&self) -> &PathBuf {
+        &self.config.services_dir
+    }
+
     /// Run a reverse proxy that records requests/responses.
     pub async fn record(&self, target: &str, output_dir: PathBuf) -> ApicentricResult<()> {
         self.recorder
@@ -361,5 +366,25 @@ impl ApiSimulatorManager {
             registry.register_service(service).await?;
         }
         Ok(())
+    }
+
+    /// Save a service file using the config loader
+    pub fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        self.config_loader.save_file(filename, content)
+    }
+
+    /// Delete a service file using the config loader
+    pub fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        self.config_loader.delete_file(filename)
+    }
+
+    /// Check if a service file exists
+    pub fn service_file_exists(&self, filename: &str) -> bool {
+        self.config_loader.file_exists(filename)
+    }
+
+    /// Read a service file using the config loader
+    pub fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        self.config_loader.read_file(filename)
     }
 }
