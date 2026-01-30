@@ -17,3 +17,8 @@
 **Vulnerability:** Path traversal in `create_service` and `generate_service_from_recording` due to trusting user-provided `filename` or `service_name` directly for file creation.
 **Learning:** New endpoints often repeat old mistakes. Centralized helper functions for security logic are essential to prevent regression and ensure consistency.
 **Prevention:** Implemented `resolve_safe_service_path` helper in `src/cloud/handlers.rs` and enforced `validation::validate_service_name`. All handlers dealing with service files now use this shared logic.
+
+## 2024-05-27 - Memory Exhaustion in File Uploads
+**Vulnerability:** The `upload_replay_data` handler buffered the entire uploaded file into memory (`field.bytes().await`) before checking its size, allowing a denial-of-service (DoS) attack via memory exhaustion with large files.
+**Learning:** Checking file size *after* reading into memory defeats the purpose of the check for DoS protection. `axum`'s `Multipart` extractor respects global limits, but if those are not strictly configured or if `bytes()` is used on a field without per-field limits, it reads until OOM.
+**Prevention:** Use streaming (processing chunks) for file uploads. Check size incrementally while writing to disk or processing, and abort early if the limit is exceeded.
