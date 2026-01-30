@@ -1,4 +1,6 @@
-use apicentric::cloud::handlers::{load_service, save_service, LoadServiceRequest, SaveServiceRequest};
+use apicentric::cloud::handlers::{
+    load_service, save_service, LoadServiceRequest, SaveServiceRequest,
+};
 use axum::Json;
 use std::fs::File;
 use std::io::Write;
@@ -56,7 +58,10 @@ async fn test_path_traversal_prevention() {
             // Verify it DID write to the safe location (sanitization behavior)
             // The filename extracted from ".../pwned.yaml" is "pwned.yaml"
             let safe_file = services_dir.join("pwned.yaml");
-            assert!(safe_file.exists(), "Should have written to safe location inside services dir");
+            assert!(
+                safe_file.exists(),
+                "Should have written to safe location inside services dir"
+            );
         } else {
             // Failure is also safe
         }
@@ -75,7 +80,10 @@ async fn test_path_traversal_prevention() {
     let result = load_service(Json(request)).await;
     match result {
         Ok(Json(response)) => {
-            assert!(response.success, "Should successfully load valid file in services dir");
+            assert!(
+                response.success,
+                "Should successfully load valid file in services dir"
+            );
             assert!(response.data.unwrap().contains("name: valid"));
         }
         Err(e) => panic!("Request failed: {:?}", e),
