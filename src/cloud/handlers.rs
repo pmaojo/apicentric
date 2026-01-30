@@ -222,7 +222,8 @@ pub async fn list_services(
 pub async fn load_service(
     Json(request): Json<LoadServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
 
     let safe_path = match resolve_safe_service_path(&services_dir, &request.path) {
         Ok(path) => path,
@@ -253,7 +254,8 @@ pub async fn load_service(
 pub async fn save_service(
     Json(request): Json<SaveServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let services_dir =
+        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
 
     let safe_path = match resolve_safe_service_path(&services_dir, &request.path) {
         Ok(path) => path,
