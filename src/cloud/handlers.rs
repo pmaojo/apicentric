@@ -179,6 +179,27 @@ pub struct GenerateServiceRequest {
     pub description: Option<String>,
 }
 
+/// Resolves a safe path for a service file, preventing directory traversal.
+///
+/// # Arguments
+///
+/// * `services_dir` - The directory where services are stored.
+/// * `requested_path` - The requested path or filename.
+fn resolve_safe_service_path(
+    services_dir: &str,
+    requested_path: &str,
+) -> Result<std::path::PathBuf, String> {
+    let filename = match std::path::Path::new(requested_path).file_name() {
+        Some(name) => match name.to_str() {
+            Some(s) => s,
+            None => return Err("Invalid filename encoding".to_string()),
+        },
+        None => return Err("Invalid path".to_string()),
+    };
+
+    Ok(std::path::Path::new(services_dir).join(filename))
+}
+
 /// Lists all active services.
 ///
 /// # Arguments
@@ -203,16 +224,10 @@ pub async fn load_service(
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
 
-    // Sentinel: Sanitize filename to prevent directory traversal
-    let filename = match std::path::Path::new(&request.path).file_name() {
-        Some(name) => match name.to_str() {
-            Some(s) => s,
-            None => return Ok(Json(ApiResponse::error("Invalid filename encoding".to_string()))),
-        },
-        None => return Ok(Json(ApiResponse::error("Invalid path".to_string()))),
+    let safe_path = match resolve_safe_service_path(&services_dir, &request.path) {
+        Ok(path) => path,
+        Err(e) => return Ok(Json(ApiResponse::error(e))),
     };
-
-    let safe_path = std::path::Path::new(&services_dir).join(filename);
 
     match std::fs::read_to_string(&safe_path) {
         Ok(content) => match serde_yaml::from_str::<UnifiedConfig>(&content) {
@@ -240,16 +255,10 @@ pub async fn save_service(
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     let services_dir = std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
 
-    // Sentinel: Sanitize filename to prevent directory traversal
-    let filename = match std::path::Path::new(&request.path).file_name() {
-        Some(name) => match name.to_str() {
-            Some(s) => s,
-            None => return Ok(Json(ApiResponse::error("Invalid filename encoding".to_string()))),
-        },
-        None => return Ok(Json(ApiResponse::error("Invalid path".to_string()))),
+    let safe_path = match resolve_safe_service_path(&services_dir, &request.path) {
+        Ok(path) => path,
+        Err(e) => return Ok(Json(ApiResponse::error(e))),
     };
-
-    let safe_path = std::path::Path::new(&services_dir).join(filename);
 
     match serde_yaml::from_str::<UnifiedConfig>(&request.yaml) {
         Ok(unified) => {
@@ -530,7 +539,12 @@ pub async fn create_service(
         .unwrap_or_else(|| format!("{}.yaml", definition.name));
     let services_dir =
         std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path = std::path::Path::new(&services_dir).join(&filename);
+
+    // Sentinel: Use resolve_safe_service_path to prevent directory traversal
+    let file_path = match resolve_safe_service_path(&services_dir, &filename) {
+        Ok(path) => path,
+        Err(e) => return Err(ApiError::bad_request(ApiErrorCode::InvalidParameter, e)),
+    };
 
     // Check if file already exists
     if file_path.exists() {
@@ -1241,6 +1255,11 @@ pub async fn generate_service_from_recording(
     State(simulator): State<Arc<ApiSimulatorManager>>,
     Json(request): Json<GenerateServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
+    // Validate service name
+    if let Err(e) = validation::validate_service_name(&request.service_name) {
+        return Ok(Json(ApiResponse::error(e.message)));
+    }
+
     // Stop the recording and get the endpoints
     let (session_id, endpoints) = match recording_manager.stop_recording().await {
         Ok(result) => result,
@@ -2025,4 +2044,44 @@ pub async fn run_contract_tests(
             "total": 0
         }
     }))))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_safe_service_path() {
+        let services_dir = "services";
+
+        // Normal case
+        let path = resolve_safe_service_path(services_dir, "test.yaml").unwrap();
+        #[cfg(not(windows))]
+        assert_eq!(path.to_str().unwrap(), "services/test.yaml");
+        #[cfg(windows)]
+        assert_eq!(path.to_str().unwrap(), "services\\test.yaml");
+
+        // Path traversal attempt
+        let path = resolve_safe_service_path(services_dir, "../../etc/passwd").unwrap();
+        #[cfg(not(windows))]
+        assert_eq!(path.to_str().unwrap(), "services/passwd");
+        #[cfg(windows)]
+        assert_eq!(path.to_str().unwrap(), "services\\passwd");
+
+        // Subdirectory (should be flattened)
+        let path = resolve_safe_service_path(services_dir, "subdir/test.yaml").unwrap();
+        #[cfg(not(windows))]
+        assert_eq!(path.to_str().unwrap(), "services/test.yaml");
+        #[cfg(windows)]
+        assert_eq!(path.to_str().unwrap(), "services\\test.yaml");
+
+        // Absolute path (should be flattened)
+        #[cfg(not(windows))]
+        let path = resolve_safe_service_path(services_dir, "/etc/hosts").unwrap();
+        #[cfg(not(windows))]
+        assert_eq!(path.to_str().unwrap(), "services/hosts");
+
+        // Empty path
+        assert!(resolve_safe_service_path(services_dir, "").is_err());
+    }
 }

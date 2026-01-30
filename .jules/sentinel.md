@@ -12,3 +12,8 @@
 **Vulnerability:** Path traversal in `load_service` and `save_service` handlers where the `path` parameter from the JSON body was used directly in filesystem operations.
 **Learning:** Handlers accepting file paths as strings are inherently dangerous. Even if the parameter is named "path", it should likely be treated as a "key" or "filename" and strictly sanitized.
 **Prevention:** Enforce usage of managed directories (like `APICENTRIC_SERVICES_DIR`) and always strip directory components using `Path::file_name()` for any user-supplied filename.
+
+## 2024-05-26 - Path Traversal in Service Creation Handlers
+**Vulnerability:** Path traversal in `create_service` and `generate_service_from_recording` due to trusting user-provided `filename` or `service_name` directly for file creation.
+**Learning:** New endpoints often repeat old mistakes. Centralized helper functions for security logic are essential to prevent regression and ensure consistency.
+**Prevention:** Implemented `resolve_safe_service_path` helper in `src/cloud/handlers.rs` and enforced `validation::validate_service_name`. All handlers dealing with service files now use this shared logic.
