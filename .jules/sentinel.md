@@ -17,3 +17,8 @@
 **Vulnerability:** Path traversal in `create_service` and `generate_service_from_recording` due to trusting user-provided `filename` or `service_name` directly for file creation.
 **Learning:** New endpoints often repeat old mistakes. Centralized helper functions for security logic are essential to prevent regression and ensure consistency.
 **Prevention:** Implemented `resolve_safe_service_path` helper in `src/cloud/handlers.rs` and enforced `validation::validate_service_name`. All handlers dealing with service files now use this shared logic.
+
+## 2024-05-27 - DoS Vulnerability in File Uploads
+**Vulnerability:** Unbounded memory allocation in `upload_replay_data` handler (`src/cloud/iot_handlers.rs`). The handler used `field.bytes().await` which buffers the entire file into RAM, allowing an attacker to cause an OOM crash by uploading a large file.
+**Learning:** `axum::extract::Multipart::Field::bytes()` is convenient but dangerous for file uploads. Streaming is required for safety. Also, `DefaultBodyLimit` in Axum (2MB) protects against this by default, but if disabled or if the limit is raised globally, the handler becomes vulnerable.
+**Prevention:** Always stream file uploads using `field.chunk().await` and write to disk/storage incrementally. Enforce a hard limit on the total bytes read within the loop.
