@@ -61,9 +61,9 @@ export function Dashboard({ services, onServiceUpdate }: DashboardProps) {
       description: `${update.service_name} is now ${update.status}`,
       variant: update.status === 'running' ? 'default' : 'destructive',
     });
-  }, [onServiceUpdate, toast]);
+  });
 
-  const handleStartService = async (service: Service) => {
+  const handleStartService = React.useCallback(async (service: Service) => {
     setLoadingServices((prev: Set<string>) => new Set(prev).add(service.name));
     
     try {
@@ -85,9 +85,9 @@ export function Dashboard({ services, onServiceUpdate }: DashboardProps) {
         description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
     }
-  };
+  }, [toast]);
 
-  const handleStopService = async (service: Service) => {
+  const handleStopService = React.useCallback(async (service: Service) => {
     setLoadingServices((prev: Set<string>) => new Set(prev).add(service.name));
     
     try {
@@ -109,7 +109,7 @@ export function Dashboard({ services, onServiceUpdate }: DashboardProps) {
         description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
     }
-  };
+  }, [toast]);
 
   const handleReloadAll = async () => {
     setReloadingAll(true);
@@ -219,7 +219,7 @@ export function Dashboard({ services, onServiceUpdate }: DashboardProps) {
   );
 }
 
-function ServiceCard({
+const ServiceCard = React.memo(function ServiceCard({
   service,
   onStart,
   onStop,
@@ -331,7 +331,7 @@ function ServiceCard({
       </AlertDialog>
     </>
   );
-}
+});
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApiDocs } from "./api-docs"
