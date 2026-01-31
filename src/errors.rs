@@ -5,38 +5,44 @@
 //! with contextual information and actionable suggestions for common issues.
 
 use std::fmt;
+use thiserror::Error;
 
 /// The main error type for all Apicentric operations.
 ///
 /// This enum consolidates all possible errors that can occur within the application,
 /// providing contextual variants with built-in suggestions for common issues.
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ApicentricError {
     /// An error related to application configuration.
+    #[error("Configuration error: {message}")]
     Configuration {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error that occurred within the server.
+    #[error("Server error: {message}")]
     Server {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error that occurred during test execution.
+    #[error("Test execution error: {message}")]
     TestExecution {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error related to file system operations.
+    #[error("File system error: {message}")]
     FileSystem {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An error that occurred during data validation.
+    #[error("Validation error{}: {message}", field.as_ref().map(|f| format!(" in field '{}'", f)).unwrap_or_default())]
     Validation {
         message: String,
         field: Option<String>,
@@ -44,12 +50,14 @@ pub enum ApicentricError {
     },
 
     /// A general-purpose runtime error.
+    #[error("Runtime error: {message}")]
     Runtime {
         message: String,
         suggestion: Option<String>,
     },
 
     /// Errors related to simulated services.
+    #[error("Service error{}: {message}", service_name.as_ref().map(|n| format!(" for '{}'", n)).unwrap_or_default())]
     Service {
         message: String,
         service_name: Option<String>,
@@ -57,6 +65,7 @@ pub enum ApicentricError {
     },
 
     /// Errors related to AI operations.
+    #[error("AI error{}: {message}", provider.as_ref().map(|p| format!(" ({})", p)).unwrap_or_default())]
     Ai {
         message: String,
         provider: Option<String>,
@@ -64,18 +73,21 @@ pub enum ApicentricError {
     },
 
     /// Errors related to recording functionality.
+    #[error("Recording error: {message}")]
     Recording {
         message: String,
         suggestion: Option<String>,
     },
 
     /// Errors related to authentication and authorization.
+    #[error("Authentication error: {message}")]
     Authentication {
         message: String,
         suggestion: Option<String>,
     },
 
     /// Errors related to network operations.
+    #[error("Network error{}: {message}", url.as_ref().map(|u| format!(" for {}", u)).unwrap_or_default())]
     Network {
         message: String,
         url: Option<String>,
@@ -83,12 +95,14 @@ pub enum ApicentricError {
     },
 
     /// Errors related to database operations.
+    #[error("Database error: {message}")]
     Database {
         message: String,
         suggestion: Option<String>,
     },
 
     /// Errors related to scripting (Rhai, etc).
+    #[error("Scripting error: {message}")]
     Scripting {
         message: String,
         suggestion: Option<String>,
@@ -96,6 +110,7 @@ pub enum ApicentricError {
 
     /// Errors related to MQTT operations.
     #[cfg(feature = "iot")]
+    #[error("MQTT error: {message}")]
     Mqtt {
         message: String,
         suggestion: Option<String>,
@@ -103,107 +118,43 @@ pub enum ApicentricError {
 
     /// Errors related to Modbus operations.
     #[cfg(feature = "iot")]
+    #[error("Modbus error: {message}")]
     Modbus {
         message: String,
         suggestion: Option<String>,
     },
 
     /// Errors related to CSV parsing.
+    #[error("CSV error: {message}")]
     Csv {
         message: String,
         suggestion: Option<String>,
     },
 
     /// General data processing errors.
+    #[error("Data error: {message}")]
     Data {
         message: String,
         suggestion: Option<String>,
     },
 
     /// An I/O error.
-    Io(std::io::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 
     /// An error that occurred during JSON serialization or deserialization.
-    Json(serde_json::Error),
+    #[error("JSON parsing error: {0}")]
+    Json(#[from] serde_json::Error),
 
     /// An error related to glob pattern matching.
-    Glob(glob::GlobError),
+    #[error("Glob pattern error: {0}")]
+    Glob(#[from] glob::GlobError),
 
     /// An error in a glob pattern.
-    Pattern(glob::PatternError),
+    #[error("Pattern error: {0}")]
+    Pattern(#[from] glob::PatternError),
 }
 
-impl fmt::Display for ApicentricError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Configuration { message, .. } => write!(f, "Configuration error: {}", message),
-            Self::Server { message, .. } => write!(f, "Server error: {}", message),
-            Self::TestExecution { message, .. } => write!(f, "Test execution error: {}", message),
-            Self::FileSystem { message, .. } => write!(f, "File system error: {}", message),
-            Self::Validation { message, field, .. } => {
-                if let Some(field) = field {
-                    write!(f, "Validation error in field '{}': {}", field, message)
-                } else {
-                    write!(f, "Validation error: {}", message)
-                }
-            }
-            Self::Runtime { message, .. } => write!(f, "Runtime error: {}", message),
-            Self::Service {
-                message,
-                service_name,
-                ..
-            } => {
-                if let Some(name) = service_name {
-                    write!(f, "Service error for '{}': {}", name, message)
-                } else {
-                    write!(f, "Service error: {}", message)
-                }
-            }
-            Self::Ai {
-                message, provider, ..
-            } => {
-                if let Some(provider) = provider {
-                    write!(f, "AI error ({}): {}", provider, message)
-                } else {
-                    write!(f, "AI error: {}", message)
-                }
-            }
-            Self::Recording { message, .. } => write!(f, "Recording error: {}", message),
-            Self::Authentication { message, .. } => write!(f, "Authentication error: {}", message),
-            Self::Network { message, url, .. } => {
-                if let Some(url) = url {
-                    write!(f, "Network error for {}: {}", url, message)
-                } else {
-                    write!(f, "Network error: {}", message)
-                }
-            }
-            Self::Database { message, .. } => write!(f, "Database error: {}", message),
-            Self::Scripting { message, .. } => write!(f, "Scripting error: {}", message),
-            #[cfg(feature = "iot")]
-            Self::Mqtt { message, .. } => write!(f, "MQTT error: {}", message),
-            #[cfg(feature = "iot")]
-            Self::Modbus { message, .. } => write!(f, "Modbus error: {}", message),
-            Self::Csv { message, .. } => write!(f, "CSV error: {}", message),
-            Self::Data { message, .. } => write!(f, "Data error: {}", message),
-            Self::Io(err) => write!(f, "IO error: {}", err),
-            Self::Json(err) => write!(f, "JSON parsing error: {}", err),
-            Self::Glob(err) => write!(f, "Glob pattern error: {}", err),
-            Self::Pattern(err) => write!(f, "Pattern error: {}", err),
-        }
-    }
-}
-
-impl std::error::Error for ApicentricError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io(err) => Some(err),
-            Self::Json(err) => Some(err),
-            Self::Glob(err) => Some(err),
-            Self::Pattern(err) => Some(err),
-            _ => None,
-        }
-    }
-}
 
 impl ApicentricError {
     /// Creates a new configuration error.
@@ -497,29 +448,6 @@ impl ApicentricError {
     }
 }
 
-impl From<std::io::Error> for ApicentricError {
-    fn from(err: std::io::Error) -> Self {
-        Self::Io(err)
-    }
-}
-
-impl From<serde_json::Error> for ApicentricError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Json(err)
-    }
-}
-
-impl From<glob::GlobError> for ApicentricError {
-    fn from(err: glob::GlobError) -> Self {
-        Self::Glob(err)
-    }
-}
-
-impl From<glob::PatternError> for ApicentricError {
-    fn from(err: glob::PatternError) -> Self {
-        Self::Pattern(err)
-    }
-}
 
 #[cfg(feature = "scripting")]
 impl From<rhai::ParseError> for ApicentricError {
