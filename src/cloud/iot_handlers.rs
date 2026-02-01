@@ -173,7 +173,7 @@ pub async fn upload_replay_data(
     let mut filename = String::new();
     let mut saved_path = String::new();
 
-    while let Some(field) = multipart.next_field().await.map_err(|e| {
+    while let Some(mut field) = multipart.next_field().await.map_err(|e| {
         ApiError::bad_request(
             ApiErrorCode::InvalidParameter,
             format!("Multipart error: {}", e),
@@ -205,23 +205,35 @@ pub async fn upload_replay_data(
             }
 
             filename = file_name.clone();
-            let data = field.bytes().await.map_err(|e| {
-                ApiError::internal_server_error(format!("Failed to read file bytes: {}", e))
-            })?;
-
-            // Sentinel: Limit file size to 10MB to prevent disk exhaustion
-            const MAX_SIZE: usize = 10 * 1024 * 1024;
-            if data.len() > MAX_SIZE {
-                return Err(ApiError::bad_request(
-                    ApiErrorCode::InvalidParameter,
-                    "File size exceeds 10MB limit".to_string(),
-                ));
-            }
 
             let path = dir_path.join(&file_name);
-            std::fs::write(&path, data).map_err(|e| {
-                ApiError::internal_server_error(format!("Failed to write file: {}", e))
+            let mut file = std::fs::File::create(&path).map_err(|e| {
+                ApiError::internal_server_error(format!("Failed to create file: {}", e))
             })?;
+
+            let mut total_size = 0;
+            const MAX_SIZE: usize = 10 * 1024 * 1024;
+
+            while let Some(chunk) = field.chunk().await.map_err(|e| {
+                ApiError::internal_server_error(format!("Failed to read file chunk: {}", e))
+            })? {
+                total_size += chunk.len();
+                if total_size > MAX_SIZE {
+                    // Close file handle and delete partial file
+                    drop(file);
+                    let _ = std::fs::remove_file(&path);
+                    return Err(ApiError::bad_request(
+                        ApiErrorCode::InvalidParameter,
+                        "File size exceeds 10MB limit".to_string(),
+                    ));
+                }
+
+                use std::io::Write;
+                file.write_all(&chunk).map_err(|e| {
+                    ApiError::internal_server_error(format!("Failed to write file chunk: {}", e))
+                })?;
+            }
+
             saved_path = path.to_string_lossy().to_string();
         }
     }

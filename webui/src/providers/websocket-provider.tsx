@@ -258,9 +258,10 @@ export function WebSocketProvider({
 
   // Cleanup on unmount
   useEffect(() => {
+    const subscribers = subscribersRef.current;
     return () => {
       disconnect();
-      subscribersRef.current.clear();
+      subscribers.clear();
     };
   }, [disconnect]);
 
@@ -296,13 +297,22 @@ export function useWebSocket() {
  */
 export function useWebSocketSubscription<T = any>(
   messageType: string,
-  callback: (data: T) => void,
-  deps: React.DependencyList = []
+  callback: (data: T) => void
 ) {
   const { subscribe } = useWebSocket();
+  const callbackRef = useRef(callback);
 
   useEffect(() => {
-    const unsubscribe = subscribe(messageType, callback);
+    callbackRef.current = callback;
+  });
+
+  useEffect(() => {
+    const handler = (data: T) => {
+      if (callbackRef.current) {
+        callbackRef.current(data);
+      }
+    };
+    const unsubscribe = subscribe(messageType, handler);
     return unsubscribe;
-  }, [subscribe, messageType, ...deps]);
+  }, [subscribe, messageType]);
 }
