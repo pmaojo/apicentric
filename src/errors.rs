@@ -155,7 +155,6 @@ pub enum ApicentricError {
     Pattern(#[from] glob::PatternError),
 }
 
-
 impl ApicentricError {
     /// Creates a new configuration error.
     pub fn config_error(message: impl Into<String>, suggestion: Option<impl Into<String>>) -> Self {
@@ -447,7 +446,6 @@ impl ApicentricError {
         )
     }
 }
-
 
 #[cfg(feature = "scripting")]
 impl From<rhai::ParseError> for ApicentricError {
