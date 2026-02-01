@@ -16,6 +16,7 @@ use crate::cloud::recording_session::RecordingSessionManager;
 use crate::simulator::config::{EndpointDefinition, ServerConfig};
 use crate::simulator::log::RequestLogEntry;
 use crate::simulator::{ApiSimulatorManager, ServiceDefinition, ServiceInfo, UnifiedConfig};
+use crate::utils::security::validate_ssrf_url;
 use crate::validation::ConfigValidator;
 
 /// A generic API response.
@@ -1758,8 +1759,24 @@ pub async fn import_from_url(
 ) -> Result<Json<ApiResponse<ImportUrlResponse>>, ApiError> {
     use crate::simulator::openapi::from_openapi;
 
+    // Validate URL to prevent SSRF
+    let valid_url = validate_ssrf_url(&request.url).map_err(|e| {
+        ApiError::bad_request(
+            ApiErrorCode::InvalidParameter,
+            format!("Security check failed: {}", e),
+        )
+    })?;
+
+    // Create a client that doesn't follow redirects to prevent bypass
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| {
+            ApiError::internal_server_error(format!("Failed to create HTTP client: {}", e))
+        })?;
+
     // Fetch the content from URL
-    let res = match reqwest::get(&request.url).await {
+    let res = match client.get(valid_url).send().await {
         Ok(res) => res,
         Err(e) => {
             return Err(ApiError::new(
