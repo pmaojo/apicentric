@@ -1,3 +1,5 @@
+#![cfg(feature = "webui")]
+
 use apicentric::cloud::handlers::{
     load_service, save_service, LoadServiceRequest, SaveServiceRequest,
 };
