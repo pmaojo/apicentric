@@ -11,12 +11,12 @@ use axum::{
 use tower::Service;
 
 // Use a static mutex to prevent race conditions when setting the environment variable
-static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[tokio::test]
 async fn test_upload_scenarios() {
     // Acquire lock to ensure exclusive access to env var
-    let _guard = ENV_LOCK.lock().unwrap();
+    let _guard = ENV_LOCK.lock().await;
 
     // --- Scenario 1: Upload Size Limit ---
     {
