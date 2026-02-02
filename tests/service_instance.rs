@@ -7,7 +7,7 @@ use apicentric::errors::ApicentricResult;
 use apicentric::simulator::config::ServiceDefinition;
 use apicentric::simulator::log::RequestLogEntry;
 use apicentric::simulator::service::ServiceInstance;
-use apicentric::storage::Storage;
+use apicentric::storage::{LogStats, Storage};
 
 struct NoopStorage;
 
@@ -30,6 +30,9 @@ impl Storage for NoopStorage {
         _limit: usize,
     ) -> ApicentricResult<Vec<RequestLogEntry>> {
         Ok(vec![])
+    }
+    fn get_log_stats(&self) -> ApicentricResult<LogStats> {
+        Ok(LogStats::default())
     }
     fn clear_logs(&self) -> ApicentricResult<()> {
         Ok(())

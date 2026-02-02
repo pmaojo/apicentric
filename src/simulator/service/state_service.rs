@@ -45,7 +45,7 @@ mod tests {
     use crate::errors::ApicentricResult;
     use crate::simulator::config::ServiceDefinition;
     use crate::simulator::log::RequestLogEntry;
-    use crate::storage::Storage;
+    use crate::storage::{LogStats, Storage};
 
     struct DummyStorage;
 
@@ -71,6 +71,10 @@ mod tests {
             _limit: usize,
         ) -> ApicentricResult<Vec<RequestLogEntry>> {
             Ok(vec![])
+        }
+
+        fn get_log_stats(&self) -> ApicentricResult<LogStats> {
+            Ok(LogStats::default())
         }
 
         fn clear_logs(&self) -> ApicentricResult<()> {

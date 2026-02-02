@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::ServiceDefinition;
 use crate::simulator::log::RequestLogEntry;
-use crate::storage::Storage;
+use crate::storage::{LogStats, Storage};
 
 pub struct SqliteStorage {
     conn: Mutex<Connection>,
@@ -236,6 +236,55 @@ impl Storage for SqliteStorage {
             })?;
         let entries: Vec<RequestLogEntry> = mapped.flatten().collect();
         Ok(entries)
+    }
+
+    fn get_log_stats(&self) -> ApicentricResult<LogStats> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| ApicentricError::runtime_error("DB locked".to_string(), None::<String>))?;
+
+        let total: u64 = conn
+            .query_row("SELECT COUNT(*) FROM logs", [], |row| row.get(0))
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to count total logs: {}", e),
+                    None::<String>,
+                )
+            })?;
+
+        let success: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM logs WHERE status >= 200 AND status < 300",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to count success logs: {}", e),
+                    None::<String>,
+                )
+            })?;
+
+        let failed: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM logs WHERE status >= 400",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to count failed logs: {}", e),
+                    None::<String>,
+                )
+            })?;
+
+        Ok(LogStats {
+            total_requests: total,
+            successful_requests: success,
+            failed_requests: failed,
+            avg_response_time_ms: 0.0,
+        })
     }
 
     fn clear_logs(&self) -> ApicentricResult<()> {
