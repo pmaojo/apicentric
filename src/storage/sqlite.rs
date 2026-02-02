@@ -267,11 +267,9 @@ impl Storage for SqliteStorage {
             })?;
 
         let failed: u64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM logs WHERE status >= 400",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT COUNT(*) FROM logs WHERE status >= 400", [], |row| {
+                row.get(0)
+            })
             .map_err(|e| {
                 ApicentricError::runtime_error(
                     format!("Failed to count failed logs: {}", e),
