@@ -1760,6 +1760,15 @@ pub async fn import_from_url(
 ) -> Result<Json<ApiResponse<ImportUrlResponse>>, ApiError> {
     use crate::simulator::openapi::from_openapi;
 
+    // Sentinel: Validate URL to prevent SSRF
+    if let Err(e) = crate::utils::security::validate_ssrf_url(&request.url) {
+        return Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            ApiErrorCode::ImportFailed,
+            format!("Security Error: {}", e),
+        ));
+    }
+
     // Fetch the content from URL
     let res = match reqwest::get(&request.url).await {
         Ok(res) => res,
