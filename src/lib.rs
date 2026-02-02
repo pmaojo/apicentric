@@ -3,7 +3,7 @@
 //!
 //! > A powerful CLI tool and API simulator platform for developers who love the terminal
 //! >
-//! > https://apicentric.pelayomaojo.es
+//! > <https://apicentric.pelayomaojo.es>
 //!
 //! ## What is Apicentric?
 //!
@@ -817,7 +817,7 @@
 //!
 //! ## License
 //!
-//! MIT License - see [LICENSE](LICENSE) for details.
+//! MIT License - see [LICENSE](https://github.com/pmaojo/apicentric/blob/main/LICENSE) for details.
 //!
 //! ## Community
 //!
