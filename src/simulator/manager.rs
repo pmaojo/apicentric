@@ -370,4 +370,24 @@ impl ApiSimulatorManager {
         }
         Ok(())
     }
+
+    /// Saves a service definition file.
+    pub fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf> {
+        self.config_loader.save_service_file(filename, content)
+    }
+
+    /// Deletes a service definition file.
+    pub fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        self.config_loader.delete_service_file(filename)
+    }
+
+    /// Reads a service definition file.
+    pub fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        self.config_loader.read_service_file(filename)
+    }
+
+    /// Checks if a service definition file exists.
+    pub fn service_file_exists(&self, filename: &str) -> bool {
+        self.config_loader.service_file_exists(filename)
+    }
 }
