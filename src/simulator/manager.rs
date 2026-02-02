@@ -40,11 +40,13 @@ pub struct ApiSimulatorManager {
     lifecycle: SimulatorLifecycle<RequestRouter>,
     recorder: ProxyRecorder,
     admin_server: Arc<RwLock<AdminServer>>,
+    start_time: Instant,
 }
 
 impl ApiSimulatorManager {
     /// Create a new API simulator manager
     pub fn new(config: SimulatorConfig) -> Self {
+        let start_time = Instant::now();
         let config_loader = ConfigLoader::new(config.services_dir.clone());
         let storage = Arc::new(
             SqliteStorage::init_db(config.db_path.clone())
@@ -85,7 +87,13 @@ impl ApiSimulatorManager {
             lifecycle,
             recorder,
             admin_server,
+            start_time,
         }
+    }
+
+    /// Get the uptime of the simulator in seconds
+    pub fn get_uptime_seconds(&self) -> u64 {
+        self.start_time.elapsed().as_secs()
     }
 
     /// Update database path for persistent storage

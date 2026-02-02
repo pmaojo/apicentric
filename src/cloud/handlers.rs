@@ -1698,27 +1698,29 @@ pub struct MetricsResponse {
 /// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn get_metrics(
-    State(_simulator): State<Arc<ApiSimulatorManager>>,
+    State(simulator): State<Arc<ApiSimulatorManager>>,
 ) -> Result<Json<ApiResponse<MetricsResponse>>, StatusCode> {
-    // TODO: Implement proper metrics collection
     // Get service count
-    // let services = simulator.list_services().await;
-    let active_services = 0; // services.iter().filter(|s| s.is_running).count() as u64;
+    let registry = simulator.service_registry().read().await;
+    let active_services = registry.running_services_count().await as u64;
 
-    // Get log count
-    // let logs = simulator.get_logs().await;
-    let total_log_entries = 0; // logs.len() as u64;
+    // Get log stats
+    let storage = registry.storage();
+    let stats = storage.get_log_stats().unwrap_or_default();
+
+    // Get uptime
+    let uptime_seconds = simulator.get_uptime_seconds();
 
     // Create metrics response
     let metrics = MetricsResponse {
-        total_requests: 0, // Would need to track this in middleware
-        successful_requests: 0,
-        failed_requests: 0,
-        avg_response_time_ms: 0.0,
+        total_requests: stats.total_requests,
+        successful_requests: stats.successful_requests,
+        failed_requests: stats.failed_requests,
+        avg_response_time_ms: stats.avg_response_time_ms,
         active_websocket_connections: 0, // Would need to track this in WebSocket handler
         active_services,
-        total_log_entries,
-        uptime_seconds: 0, // Would need to track server start time
+        total_log_entries: stats.total_requests,
+        uptime_seconds,
         memory_usage_bytes: get_memory_usage(),
     };
 
