@@ -331,7 +331,30 @@ const ServiceCard = React.memo(function ServiceCard({
       </AlertDialog>
     </>
   );
-});
+}, areServicePropsEqual);
+
+function areServicePropsEqual(
+  prevProps: { service: Service; isLoading: boolean; onStart: unknown; onStop: unknown },
+  nextProps: { service: Service; isLoading: boolean; onStart: unknown; onStop: unknown }
+) {
+  const prevService = prevProps.service;
+  const nextService = nextProps.service;
+
+  return (
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.onStart === nextProps.onStart &&
+    prevProps.onStop === nextProps.onStop &&
+    prevService.id === nextService.id &&
+    prevService.name === nextService.name &&
+    prevService.status === nextService.status &&
+    prevService.port === nextService.port &&
+    prevService.version === nextService.version &&
+    prevService.definition === nextService.definition &&
+    // Optimization: Skip deep comparison of endpoints array.
+    // We assume if definition/version/name didn't change, endpoints content is effectively same.
+    prevService.endpoints.length === nextService.endpoints.length
+  );
+}
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApiDocs } from "./api-docs"
