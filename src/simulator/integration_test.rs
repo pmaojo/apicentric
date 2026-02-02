@@ -22,7 +22,7 @@ mod tests {
     use tokio::sync::broadcast;
     use tokio::time::{sleep, Duration};
 
-    use crate::storage::Storage;
+    use crate::storage::{LogStats, Storage};
 
     #[derive(Default, Debug)]
     struct RecordingStorage {
@@ -56,6 +56,10 @@ mod tests {
             _limit: usize,
         ) -> crate::errors::ApicentricResult<Vec<RequestLogEntry>> {
             Ok(Vec::new())
+        }
+
+        fn get_log_stats(&self) -> crate::errors::ApicentricResult<LogStats> {
+            Ok(LogStats::default())
         }
 
         fn clear_logs(&self) -> crate::errors::ApicentricResult<()> {
