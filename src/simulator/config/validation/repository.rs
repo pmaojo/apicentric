@@ -3,10 +3,16 @@ use crate::errors::{ApicentricError, ApicentricResult};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Port for obtaining service definition data
+/// Port for obtaining service definition data and managing service files
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf>;
+    fn delete_service_file(&self, filename: &str) -> ApicentricResult<()>;
+    fn read_service_file(&self, filename: &str) -> ApicentricResult<String>;
+    fn service_file_exists(&self, filename: &str) -> bool;
+    fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf>;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
@@ -58,6 +64,32 @@ impl ConfigFileLoader {
         }
         Ok(())
     }
+
+    /// Resolves a safe path for a service file, preventing directory traversal.
+    /// It forces the file to be within the root directory by taking only the file_name.
+    fn resolve_safe_path(&self, requested_path: &str) -> ApicentricResult<PathBuf> {
+        let filename = match Path::new(requested_path).file_name() {
+            Some(name) => match name.to_str() {
+                Some(s) => s,
+                None => {
+                    return Err(ApicentricError::validation_error(
+                        "Invalid filename encoding",
+                        Some("filename"),
+                        None::<String>,
+                    ))
+                }
+            },
+            None => {
+                return Err(ApicentricError::validation_error(
+                    "Invalid path",
+                    Some("filename"),
+                    None::<String>,
+                ))
+            }
+        };
+
+        Ok(self.root.join(filename))
+    }
 }
 
 impl ConfigRepository for ConfigFileLoader {
@@ -90,6 +122,72 @@ impl ConfigRepository for ConfigFileLoader {
         })?;
 
         Ok(ServiceDefinition::from(unified))
+    }
+
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf> {
+        let path = self.resolve_safe_path(filename)?;
+
+        // Create services directory if it doesn't exist
+        if !self.root.exists() {
+            fs::create_dir_all(&self.root).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!("Failed to create services directory: {}", e),
+                    Some("Check directory permissions"),
+                )
+            })?;
+        }
+
+        fs::write(&path, content).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write service file: {}", e),
+                Some("Check file permissions"),
+            )
+        })?;
+
+        Ok(path)
+    }
+
+    fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        let path = self.resolve_safe_path(filename)?;
+
+        if !path.exists() {
+            return Err(ApicentricError::service_not_found(filename));
+        }
+
+        fs::remove_file(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to delete service file: {}", e),
+                Some("Check file permissions"),
+            )
+        })?;
+
+        Ok(())
+    }
+
+    fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        let path = self.resolve_safe_path(filename)?;
+
+        fs::read_to_string(&path).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                ApicentricError::service_not_found(filename)
+            } else {
+                ApicentricError::fs_error(
+                    format!("Failed to read service file: {}", e),
+                    Some("Check file permissions"),
+                )
+            }
+        })
+    }
+
+    fn service_file_exists(&self, filename: &str) -> bool {
+        match self.resolve_safe_path(filename) {
+            Ok(path) => path.exists(),
+            Err(_) => false,
+        }
+    }
+
+    fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf> {
+        self.resolve_safe_path(filename)
     }
 }
 
@@ -140,5 +238,46 @@ endpoints:
         let loader = ConfigFileLoader::new(dir.clone());
         let err = loader.list_service_files().unwrap_err();
         assert!(format!("{}", err).contains("does not exist"));
+    }
+
+    #[test]
+    fn test_save_and_read_service_file() {
+        let dir = tempdir().unwrap();
+        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+        let filename = "new-service.yaml";
+        let content = "name: new-service";
+
+        let path = loader.save_service_file(filename, content).unwrap();
+        assert_eq!(path, dir.path().join(filename));
+        assert!(loader.service_file_exists(filename));
+
+        let read_content = loader.read_service_file(filename).unwrap();
+        assert_eq!(read_content, content);
+    }
+
+    #[test]
+    fn test_delete_service_file() {
+        let dir = tempdir().unwrap();
+        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+        let filename = "delete-me.yaml";
+        loader.save_service_file(filename, "content").unwrap();
+        assert!(loader.service_file_exists(filename));
+
+        loader.delete_service_file(filename).unwrap();
+        assert!(!loader.service_file_exists(filename));
+    }
+
+    #[test]
+    fn test_path_traversal_prevention() {
+        let dir = tempdir().unwrap();
+        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+
+        // Try to write outside
+        let path = loader.save_service_file("../outside.yaml", "content").unwrap();
+        // Should be joined to root/outside.yaml, not root/../outside.yaml
+        assert_eq!(path, dir.path().join("outside.yaml"));
+
+        // Verify it didn't write to parent (though tempdir usually cleans up, we check logic)
+        assert!(loader.service_file_exists("outside.yaml"));
     }
 }

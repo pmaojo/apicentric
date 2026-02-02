@@ -79,6 +79,31 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
         let summary = summarize(files.len(), errors);
         Ok(LoadResult { services, summary })
     }
+
+    /// Saves a service definition file to the repository.
+    pub fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf> {
+        self.repository.save_service_file(filename, content)
+    }
+
+    /// Deletes a service definition file from the repository.
+    pub fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        self.repository.delete_service_file(filename)
+    }
+
+    /// Reads a service definition file from the repository.
+    pub fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        self.repository.read_service_file(filename)
+    }
+
+    /// Checks if a service definition file exists in the repository.
+    pub fn service_file_exists(&self, filename: &str) -> bool {
+        self.repository.service_file_exists(filename)
+    }
+
+    /// Resolves a filename to a safe path within the repository.
+    pub fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf> {
+        self.repository.resolve_path(filename)
+    }
 }
 
 #[derive(Debug, Clone)]

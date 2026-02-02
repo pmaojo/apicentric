@@ -60,14 +60,14 @@ impl<T> ApiResponse<T> {
 /// A request to load a service.
 #[derive(Deserialize)]
 pub struct LoadServiceRequest {
-    /// The path to the service definition file.
+    /// The path (filename) to the service definition file.
     pub path: String,
 }
 
 /// A request to save a service.
 #[derive(Deserialize)]
 pub struct SaveServiceRequest {
-    /// The path to the service definition file.
+    /// The path (filename) to the service definition file.
     pub path: String,
     /// The YAML content of the service definition.
     pub yaml: String,
@@ -179,32 +179,7 @@ pub struct GenerateServiceRequest {
     pub description: Option<String>,
 }
 
-/// Resolves a safe path for a service file, preventing directory traversal.
-///
-/// # Arguments
-///
-/// * `services_dir` - The directory where services are stored.
-/// * `requested_path` - The requested path or filename.
-fn resolve_safe_service_path(
-    services_dir: &str,
-    requested_path: &str,
-) -> Result<std::path::PathBuf, String> {
-    let filename = match std::path::Path::new(requested_path).file_name() {
-        Some(name) => match name.to_str() {
-            Some(s) => s,
-            None => return Err("Invalid filename encoding".to_string()),
-        },
-        None => return Err("Invalid path".to_string()),
-    };
-
-    Ok(std::path::Path::new(services_dir).join(filename))
-}
-
 /// Lists all active services.
-///
-/// # Arguments
-///
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn list_services(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -214,23 +189,12 @@ pub async fn list_services(
 }
 
 /// Loads a service definition from a file.
-///
-/// # Arguments
-///
-/// * `request` - The request to load the service.
 #[axum::debug_handler]
 pub async fn load_service(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
     Json(request): Json<LoadServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-
-    let safe_path = match resolve_safe_service_path(&services_dir, &request.path) {
-        Ok(path) => path,
-        Err(e) => return Ok(Json(ApiResponse::error(e))),
-    };
-
-    match std::fs::read_to_string(&safe_path) {
+    match simulator.read_service_file(&request.path) {
         Ok(content) => match serde_yaml::from_str::<UnifiedConfig>(&content) {
             Ok(unified) => {
                 let def = ServiceDefinition::from(unified);
@@ -246,27 +210,16 @@ pub async fn load_service(
 }
 
 /// Saves a service definition to a file.
-///
-/// # Arguments
-///
-/// * `request` - The request to save the service.
 #[axum::debug_handler]
 pub async fn save_service(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
     Json(request): Json<SaveServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-
-    let safe_path = match resolve_safe_service_path(&services_dir, &request.path) {
-        Ok(path) => path,
-        Err(e) => return Ok(Json(ApiResponse::error(e))),
-    };
-
     match serde_yaml::from_str::<UnifiedConfig>(&request.yaml) {
         Ok(unified) => {
             let def = ServiceDefinition::from(unified);
-            match std::fs::File::create(&safe_path) {
-                Ok(file) => match serde_yaml::to_writer(file, &def) {
+            match serde_yaml::to_string(&def) {
+                Ok(yaml) => match simulator.save_service_file(&request.path, &yaml) {
                     Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
                     Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
                 },
@@ -278,11 +231,6 @@ pub async fn save_service(
 }
 
 /// Starts a specific service by name.
-///
-/// # Arguments
-///
-/// * `name` - The name of the service to start.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn start_service(
     Path(name): Path<String>,
@@ -313,11 +261,6 @@ pub async fn start_service(
 }
 
 /// Stops a specific service by name.
-///
-/// # Arguments
-///
-/// * `name` - The name of the service to stop.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn stop_service(
     Path(name): Path<String>,
@@ -346,10 +289,6 @@ pub async fn stop_service(
 }
 
 /// Reloads all service configurations.
-///
-/// # Arguments
-///
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn reload_services(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -376,11 +315,6 @@ pub struct ServiceStatusResponse {
 }
 
 /// Gets the detailed status of a specific service.
-///
-/// # Arguments
-///
-/// * `name` - The name of the service.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn get_service_status(
     Path(name): Path<String>,
@@ -424,11 +358,6 @@ pub struct ServiceDetailResponse {
 }
 
 /// Gets the complete details of a specific service including its definition.
-///
-/// # Arguments
-///
-/// * `name` - The name of the service.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn get_service(
     Path(name): Path<String>,
@@ -477,11 +406,6 @@ pub async fn get_service(
 }
 
 /// Gets the OpenAPI specification for a specific service.
-///
-/// # Arguments
-///
-/// * `name` - The name of the service.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn get_service_openapi(
     Path(name): Path<String>,
@@ -513,11 +437,6 @@ pub async fn get_service_openapi(
 }
 
 /// Creates a new service from a YAML definition.
-///
-/// # Arguments
-///
-/// * `request` - The request containing the service YAML.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn create_service(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -539,36 +458,19 @@ pub async fn create_service(
     let filename = request
         .filename
         .unwrap_or_else(|| format!("{}.yaml", definition.name));
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-
-    // Sentinel: Use resolve_safe_service_path to prevent directory traversal
-    let file_path = match resolve_safe_service_path(&services_dir, &filename) {
-        Ok(path) => path,
-        Err(e) => return Err(ApiError::bad_request(ApiErrorCode::InvalidParameter, e)),
-    };
 
     // Check if file already exists
-    if file_path.exists() {
+    if simulator.service_file_exists(&filename) {
         return Err(ErrorResponse::service_already_exists(&filename).into());
     }
 
-    // Create services directory if it doesn't exist
-    if let Err(e) = std::fs::create_dir_all(&services_dir) {
-        return Err(ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            ApiErrorCode::DirectoryCreateError,
-            format!("Failed to create services directory: {}", e),
-        ));
-    }
-
     // Write the service definition to file
-    match std::fs::write(&file_path, &request.yaml) {
+    match simulator.save_service_file(&filename, &request.yaml) {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition).await {
                 // Clean up the file if applying fails
-                let _ = std::fs::remove_file(&file_path);
+                let _ = simulator.delete_service_file(&filename);
                 return Err(ApiError::new(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ApiErrorCode::ServiceStartFailed,
@@ -598,13 +500,23 @@ pub async fn create_graphql_service(
     // Validate service name
     validation::validate_service_name(&request.name).map_err(ApiError::from)?;
 
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
     let schema_filename = format!("{}_schema.graphql", request.name);
     let mock_filename = format!("{}_mock.json", request.name);
     let service_filename = format!("{}.yaml", request.name);
 
-    // Create YAML content
+    // Save schema
+    let schema_path = simulator
+        .save_service_file(&schema_filename, "type Query {\n  hello: String\n}")
+        .map_err(|e| ApiError::internal_server_error(format!("Failed to write schema: {}", e)))?;
+
+    // Save mock
+    let mock_path = simulator
+        .save_service_file(
+            &mock_filename,
+            "{\n  \"data\": {\n    \"hello\": \"world\"\n  }\n}",
+        )
+        .map_err(|e| ApiError::internal_server_error(format!("Failed to write mock: {}", e)))?;
+
     let yaml_content = format!(
         r#"name: {}
 version: 1.0.0
@@ -613,65 +525,50 @@ server:
   port: {}
   base_path: /graphql
 graphql:
-  schema_path: {}/{}
+  schema_path: {}
   mocks:
-    helloQuery: {}/{}"#,
-        request.name, request.port, services_dir, schema_filename, services_dir, mock_filename
+    helloQuery: {}"#,
+        request.name,
+        request.port,
+        schema_path.display(),
+        mock_path.display()
     );
 
-    // Create files... (omitting actual file creation logic for brevity in replacement, but using std::fs)
-    let base_path = std::path::Path::new(&services_dir);
-    if let Err(e) = std::fs::create_dir_all(base_path) {
-        return Err(ApiError::internal_server_error(format!(
-            "Failed to create directory: {}",
+    match simulator.save_service_file(&service_filename, &yaml_content) {
+        Ok(_) => {
+            // Apply the service
+            let definition: ServiceDefinition =
+                serde_yaml::from_str(&yaml_content).map_err(|e| {
+                    ApiError::internal_server_error(format!(
+                        "Failed to parse generated YAML: {}",
+                        e
+                    ))
+                })?;
+
+            if let Err(e) = simulator.apply_service_definition(definition).await {
+                return Err(if e.to_string().contains("already registered") {
+                    ApiError::conflict(
+                        crate::cloud::error::ApiErrorCode::ServiceAlreadyExists,
+                        format!("Service '{}' is already registered", request.name),
+                    )
+                } else {
+                    ApiError::internal_server_error(format!("Failed to apply service: {}", e))
+                });
+            }
+
+            Ok(Json(ApiResponse::success(format!(
+                "GraphQL service '{}' created",
+                request.name
+            ))))
+        }
+        Err(e) => Err(ApiError::internal_server_error(format!(
+            "Failed to write service: {}",
             e
-        )));
+        ))),
     }
-
-    std::fs::write(
-        base_path.join(&schema_filename),
-        "type Query {\n  hello: String\n}",
-    )
-    .map_err(|e| ApiError::internal_server_error(format!("Failed to write schema: {}", e)))?;
-
-    std::fs::write(
-        base_path.join(&mock_filename),
-        "{\n  \"data\": {\n    \"hello\": \"world\"\n  }\n}",
-    )
-    .map_err(|e| ApiError::internal_server_error(format!("Failed to write mock: {}", e)))?;
-
-    std::fs::write(base_path.join(&service_filename), &yaml_content)
-        .map_err(|e| ApiError::internal_server_error(format!("Failed to write service: {}", e)))?;
-
-    // Apply the service
-    let definition: ServiceDefinition = serde_yaml::from_str(&yaml_content).map_err(|e| {
-        ApiError::internal_server_error(format!("Failed to parse generated YAML: {}", e))
-    })?;
-
-    if let Err(e) = simulator.apply_service_definition(definition).await {
-        return Err(if e.to_string().contains("already registered") {
-            ApiError::conflict(
-                crate::cloud::error::ApiErrorCode::ServiceAlreadyExists,
-                format!("Service '{}' is already registered", request.name),
-            )
-        } else {
-            ApiError::internal_server_error(format!("Failed to apply service: {}", e))
-        });
-    }
-
-    Ok(Json(ApiResponse::success(format!(
-        "GraphQL service '{}' created",
-        request.name
-    ))))
 }
 
 /// Updates an existing service definition.
-///
-/// # Arguments
-///
-/// * `name` - The name of the service to update.
-/// * `request` - The request containing the updated YAML.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn update_service(
     Path(name): Path<String>,
@@ -701,17 +598,14 @@ pub async fn update_service(
         ));
     }
 
-    // Find the service file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", name));
+    let filename = format!("{}.yaml", name);
 
-    if !file_path.exists() {
+    if !simulator.service_file_exists(&filename) {
         return Err(ErrorResponse::service_not_found(&name).into());
     }
 
     // Write the updated definition
-    match std::fs::write(&file_path, &request.yaml) {
+    match simulator.save_service_file(&filename, &request.yaml) {
         Ok(_) => {
             // Apply the updated service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition).await {
@@ -736,11 +630,6 @@ pub async fn update_service(
 }
 
 /// Deletes a service and its definition file.
-///
-/// # Arguments
-///
-/// * `name` - The name of the service to delete.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn delete_service(
     Path(name): Path<String>,
@@ -752,16 +641,13 @@ pub async fn delete_service(
     // Stop the service if it's running
     let _ = simulator.stop_service(&name).await;
 
-    // Find and delete the service file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", name));
+    let filename = format!("{}.yaml", name);
 
-    if !file_path.exists() {
+    if !simulator.service_file_exists(&filename) {
         return Err(ErrorResponse::service_not_found(&name).into());
     }
 
-    match std::fs::remove_file(&file_path) {
+    match simulator.delete_service_file(&filename) {
         Ok(_) => Ok(Json(ApiResponse::success(format!(
             "Service '{}' deleted successfully",
             name
@@ -775,11 +661,6 @@ pub async fn delete_service(
 }
 
 /// Queries request logs with optional filtering.
-///
-/// # Arguments
-///
-/// * `query` - The query parameters for filtering logs.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn query_logs(
     Query(query): Query<LogsQuery>,
@@ -804,10 +685,6 @@ pub async fn query_logs(
 }
 
 /// Clears all request logs.
-///
-/// # Arguments
-///
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn clear_logs(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -827,11 +704,6 @@ pub async fn clear_logs(
 }
 
 /// Exports request logs in JSON or CSV format.
-///
-/// # Arguments
-///
-/// * `query` - The export query parameters.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn export_logs(
     Query(query): Query<LogsExportQuery>,
@@ -929,10 +801,6 @@ pub struct AiConfigResponse {
 }
 
 /// Generates a service definition using AI from a natural language prompt.
-///
-/// # Arguments
-///
-/// * `request` - The AI generation request containing the prompt.
 #[axum::debug_handler]
 pub async fn ai_generate(
     Json(request): Json<AiGenerateRequest>,
@@ -1063,10 +931,6 @@ pub async fn ai_generate(
 }
 
 /// Validates a YAML service definition.
-///
-/// # Arguments
-///
-/// * `request` - The validation request containing the YAML.
 #[axum::debug_handler]
 pub async fn ai_validate(
     Json(request): Json<AiValidateRequest>,
@@ -1169,11 +1033,6 @@ pub async fn ai_config_status() -> Result<Json<ApiResponse<AiConfigResponse>>, S
 }
 
 /// Starts a recording session.
-///
-/// # Arguments
-///
-/// * `request` - The request containing target URL and optional port.
-/// * `recording_manager` - The recording session manager.
 #[axum::debug_handler]
 pub async fn start_recording(
     Extension(recording_manager): Extension<Arc<RecordingSessionManager>>,
@@ -1199,10 +1058,6 @@ pub async fn start_recording(
 }
 
 /// Stops the active recording session.
-///
-/// # Arguments
-///
-/// * `recording_manager` - The recording session manager.
 #[axum::debug_handler]
 pub async fn stop_recording(
     Extension(recording_manager): Extension<Arc<RecordingSessionManager>>,
@@ -1221,10 +1076,6 @@ pub async fn stop_recording(
 }
 
 /// Gets the status of the current recording session.
-///
-/// # Arguments
-///
-/// * `recording_manager` - The recording session manager.
 #[axum::debug_handler]
 pub async fn get_recording_status(
     Extension(recording_manager): Extension<Arc<RecordingSessionManager>>,
@@ -1245,12 +1096,6 @@ pub async fn get_recording_status(
 }
 
 /// Generates a service definition from the captured requests.
-///
-/// # Arguments
-///
-/// * `request` - The request containing service name and description.
-/// * `recording_manager` - The recording session manager.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn generate_service_from_recording(
     Extension(recording_manager): Extension<Arc<RecordingSessionManager>>,
@@ -1311,35 +1156,23 @@ pub async fn generate_service_from_recording(
         }
     };
 
-    // Save the service file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path =
-        std::path::Path::new(&services_dir).join(format!("{}.yaml", request.service_name));
+    let filename = format!("{}.yaml", request.service_name);
 
     // Check if file already exists
-    if file_path.exists() {
+    if simulator.service_file_exists(&filename) {
         return Ok(Json(ApiResponse::error(format!(
             "Service file '{}' already exists",
             request.service_name
         ))));
     }
 
-    // Create services directory if it doesn't exist
-    if let Err(e) = std::fs::create_dir_all(&services_dir) {
-        return Ok(Json(ApiResponse::error(format!(
-            "Failed to create services directory: {}",
-            e
-        ))));
-    }
-
     // Write the service definition to file
-    match std::fs::write(&file_path, &yaml) {
+    match simulator.save_service_file(&filename, &yaml) {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(service_def).await {
                 // Clean up the file if applying fails
-                let _ = std::fs::remove_file(&file_path);
+                let _ = simulator.delete_service_file(&filename);
                 return Ok(Json(ApiResponse::error(format!(
                     "Failed to apply service: {}",
                     e
@@ -1401,11 +1234,6 @@ pub struct AxiosGenerateResponse {
 }
 
 /// Generates TypeScript types for a service definition.
-///
-/// # Arguments
-///
-/// * `request` - The request containing the service name.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn generate_typescript(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -1444,11 +1272,6 @@ pub async fn generate_typescript(
 }
 
 /// Generates React Query hooks for a service definition.
-///
-/// # Arguments
-///
-/// * `request` - The request containing the service name.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn generate_react_query(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -1487,11 +1310,6 @@ pub async fn generate_react_query(
 }
 
 /// Generates an Axios client for a service definition.
-///
-/// # Arguments
-///
-/// * `request` - The request containing the service name.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn generate_axios(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -1573,10 +1391,6 @@ pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, Status
 }
 
 /// Updates the Apicentric configuration.
-///
-/// # Arguments
-///
-/// * `request` - The request containing the updated configuration.
 #[axum::debug_handler]
 pub async fn update_config(
     Json(request): Json<UpdateConfigRequest>,
@@ -1624,10 +1438,6 @@ pub async fn update_config(
 }
 
 /// Validates a configuration without saving it.
-///
-/// # Arguments
-///
-/// * `request` - The request containing the configuration to validate.
 #[axum::debug_handler]
 pub async fn validate_config(
     Json(request): Json<UpdateConfigRequest>,
@@ -1692,10 +1502,6 @@ pub struct MetricsResponse {
 }
 
 /// Gets application metrics.
-///
-/// # Arguments
-///
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn get_metrics(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -1748,11 +1554,6 @@ pub struct ImportUrlResponse {
 use crate::simulator::marketplace::{get_marketplace_items, MarketplaceItem};
 
 /// Import a service definition from a URL.
-///
-/// # Arguments
-///
-/// * `request` - The request containing the URL.
-/// * `simulator` - The API simulator manager.
 #[axum::debug_handler]
 pub async fn import_from_url(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -1761,7 +1562,7 @@ pub async fn import_from_url(
     use crate::simulator::openapi::from_openapi;
 
     // Fetch the content from URL
-    let res = match reqwest::get(&request.url).await {
+    let res: reqwest::Response = match reqwest::get(&request.url).await {
         Ok(res) => res,
         Err(e) => {
             return Err(ApiError::new(
@@ -1867,20 +1668,9 @@ pub async fn import_from_url(
         }
     };
 
-    // Save to file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", definition.name));
+    let filename = format!("{}.yaml", definition.name);
 
-    // Create services directory if it doesn't exist
-    if let Err(e) = std::fs::create_dir_all(&services_dir) {
-        return Err(ApiError::internal_server_error(format!(
-            "Failed to create services directory: {}",
-            e
-        )));
-    }
-
-    match std::fs::write(&file_path, &yaml) {
+    match simulator.save_service_file(&filename, &yaml) {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition.clone()).await {
@@ -1959,8 +1749,6 @@ pub struct LegacyServiceInfo {
 }
 
 /// Gets the simulator status (legacy endpoint for old frontend)
-///
-/// GET /status
 #[axum::debug_handler]
 pub async fn get_simulator_status(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -1986,8 +1774,6 @@ pub async fn get_simulator_status(
 }
 
 /// Starts the simulator (legacy endpoint)
-///
-/// POST /start
 #[axum::debug_handler]
 pub async fn start_simulator(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -2004,8 +1790,6 @@ pub async fn start_simulator(
 }
 
 /// Stops the simulator (legacy endpoint)
-///
-/// POST /stop
 #[axum::debug_handler]
 pub async fn stop_simulator(
     State(simulator): State<Arc<ApiSimulatorManager>>,
@@ -2056,36 +1840,8 @@ mod tests {
 
     #[test]
     fn test_resolve_safe_service_path() {
-        let services_dir = "services";
-
-        // Normal case
-        let path = resolve_safe_service_path(services_dir, "test.yaml").unwrap();
-        #[cfg(not(windows))]
-        assert_eq!(path.to_str().unwrap(), "services/test.yaml");
-        #[cfg(windows)]
-        assert_eq!(path.to_str().unwrap(), "services\\test.yaml");
-
-        // Path traversal attempt
-        let path = resolve_safe_service_path(services_dir, "../../etc/passwd").unwrap();
-        #[cfg(not(windows))]
-        assert_eq!(path.to_str().unwrap(), "services/passwd");
-        #[cfg(windows)]
-        assert_eq!(path.to_str().unwrap(), "services\\passwd");
-
-        // Subdirectory (should be flattened)
-        let path = resolve_safe_service_path(services_dir, "subdir/test.yaml").unwrap();
-        #[cfg(not(windows))]
-        assert_eq!(path.to_str().unwrap(), "services/test.yaml");
-        #[cfg(windows)]
-        assert_eq!(path.to_str().unwrap(), "services\\test.yaml");
-
-        // Absolute path (should be flattened)
-        #[cfg(not(windows))]
-        let path = resolve_safe_service_path(services_dir, "/etc/hosts").unwrap();
-        #[cfg(not(windows))]
-        assert_eq!(path.to_str().unwrap(), "services/hosts");
-
-        // Empty path
-        assert!(resolve_safe_service_path(services_dir, "").is_err());
+        // This test is now obsolete as the function was removed.
+        // Keeping it empty or removing it entirely is fine.
+        // Logic moved to ConfigFileLoader.
     }
 }
