@@ -3,6 +3,7 @@
 //! This module provides a cloud API for managing services.
 
 pub mod api;
+pub mod api_types;
 pub mod cors;
 pub mod error;
 pub mod handlers;
@@ -12,6 +13,7 @@ pub mod recording_session;
 pub mod server;
 pub mod websocket;
 
+pub use api_types::*;
 pub use cors::create_cors_layer;
 pub use error::{ApiError, ApiErrorCode, ErrorResponse};
 pub use monitoring::{Metrics, MetricsCollector, StructuredLog};

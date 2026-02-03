@@ -5,8 +5,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::cloud::api_types::ApiResponse;
 use crate::cloud::error::{ApiError, ApiErrorCode, ErrorResponse};
-use crate::cloud::handlers::ApiResponse;
 use crate::iot::config::TwinConfig;
 
 fn sanitize_twin_name(name: &str) -> Result<String, ApiError> {
