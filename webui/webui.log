@@ -1,0 +1,36 @@
+
+> nextn@0.5.0 dev:webui
+> next dev --turbopack -p 9002
+
+   ▲ Next.js 15.3.8 (Turbopack)
+   - Local:        http://localhost:9002
+   - Network:      http://192.168.0.2:9002
+
+ ✓ Starting...
+ ✓ Ready in 1397ms
+ ⚠ Webpack is configured while Turbopack is not, which may cause problems.
+ ⚠ See instructions if you need to configure Turbopack:
+  https://nextjs.org/docs/app/api-reference/next-config-js/turbo
+
+ ○ Compiling /verification ...
+ ✓ Compiled /verification in 14.2s
+ ⨯ Error: useWebSocket must be used within a WebSocketProvider
+    at useWebSocket (src/providers/websocket-provider.tsx:290:10)
+    at useWebSocketSubscription (src/providers/websocket-provider.tsx:302:24)
+    at Dashboard (src/components/features/dashboard.tsx:45:27)
+  288 |   const context = useContext(WebSocketContext);
+  289 |   if (!context) {
+> 290 |     throw new Error('useWebSocket must be used within a WebSocketProvider');
+      |          ^
+  291 |   }
+  292 |   return context;
+  293 | } {
+  digest: '2787632440'
+}
+ GET /verification 500 in 15827ms
+ GET /verification 200 in 1108ms
+ GET /verification 200 in 172ms
+ GET /verification 200 in 256ms
+ GET /verification 200 in 581ms
+ GET /verification 200 in 168ms
+[?25h
