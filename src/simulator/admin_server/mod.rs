@@ -69,24 +69,35 @@ async fn handle_admin_request(
 ) -> Response<Full<Bytes>> {
     let admin_token = env::var("APICENTRIC_ADMIN_TOKEN").ok();
 
-    if let Some(admin_token) = admin_token {
-        let auth_header = req
-            .headers()
-            .get("Authorization")
-            .and_then(|h| h.to_str().ok());
+    match admin_token {
+        Some(expected_token) => {
+            let auth_header = req
+                .headers()
+                .get("Authorization")
+                .and_then(|h| h.to_str().ok());
 
-        if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
-            let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));
+            if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
+                let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));
+                *unauthorized.status_mut() = StatusCode::UNAUTHORIZED;
+                return unauthorized;
+            }
+
+            let token = auth_header.unwrap().trim_start_matches("Bearer ");
+
+            if token != expected_token {
+                let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));
+                *forbidden.status_mut() = StatusCode::FORBIDDEN;
+                return forbidden;
+            }
+        }
+        None => {
+            // Secure default: If no token is configured, deny all admin access
+            // This prevents accidental exposure of admin endpoints
+            let mut unauthorized = Response::new(Full::new(Bytes::from(
+                "Unauthorized: APICENTRIC_ADMIN_TOKEN must be set to enable admin API",
+            )));
             *unauthorized.status_mut() = StatusCode::UNAUTHORIZED;
             return unauthorized;
-        }
-
-        let token = auth_header.unwrap().trim_start_matches("Bearer ");
-
-        if token != admin_token {
-            let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));
-            *forbidden.status_mut() = StatusCode::FORBIDDEN;
-            return forbidden;
         }
     }
 

@@ -22,3 +22,8 @@
 **Vulnerability:** Unbounded memory allocation in `upload_replay_data` handler (`src/cloud/iot_handlers.rs`). The handler used `field.bytes().await` which buffers the entire file into RAM, allowing an attacker to cause an OOM crash by uploading a large file.
 **Learning:** `axum::extract::Multipart::Field::bytes()` is convenient but dangerous for file uploads. Streaming is required for safety. Also, `DefaultBodyLimit` in Axum (2MB) protects against this by default, but if disabled or if the limit is raised globally, the handler becomes vulnerable.
 **Prevention:** Always stream file uploads using `field.chunk().await` and write to disk/storage incrementally. Enforce a hard limit on the total bytes read within the loop.
+
+## 2024-05-28 - Secure Defaults in Admin Server
+**Vulnerability:** The Admin Server allowed unauthenticated access to sensitive endpoints (e.g., `/apicentric-admin/logs`) when the `APICENTRIC_ADMIN_TOKEN` environment variable was not set, violating the "Secure Defaults" principle.
+**Learning:** Checking for the presence of a security configuration (like a token) and falling through to an "allow" state if missing is a dangerous pattern. Security controls must always "fail closed".
+**Prevention:** Enforce mandatory configuration for sensitive features. If a required security token is missing, the feature should either not start or explicitly deny all requests (return 401/403) with a clear error message.
