@@ -139,7 +139,7 @@ export function LogsViewer({ services }: LogsViewerProps) {
   // Subscribe to real-time log updates via WebSocket
   useWebSocketSubscription('request_log', (logEntry: RequestLogEntry) => {
     logBufferRef.current.push(logEntry);
-  }, []);
+  });
 
   // Flush log buffer to state periodically
   React.useEffect(() => {
