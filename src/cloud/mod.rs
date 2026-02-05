@@ -10,6 +10,7 @@ pub mod iot_handlers;
 pub mod monitoring;
 pub mod recording_session;
 pub mod server;
+pub mod types;
 pub mod websocket;
 
 pub use cors::create_cors_layer;

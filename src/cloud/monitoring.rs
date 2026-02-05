@@ -44,6 +44,26 @@ impl Default for Metrics {
     }
 }
 
+/// Gets current memory usage (Linux only)
+pub fn get_memory_usage() -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+            for line in status.lines() {
+                if line.starts_with("VmRSS:") {
+                    if let Some(kb) = line.split_whitespace().nth(1) {
+                        if let Ok(kb_val) = kb.parse::<u64>() {
+                            return Some(kb_val * 1024);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Metrics collector
 pub struct MetricsCollector {
     metrics: Arc<RwLock<Metrics>>,
@@ -109,24 +129,7 @@ impl MetricsCollector {
     pub async fn get_metrics(&self) -> Metrics {
         let mut metrics = self.metrics.read().await.clone();
         metrics.uptime_seconds = self.start_time.elapsed().as_secs();
-
-        // Try to get memory usage
-        #[cfg(target_os = "linux")]
-        {
-            if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
-                for line in status.lines() {
-                    if line.starts_with("VmRSS:") {
-                        if let Some(kb) = line.split_whitespace().nth(1) {
-                            if let Ok(kb_val) = kb.parse::<u64>() {
-                                metrics.memory_usage_bytes = Some(kb_val * 1024);
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
+        metrics.memory_usage_bytes = get_memory_usage();
         metrics
     }
 
