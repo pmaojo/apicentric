@@ -3,9 +3,11 @@
 use apicentric::cloud::handlers::{
     load_service, save_service, LoadServiceRequest, SaveServiceRequest,
 };
-use axum::Json;
+use apicentric::simulator::{ApiSimulatorManager, SimulatorConfig};
+use axum::{extract::State, Json};
 use std::fs::File;
 use std::io::Write;
+use std::sync::Arc;
 use tempfile::TempDir;
 
 #[tokio::test]
@@ -14,10 +16,12 @@ async fn test_path_traversal_prevention() {
     let services_dir = temp_dir.path().join("services");
     std::fs::create_dir(&services_dir).unwrap();
 
-    // Set env var to point to our temp services dir
-    // Note: We need to use a mutex or run strictly sequentially if tests run in parallel,
-    // but env vars are process-global. However, this is an integration test executable on its own.
-    std::env::set_var("APICENTRIC_SERVICES_DIR", services_dir.to_str().unwrap());
+    // Create simulator manager with the temp services dir
+    let config = SimulatorConfig {
+        services_dir: services_dir.clone(),
+        ..Default::default()
+    };
+    let manager = Arc::new(ApiSimulatorManager::new(config));
 
     // 1. Test Load Service Traversal
     // Create a secret file OUTSIDE services dir
@@ -30,7 +34,7 @@ async fn test_path_traversal_prevention() {
         path: secret_file.to_str().unwrap().to_string(),
     };
 
-    let result = load_service(Json(request)).await;
+    let result = load_service(State(manager.clone()), Json(request)).await;
     if let Ok(Json(response)) = result {
         // It should fail because it looks for 'secret.yaml' inside services_dir, where it doesn't exist.
         // Even though 'secret.yaml' exists outside, the sanitizer forces it to look inside.
@@ -48,7 +52,7 @@ async fn test_path_traversal_prevention() {
         yaml: "name: pwned\nversion: 1.0.0".to_string(),
     };
 
-    let result = save_service(Json(request)).await;
+    let result = save_service(State(manager.clone()), Json(request)).await;
     if let Ok(Json(response)) = result {
         // It might succeed, but it should write to services_dir/pwned.yaml, NOT target_file
         if response.success {
@@ -79,7 +83,7 @@ async fn test_path_traversal_prevention() {
         path: valid_file.to_str().unwrap().to_string(),
     };
 
-    let result = load_service(Json(request)).await;
+    let result = load_service(State(manager.clone()), Json(request)).await;
     match result {
         Ok(Json(response)) => {
             assert!(

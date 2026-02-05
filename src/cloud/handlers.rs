@@ -179,27 +179,6 @@ pub struct GenerateServiceRequest {
     pub description: Option<String>,
 }
 
-/// Resolves a safe path for a service file, preventing directory traversal.
-///
-/// # Arguments
-///
-/// * `services_dir` - The directory where services are stored.
-/// * `requested_path` - The requested path or filename.
-fn resolve_safe_service_path(
-    services_dir: &str,
-    requested_path: &str,
-) -> Result<std::path::PathBuf, String> {
-    let filename = match std::path::Path::new(requested_path).file_name() {
-        Some(name) => match name.to_str() {
-            Some(s) => s,
-            None => return Err("Invalid filename encoding".to_string()),
-        },
-        None => return Err("Invalid path".to_string()),
-    };
-
-    Ok(std::path::Path::new(services_dir).join(filename))
-}
-
 /// Lists all active services.
 ///
 /// # Arguments
@@ -220,17 +199,11 @@ pub async fn list_services(
 /// * `request` - The request to load the service.
 #[axum::debug_handler]
 pub async fn load_service(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
     Json(request): Json<LoadServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-
-    let safe_path = match resolve_safe_service_path(&services_dir, &request.path) {
-        Ok(path) => path,
-        Err(e) => return Ok(Json(ApiResponse::error(e))),
-    };
-
-    match std::fs::read_to_string(&safe_path) {
+    // Read raw content from repository (safe access)
+    match simulator.read_service_file(&request.path) {
         Ok(content) => match serde_yaml::from_str::<UnifiedConfig>(&content) {
             Ok(unified) => {
                 let def = ServiceDefinition::from(unified);
@@ -252,21 +225,15 @@ pub async fn load_service(
 /// * `request` - The request to save the service.
 #[axum::debug_handler]
 pub async fn save_service(
+    State(simulator): State<Arc<ApiSimulatorManager>>,
     Json(request): Json<SaveServiceRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-
-    let safe_path = match resolve_safe_service_path(&services_dir, &request.path) {
-        Ok(path) => path,
-        Err(e) => return Ok(Json(ApiResponse::error(e))),
-    };
-
     match serde_yaml::from_str::<UnifiedConfig>(&request.yaml) {
         Ok(unified) => {
             let def = ServiceDefinition::from(unified);
-            match std::fs::File::create(&safe_path) {
-                Ok(file) => match serde_yaml::to_writer(file, &def) {
+            // Re-serialize to ensure clean YAML
+            match serde_yaml::to_string(&def) {
+                Ok(clean_yaml) => match simulator.save_service_file(&request.path, &clean_yaml) {
                     Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
                     Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
                 },
@@ -539,36 +506,19 @@ pub async fn create_service(
     let filename = request
         .filename
         .unwrap_or_else(|| format!("{}.yaml", definition.name));
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-
-    // Sentinel: Use resolve_safe_service_path to prevent directory traversal
-    let file_path = match resolve_safe_service_path(&services_dir, &filename) {
-        Ok(path) => path,
-        Err(e) => return Err(ApiError::bad_request(ApiErrorCode::InvalidParameter, e)),
-    };
 
     // Check if file already exists
-    if file_path.exists() {
+    if simulator.service_file_exists(&filename) {
         return Err(ErrorResponse::service_already_exists(&filename).into());
     }
 
-    // Create services directory if it doesn't exist
-    if let Err(e) = std::fs::create_dir_all(&services_dir) {
-        return Err(ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            ApiErrorCode::DirectoryCreateError,
-            format!("Failed to create services directory: {}", e),
-        ));
-    }
-
-    // Write the service definition to file
-    match std::fs::write(&file_path, &request.yaml) {
+    // Write the service definition to file using simulator manager (handles safe path resolution)
+    match simulator.save_service_file(&filename, &request.yaml) {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition).await {
                 // Clean up the file if applying fails
-                let _ = std::fs::remove_file(&file_path);
+                let _ = simulator.delete_service_file(&filename);
                 return Err(ApiError::new(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ApiErrorCode::ServiceStartFailed,
@@ -598,8 +548,8 @@ pub async fn create_graphql_service(
     // Validate service name
     validation::validate_service_name(&request.name).map_err(ApiError::from)?;
 
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let services_dir = simulator.services_dir().to_string_lossy().to_string();
+
     let schema_filename = format!("{}_schema.graphql", request.name);
     let mock_filename = format!("{}_mock.json", request.name);
     let service_filename = format!("{}.yaml", request.name);
@@ -619,28 +569,16 @@ graphql:
         request.name, request.port, services_dir, schema_filename, services_dir, mock_filename
     );
 
-    // Create files... (omitting actual file creation logic for brevity in replacement, but using std::fs)
-    let base_path = std::path::Path::new(&services_dir);
-    if let Err(e) = std::fs::create_dir_all(base_path) {
-        return Err(ApiError::internal_server_error(format!(
-            "Failed to create directory: {}",
-            e
-        )));
-    }
+    // Save schema file
+    simulator.save_service_file(&schema_filename, "type Query {\n  hello: String\n}")
+        .map_err(|e| ApiError::internal_server_error(format!("Failed to write schema: {}", e)))?;
 
-    std::fs::write(
-        base_path.join(&schema_filename),
-        "type Query {\n  hello: String\n}",
-    )
-    .map_err(|e| ApiError::internal_server_error(format!("Failed to write schema: {}", e)))?;
+    // Save mock file
+    simulator.save_service_file(&mock_filename, "{\n  \"data\": {\n    \"hello\": \"world\"\n  }\n}")
+        .map_err(|e| ApiError::internal_server_error(format!("Failed to write mock: {}", e)))?;
 
-    std::fs::write(
-        base_path.join(&mock_filename),
-        "{\n  \"data\": {\n    \"hello\": \"world\"\n  }\n}",
-    )
-    .map_err(|e| ApiError::internal_server_error(format!("Failed to write mock: {}", e)))?;
-
-    std::fs::write(base_path.join(&service_filename), &yaml_content)
+    // Save service file
+    simulator.save_service_file(&service_filename, &yaml_content)
         .map_err(|e| ApiError::internal_server_error(format!("Failed to write service: {}", e)))?;
 
     // Apply the service
@@ -701,17 +639,14 @@ pub async fn update_service(
         ));
     }
 
-    // Find the service file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", name));
+    let filename = format!("{}.yaml", name);
 
-    if !file_path.exists() {
+    if !simulator.service_file_exists(&filename) {
         return Err(ErrorResponse::service_not_found(&name).into());
     }
 
     // Write the updated definition
-    match std::fs::write(&file_path, &request.yaml) {
+    match simulator.save_service_file(&filename, &request.yaml) {
         Ok(_) => {
             // Apply the updated service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition).await {
@@ -752,16 +687,13 @@ pub async fn delete_service(
     // Stop the service if it's running
     let _ = simulator.stop_service(&name).await;
 
-    // Find and delete the service file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", name));
+    let filename = format!("{}.yaml", name);
 
-    if !file_path.exists() {
+    if !simulator.service_file_exists(&filename) {
         return Err(ErrorResponse::service_not_found(&name).into());
     }
 
-    match std::fs::remove_file(&file_path) {
+    match simulator.delete_service_file(&filename) {
         Ok(_) => Ok(Json(ApiResponse::success(format!(
             "Service '{}' deleted successfully",
             name
@@ -1311,35 +1243,23 @@ pub async fn generate_service_from_recording(
         }
     };
 
-    // Save the service file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path =
-        std::path::Path::new(&services_dir).join(format!("{}.yaml", request.service_name));
+    let filename = format!("{}.yaml", request.service_name);
 
     // Check if file already exists
-    if file_path.exists() {
+    if simulator.service_file_exists(&filename) {
         return Ok(Json(ApiResponse::error(format!(
             "Service file '{}' already exists",
             request.service_name
         ))));
     }
 
-    // Create services directory if it doesn't exist
-    if let Err(e) = std::fs::create_dir_all(&services_dir) {
-        return Ok(Json(ApiResponse::error(format!(
-            "Failed to create services directory: {}",
-            e
-        ))));
-    }
-
-    // Write the service definition to file
-    match std::fs::write(&file_path, &yaml) {
+    // Write the service definition to file using simulator manager
+    match simulator.save_service_file(&filename, &yaml) {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(service_def).await {
                 // Clean up the file if applying fails
-                let _ = std::fs::remove_file(&file_path);
+                let _ = simulator.delete_service_file(&filename);
                 return Ok(Json(ApiResponse::error(format!(
                     "Failed to apply service: {}",
                     e
@@ -1867,20 +1787,9 @@ pub async fn import_from_url(
         }
     };
 
-    // Save to file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-    let file_path = std::path::Path::new(&services_dir).join(format!("{}.yaml", definition.name));
+    let filename = format!("{}.yaml", definition.name);
 
-    // Create services directory if it doesn't exist
-    if let Err(e) = std::fs::create_dir_all(&services_dir) {
-        return Err(ApiError::internal_server_error(format!(
-            "Failed to create services directory: {}",
-            e
-        )));
-    }
-
-    match std::fs::write(&file_path, &yaml) {
+    match simulator.save_service_file(&filename, &yaml) {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition.clone()).await {
@@ -2048,44 +1957,4 @@ pub async fn run_contract_tests(
             "total": 0
         }
     }))))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_resolve_safe_service_path() {
-        let services_dir = "services";
-
-        // Normal case
-        let path = resolve_safe_service_path(services_dir, "test.yaml").unwrap();
-        #[cfg(not(windows))]
-        assert_eq!(path.to_str().unwrap(), "services/test.yaml");
-        #[cfg(windows)]
-        assert_eq!(path.to_str().unwrap(), "services\\test.yaml");
-
-        // Path traversal attempt
-        let path = resolve_safe_service_path(services_dir, "../../etc/passwd").unwrap();
-        #[cfg(not(windows))]
-        assert_eq!(path.to_str().unwrap(), "services/passwd");
-        #[cfg(windows)]
-        assert_eq!(path.to_str().unwrap(), "services\\passwd");
-
-        // Subdirectory (should be flattened)
-        let path = resolve_safe_service_path(services_dir, "subdir/test.yaml").unwrap();
-        #[cfg(not(windows))]
-        assert_eq!(path.to_str().unwrap(), "services/test.yaml");
-        #[cfg(windows)]
-        assert_eq!(path.to_str().unwrap(), "services\\test.yaml");
-
-        // Absolute path (should be flattened)
-        #[cfg(not(windows))]
-        let path = resolve_safe_service_path(services_dir, "/etc/hosts").unwrap();
-        #[cfg(not(windows))]
-        assert_eq!(path.to_str().unwrap(), "services/hosts");
-
-        // Empty path
-        assert!(resolve_safe_service_path(services_dir, "").is_err());
-    }
 }

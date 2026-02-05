@@ -2,7 +2,7 @@ mod repository;
 mod summarizer;
 mod validators;
 
-pub use repository::{ConfigFileLoader, ConfigRepository};
+pub use repository::{ConfigFileLoader, ConfigRepository, FileSystemRepository};
 pub use summarizer::{summarize, LoadError, LoadErrorType, ValidationSummary};
 pub use validators::{validate_service_schema, validate_unique_name};
 
@@ -78,6 +78,26 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
 
         let summary = summarize(files.len(), errors);
         Ok(LoadResult { services, summary })
+    }
+
+    /// Save content to a file in the repository (safe against path traversal)
+    pub fn save_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        self.repository.save_file(filename, content)
+    }
+
+    /// Delete a file from the repository (safe against path traversal)
+    pub fn delete_file(&self, filename: &str) -> ApicentricResult<()> {
+        self.repository.delete_file(filename)
+    }
+
+    /// Check if a file exists in the repository (safe against path traversal)
+    pub fn file_exists(&self, filename: &str) -> bool {
+        self.repository.file_exists(filename)
+    }
+
+    /// Read file content from the repository (safe against path traversal)
+    pub fn read_file(&self, filename: &str) -> ApicentricResult<String> {
+        self.repository.read_file(filename)
     }
 }
 

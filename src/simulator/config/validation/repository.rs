@@ -7,15 +7,30 @@ use std::path::{Path, PathBuf};
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+
+    /// Save content to a file in the repository (safe against path traversal)
+    fn save_file(&self, filename: &str, content: &str) -> ApicentricResult<()>;
+
+    /// Delete a file from the repository (safe against path traversal)
+    fn delete_file(&self, filename: &str) -> ApicentricResult<()>;
+
+    /// Check if a file exists in the repository (safe against path traversal)
+    fn file_exists(&self, filename: &str) -> bool;
+
+    /// Read file content from the repository (safe against path traversal)
+    fn read_file(&self, filename: &str) -> ApicentricResult<String>;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
 #[derive(Clone)]
-pub struct ConfigFileLoader {
+pub struct FileSystemRepository {
     root: PathBuf,
 }
 
-impl ConfigFileLoader {
+/// Backward compatibility alias
+pub type ConfigFileLoader = FileSystemRepository;
+
+impl FileSystemRepository {
     pub fn new(root: PathBuf) -> Self {
         Self { root }
     }
@@ -58,9 +73,34 @@ impl ConfigFileLoader {
         }
         Ok(())
     }
+
+    /// Resolves a safe path for a file, preventing directory traversal.
+    fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf> {
+        let name = match Path::new(filename).file_name() {
+            Some(name) => match name.to_str() {
+                Some(s) => s,
+                None => {
+                    return Err(ApicentricError::validation_error(
+                        "Invalid filename encoding",
+                        None::<String>,
+                        None::<String>,
+                    ))
+                }
+            },
+            None => {
+                return Err(ApicentricError::validation_error(
+                    "Invalid path",
+                    None::<String>,
+                    None::<String>,
+                ))
+            }
+        };
+
+        Ok(self.root.join(name))
+    }
 }
 
-impl ConfigRepository for ConfigFileLoader {
+impl ConfigRepository for FileSystemRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>> {
         if !self.root.exists() {
             return Err(ApicentricError::config_error(
@@ -91,6 +131,67 @@ impl ConfigRepository for ConfigFileLoader {
 
         Ok(ServiceDefinition::from(unified))
     }
+
+    fn save_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        let path = self.resolve_path(filename)?;
+
+        // Ensure directory exists
+        if !self.root.exists() {
+            fs::create_dir_all(&self.root).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!(
+                        "Failed to create services directory {}: {}",
+                        self.root.display(),
+                        e
+                    ),
+                    None::<String>,
+                )
+            })?;
+        }
+
+        fs::write(&path, content).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write file {}: {}", path.display(), e),
+                Some("Check disk space and permissions"),
+            )
+        })
+    }
+
+    fn delete_file(&self, filename: &str) -> ApicentricResult<()> {
+        let path = self.resolve_path(filename)?;
+
+        if !path.exists() {
+            return Err(ApicentricError::runtime_error(
+                format!("File not found: {}", filename),
+                None::<String>,
+            ));
+        }
+
+        fs::remove_file(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to delete file {}: {}", path.display(), e),
+                Some("Check file permissions"),
+            )
+        })
+    }
+
+    fn file_exists(&self, filename: &str) -> bool {
+        match self.resolve_path(filename) {
+            Ok(path) => path.exists(),
+            Err(_) => false,
+        }
+    }
+
+    fn read_file(&self, filename: &str) -> ApicentricResult<String> {
+        let path = self.resolve_path(filename)?;
+
+        fs::read_to_string(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to read file {}: {}", path.display(), e),
+                Some("Check file permissions and ensure the file exists"),
+            )
+        })
+    }
 }
 
 #[cfg(test)]
@@ -118,7 +219,7 @@ endpoints:
         let dir = tempdir().unwrap();
         let file = dir.path().join("service.yaml");
         write_valid_service(&file);
-        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+        let loader = FileSystemRepository::new(dir.path().to_path_buf());
         let files = loader.list_service_files().unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], file);
@@ -129,7 +230,7 @@ endpoints:
         let dir = tempdir().unwrap();
         let file = dir.path().join("service.yaml");
         write_valid_service(&file);
-        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+        let loader = FileSystemRepository::new(dir.path().to_path_buf());
         let svc = loader.load_service(&file).unwrap();
         assert_eq!(svc.name, "test-service");
     }
@@ -137,8 +238,53 @@ endpoints:
     #[test]
     fn list_service_files_missing_dir() {
         let dir = PathBuf::from("/nonexistent-dir");
-        let loader = ConfigFileLoader::new(dir.clone());
+        let loader = FileSystemRepository::new(dir.clone());
         let err = loader.list_service_files().unwrap_err();
         assert!(format!("{}", err).contains("does not exist"));
+    }
+
+    #[test]
+    fn test_save_and_read_file() {
+        let dir = tempdir().unwrap();
+        let repo = FileSystemRepository::new(dir.path().to_path_buf());
+        let filename = "test.txt";
+        let content = "hello world";
+
+        repo.save_file(filename, content).unwrap();
+        assert!(repo.file_exists(filename));
+
+        let read_content = repo.read_file(filename).unwrap();
+        assert_eq!(read_content, content);
+    }
+
+    #[test]
+    fn test_delete_file() {
+        let dir = tempdir().unwrap();
+        let repo = FileSystemRepository::new(dir.path().to_path_buf());
+        let filename = "test.txt";
+
+        repo.save_file(filename, "content").unwrap();
+        assert!(repo.file_exists(filename));
+
+        repo.delete_file(filename).unwrap();
+        assert!(!repo.file_exists(filename));
+    }
+
+    #[test]
+    fn test_path_traversal_prevention() {
+        let dir = tempdir().unwrap();
+        let repo = FileSystemRepository::new(dir.path().to_path_buf());
+
+        // Attempt traversal
+        let filename = "../../etc/passwd";
+        let path = repo.resolve_path(filename).unwrap();
+
+        // Should resolve to root/passwd, not /etc/passwd
+        assert_eq!(path, dir.path().join("passwd"));
+
+        // Nested traversal
+        let filename = "subdir/../test.yaml";
+        let path = repo.resolve_path(filename).unwrap();
+        assert_eq!(path, dir.path().join("test.yaml"));
     }
 }
