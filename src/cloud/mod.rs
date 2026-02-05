@@ -2,6 +2,7 @@
 //!
 //! This module provides a cloud API for managing services.
 
+pub mod ai_handlers;
 pub mod api;
 pub mod cors;
 pub mod error;
@@ -9,6 +10,7 @@ pub mod handlers;
 pub mod iot_handlers;
 pub mod monitoring;
 pub mod recording_session;
+pub mod response;
 pub mod server;
 pub mod websocket;
 
