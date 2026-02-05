@@ -68,7 +68,7 @@ export function Recording() {
       response_headers: captured.response_headers,
       response_body: captured.response_body,
     }]);
-  }, []);
+  });
 
   const isConnected = true; // Now managed by WebSocketProvider
 
@@ -217,18 +217,18 @@ export function Recording() {
       const response = await api.generateServiceFromRecording(defaultName);
       
       // Get the service YAML
-      const serviceData = await api.getService(response.name);
+      const serviceData = await api.getService(response.info.name);
       
       // Create YAML representation (simplified - in real implementation would use proper YAML serialization)
-      const yaml = `name: ${serviceData.name}
+      const yaml = `name: ${serviceData.info.name}
 version: 1.0.0
 description: Generated from recorded API traffic
 server:
-  port: ${serviceData.port}
+  port: ${serviceData.info.port}
   base_path: /
 
 endpoints:
-${serviceData.endpoints.map(ep => `  - method: ${ep.method}
+${serviceData.info.endpoints.map(ep => `  - method: ${ep.method}
     path: ${ep.path}
     responses:
       - status: 200
@@ -239,7 +239,7 @@ ${serviceData.endpoints.map(ep => `  - method: ${ep.method}
       
       toast({
         title: "Service Generated",
-        description: `Generated service definition with ${serviceData.endpoints.length} endpoints`,
+        description: `Generated service definition with ${serviceData.info.endpoints.length} endpoints`,
       });
     } catch (error) {
       toast({
