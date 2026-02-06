@@ -1760,8 +1760,28 @@ pub async fn import_from_url(
 ) -> Result<Json<ApiResponse<ImportUrlResponse>>, ApiError> {
     use crate::simulator::openapi::from_openapi;
 
+    // Validate SSRF
+    let validated_url = match crate::utils::security::validate_ssrf_url(&request.url).await {
+        Ok(url) => url,
+        Err(e) => {
+            return Err(ApiError::new(
+                StatusCode::BAD_REQUEST,
+                ApiErrorCode::ImportFailed,
+                format!("Security check failed: {}", e),
+            ));
+        }
+    };
+
+    // Use a custom client that disables redirects
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| {
+            ApiError::internal_server_error(format!("Failed to create HTTP client: {}", e))
+        })?;
+
     // Fetch the content from URL
-    let res = match reqwest::get(&request.url).await {
+    let res = match client.get(validated_url).send().await {
         Ok(res) => res,
         Err(e) => {
             return Err(ApiError::new(
