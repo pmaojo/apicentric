@@ -1746,6 +1746,7 @@ pub struct ImportUrlResponse {
 }
 
 use crate::simulator::marketplace::{get_marketplace_items, MarketplaceItem};
+use crate::utils::security::validate_ssrf_url;
 
 /// Import a service definition from a URL.
 ///
@@ -1760,8 +1761,25 @@ pub async fn import_from_url(
 ) -> Result<Json<ApiResponse<ImportUrlResponse>>, ApiError> {
     use crate::simulator::openapi::from_openapi;
 
+    // Validate URL against SSRF (no private/loopback IPs)
+    if let Err(e) = validate_ssrf_url(&request.url).await {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            ApiErrorCode::ImportFailed,
+            format!("Security Error: {}", e),
+        ));
+    }
+
+    // Create a client that does NOT follow redirects to prevent open redirect SSRF bypass
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| {
+            ApiError::internal_server_error(format!("Failed to create HTTP client: {}", e))
+        })?;
+
     // Fetch the content from URL
-    let res = match reqwest::get(&request.url).await {
+    let res = match client.get(&request.url).send().await {
         Ok(res) => res,
         Err(e) => {
             return Err(ApiError::new(
