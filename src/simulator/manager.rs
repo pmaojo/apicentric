@@ -96,6 +96,11 @@ impl ApiSimulatorManager {
         self.start_time.elapsed().as_secs()
     }
 
+    /// Get the configured services directory
+    pub fn get_services_dir(&self) -> PathBuf {
+        self.config.services_dir.clone()
+    }
+
     /// Update database path for persistent storage
     pub async fn set_db_path<P: AsRef<std::path::Path>>(&self, path: P) -> ApicentricResult<()> {
         let storage = Arc::new(SqliteStorage::init_db(path)?);
@@ -359,6 +364,26 @@ impl ApiSimulatorManager {
             body,
             duration_ms: start.elapsed().as_millis() as u64,
         })
+    }
+
+    /// Read a service configuration file
+    pub fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        self.config_loader.read_file(filename)
+    }
+
+    /// Save a service configuration file
+    pub fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        self.config_loader.save_file(filename, content)
+    }
+
+    /// Delete a service configuration file
+    pub fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        self.config_loader.delete_file(filename)
+    }
+
+    /// Check if a service configuration file exists
+    pub fn service_file_exists(&self, filename: &str) -> ApicentricResult<bool> {
+        self.config_loader.file_exists(filename)
     }
 
     /// Load services from the configured directory

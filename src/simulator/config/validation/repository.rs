@@ -7,6 +7,10 @@ use std::path::{Path, PathBuf};
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+    fn read_file(&self, filename: &str) -> ApicentricResult<String>;
+    fn save_file(&self, filename: &str, content: &str) -> ApicentricResult<()>;
+    fn delete_file(&self, filename: &str) -> ApicentricResult<()>;
+    fn file_exists(&self, filename: &str) -> ApicentricResult<bool>;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
@@ -18,6 +22,31 @@ pub struct ConfigFileLoader {
 impl ConfigFileLoader {
     pub fn new(root: PathBuf) -> Self {
         Self { root }
+    }
+
+    /// Resolves a safe path for a file, preventing directory traversal.
+    fn resolve_safe_path(&self, requested_path: &str) -> ApicentricResult<PathBuf> {
+        let filename = match Path::new(requested_path).file_name() {
+            Some(name) => match name.to_str() {
+                Some(s) => s,
+                None => {
+                    return Err(ApicentricError::validation_error(
+                        "Invalid filename encoding",
+                        None::<String>,
+                        None::<String>,
+                    ))
+                }
+            },
+            None => {
+                return Err(ApicentricError::validation_error(
+                    "Invalid path",
+                    None::<String>,
+                    None::<String>,
+                ))
+            }
+        };
+
+        Ok(self.root.join(filename))
     }
 
     fn is_yaml(path: &Path) -> bool {
@@ -90,6 +119,61 @@ impl ConfigRepository for ConfigFileLoader {
         })?;
 
         Ok(ServiceDefinition::from(unified))
+    }
+
+    fn read_file(&self, filename: &str) -> ApicentricResult<String> {
+        let path = self.resolve_safe_path(filename)?;
+
+        fs::read_to_string(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to read file {}: {}", path.display(), e),
+                Some("Check file permissions and ensure the file exists"),
+            )
+        })
+    }
+
+    fn save_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        let path = self.resolve_safe_path(filename)?;
+
+        // Create services directory if it doesn't exist
+        if !self.root.exists() {
+            fs::create_dir_all(&self.root).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!("Failed to create services directory: {}", e),
+                    Some("Check directory permissions"),
+                )
+            })?;
+        }
+
+        fs::write(&path, content).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write file {}: {}", path.display(), e),
+                Some("Check file permissions"),
+            )
+        })
+    }
+
+    fn delete_file(&self, filename: &str) -> ApicentricResult<()> {
+        let path = self.resolve_safe_path(filename)?;
+
+        if !path.exists() {
+            return Err(ApicentricError::runtime_error(
+                format!("File '{}' not found", filename),
+                None::<String>,
+            ));
+        }
+
+        fs::remove_file(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to delete file {}: {}", path.display(), e),
+                Some("Check file permissions"),
+            )
+        })
+    }
+
+    fn file_exists(&self, filename: &str) -> ApicentricResult<bool> {
+        let path = self.resolve_safe_path(filename)?;
+        Ok(path.exists())
     }
 }
 
