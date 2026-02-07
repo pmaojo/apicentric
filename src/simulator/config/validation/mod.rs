@@ -30,6 +30,22 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
         Self { repository }
     }
 
+    pub fn read_file(&self, filename: &str) -> ApicentricResult<String> {
+        self.repository.read_file(filename)
+    }
+
+    pub fn save_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        self.repository.save_file(filename, content)
+    }
+
+    pub fn delete_file(&self, filename: &str) -> ApicentricResult<()> {
+        self.repository.delete_file(filename)
+    }
+
+    pub fn file_exists(&self, filename: &str) -> ApicentricResult<bool> {
+        self.repository.file_exists(filename)
+    }
+
     pub fn load_all_services(&self) -> ApicentricResult<Vec<ServiceDefinition>> {
         let result = self.load_all_services_with_summary()?;
         if result.services.is_empty() {
