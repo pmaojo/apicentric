@@ -13,6 +13,7 @@
     "build:analyze": "ANALYZE=true NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
+    "format": "next lint --fix",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",

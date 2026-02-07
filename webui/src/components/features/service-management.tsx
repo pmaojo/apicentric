@@ -105,7 +105,7 @@ export function ServiceManagement({
       next.delete(update.service_name);
       return next;
     });
-  }, [onServiceUpdate]);
+  });
 
   /**
    * Validates the selected service's definition.
