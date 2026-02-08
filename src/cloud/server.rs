@@ -13,6 +13,7 @@ use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
 
+use super::ai_handlers;
 use super::handlers;
 use super::iot_handlers;
 use crate::auth::jwt::JwtKeys;
@@ -176,9 +177,9 @@ impl CloudServer {
                 post(handlers::generate_service_from_recording),
             )
             // AI generation routes
-            .route("/api/ai/generate", post(handlers::ai_generate))
-            .route("/api/ai/validate", post(handlers::ai_validate))
-            .route("/api/ai/config", get(handlers::ai_config_status))
+            .route("/api/ai/generate", post(ai_handlers::ai_generate))
+            .route("/api/ai/validate", post(ai_handlers::ai_validate))
+            .route("/api/ai/config", get(ai_handlers::ai_config_status))
             // IoT Twin routes
             .route("/api/iot/twins", get(iot_handlers::list_twins))
             .route(
