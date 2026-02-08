@@ -40,7 +40,7 @@ export function useSystemMetrics() {
   useWebSocketSubscription('metrics_update', (update: MetricsUpdate) => {
     setMetrics(update.metrics);
     setLastUpdate(new Date(update.timestamp));
-  }, []);
+  });
 
   return {
     metrics,
