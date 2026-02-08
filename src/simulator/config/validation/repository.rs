@@ -66,6 +66,15 @@ impl ConfigFileLoader {
 
     /// Resolves a safe path for a service file, preventing directory traversal.
     fn resolve_path(&self, requested_path: &str) -> ApicentricResult<PathBuf> {
+        // Reject obvious traversal and separator patterns up front.
+        if requested_path.contains("..") || requested_path.contains('/') || requested_path.contains('\\') {
+            return Err(ApicentricError::validation_error(
+                "Invalid service filename",
+                Some("Filenames must not contain path separators or parent directory references (..)."),
+                None::<String>,
+            ));
+        }
+
         let filename = match Path::new(requested_path).file_name() {
             Some(name) => match name.to_str() {
                 Some(s) => s,
@@ -86,7 +95,20 @@ impl ConfigFileLoader {
             }
         };
 
-        Ok(self.root.join(filename))
+        let full_path = self.root.join(filename);
+
+        // As a defense-in-depth measure, ensure the resolved path stays within the services root.
+        if let Ok(canonical) = full_path.canonicalize() {
+            if !canonical.starts_with(&self.root) {
+                return Err(ApicentricError::validation_error(
+                    "Resolved path is outside of the services directory",
+                    None::<String>,
+                    None::<String>,
+                ));
+            }
+        }
+
+        Ok(full_path)
     }
 }
 
