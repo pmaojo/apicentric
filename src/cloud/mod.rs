@@ -2,6 +2,7 @@
 //!
 //! This module provides a cloud API for managing services.
 
+pub mod ai_handlers;
 pub mod api;
 pub mod cors;
 pub mod error;

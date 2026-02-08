@@ -7,6 +7,11 @@ use std::path::{Path, PathBuf};
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+    fn read_service_file(&self, filename: &str) -> ApicentricResult<String>;
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf>;
+    fn delete_service_file(&self, filename: &str) -> ApicentricResult<()>;
+    fn service_file_exists(&self, filename: &str) -> bool;
+    fn get_services_dir(&self) -> PathBuf;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
@@ -58,6 +63,31 @@ impl ConfigFileLoader {
         }
         Ok(())
     }
+
+    /// Resolves a safe path for a service file, preventing directory traversal.
+    fn resolve_path(&self, requested_path: &str) -> ApicentricResult<PathBuf> {
+        let filename = match Path::new(requested_path).file_name() {
+            Some(name) => match name.to_str() {
+                Some(s) => s,
+                None => {
+                    return Err(ApicentricError::validation_error(
+                        "Invalid filename encoding",
+                        None::<String>,
+                        None::<String>,
+                    ))
+                }
+            },
+            None => {
+                return Err(ApicentricError::validation_error(
+                    "Invalid path",
+                    None::<String>,
+                    None::<String>,
+                ))
+            }
+        };
+
+        Ok(self.root.join(filename))
+    }
 }
 
 impl ConfigRepository for ConfigFileLoader {
@@ -90,6 +120,72 @@ impl ConfigRepository for ConfigFileLoader {
         })?;
 
         Ok(ServiceDefinition::from(unified))
+    }
+
+    fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        let path = self.resolve_path(filename)?;
+        fs::read_to_string(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Cannot read service file {}: {}", path.display(), e),
+                Some("Check file permissions and ensure the file exists"),
+            )
+        })
+    }
+
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf> {
+        let path = self.resolve_path(filename)?;
+
+        // Create services directory if it doesn't exist
+        if !self.root.exists() {
+            fs::create_dir_all(&self.root).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!(
+                        "Failed to create services directory {}: {}",
+                        self.root.display(),
+                        e
+                    ),
+                    Some("Check permissions"),
+                )
+            })?;
+        }
+
+        fs::write(&path, content).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write service file {}: {}", path.display(), e),
+                Some("Check file permissions"),
+            )
+        })?;
+
+        Ok(path)
+    }
+
+    fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        let path = self.resolve_path(filename)?;
+
+        if !path.exists() {
+            return Err(ApicentricError::config_error(
+                format!("Service file not found: {}", path.display()),
+                None::<String>,
+            ));
+        }
+
+        fs::remove_file(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to delete service file {}: {}", path.display(), e),
+                Some("Check file permissions"),
+            )
+        })
+    }
+
+    fn service_file_exists(&self, filename: &str) -> bool {
+        match self.resolve_path(filename) {
+            Ok(path) => path.exists(),
+            Err(_) => false,
+        }
+    }
+
+    fn get_services_dir(&self) -> PathBuf {
+        self.root.clone()
     }
 }
 
@@ -140,5 +236,41 @@ endpoints:
         let loader = ConfigFileLoader::new(dir.clone());
         let err = loader.list_service_files().unwrap_err();
         assert!(format!("{}", err).contains("does not exist"));
+    }
+
+    #[test]
+    fn save_service_file_works() {
+        let dir = tempdir().unwrap();
+        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+        let content = "name: saved-service\n";
+        let path = loader
+            .save_service_file("saved-service.yaml", content)
+            .unwrap();
+        assert!(path.exists());
+        assert_eq!(fs::read_to_string(path).unwrap(), content);
+    }
+
+    #[test]
+    fn delete_service_file_works() {
+        let dir = tempdir().unwrap();
+        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+        let content = "name: deleted-service\n";
+        let path = loader
+            .save_service_file("deleted-service.yaml", content)
+            .unwrap();
+        assert!(path.exists());
+
+        loader.delete_service_file("deleted-service.yaml").unwrap();
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn resolve_path_prevents_traversal() {
+        let dir = tempdir().unwrap();
+        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+
+        let path = loader.resolve_path("../../passwd").unwrap();
+        // Should be just "passwd" in the root
+        assert_eq!(path, dir.path().join("passwd"));
     }
 }
