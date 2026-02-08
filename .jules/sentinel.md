@@ -22,3 +22,8 @@
 **Vulnerability:** Unbounded memory allocation in `upload_replay_data` handler (`src/cloud/iot_handlers.rs`). The handler used `field.bytes().await` which buffers the entire file into RAM, allowing an attacker to cause an OOM crash by uploading a large file.
 **Learning:** `axum::extract::Multipart::Field::bytes()` is convenient but dangerous for file uploads. Streaming is required for safety. Also, `DefaultBodyLimit` in Axum (2MB) protects against this by default, but if disabled or if the limit is raised globally, the handler becomes vulnerable.
 **Prevention:** Always stream file uploads using `field.chunk().await` and write to disk/storage incrementally. Enforce a hard limit on the total bytes read within the loop.
+
+## 2024-05-28 - SSRF in URL Import Handler
+**Vulnerability:** Server-Side Request Forgery (SSRF) in `import_from_url` handler. The handler accepted an arbitrary URL and fetched it using `reqwest::get` without validation, allowing attackers to access internal services (localhost, private IPs) or scan the internal network.
+**Learning:** `reqwest::get` follows redirects by default and blindly fetches any URL. Relying on frontend validation or assuming user benevolence is dangerous for features that make outbound requests.
+**Prevention:** Implemented `validate_ssrf_url` helper that resolves DNS and strictly blocks loopback, private, and link-local IP addresses. Replaced `reqwest::get` with a custom `Client` configured with `redirect(Policy::none())` to prevent redirect-based bypasses.
