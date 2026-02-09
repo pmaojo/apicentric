@@ -1760,8 +1760,30 @@ pub async fn import_from_url(
 ) -> Result<Json<ApiResponse<ImportUrlResponse>>, ApiError> {
     use crate::simulator::openapi::from_openapi;
 
+    // Validate the URL to prevent SSRF and get the safe address
+    let (url, safe_addr) = crate::utils::validate_ssrf_url(&request.url)
+        .await
+        .map_err(|e| {
+            ApiError::new(
+                StatusCode::BAD_REQUEST,
+                ApiErrorCode::InvalidParameter,
+                format!("Invalid or forbidden URL: {}", e),
+            )
+        })?;
+
+    // Create a client that does not follow redirects to prevent SSRF bypass
+    // We also use .resolve() to pin the DNS to the validated safe IP, preventing DNS rebinding attacks.
+    let host = url.host_str().unwrap_or("");
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .resolve(host, safe_addr)
+        .build()
+        .map_err(|e| {
+            ApiError::internal_server_error(format!("Failed to create HTTP client: {}", e))
+        })?;
+
     // Fetch the content from URL
-    let res = match reqwest::get(&request.url).await {
+    let res = match client.get(url).send().await {
         Ok(res) => res,
         Err(e) => {
             return Err(ApiError::new(
