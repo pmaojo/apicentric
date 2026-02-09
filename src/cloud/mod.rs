@@ -12,8 +12,20 @@ pub mod recording_session;
 pub mod server;
 pub mod websocket;
 
+// New modules
+pub mod types;
+pub mod fs_utils;
+pub mod ai_handlers;
+pub mod recording_handlers;
+pub mod codegen_handlers;
+pub mod marketplace_handlers;
+pub mod metrics_handlers;
+
 pub use cors::create_cors_layer;
 pub use error::{ApiError, ApiErrorCode, ErrorResponse};
 pub use monitoring::{Metrics, MetricsCollector, StructuredLog};
 pub use server::CloudServer;
 pub use websocket::{broadcast_service_status, ws_handler, ServiceStatusUpdate, WebSocketState};
+
+// Re-export common types
+pub use types::ApiResponse;
