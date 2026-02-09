@@ -701,7 +701,7 @@ MCP is an open protocol that enables AI models to securely access external tools
 
 3. **Start using MCP tools in your AI assistant:**
 
-   ```
+   ```text
    "Create a mock API for a user management system with login and profile endpoints"
    ```
 
