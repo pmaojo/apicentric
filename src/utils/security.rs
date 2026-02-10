@@ -90,8 +90,8 @@ fn is_global(ip: IpAddr) -> bool {
                 return false;
             }
 
-            // Check for unspecified (0.0.0.0)
-            if ipv4.is_unspecified() {
+            // Check for Current Network (0.0.0.0/8) - includes Unspecified (0.0.0.0)
+            if ipv4.octets()[0] == 0 {
                 return false;
             }
 
@@ -111,6 +111,11 @@ fn is_global(ip: IpAddr) -> bool {
             // Check if unspecified (::)
             if ipv6.is_unspecified() {
                 return false;
+            }
+
+            // Check for IPv4-mapped address (::ffff:a.b.c.d) or IPv4-compatible address (::a.b.c.d)
+            if let Some(ipv4) = ipv6.to_ipv4() {
+                return is_global(IpAddr::V4(ipv4));
             }
 
             // Check if unique local (fc00::/7)
@@ -171,6 +176,9 @@ mod tests {
         // Unspecified
         assert!(!is_global("0.0.0.0".parse().unwrap()));
 
+        // Current Network (0.0.0.0/8)
+        assert!(!is_global("0.0.0.1".parse().unwrap()));
+
         // Shared Address Space
         assert!(!is_global("100.64.0.1".parse().unwrap()));
     }
@@ -195,5 +203,23 @@ mod tests {
 
         // Documentation
         assert!(!is_global("2001:db8::1".parse().unwrap()));
+    }
+
+    #[test]
+    fn test_is_global_ipv4_mapped_ipv6() {
+        // Mapped Loopback (::ffff:127.0.0.1)
+        assert!(!is_global("::ffff:127.0.0.1".parse().unwrap()));
+
+        // Mapped Private (::ffff:192.168.1.1)
+        assert!(!is_global("::ffff:192.168.1.1".parse().unwrap()));
+
+        // Mapped Link-Local (::ffff:169.254.1.1)
+        assert!(!is_global("::ffff:169.254.1.1".parse().unwrap()));
+
+        // Compatible Loopback (::127.0.0.1) - Deprecated but should be blocked
+        assert!(!is_global("::127.0.0.1".parse().unwrap()));
+
+        // Mapped Public (::ffff:8.8.8.8) - Should be allowed
+        assert!(is_global("::ffff:8.8.8.8".parse().unwrap()));
     }
 }
