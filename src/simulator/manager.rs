@@ -334,8 +334,16 @@ impl ApiSimulatorManager {
         let url = format!("http://localhost:{}{}", port, path);
         let start = Instant::now();
 
+        let method_enum: reqwest::Method = method.parse().map_err(|_| {
+            ApicentricError::validation_error(
+                format!("Invalid HTTP method: {}", method),
+                Some("method"),
+                Some("Use a valid HTTP method (GET, POST, PUT, DELETE, etc.)"),
+            )
+        })?;
+
         let response = client
-            .request(method.parse().unwrap_or(reqwest::Method::GET), &url)
+            .request(method_enum, &url)
             .send()
             .await
             .map_err(|e| {
