@@ -1,7 +1,4 @@
-use axum::{
-    http::StatusCode,
-    response::Json,
-};
+use axum::{http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
 
 use crate::cloud::error::{ApiError, ApiErrorCode, ErrorResponse};

@@ -13,13 +13,13 @@ pub mod server;
 pub mod websocket;
 
 // New modules
-pub mod types;
-pub mod fs_utils;
 pub mod ai_handlers;
-pub mod recording_handlers;
 pub mod codegen_handlers;
+pub mod fs_utils;
 pub mod marketplace_handlers;
 pub mod metrics_handlers;
+pub mod recording_handlers;
+pub mod types;
 
 pub use cors::create_cors_layer;
 pub use error::{ApiError, ApiErrorCode, ErrorResponse};

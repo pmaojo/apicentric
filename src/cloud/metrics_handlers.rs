@@ -1,12 +1,8 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Json,
-};
-use serde::Serialize;
-use std::sync::Arc;
 use crate::cloud::types::ApiResponse;
 use crate::simulator::ApiSimulatorManager;
+use axum::{extract::State, http::StatusCode, response::Json};
+use serde::Serialize;
+use std::sync::Arc;
 
 /// Response for metrics endpoint
 #[derive(Serialize)]

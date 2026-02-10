@@ -56,7 +56,7 @@ mod tests {
         #[cfg(not(windows))]
         #[cfg(not(target_os = "windows"))] // Assuming "not(windows)" covers unix
         if let Some(s) = path.to_str() {
-             assert_eq!(s, "services/hosts");
+            assert_eq!(s, "services/hosts");
         }
 
         // Empty path

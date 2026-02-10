@@ -1,18 +1,13 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Json,
-    Extension,
-};
+use axum::{extract::State, http::StatusCode, response::Json, Extension};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::cloud::error::validation;
-use crate::cloud::types::ApiResponse;
-use crate::cloud::recording_session::RecordingSessionManager;
 use crate::cloud::fs_utils::resolve_safe_service_path;
-use crate::simulator::{ApiSimulatorManager, ServiceDefinition};
+use crate::cloud::recording_session::RecordingSessionManager;
+use crate::cloud::types::ApiResponse;
 use crate::simulator::config::{EndpointDefinition, ServerConfig};
+use crate::simulator::{ApiSimulatorManager, ServiceDefinition};
 
 /// Request to start recording mode.
 #[derive(Deserialize)]
@@ -221,10 +216,11 @@ pub async fn generate_service_from_recording(
         std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
 
     // Use the safe path resolver
-    let file_path = match resolve_safe_service_path(&services_dir, &format!("{}.yaml", request.service_name)) {
-        Ok(path) => path,
-        Err(e) => return Ok(Json(ApiResponse::error(e))),
-    };
+    let file_path =
+        match resolve_safe_service_path(&services_dir, &format!("{}.yaml", request.service_name)) {
+            Ok(path) => path,
+            Err(e) => return Ok(Json(ApiResponse::error(e))),
+        };
 
     // Check if file already exists
     if file_path.exists() {
