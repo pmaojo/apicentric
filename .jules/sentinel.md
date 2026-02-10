@@ -22,3 +22,8 @@
 **Vulnerability:** Unbounded memory allocation in `upload_replay_data` handler (`src/cloud/iot_handlers.rs`). The handler used `field.bytes().await` which buffers the entire file into RAM, allowing an attacker to cause an OOM crash by uploading a large file.
 **Learning:** `axum::extract::Multipart::Field::bytes()` is convenient but dangerous for file uploads. Streaming is required for safety. Also, `DefaultBodyLimit` in Axum (2MB) protects against this by default, but if disabled or if the limit is raised globally, the handler becomes vulnerable.
 **Prevention:** Always stream file uploads using `field.chunk().await` and write to disk/storage incrementally. Enforce a hard limit on the total bytes read within the loop.
+
+## 2024-05-28 - SSRF Bypass via IPv4-Mapped IPv6 Addresses
+**Vulnerability:** The SSRF protection in `is_global` failed to handle IPv4-mapped IPv6 addresses (e.g., `::ffff:127.0.0.1`), allowing attackers to bypass IPv4 blocklists (like loopback) by using IPv6 syntax.
+**Learning:** Rust's `IpAddr::V6` checks do not automatically apply IPv4 constraints to mapped addresses. Attackers can often bypass filters by "encoding" their payload in a different format (like IPv6 mapped addresses) if the validator doesn't normalize it first.
+**Prevention:** Explicitly check for `ipv6.to_ipv4()` and recursively validate the underlying IPv4 address. Also ensure that `0.0.0.0/8` (Current Network) is blocked in IPv4, as some IPv6 compatible addresses map to it.
