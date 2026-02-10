@@ -1,16 +1,12 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::cloud::error::{validation, ApiError, ApiErrorCode, ErrorResponse};
-use crate::cloud::types::ApiResponse;
-use crate::simulator::{ApiSimulatorManager, ServiceDefinition, UnifiedConfig};
-use crate::simulator::marketplace::{get_marketplace_items, MarketplaceItem};
+use crate::cloud::error::{validation, ApiError, ApiErrorCode};
 use crate::cloud::fs_utils::resolve_safe_service_path;
+use crate::cloud::types::ApiResponse;
+use crate::simulator::marketplace::{get_marketplace_items, MarketplaceItem};
+use crate::simulator::{ApiSimulatorManager, ServiceDefinition, UnifiedConfig};
 use crate::utils::validate_ssrf_url;
 use reqwest::redirect::Policy;
 
@@ -50,12 +46,11 @@ pub async fn import_from_url(
     // to prevent redirection to internal services after initial check.
     let client = reqwest::Client::builder()
         .redirect(Policy::none())
-        .resolve(
-            url.host_str().unwrap(),
-            socket_addr,
-        )
+        .resolve(url.host_str().unwrap(), socket_addr)
         .build()
-        .map_err(|e| ApiError::internal_server_error(format!("Failed to build HTTP client: {}", e)))?;
+        .map_err(|e| {
+            ApiError::internal_server_error(format!("Failed to build HTTP client: {}", e))
+        })?;
 
     // Fetch the content from URL
     let res = match client.get(url).send().await {
@@ -169,10 +164,16 @@ pub async fn import_from_url(
         std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
 
     // Use resolve_safe_service_path
-    let file_path = match resolve_safe_service_path(&services_dir, &format!("{}.yaml", definition.name)) {
-        Ok(path) => path,
-        Err(e) => return Err(ApiError::internal_server_error(format!("Invalid file path: {}", e))),
-    };
+    let file_path =
+        match resolve_safe_service_path(&services_dir, &format!("{}.yaml", definition.name)) {
+            Ok(path) => path,
+            Err(e) => {
+                return Err(ApiError::internal_server_error(format!(
+                    "Invalid file path: {}",
+                    e
+                )))
+            }
+        };
 
     // Create services directory if it doesn't exist
     if let Err(e) = std::fs::create_dir_all(&services_dir) {

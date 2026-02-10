@@ -13,13 +13,13 @@ use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
 
-use super::handlers;
 use super::ai_handlers;
-use super::recording_handlers;
 use super::codegen_handlers;
+use super::handlers;
+use super::iot_handlers;
 use super::marketplace_handlers;
 use super::metrics_handlers;
-use super::iot_handlers;
+use super::recording_handlers;
 use crate::auth::jwt::JwtKeys;
 use crate::auth::repository::AuthRepository;
 use crate::auth::{handlers as auth_handlers, handlers::AuthState};
@@ -145,8 +145,14 @@ impl CloudServer {
                 post(handlers::create_graphql_service),
             )
             // Marketplace and Import routes
-            .route("/api/marketplace", get(marketplace_handlers::marketplace_list))
-            .route("/api/import/url", post(marketplace_handlers::import_from_url))
+            .route(
+                "/api/marketplace",
+                get(marketplace_handlers::marketplace_list),
+            )
+            .route(
+                "/api/import/url",
+                post(marketplace_handlers::import_from_url),
+            )
             .route("/api/services/load", post(handlers::load_service))
             .route("/api/services/save", post(handlers::save_service))
             .route("/api/services/reload", post(handlers::reload_services))
@@ -173,9 +179,18 @@ impl CloudServer {
             )
             .route("/api/logs/export", get(handlers::export_logs))
             // Recording routes
-            .route("/api/recording/start", post(recording_handlers::start_recording))
-            .route("/api/recording/stop", post(recording_handlers::stop_recording))
-            .route("/api/recording/status", get(recording_handlers::get_recording_status))
+            .route(
+                "/api/recording/start",
+                post(recording_handlers::start_recording),
+            )
+            .route(
+                "/api/recording/stop",
+                post(recording_handlers::stop_recording),
+            )
+            .route(
+                "/api/recording/status",
+                get(recording_handlers::get_recording_status),
+            )
             .route(
                 "/api/recording/generate",
                 post(recording_handlers::generate_service_from_recording),
