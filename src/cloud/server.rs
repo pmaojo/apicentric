@@ -14,6 +14,11 @@ use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
 
 use super::handlers;
+use super::ai_handlers;
+use super::recording_handlers;
+use super::codegen_handlers;
+use super::marketplace_handlers;
+use super::metrics_handlers;
 use super::iot_handlers;
 use crate::auth::jwt::JwtKeys;
 use crate::auth::repository::AuthRepository;
@@ -140,8 +145,8 @@ impl CloudServer {
                 post(handlers::create_graphql_service),
             )
             // Marketplace and Import routes
-            .route("/api/marketplace", get(handlers::marketplace_list))
-            .route("/api/import/url", post(handlers::import_from_url))
+            .route("/api/marketplace", get(marketplace_handlers::marketplace_list))
+            .route("/api/import/url", post(marketplace_handlers::import_from_url))
             .route("/api/services/load", post(handlers::load_service))
             .route("/api/services/save", post(handlers::save_service))
             .route("/api/services/reload", post(handlers::reload_services))
@@ -168,17 +173,17 @@ impl CloudServer {
             )
             .route("/api/logs/export", get(handlers::export_logs))
             // Recording routes
-            .route("/api/recording/start", post(handlers::start_recording))
-            .route("/api/recording/stop", post(handlers::stop_recording))
-            .route("/api/recording/status", get(handlers::get_recording_status))
+            .route("/api/recording/start", post(recording_handlers::start_recording))
+            .route("/api/recording/stop", post(recording_handlers::stop_recording))
+            .route("/api/recording/status", get(recording_handlers::get_recording_status))
             .route(
                 "/api/recording/generate",
-                post(handlers::generate_service_from_recording),
+                post(recording_handlers::generate_service_from_recording),
             )
             // AI generation routes
-            .route("/api/ai/generate", post(handlers::ai_generate))
-            .route("/api/ai/validate", post(handlers::ai_validate))
-            .route("/api/ai/config", get(handlers::ai_config_status))
+            .route("/api/ai/generate", post(ai_handlers::ai_generate))
+            .route("/api/ai/validate", post(ai_handlers::ai_validate))
+            .route("/api/ai/config", get(ai_handlers::ai_config_status))
             // IoT Twin routes
             .route("/api/iot/twins", get(iot_handlers::list_twins))
             .route(
@@ -192,14 +197,14 @@ impl CloudServer {
             // Code generation routes
             .route(
                 "/api/codegen/typescript",
-                post(handlers::generate_typescript),
+                post(codegen_handlers::generate_typescript),
             )
             .route(
                 "/api/codegen/react-query",
-                post(handlers::generate_react_query),
+                post(codegen_handlers::generate_react_query),
             )
-            .route("/api/codegen/axios", post(handlers::generate_axios))
-            .route("/api/codegen", post(handlers::generate_typescript)) // Default to TS for generic endpoint
+            .route("/api/codegen/axios", post(codegen_handlers::generate_axios))
+            .route("/api/codegen", post(codegen_handlers::generate_typescript)) // Default to TS for generic endpoint
             // Configuration management routes
             .route(
                 "/api/config",
@@ -211,7 +216,7 @@ impl CloudServer {
                 post(handlers::validate_simulator),
             )
             // Monitoring and metrics routes
-            .route("/api/metrics", get(handlers::get_metrics))
+            .route("/api/metrics", get(metrics_handlers::get_metrics))
             // Contract testing routes
             .route("/api/contract-testing", post(handlers::run_contract_tests));
 
