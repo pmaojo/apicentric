@@ -6,11 +6,13 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::cloud::error::{validation, ApiError, ApiErrorCode};
+use crate::cloud::error::{validation, ApiError, ApiErrorCode, ErrorResponse};
 use crate::cloud::types::ApiResponse;
 use crate::simulator::{ApiSimulatorManager, ServiceDefinition, UnifiedConfig};
 use crate::simulator::marketplace::{get_marketplace_items, MarketplaceItem};
 use crate::cloud::fs_utils::resolve_safe_service_path;
+use crate::utils::validate_ssrf_url;
+use reqwest::redirect::Policy;
 
 /// Request to import from URL
 #[derive(Deserialize)]
@@ -39,8 +41,24 @@ pub async fn import_from_url(
 ) -> Result<Json<ApiResponse<ImportUrlResponse>>, ApiError> {
     use crate::simulator::openapi::from_openapi;
 
+    // Validate SSRF
+    let (url, socket_addr) = validate_ssrf_url(&request.url)
+        .await
+        .map_err(|e| ApiError::bad_request(ApiErrorCode::InvalidParameter, e))?;
+
+    // Create a client that resolves the host to the validated IP and disables redirects
+    // to prevent redirection to internal services after initial check.
+    let client = reqwest::Client::builder()
+        .redirect(Policy::none())
+        .resolve(
+            url.host_str().unwrap(),
+            socket_addr,
+        )
+        .build()
+        .map_err(|e| ApiError::internal_server_error(format!("Failed to build HTTP client: {}", e)))?;
+
     // Fetch the content from URL
-    let res = match reqwest::get(&request.url).await {
+    let res = match client.get(url).send().await {
         Ok(res) => res,
         Err(e) => {
             return Err(ApiError::new(
