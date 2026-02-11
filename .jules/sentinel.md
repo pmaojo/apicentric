@@ -27,3 +27,8 @@
 **Vulnerability:** The SSRF protection in `is_global` failed to handle IPv4-mapped IPv6 addresses (e.g., `::ffff:127.0.0.1`), allowing attackers to bypass IPv4 blocklists (like loopback) by using IPv6 syntax.
 **Learning:** Rust's `IpAddr::V6` checks do not automatically apply IPv4 constraints to mapped addresses. Attackers can often bypass filters by "encoding" their payload in a different format (like IPv6 mapped addresses) if the validator doesn't normalize it first.
 **Prevention:** Explicitly check for `ipv6.to_ipv4()` and recursively validate the underlying IPv4 address. Also ensure that `0.0.0.0/8` (Current Network) is blocked in IPv4, as some IPv6 compatible addresses map to it.
+
+## 2024-05-29 - Admin Interface Fail Open Vulnerability
+**Vulnerability:** The Admin Server (`src/simulator/admin_server`) allowed unrestricted access to sensitive endpoints (logs, service registry) when `APICENTRIC_ADMIN_TOKEN` was not configured in the environment.
+**Learning:** "Fail Open" defaults (allowing access if security config is missing) are dangerous because missing configuration is common in development and production mishaps. Security controls must always "Fail Secure" (deny access if configuration is missing or invalid).
+**Prevention:** Changed the default behavior to return `403 Forbidden` if the admin token is not set, effectively disabling the admin interface unless explicitly secured.
