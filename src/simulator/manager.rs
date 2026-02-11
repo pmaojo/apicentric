@@ -96,6 +96,11 @@ impl ApiSimulatorManager {
         self.start_time.elapsed().as_secs()
     }
 
+    /// Get the configured services directory
+    pub fn get_services_dir(&self) -> PathBuf {
+        self.config.services_dir.clone()
+    }
+
     /// Update database path for persistent storage
     pub async fn set_db_path<P: AsRef<std::path::Path>>(&self, path: P) -> ApicentricResult<()> {
         let storage = Arc::new(SqliteStorage::init_db(path)?);
@@ -377,5 +382,48 @@ impl ApiSimulatorManager {
             registry.register_service(service).await?;
         }
         Ok(())
+    }
+
+    /// Save a service definition file.
+    pub async fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        let loader = self.config_loader.clone();
+        let filename = filename.to_string();
+        let content = content.to_string();
+        tokio::task::spawn_blocking(move || loader.save_service_file(&filename, &content))
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(format!("Task join error: {}", e), None::<String>)
+            })?
+    }
+
+    /// Delete a service definition file.
+    pub async fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        let loader = self.config_loader.clone();
+        let filename = filename.to_string();
+        tokio::task::spawn_blocking(move || loader.delete_service_file(&filename))
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(format!("Task join error: {}", e), None::<String>)
+            })?
+    }
+
+    /// Read the raw content of a service definition file.
+    pub async fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        let loader = self.config_loader.clone();
+        let filename = filename.to_string();
+        tokio::task::spawn_blocking(move || loader.read_service_file(&filename))
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(format!("Task join error: {}", e), None::<String>)
+            })?
+    }
+
+    /// Check if a service file exists.
+    pub async fn service_file_exists(&self, filename: &str) -> bool {
+        let loader = self.config_loader.clone();
+        let filename = filename.to_string();
+        tokio::task::spawn_blocking(move || loader.service_file_exists(&filename))
+            .await
+            .unwrap_or(false)
     }
 }

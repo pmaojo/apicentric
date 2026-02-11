@@ -79,6 +79,26 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
         let summary = summarize(files.len(), errors);
         Ok(LoadResult { services, summary })
     }
+
+    /// Save a service definition file.
+    pub fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        self.repository.save_service_file(filename, content)
+    }
+
+    /// Delete a service definition file.
+    pub fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        self.repository.delete_service_file(filename)
+    }
+
+    /// Read the raw content of a service definition file.
+    pub fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        self.repository.read_service_file(filename)
+    }
+
+    /// Check if a service file exists.
+    pub fn service_file_exists(&self, filename: &str) -> bool {
+        self.repository.service_file_exists(filename)
+    }
 }
 
 #[derive(Debug, Clone)]
