@@ -63,28 +63,41 @@ impl AdminServer {
     }
 }
 
-async fn handle_admin_request(
-    req: Request<hyper::body::Incoming>,
+async fn handle_admin_request<B>(
+    req: Request<B>,
     service_registry: Arc<RwLock<ServiceRegistry>>,
-) -> Response<Full<Bytes>> {
+) -> Response<Full<Bytes>>
+where
+    B: hyper::body::Body,
+{
     let admin_token = env::var("APICENTRIC_ADMIN_TOKEN").ok();
 
-    if let Some(admin_token) = admin_token {
-        let auth_header = req
-            .headers()
-            .get("Authorization")
-            .and_then(|h| h.to_str().ok());
+    match admin_token {
+        Some(token) => {
+            let auth_header = req
+                .headers()
+                .get("Authorization")
+                .and_then(|h| h.to_str().ok());
 
-        if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
-            let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));
-            *unauthorized.status_mut() = StatusCode::UNAUTHORIZED;
-            return unauthorized;
+            if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
+                let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));
+                *unauthorized.status_mut() = StatusCode::UNAUTHORIZED;
+                return unauthorized;
+            }
+
+            let provided_token = auth_header.unwrap().trim_start_matches("Bearer ");
+
+            if provided_token != token {
+                let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));
+                *forbidden.status_mut() = StatusCode::FORBIDDEN;
+                return forbidden;
+            }
         }
-
-        let token = auth_header.unwrap().trim_start_matches("Bearer ");
-
-        if token != admin_token {
-            let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));
+        None => {
+            // Fail secure: No token configured means no access
+            let mut forbidden = Response::new(Full::new(Bytes::from(
+                "Admin access disabled: APICENTRIC_ADMIN_TOKEN not configured",
+            )));
             *forbidden.status_mut() = StatusCode::FORBIDDEN;
             return forbidden;
         }
@@ -121,5 +134,126 @@ async fn handle_admin_request(
             *not_found.status_mut() = StatusCode::NOT_FOUND;
             not_found
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http_body_util::{BodyExt, Empty};
+    use hyper::Request;
+    use std::env;
+
+    // Helper to safely run test with env var modification
+    async fn run_with_env_var<F, Fut>(key: &str, value: Option<&str>, test: F)
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = ()>,
+    {
+        // Store original value
+        let original = env::var(key).ok();
+
+        // Set new value
+        match value {
+            Some(v) => env::set_var(key, v),
+            None => env::remove_var(key),
+        }
+
+        // Run test
+        test().await;
+
+        // Restore original value
+        match original {
+            Some(v) => env::set_var(key, v),
+            None => env::remove_var(key),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_admin_security_scenarios() {
+        // Run tests sequentially to avoid env var race conditions
+
+        // Scenario 1: No token configured -> Forbidden
+        run_with_env_var("APICENTRIC_ADMIN_TOKEN", None, || async {
+            // Setup registry (mock)
+            let registry = Arc::new(RwLock::new(ServiceRegistry::new(
+                crate::simulator::config::PortRange {
+                    start: 8000,
+                    end: 9000,
+                },
+                Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap()),
+                tokio::sync::broadcast::channel(100).0,
+            )));
+
+            let req = Request::builder()
+                .uri("/apicentric-admin/logs")
+                .body(
+                    Empty::<Bytes>::new()
+                        .map_err(|never| match never {})
+                        .boxed(),
+                )
+                .unwrap();
+
+            let response = handle_admin_request(req, registry).await;
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+            // Verify body message
+            let body_bytes = response.collect().await.unwrap().to_bytes();
+            let body_str = String::from_utf8(body_bytes.to_vec()).unwrap();
+            assert!(body_str.contains("APICENTRIC_ADMIN_TOKEN not configured"));
+        })
+        .await;
+
+        // Scenario 2: Wrong token -> Forbidden
+        run_with_env_var("APICENTRIC_ADMIN_TOKEN", Some("secret"), || async {
+            let registry = Arc::new(RwLock::new(ServiceRegistry::new(
+                crate::simulator::config::PortRange {
+                    start: 8000,
+                    end: 9000,
+                },
+                Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap()),
+                tokio::sync::broadcast::channel(100).0,
+            )));
+
+            let req = Request::builder()
+                .uri("/apicentric-admin/logs")
+                .header("Authorization", "Bearer wrong-secret")
+                .body(
+                    Empty::<Bytes>::new()
+                        .map_err(|never| match never {})
+                        .boxed(),
+                )
+                .unwrap();
+
+            let response = handle_admin_request(req, registry).await;
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        })
+        .await;
+
+        // Scenario 3: Correct token -> OK
+        run_with_env_var("APICENTRIC_ADMIN_TOKEN", Some("secret"), || async {
+            let registry = Arc::new(RwLock::new(ServiceRegistry::new(
+                crate::simulator::config::PortRange {
+                    start: 8000,
+                    end: 9000,
+                },
+                Arc::new(crate::storage::sqlite::SqliteStorage::init_db(":memory:").unwrap()),
+                tokio::sync::broadcast::channel(100).0,
+            )));
+
+            let req = Request::builder()
+                .uri("/apicentric-admin/logs")
+                .header("Authorization", "Bearer secret")
+                .body(
+                    Empty::<Bytes>::new()
+                        .map_err(|never| match never {})
+                        .boxed(),
+                )
+                .unwrap();
+
+            let response = handle_admin_request(req, registry).await;
+            assert_eq!(response.status(), StatusCode::OK);
+        })
+        .await;
     }
 }
