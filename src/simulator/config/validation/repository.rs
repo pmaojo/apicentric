@@ -1,5 +1,6 @@
 use super::super::ServiceDefinition;
 use crate::errors::{ApicentricError, ApicentricResult};
+use crate::utils::fs_utils::FileSystemUtils;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -7,6 +8,18 @@ use std::path::{Path, PathBuf};
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+
+    /// Save a service definition file
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<()>;
+
+    /// Delete a service definition file
+    fn delete_service_file(&self, filename: &str) -> ApicentricResult<()>;
+
+    /// Read the raw content of a service definition file
+    fn read_service_file(&self, filename: &str) -> ApicentricResult<String>;
+
+    /// Check if a service file exists
+    fn service_file_exists(&self, filename: &str) -> bool;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
@@ -90,6 +103,48 @@ impl ConfigRepository for ConfigFileLoader {
         })?;
 
         Ok(ServiceDefinition::from(unified))
+    }
+
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        let safe_name = Path::new(filename).file_name().ok_or_else(|| {
+            ApicentricError::validation_error("Invalid filename", Some("filename"), None::<String>)
+        })?;
+        let path = self.root.join(safe_name);
+        FileSystemUtils::safe_write_file(&path, content)
+    }
+
+    fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        let safe_name = Path::new(filename).file_name().ok_or_else(|| {
+            ApicentricError::validation_error("Invalid filename", Some("filename"), None::<String>)
+        })?;
+        let path = self.root.join(safe_name);
+
+        if !path.exists() {
+            return Err(ApicentricError::runtime_error(
+                format!("Service file not found: {}", filename),
+                None::<String>,
+            ));
+        }
+
+        fs::remove_file(&path).map_err(|e| {
+            ApicentricError::fs_error(format!("Failed to delete file: {}", e), None::<String>)
+        })
+    }
+
+    fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        let safe_name = Path::new(filename).file_name().ok_or_else(|| {
+            ApicentricError::validation_error("Invalid filename", Some("filename"), None::<String>)
+        })?;
+        let path = self.root.join(safe_name);
+        FileSystemUtils::safe_read_file(&path)
+    }
+
+    fn service_file_exists(&self, filename: &str) -> bool {
+        if let Some(safe_name) = Path::new(filename).file_name() {
+            self.root.join(safe_name).exists()
+        } else {
+            false
+        }
     }
 }
 
