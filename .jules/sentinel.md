@@ -27,3 +27,8 @@
 **Vulnerability:** The SSRF protection in `is_global` failed to handle IPv4-mapped IPv6 addresses (e.g., `::ffff:127.0.0.1`), allowing attackers to bypass IPv4 blocklists (like loopback) by using IPv6 syntax.
 **Learning:** Rust's `IpAddr::V6` checks do not automatically apply IPv4 constraints to mapped addresses. Attackers can often bypass filters by "encoding" their payload in a different format (like IPv6 mapped addresses) if the validator doesn't normalize it first.
 **Prevention:** Explicitly check for `ipv6.to_ipv4()` and recursively validate the underlying IPv4 address. Also ensure that `0.0.0.0/8` (Current Network) is blocked in IPv4, as some IPv6 compatible addresses map to it.
+
+## 2024-05-29 - CSV Injection in Log Exports
+**Vulnerability:** The `export_logs` handler generated CSV files by formatting strings directly without sanitization, allowing attackers to inject malicious formulas (Formula Injection) into the logs (e.g., via `User-Agent` or `path`).
+**Learning:** Text-based formats like CSV are deceptively simple. When opened by spreadsheet software (Excel, LibreOffice), fields starting with `=`, `+`, `-`, or `@` are executed as formulas, leading to data exfiltration or RCE on the admin's machine.
+**Prevention:** Implement a dedicated sanitizer for CSV exports that escapes delimiters/quotes AND neutralizes formulas by prepending a single quote (`'`) to dangerous prefixes. Avoid ad-hoc string formatting for CSV generation.
