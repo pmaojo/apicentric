@@ -7,4 +7,4 @@ pub use directory_scanner::DirectoryScanner;
 #[cfg(feature = "contract-testing")]
 pub use file_ops::{FileReader, TokioFileReader};
 pub use fs_utils::FileSystemUtils;
-pub use security::validate_ssrf_url;
+pub use security::{sanitize_csv_field, validate_ssrf_url};

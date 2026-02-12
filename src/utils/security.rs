@@ -40,6 +40,40 @@ pub async fn validate_ssrf_url(url_str: &str) -> Result<(Url, SocketAddr), Strin
     ))
 }
 
+/// Sanitizes a string for CSV export to prevent Formula Injection (CSV Injection).
+///
+/// This function:
+/// 1. Prepends a single quote (') if the field starts with =, +, -, or @ to prevent formula execution.
+/// 2. Wraps the field in double quotes if it contains commas, newlines, or double quotes.
+/// 3. Escapes internal double quotes by doubling them ("").
+pub fn sanitize_csv_field(field: &str) -> String {
+    let mut value = field.to_string();
+
+    // Prevent CSV Injection (Formula Injection)
+    if value.starts_with('=')
+        || value.starts_with('+')
+        || value.starts_with('-')
+        || value.starts_with('@')
+    {
+        value.insert(0, '\'');
+    }
+
+    // Check if we need to quote (if it contains delimiters or quotes)
+    // Note: We also check for the prepended quote from step 1
+    if value.contains(',')
+        || value.contains('"')
+        || value.contains('\n')
+        || value.contains('\r')
+    {
+        // Escape double quotes by doubling them
+        let escaped = value.replace('"', "\"\"");
+        // Wrap in double quotes
+        format!("\"{}\"", escaped)
+    } else {
+        value
+    }
+}
+
 /// Checks if an IP address is globally reachable (public).
 ///
 /// Returns `true` if the IP is public.
@@ -221,5 +255,31 @@ mod tests {
 
         // Mapped Public (::ffff:8.8.8.8) - Should be allowed
         assert!(is_global("::ffff:8.8.8.8".parse().unwrap()));
+    }
+
+    #[test]
+    fn test_sanitize_csv_field() {
+        // Normal text
+        assert_eq!(sanitize_csv_field("hello"), "hello");
+        assert_eq!(sanitize_csv_field("123"), "123");
+
+        // Text with commas
+        assert_eq!(sanitize_csv_field("hello,world"), "\"hello,world\"");
+
+        // Text with quotes
+        assert_eq!(sanitize_csv_field("hello\"world"), "\"hello\"\"world\"");
+
+        // Text with newlines
+        assert_eq!(sanitize_csv_field("hello\nworld"), "\"hello\nworld\"");
+
+        // CSV Injection attempts
+        assert_eq!(sanitize_csv_field("=cmd"), "'=cmd");
+        assert_eq!(sanitize_csv_field("+1+1"), "'+1+1");
+        assert_eq!(sanitize_csv_field("-1-1"), "'-1-1");
+        assert_eq!(sanitize_csv_field("@echo"), "'@echo");
+
+        // Injection with special chars (should be quoted AND escaped)
+        // =cmd,args -> '=cmd,args -> "'=cmd,args"
+        assert_eq!(sanitize_csv_field("=cmd,args"), "\"'=cmd,args\"");
     }
 }

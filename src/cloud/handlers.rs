@@ -734,9 +734,9 @@ pub async fn export_logs(
                 csv.push_str(&format!(
                     "{},{},{},{},{}\n",
                     log.timestamp.to_rfc3339(),
-                    log.service,
-                    log.method,
-                    log.path,
+                    crate::utils::sanitize_csv_field(&log.service),
+                    crate::utils::sanitize_csv_field(&log.method),
+                    crate::utils::sanitize_csv_field(&log.path),
                     log.status
                 ));
             }
