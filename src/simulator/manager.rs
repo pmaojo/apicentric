@@ -378,4 +378,24 @@ impl ApiSimulatorManager {
         }
         Ok(())
     }
+
+    /// Save a service file using the config loader (blocking operation wrapped in spawn_blocking)
+    pub async fn save_service_file(
+        &self,
+        filename: &str,
+        content: &str,
+    ) -> ApicentricResult<PathBuf> {
+        let loader = self.config_loader.clone();
+        let filename = filename.to_string();
+        let content = content.to_string();
+
+        tokio::task::spawn_blocking(move || loader.save_service_file(&filename, &content))
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to spawn blocking task: {}", e),
+                    None::<String>,
+                )
+            })?
+    }
 }

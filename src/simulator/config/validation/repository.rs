@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf>;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
@@ -91,6 +92,53 @@ impl ConfigRepository for ConfigFileLoader {
 
         Ok(ServiceDefinition::from(unified))
     }
+
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf> {
+        // Prevent path traversal by extracting the file name
+        let safe_filename = match Path::new(filename).file_name() {
+            Some(name) => match name.to_str() {
+                Some(s) => s,
+                None => {
+                    return Err(ApicentricError::validation_error(
+                        "Invalid filename encoding",
+                        None::<String>,
+                        None::<String>,
+                    ))
+                }
+            },
+            None => {
+                return Err(ApicentricError::validation_error(
+                    "Invalid filename",
+                    None::<String>,
+                    None::<String>,
+                ))
+            }
+        };
+
+        // Ensure the services directory exists
+        if !self.root.exists() {
+            fs::create_dir_all(&self.root).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!(
+                        "Failed to create services directory {}: {}",
+                        self.root.display(),
+                        e
+                    ),
+                    Some("Check directory permissions"),
+                )
+            })?;
+        }
+
+        let path = self.root.join(safe_filename);
+        fs::write(&path, content).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write service file {}: {}", path.display(), e),
+                Some("Check file permissions"),
+            )
+        })?;
+
+        Ok(path)
+    }
 }
 
 #[cfg(test)]
@@ -140,5 +188,23 @@ endpoints:
         let loader = ConfigFileLoader::new(dir.clone());
         let err = loader.list_service_files().unwrap_err();
         assert!(format!("{}", err).contains("does not exist"));
+    }
+
+    #[test]
+    fn save_service_file_prevents_traversal() {
+        let dir = tempdir().unwrap();
+        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+
+        let content = "name: test";
+
+        // Attempt traversal
+        let result = loader.save_service_file("../../passwd", content);
+
+        // It should succeed but write to "passwd" in the services dir (flattened)
+        assert!(result.is_ok());
+        let path = result.unwrap();
+        assert_eq!(path, dir.path().join("passwd"));
+        assert!(path.exists());
+        assert_eq!(fs::read_to_string(path).unwrap(), content);
     }
 }
