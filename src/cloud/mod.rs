@@ -15,7 +15,6 @@ pub mod websocket;
 // New modules
 pub mod ai_handlers;
 pub mod codegen_handlers;
-pub mod fs_utils;
 pub mod marketplace_handlers;
 pub mod metrics_handlers;
 pub mod recording_handlers;
