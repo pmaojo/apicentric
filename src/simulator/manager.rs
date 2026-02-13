@@ -378,4 +378,51 @@ impl ApiSimulatorManager {
         }
         Ok(())
     }
+
+    /// Save a service definition file (async wrapper)
+    pub async fn save_service_file(
+        &self,
+        filename: String,
+        content: String,
+    ) -> ApicentricResult<()> {
+        let loader = self.config_loader.clone();
+        tokio::task::spawn_blocking(move || loader.save_service_file(&filename, &content))
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(format!("Task join error: {}", e), None::<String>)
+            })?
+    }
+
+    /// Read a service definition file (async wrapper)
+    pub async fn read_service_file(&self, filename: String) -> ApicentricResult<String> {
+        let loader = self.config_loader.clone();
+        tokio::task::spawn_blocking(move || loader.read_service_file(&filename))
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(format!("Task join error: {}", e), None::<String>)
+            })?
+    }
+
+    /// Delete a service definition file (async wrapper)
+    pub async fn delete_service_file(&self, filename: String) -> ApicentricResult<()> {
+        let loader = self.config_loader.clone();
+        tokio::task::spawn_blocking(move || loader.delete_service_file(&filename))
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(format!("Task join error: {}", e), None::<String>)
+            })?
+    }
+
+    /// Check if a service definition file exists (async wrapper)
+    pub async fn service_file_exists(&self, filename: String) -> bool {
+        let loader = self.config_loader.clone();
+        tokio::task::spawn_blocking(move || loader.service_file_exists(&filename))
+            .await
+            .unwrap_or(false)
+    }
+
+    /// Get the services directory path
+    pub fn get_services_dir(&self) -> PathBuf {
+        self.config_loader.get_services_dir()
+    }
 }

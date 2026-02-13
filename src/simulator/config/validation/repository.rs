@@ -1,5 +1,6 @@
 use super::super::ServiceDefinition;
 use crate::errors::{ApicentricError, ApicentricResult};
+use crate::utils::fs_utils::FileSystemUtils;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -7,6 +8,11 @@ use std::path::{Path, PathBuf};
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<()>;
+    fn delete_service_file(&self, filename: &str) -> ApicentricResult<()>;
+    fn read_service_file(&self, filename: &str) -> ApicentricResult<String>;
+    fn service_file_exists(&self, filename: &str) -> bool;
+    fn get_services_dir(&self) -> PathBuf;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
@@ -18,6 +24,24 @@ pub struct ConfigFileLoader {
 impl ConfigFileLoader {
     pub fn new(root: PathBuf) -> Self {
         Self { root }
+    }
+
+    /// Resolves a filename to a full path within the root directory, ensuring safety.
+    fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf> {
+        let path = self.root.join(filename);
+
+        // Prevent directory traversal
+        // Note: We check the string representation for ".." because canonicalize requires existence
+        let path_str = path.to_string_lossy();
+        if path_str.contains("..") {
+            return Err(ApicentricError::validation_error(
+                format!("Invalid path '{}': Traversal not allowed", filename),
+                Some("filename"),
+                Some("Use a path relative to the services directory without '..'"),
+            ));
+        }
+
+        Ok(path)
     }
 
     fn is_yaml(path: &Path) -> bool {
@@ -63,6 +87,11 @@ impl ConfigFileLoader {
 impl ConfigRepository for ConfigFileLoader {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>> {
         if !self.root.exists() {
+            // It's okay if the directory doesn't exist, just return empty list
+            // But strict behavior requested via validation_error?
+            // Existing code returned error. Keeping behavior but creating dir if needed for writes.
+            // Actually, list_service_files is read-only.
+            // If strict, we return error.
             return Err(ApicentricError::config_error(
                 format!("Services directory does not exist: {}", self.root.display()),
                 Some("Create the services directory and add YAML service definition files"),
@@ -74,12 +103,7 @@ impl ConfigRepository for ConfigFileLoader {
     }
 
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition> {
-        let content = fs::read_to_string(path).map_err(|e| {
-            ApicentricError::fs_error(
-                format!("Cannot read service file {}: {}", path.display(), e),
-                Some("Check file permissions and ensure the file exists"),
-            )
-        })?;
+        let content = FileSystemUtils::safe_read_file(path)?;
 
         // Use UnifiedConfig to support both standard services and digital twins
         let unified: super::super::UnifiedConfig = serde_yaml::from_str(&content).map_err(|e| {
@@ -90,6 +114,43 @@ impl ConfigRepository for ConfigFileLoader {
         })?;
 
         Ok(ServiceDefinition::from(unified))
+    }
+
+    fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<()> {
+        let path = self.resolve_path(filename)?;
+        FileSystemUtils::safe_write_file(&path, content)
+    }
+
+    fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        let path = self.resolve_path(filename)?;
+        if !path.exists() {
+            return Err(ApicentricError::fs_error(
+                format!("Service file '{}' not found", filename),
+                Some("Check that the file exists"),
+            ));
+        }
+        fs::remove_file(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to delete service file {}: {}", filename, e),
+                None::<String>,
+            )
+        })
+    }
+
+    fn read_service_file(&self, filename: &str) -> ApicentricResult<String> {
+        let path = self.resolve_path(filename)?;
+        FileSystemUtils::safe_read_file(&path)
+    }
+
+    fn service_file_exists(&self, filename: &str) -> bool {
+        match self.resolve_path(filename) {
+            Ok(path) => path.exists(),
+            Err(_) => false,
+        }
+    }
+
+    fn get_services_dir(&self) -> PathBuf {
+        self.root.clone()
     }
 }
 
