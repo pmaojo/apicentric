@@ -30,6 +30,10 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
         Self { repository }
     }
 
+    pub fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf> {
+        self.repository.save_service_file(filename, content)
+    }
+
     pub fn load_all_services(&self) -> ApicentricResult<Vec<ServiceDefinition>> {
         let result = self.load_all_services_with_summary()?;
         if result.services.is_empty() {
