@@ -25,19 +25,31 @@ pub async fn validate_ssrf_url(url_str: &str) -> Result<(Url, SocketAddr), Strin
         .await
         .map_err(|e| format!("Failed to resolve host '{}': {}", host, e))?;
 
+    // Check if private networks are allowed (e.g. for testing)
+    let allow_private = std::env::var("APICENTRIC_ALLOW_PRIVATE_NETWORKS")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false);
+
     // Check all resolved addresses
+    let mut valid_addrs = Vec::new();
     for addr in addrs {
         let ip = addr.ip();
-        if is_global(ip) {
-            // Found a valid public IP
-            return Ok((url, addr));
+        if is_global(ip) || allow_private {
+            valid_addrs.push(addr);
         }
     }
 
-    Err(format!(
-        "Host '{}' resolves to a private, loopback, or invalid IP address",
-        host
-    ))
+    if valid_addrs.is_empty() {
+        return Err(format!(
+            "Host '{}' resolves to a private, loopback, or invalid IP address",
+            host
+        ));
+    }
+
+    // Prefer IPv4 to avoid connectivity issues (e.g. if IPv6 is available but service listens on IPv4)
+    valid_addrs.sort_by_key(|addr| if addr.is_ipv4() { 0 } else { 1 });
+
+    Ok((url, valid_addrs[0]))
 }
 
 /// Sanitizes a string for CSV export to prevent Formula Injection (CSV Injection).

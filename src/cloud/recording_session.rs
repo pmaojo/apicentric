@@ -14,7 +14,9 @@ use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::{
     EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, ResponseDefinition,
 };
+use crate::utils::validate_ssrf_url;
 use hyper::{HeaderMap, Method};
+use url::Url;
 
 /// A recording session that captures HTTP traffic.
 pub struct RecordingSession {
@@ -58,6 +60,11 @@ impl RecordingSessionManager {
         target_url: String,
         port: u16,
     ) -> ApicentricResult<(String, String, u16)> {
+        // Validate target URL for SSRF protection
+        let (parsed_url, target_addr) = validate_ssrf_url(&target_url).await.map_err(|e| {
+            ApicentricError::runtime_error(format!("Invalid target URL: {}", e), None::<String>)
+        })?;
+
         // Check if there's already an active session
         let mut session_lock = self.active_session.write().await;
         if session_lock.is_some() {
@@ -77,12 +84,17 @@ impl RecordingSessionManager {
 
         // Clone for the task
         let endpoints_clone = endpoints.clone();
-        let target_url_clone = target_url.clone();
 
         // Start the proxy task
         let task_handle = tokio::spawn(async move {
-            if let Err(e) =
-                run_recording_proxy(target_url_clone, port, endpoints_clone, &mut shutdown_rx).await
+            if let Err(e) = run_recording_proxy(
+                parsed_url,
+                target_addr,
+                port,
+                endpoints_clone,
+                &mut shutdown_rx,
+            )
+            .await
             {
                 eprintln!("Recording proxy error: {}", e);
             }
@@ -162,7 +174,8 @@ impl RecordingSessionManager {
 
 /// Runs the recording proxy server.
 async fn run_recording_proxy(
-    target: String,
+    target_url: Url,
+    target_addr: SocketAddr,
     port: u16,
     endpoints: Arc<Mutex<HashMap<(String, String), EndpointDefinition>>>,
     shutdown_rx: &mut tokio::sync::mpsc::Receiver<()>,
@@ -194,7 +207,7 @@ async fn run_recording_proxy(
 
     println!(
         "🔴 Recording proxy listening on http://{} forwarding to {}",
-        addr, target
+        addr, target_url
     );
 
     loop {
@@ -209,13 +222,13 @@ async fn run_recording_proxy(
 
                 let io = TokioIo::new(stream);
                 let client = client.clone();
-                let target = target.clone();
+                let target_url = target_url.clone();
                 let endpoints = endpoints.clone();
 
                 tokio::spawn(async move {
                     let service = service_fn(move |req: Request<Incoming>| {
                         let client = client.clone();
-                        let target = target.clone();
+                        let target_url = target_url.clone();
                         let endpoints = endpoints.clone();
 
                         async move {
@@ -238,14 +251,38 @@ async fn run_recording_proxy(
                                 }
                             };
 
-                            let uri: Uri = format!("{}{}", target, path_and_query)
+                            // Construct URI using the resolved IP address to prevent DNS rebinding
+                            let scheme = target_url.scheme();
+                            let ip = target_addr.ip();
+                            let port = target_addr.port();
+                            let host_header = target_url
+                                .host_str()
+                                .expect("Host missing")
                                 .parse()
-                                .unwrap();
+                                .expect("Invalid host header");
+
+                            // Use IP address in the URI
+                            // Format: http://1.2.3.4:8080/path?query
+                            // If IPv6, ensure it's wrapped in brackets
+                            let ip_str = if ip.is_ipv6() {
+                                format!("[{}]", ip)
+                            } else {
+                                ip.to_string()
+                            };
+
+                            let uri: Uri =
+                                format!("{}://{}:{}{}", scheme, ip_str, port, path_and_query)
+                                    .parse()
+                                    .expect("Failed to parse URI");
 
                             let mut fwd_req = Request::new(Full::from(req_body.clone()));
                             *fwd_req.method_mut() = method.clone();
                             *fwd_req.uri_mut() = uri;
                             *fwd_req.headers_mut() = headers.clone();
+
+                            // Set the Host header to the original hostname
+                            // This ensures the server sees the correct hostname (important for vhosting)
+                            fwd_req.headers_mut().insert(hyper::header::HOST, host_header);
 
                             let resp = match client.request(fwd_req).await {
                                 Ok(r) => r,
