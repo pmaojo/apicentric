@@ -7,6 +7,21 @@ use std::path::{Path, PathBuf};
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+
+    /// Get the root directory where services are stored
+    fn get_services_dir(&self) -> PathBuf;
+
+    /// Resolve a filename to a safe path within the services directory
+    fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf>;
+
+    /// Check if a service file exists
+    fn service_exists(&self, filename: &str) -> bool;
+
+    /// Save a service definition to a file
+    fn save_service(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf>;
+
+    /// Delete a service file
+    fn delete_service(&self, filename: &str) -> ApicentricResult<()>;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
@@ -91,6 +106,76 @@ impl ConfigRepository for ConfigFileLoader {
 
         Ok(ServiceDefinition::from(unified))
     }
+
+    fn get_services_dir(&self) -> PathBuf {
+        self.root.clone()
+    }
+
+    fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf> {
+        let name = Path::new(filename)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| {
+                ApicentricError::validation_error(
+                    format!("Invalid filename: {}", filename),
+                    Some("filename"),
+                    Some("Filename must contain valid characters"),
+                )
+            })?;
+
+        Ok(self.root.join(name))
+    }
+
+    fn service_exists(&self, filename: &str) -> bool {
+        if let Ok(path) = self.resolve_path(filename) {
+            path.exists()
+        } else {
+            false
+        }
+    }
+
+    fn save_service(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf> {
+        let path = self.resolve_path(filename)?;
+
+        // Ensure directory exists
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!("Cannot create services directory: {}", e),
+                    Some("Check permissions for the services directory"),
+                )
+            })?;
+        }
+
+        fs::write(&path, content).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Cannot write service file {}: {}", path.display(), e),
+                Some("Check write permissions for the services directory"),
+            )
+        })?;
+
+        Ok(path)
+    }
+
+    fn delete_service(&self, filename: &str) -> ApicentricResult<()> {
+        let path = self.resolve_path(filename)?;
+
+        if !path.exists() {
+            return Err(ApicentricError::runtime_error(
+                format!("Service file not found: {}", path.display()),
+                Some("Check that the service file exists"),
+            ));
+        }
+
+        fs::remove_file(&path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Cannot delete service file {}: {}", path.display(), e),
+                Some("Check write permissions for the services directory"),
+            )
+        })?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -140,5 +225,42 @@ endpoints:
         let loader = ConfigFileLoader::new(dir.clone());
         let err = loader.list_service_files().unwrap_err();
         assert!(format!("{}", err).contains("does not exist"));
+    }
+
+    #[test]
+    fn resolve_path_prevents_traversal() {
+        let dir = tempdir().unwrap();
+        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+
+        // Normal case
+        let path = loader.resolve_path("test.yaml").unwrap();
+        assert_eq!(path, dir.path().join("test.yaml"));
+
+        // Traversal attempt
+        let path = loader.resolve_path("../../etc/passwd").unwrap();
+        // Should resolve to flattened filename in the root dir
+        assert_eq!(path, dir.path().join("passwd"));
+
+        // Subdirectory attempt
+        let path = loader.resolve_path("subdir/test.yaml").unwrap();
+        assert_eq!(path, dir.path().join("test.yaml"));
+    }
+
+    #[test]
+    fn save_and_delete_service() {
+        let dir = tempdir().unwrap();
+        let loader = ConfigFileLoader::new(dir.path().to_path_buf());
+        let filename = "new-service.yaml";
+        let content = "name: new-service";
+
+        // Save
+        let path = loader.save_service(filename, content).unwrap();
+        assert!(path.exists());
+        assert!(loader.service_exists(filename));
+
+        // Delete
+        loader.delete_service(filename).unwrap();
+        assert!(!path.exists());
+        assert!(!loader.service_exists(filename));
     }
 }

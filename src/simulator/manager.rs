@@ -378,4 +378,24 @@ impl ApiSimulatorManager {
         }
         Ok(())
     }
+
+    /// Save a service file safely
+    pub fn save_service_file(&self, filename: &str, content: &str) -> ApicentricResult<PathBuf> {
+        self.config_loader.save_service(filename, content)
+    }
+
+    /// Delete a service file safely
+    pub fn delete_service_file(&self, filename: &str) -> ApicentricResult<()> {
+        self.config_loader.delete_service(filename)
+    }
+
+    /// Check if a service file exists safely
+    pub fn service_file_exists(&self, filename: &str) -> bool {
+        self.config_loader.service_exists(filename)
+    }
+
+    /// Get the configured services directory
+    pub fn get_services_dir(&self) -> PathBuf {
+        self.config_loader.get_services_dir()
+    }
 }
