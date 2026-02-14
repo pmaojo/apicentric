@@ -62,6 +62,9 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
 
 #[tokio::test]
 async fn test_recording_start_stop_status() {
+    // Allow private networks for this test (localhost recording)
+    std::env::set_var("APICENTRIC_ALLOW_PRIVATE_NETWORKS", "true");
+
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
 
@@ -178,6 +181,9 @@ async fn test_recording_start_stop_status() {
 
 #[tokio::test]
 async fn test_recording_generate_service() {
+    // Allow private networks for this test (localhost recording)
+    std::env::set_var("APICENTRIC_ALLOW_PRIVATE_NETWORKS", "true");
+
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
 

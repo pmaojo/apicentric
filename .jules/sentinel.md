@@ -32,3 +32,8 @@
 **Vulnerability:** The `export_logs` handler generated CSV files by formatting strings directly without sanitization, allowing attackers to inject malicious formulas (Formula Injection) into the logs (e.g., via `User-Agent` or `path`).
 **Learning:** Text-based formats like CSV are deceptively simple. When opened by spreadsheet software (Excel, LibreOffice), fields starting with `=`, `+`, `-`, or `@` are executed as formulas, leading to data exfiltration or RCE on the admin's machine.
 **Prevention:** Implement a dedicated sanitizer for CSV exports that escapes delimiters/quotes AND neutralizes formulas by prepending a single quote (`'`) to dangerous prefixes. Avoid ad-hoc string formatting for CSV generation.
+
+## 2024-05-30 - SSRF and DNS Rebinding in Recording Proxy
+**Vulnerability:** The `RecordingSessionManager` allowed users to proxy requests to any URL without validation, enabling SSRF attacks against internal services. Additionally, it resolved DNS at connection time, making it vulnerable to DNS Rebinding (TOCTOU) attacks.
+**Learning:** Validating a URL string is insufficient for SSRF protection because DNS can change between validation and use (Time-of-Check Time-of-Use). Also, relying on the HTTP client's internal DNS resolution bypasses validation checks.
+**Prevention:** Resolve the domain to an IP address during validation, verify the IP is public/safe, and then "pin" the connection by using the resolved IP address in the request URI while manually setting the `Host` header to the original hostname.
