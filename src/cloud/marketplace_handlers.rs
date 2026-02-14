@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::cloud::error::{validation, ApiError, ApiErrorCode};
-use crate::cloud::fs_utils::resolve_safe_service_path;
 use crate::cloud::types::ApiResponse;
 use crate::simulator::marketplace::{get_marketplace_items, MarketplaceItem};
 use crate::simulator::{ApiSimulatorManager, ServiceDefinition, UnifiedConfig};
@@ -159,34 +158,15 @@ pub async fn import_from_url(
         }
     };
 
-    // Save to file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
+    let filename = format!("{}.yaml", definition.name);
 
-    // Use resolve_safe_service_path
-    let file_path =
-        match resolve_safe_service_path(&services_dir, &format!("{}.yaml", definition.name)) {
-            Ok(path) => path,
-            Err(e) => {
-                return Err(ApiError::internal_server_error(format!(
-                    "Invalid file path: {}",
-                    e
-                )))
-            }
-        };
-
-    // Create services directory if it doesn't exist
-    if let Err(e) = std::fs::create_dir_all(&services_dir) {
-        return Err(ApiError::internal_server_error(format!(
-            "Failed to create services directory: {}",
-            e
-        )));
-    }
-
-    match std::fs::write(&file_path, &yaml) {
+    match simulator.save_service_file(&filename, &yaml) {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition.clone()).await {
+                // Clean up the file if applying fails
+                let _ = simulator.delete_service_file(&filename);
+
                 let error_msg = e.to_string();
                 if error_msg.contains("already registered") {
                     return Err(ApiError::new(
