@@ -28,8 +28,15 @@ pub async fn validate_ssrf_url(url_str: &str) -> Result<(Url, SocketAddr), Strin
     // Check all resolved addresses
     for addr in addrs {
         let ip = addr.ip();
-        if is_global(ip) {
-            // Found a valid public IP
+
+        // Sentinel: Check for override env var to allow private IPs (useful for testing or on-prem)
+        // This is necessary because integration tests often run against localhost
+        let allow_private = std::env::var("APICENTRIC_ALLOW_PRIVATE_IPS")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
+
+        if allow_private || is_global(ip) {
+            // Found a valid public IP (or allowed private IP)
             return Ok((url, addr));
         }
     }
