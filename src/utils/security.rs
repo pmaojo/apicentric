@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::net::{IpAddr, SocketAddr};
 use url::Url;
 
@@ -46,32 +47,35 @@ pub async fn validate_ssrf_url(url_str: &str) -> Result<(Url, SocketAddr), Strin
 /// 1. Prepends a single quote (') if the field starts with =, +, -, or @ to prevent formula execution.
 /// 2. Wraps the field in double quotes if it contains commas, newlines, or double quotes.
 /// 3. Escapes internal double quotes by doubling them ("").
-pub fn sanitize_csv_field(field: &str) -> String {
-    let mut value = field.to_string();
+///
+/// Returns `Cow::Borrowed` if no changes are needed, otherwise `Cow::Owned`.
+pub fn sanitize_csv_field(field: &str) -> Cow<'_, str> {
+    let needs_quote_prefix = field.starts_with(['=', '+', '-', '@']);
+    let needs_wrapping = field.contains([',', '"', '\n', '\r']);
 
-    // Prevent CSV Injection (Formula Injection)
-    if value.starts_with('=')
-        || value.starts_with('+')
-        || value.starts_with('-')
-        || value.starts_with('@')
-    {
-        value.insert(0, '\'');
+    if !needs_quote_prefix && !needs_wrapping {
+        return Cow::Borrowed(field);
     }
 
-    // Check if we need to quote (if it contains delimiters or quotes)
-    // Note: We also check for the prepended quote from step 1
-    if value.contains(',')
-        || value.contains('"')
-        || value.contains('\n')
-        || value.contains('\r')
-    {
-        // Escape double quotes by doubling them
-        let escaped = value.replace('"', "\"\"");
-        // Wrap in double quotes
-        format!("\"{}\"", escaped)
+    let mut value = String::with_capacity(field.len() + 3);
+
+    if needs_wrapping {
+        value.push('"');
+    }
+
+    if needs_quote_prefix {
+        value.push('\'');
+    }
+
+    if needs_wrapping {
+        // Escape internal quotes
+        value.push_str(&field.replace('"', "\"\""));
+        value.push('"');
     } else {
-        value
+        value.push_str(field);
     }
+
+    Cow::Owned(value)
 }
 
 /// Checks if an IP address is globally reachable (public).
@@ -281,5 +285,23 @@ mod tests {
         // Injection with special chars (should be quoted AND escaped)
         // =cmd,args -> '=cmd,args -> "'=cmd,args"
         assert_eq!(sanitize_csv_field("=cmd,args"), "\"'=cmd,args\"");
+    }
+
+    #[test]
+    fn test_sanitize_csv_field_optimization() {
+        // Should be borrowed (no allocation)
+        if let Cow::Owned(_) = sanitize_csv_field("simple_string") {
+            panic!("Should be borrowed");
+        }
+
+        // Should be owned (allocation needed due to wrapping)
+        if let Cow::Borrowed(_) = sanitize_csv_field("complex,string") {
+            panic!("Should be owned (wrapping)");
+        }
+
+        // Should be owned (allocation needed due to prefix)
+        if let Cow::Borrowed(_) = sanitize_csv_field("=injection") {
+            panic!("Should be owned (prefix)");
+        }
     }
 }
