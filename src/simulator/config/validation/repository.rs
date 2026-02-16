@@ -7,6 +7,11 @@ use std::path::{Path, PathBuf};
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+    fn save_service(&self, path: &Path, content: &str) -> ApicentricResult<()>;
+    fn delete_service(&self, path: &Path) -> ApicentricResult<()>;
+    fn service_exists(&self, path: &Path) -> bool;
+    fn get_services_dir(&self) -> PathBuf;
+    fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf>;
 }
 
 /// Filesystem based implementation of `ConfigRepository`
@@ -90,6 +95,63 @@ impl ConfigRepository for ConfigFileLoader {
         })?;
 
         Ok(ServiceDefinition::from(unified))
+    }
+
+    fn save_service(&self, path: &Path, content: &str) -> ApicentricResult<()> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                ApicentricError::fs_error(
+                    format!("Failed to create directory {}: {}", parent.display(), e),
+                    Some("Check directory permissions"),
+                )
+            })?;
+        }
+
+        fs::write(path, content).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to write service file {}: {}", path.display(), e),
+                Some("Check file permissions and disk space"),
+            )
+        })
+    }
+
+    fn delete_service(&self, path: &Path) -> ApicentricResult<()> {
+        fs::remove_file(path).map_err(|e| {
+            ApicentricError::fs_error(
+                format!("Failed to delete service file {}: {}", path.display(), e),
+                Some("Check file permissions and ensure the file exists"),
+            )
+        })
+    }
+
+    fn service_exists(&self, path: &Path) -> bool {
+        path.exists()
+    }
+
+    fn get_services_dir(&self) -> PathBuf {
+        self.root.clone()
+    }
+
+    fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf> {
+        let name = Path::new(filename)
+            .file_name()
+            .ok_or_else(|| {
+                ApicentricError::validation_error(
+                    "Invalid path: no filename",
+                    Some("filename"),
+                    Some("Provide a valid filename"),
+                )
+            })?
+            .to_str()
+            .ok_or_else(|| {
+                ApicentricError::validation_error(
+                    "Invalid filename encoding",
+                    Some("filename"),
+                    None::<String>,
+                )
+            })?;
+
+        Ok(self.root.join(name))
     }
 }
 

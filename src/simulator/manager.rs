@@ -378,4 +378,29 @@ impl ApiSimulatorManager {
         }
         Ok(())
     }
+
+    /// Save a service definition to a file
+    pub fn save_service_file(&self, path: &std::path::Path, content: &str) -> ApicentricResult<()> {
+        self.config_loader.save_service(path, content)
+    }
+
+    /// Delete a service definition file
+    pub fn delete_service_file(&self, path: &std::path::Path) -> ApicentricResult<()> {
+        self.config_loader.delete_service(path)
+    }
+
+    /// Check if a service definition file exists
+    pub fn service_file_exists(&self, path: &std::path::Path) -> bool {
+        self.config_loader.service_exists(path)
+    }
+
+    /// Get the configured services directory
+    pub fn get_services_dir(&self) -> PathBuf {
+        self.config_loader.get_services_dir()
+    }
+
+    /// Resolve a filename to a safe path within the services directory
+    pub fn resolve_service_path(&self, filename: &str) -> ApicentricResult<PathBuf> {
+        self.config_loader.resolve_path(filename)
+    }
 }

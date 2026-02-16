@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::cloud::error::validation;
-use crate::cloud::fs_utils::resolve_safe_service_path;
 use crate::cloud::recording_session::RecordingSessionManager;
 use crate::cloud::types::ApiResponse;
 use crate::simulator::config::{EndpointDefinition, ServerConfig};
@@ -211,40 +210,28 @@ pub async fn generate_service_from_recording(
         }
     };
 
-    // Save the service file
-    let services_dir =
-        std::env::var("APICENTRIC_SERVICES_DIR").unwrap_or_else(|_| "services".to_string());
-
-    // Use the safe path resolver
-    let file_path =
-        match resolve_safe_service_path(&services_dir, &format!("{}.yaml", request.service_name)) {
-            Ok(path) => path,
-            Err(e) => return Ok(Json(ApiResponse::error(e))),
-        };
+    // Resolve safe path using simulator
+    let file_path = match simulator.resolve_service_path(&format!("{}.yaml", request.service_name))
+    {
+        Ok(path) => path,
+        Err(e) => return Ok(Json(ApiResponse::error(e.to_string()))),
+    };
 
     // Check if file already exists
-    if file_path.exists() {
+    if simulator.service_file_exists(&file_path) {
         return Ok(Json(ApiResponse::error(format!(
             "Service file '{}' already exists",
             request.service_name
         ))));
     }
 
-    // Create services directory if it doesn't exist
-    if let Err(e) = std::fs::create_dir_all(&services_dir) {
-        return Ok(Json(ApiResponse::error(format!(
-            "Failed to create services directory: {}",
-            e
-        ))));
-    }
-
     // Write the service definition to file
-    match std::fs::write(&file_path, &yaml) {
+    match simulator.save_service_file(&file_path, &yaml) {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(service_def).await {
                 // Clean up the file if applying fails
-                let _ = std::fs::remove_file(&file_path);
+                let _ = simulator.delete_service_file(&file_path);
                 return Ok(Json(ApiResponse::error(format!(
                     "Failed to apply service: {}",
                     e

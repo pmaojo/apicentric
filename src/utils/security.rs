@@ -60,11 +60,7 @@ pub fn sanitize_csv_field(field: &str) -> String {
 
     // Check if we need to quote (if it contains delimiters or quotes)
     // Note: We also check for the prepended quote from step 1
-    if value.contains(',')
-        || value.contains('"')
-        || value.contains('\n')
-        || value.contains('\r')
-    {
+    if value.contains([',', '"', '\n', '\r']) {
         // Escape double quotes by doubling them
         let escaped = value.replace('"', "\"\"");
         // Wrap in double quotes
