@@ -98,7 +98,29 @@ impl ConfigRepository for ConfigFileLoader {
     }
 
     fn save_service(&self, path: &Path, content: &str) -> ApicentricResult<()> {
-        if let Some(parent) = path.parent() {
+        // Derive a safe filename from the provided path, ignoring any directory components.
+        let name = path
+            .file_name()
+            .ok_or_else(|| {
+                ApicentricError::validation_error(
+                    "Invalid path: no filename",
+                    Some("path"),
+                    Some("Provide a valid filename"),
+                )
+            })?
+            .to_str()
+            .ok_or_else(|| {
+                ApicentricError::validation_error(
+                    "Invalid filename encoding",
+                    Some("path"),
+                    None::<String>,
+                )
+            })?;
+
+        // Always write within the configured services root directory.
+        let safe_path = self.root.join(name);
+
+        if let Some(parent) = safe_path.parent() {
             fs::create_dir_all(parent).map_err(|e| {
                 ApicentricError::fs_error(
                     format!("Failed to create directory {}: {}", parent.display(), e),
@@ -107,9 +129,9 @@ impl ConfigRepository for ConfigFileLoader {
             })?;
         }
 
-        fs::write(path, content).map_err(|e| {
+        fs::write(&safe_path, content).map_err(|e| {
             ApicentricError::fs_error(
-                format!("Failed to write service file {}: {}", path.display(), e),
+                format!("Failed to write service file {}: {}", safe_path.display(), e),
                 Some("Check file permissions and disk space"),
             )
         })
