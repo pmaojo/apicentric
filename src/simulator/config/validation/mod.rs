@@ -41,6 +41,26 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
         Ok(result.services)
     }
 
+    pub fn save_service(&self, path: &std::path::Path, content: &str) -> ApicentricResult<()> {
+        self.repository.save_service(path, content)
+    }
+
+    pub fn delete_service(&self, path: &std::path::Path) -> ApicentricResult<()> {
+        self.repository.delete_service(path)
+    }
+
+    pub fn service_exists(&self, path: &std::path::Path) -> bool {
+        self.repository.service_exists(path)
+    }
+
+    pub fn get_services_dir(&self) -> PathBuf {
+        self.repository.get_services_dir()
+    }
+
+    pub fn resolve_path(&self, filename: &str) -> ApicentricResult<PathBuf> {
+        self.repository.resolve_path(filename)
+    }
+
     pub fn load_all_services_with_summary(&self) -> ApicentricResult<LoadResult> {
         let files = self.repository.list_service_files()?;
         let mut services = Vec::new();
