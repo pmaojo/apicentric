@@ -47,6 +47,24 @@ impl ConfigFileLoader {
                     None::<String>,
                 )
             })?;
+
+            // Sentinel: Security check - skip symlinks to prevent directory traversal
+            // We use file_type() to check the entry itself without following the link
+            let file_type = entry.file_type().map_err(|e| {
+                ApicentricError::fs_error(
+                    format!(
+                        "Failed to get file type for entry in {}: {}",
+                        dir.display(),
+                        e
+                    ),
+                    None::<String>,
+                )
+            })?;
+
+            if file_type.is_symlink() {
+                continue;
+            }
+
             let path = entry.path();
             if path.is_dir() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -131,7 +149,11 @@ impl ConfigRepository for ConfigFileLoader {
 
         fs::write(&safe_path, content).map_err(|e| {
             ApicentricError::fs_error(
-                format!("Failed to write service file {}: {}", safe_path.display(), e),
+                format!(
+                    "Failed to write service file {}: {}",
+                    safe_path.display(),
+                    e
+                ),
                 Some("Check file permissions and disk space"),
             )
         })

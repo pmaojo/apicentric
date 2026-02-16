@@ -32,3 +32,8 @@
 **Vulnerability:** The `export_logs` handler generated CSV files by formatting strings directly without sanitization, allowing attackers to inject malicious formulas (Formula Injection) into the logs (e.g., via `User-Agent` or `path`).
 **Learning:** Text-based formats like CSV are deceptively simple. When opened by spreadsheet software (Excel, LibreOffice), fields starting with `=`, `+`, `-`, or `@` are executed as formulas, leading to data exfiltration or RCE on the admin's machine.
 **Prevention:** Implement a dedicated sanitizer for CSV exports that escapes delimiters/quotes AND neutralizes formulas by prepending a single quote (`'`) to dangerous prefixes. Avoid ad-hoc string formatting for CSV generation.
+
+## 2024-05-30 - Directory Traversal via Symlinks in Service Discovery
+**Vulnerability:** `ConfigFileLoader::list_service_files` recursively traversed directories without checking for symbolic links. An attacker (or misconfiguration) could place a symlink in the services directory pointing to sensitive system locations, exposing files outside the intended scope.
+**Learning:** `std::fs::read_dir` combined with recursive logic blindly follows symlinks when entering directories. Checking `path.is_dir()` is insufficient as it returns true for symlinked directories.
+**Prevention:** Explicitly check `entry.file_type().is_symlink()` during recursive file scanning and skip symlinks to enforce a strict directory boundary.

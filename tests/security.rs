@@ -22,7 +22,10 @@ async fn test_path_traversal_prevention() {
     let config = SimulatorConfig::new(
         false,
         services_dir.clone(),
-        PortRange { start: 8000, end: 9000 },
+        PortRange {
+            start: 8000,
+            end: 9000,
+        },
     );
     let manager = Arc::new(ApiSimulatorManager::new(config));
 
