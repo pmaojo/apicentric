@@ -2,10 +2,13 @@
 //!
 //! This module provides a cloud API for managing services.
 
-pub mod api;
+pub mod config_handlers;
 pub mod cors;
 pub mod error;
-pub mod handlers;
+pub mod legacy_handlers;
+pub mod log_handlers;
+pub mod service_handlers;
+
 pub mod iot_handlers;
 pub mod monitoring;
 pub mod recording_session;
