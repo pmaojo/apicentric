@@ -1,9 +1,7 @@
-//! Axum handlers for the cloud API.
-//!
-//! This module provides handlers for listing, loading, and saving services.
+//! Axum handlers for service management.
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
     response::Json,
 };
@@ -12,7 +10,6 @@ use std::sync::Arc;
 
 use crate::cloud::error::{validation, ApiError, ApiErrorCode, ErrorResponse};
 use crate::cloud::types::ApiResponse;
-use crate::simulator::log::RequestLogEntry;
 use crate::simulator::{ApiSimulatorManager, ServiceDefinition, ServiceInfo, UnifiedConfig};
 
 /// A request to load a service.
@@ -54,28 +51,26 @@ pub struct UpdateServiceRequest {
     pub yaml: String,
 }
 
-/// A query for logs.
-#[derive(Deserialize)]
-pub struct LogsQuery {
-    /// The maximum number of logs to return.
-    pub limit: Option<usize>,
-    /// Filter by service name.
-    pub service: Option<String>,
-    /// Filter by HTTP method.
-    pub method: Option<String>,
-    /// Filter by status code.
-    pub status: Option<u16>,
-    /// Filter by route/path.
-    pub route: Option<String>,
+/// Service status response.
+#[derive(Serialize)]
+pub struct ServiceStatusResponse {
+    /// The name of the service.
+    pub name: String,
+    /// Whether the service is running.
+    pub is_running: bool,
+    /// The port the service is running on.
+    pub port: Option<u16>,
+    /// The number of endpoints.
+    pub endpoint_count: usize,
 }
 
-/// Export format for logs.
-#[derive(Deserialize)]
-pub struct LogsExportQuery {
-    /// Export format (json or csv).
-    pub format: Option<String>,
-    /// Maximum number of logs to export.
-    pub limit: Option<usize>,
+/// Detailed service response with full definition.
+#[derive(Serialize)]
+pub struct ServiceDetailResponse {
+    /// The service information.
+    pub info: ServiceInfo,
+    /// The YAML definition.
+    pub yaml: String,
 }
 
 /// Lists all active services.
@@ -239,19 +234,6 @@ pub async fn reload_services(
     }
 }
 
-/// Service status response.
-#[derive(Serialize)]
-pub struct ServiceStatusResponse {
-    /// The name of the service.
-    pub name: String,
-    /// Whether the service is running.
-    pub is_running: bool,
-    /// The port the service is running on.
-    pub port: Option<u16>,
-    /// The number of endpoints.
-    pub endpoint_count: usize,
-}
-
 /// Gets the detailed status of a specific service.
 ///
 /// # Arguments
@@ -289,15 +271,6 @@ pub async fn get_service_status(
     } else {
         Err(ErrorResponse::service_not_found(&name).into())
     }
-}
-
-/// Detailed service response with full definition.
-#[derive(Serialize)]
-pub struct ServiceDetailResponse {
-    /// The service information.
-    pub info: ServiceInfo,
-    /// The YAML definition.
-    pub yaml: String,
 }
 
 /// Gets the complete details of a specific service including its definition.
@@ -659,357 +632,4 @@ pub async fn delete_service(
             format!("Failed to delete service file: {}", e),
         )),
     }
-}
-
-/// Queries request logs with optional filtering.
-///
-/// # Arguments
-///
-/// * `query` - The query parameters for filtering logs.
-/// * `simulator` - The API simulator manager.
-#[axum::debug_handler]
-pub async fn query_logs(
-    Query(query): Query<LogsQuery>,
-    State(simulator): State<Arc<ApiSimulatorManager>>,
-) -> Result<Json<ApiResponse<Vec<RequestLogEntry>>>, StatusCode> {
-    let registry = simulator.service_registry().read().await;
-    let storage = registry.storage();
-
-    let limit = query.limit.unwrap_or(100).min(1000); // Cap at 1000 entries
-
-    let logs = storage
-        .query_logs(
-            query.service.as_deref(),
-            query.route.as_deref(),
-            query.method.as_deref(),
-            query.status,
-            limit,
-        )
-        .unwrap_or_default();
-
-    Ok(Json(ApiResponse::success(logs)))
-}
-
-/// Clears all request logs.
-///
-/// # Arguments
-///
-/// * `simulator` - The API simulator manager.
-#[axum::debug_handler]
-pub async fn clear_logs(
-    State(simulator): State<Arc<ApiSimulatorManager>>,
-) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let registry = simulator.service_registry().read().await;
-    let storage = registry.storage();
-
-    match storage.clear_logs() {
-        Ok(_) => Ok(Json(ApiResponse::success(
-            "Logs cleared successfully".to_string(),
-        ))),
-        Err(e) => Ok(Json(ApiResponse::error(format!(
-            "Failed to clear logs: {}",
-            e
-        )))),
-    }
-}
-
-/// Exports request logs in JSON or CSV format.
-///
-/// # Arguments
-///
-/// * `query` - The export query parameters.
-/// * `simulator` - The API simulator manager.
-#[axum::debug_handler]
-pub async fn export_logs(
-    Query(query): Query<LogsExportQuery>,
-    State(simulator): State<Arc<ApiSimulatorManager>>,
-) -> Result<axum::response::Response, StatusCode> {
-    let registry = simulator.service_registry().read().await;
-    let storage = registry.storage();
-
-    let limit = query.limit.unwrap_or(1000).min(10000); // Cap at 10000 for export
-    let logs = storage
-        .query_logs(None, None, None, None, limit)
-        .unwrap_or_default();
-
-    let format = query.format.as_deref().unwrap_or("json");
-
-    match format {
-        "csv" => {
-            // Generate CSV
-            let mut csv = String::from("timestamp,service,method,path,status\n");
-            for log in logs {
-                csv.push_str(&format!(
-                    "{},{},{},{},{}\n",
-                    log.timestamp.to_rfc3339(),
-                    crate::utils::sanitize_csv_field(&log.service),
-                    crate::utils::sanitize_csv_field(&log.method),
-                    crate::utils::sanitize_csv_field(&log.path),
-                    log.status
-                ));
-            }
-
-            Ok(axum::response::Response::builder()
-                .header("Content-Type", "text/csv")
-                .header("Content-Disposition", "attachment; filename=\"logs.csv\"")
-                .body(csv.into())
-                .unwrap())
-        }
-        _ => {
-            // Default to JSON
-            let json = serde_json::to_string_pretty(&logs).unwrap_or_default();
-
-            Ok(axum::response::Response::builder()
-                .header("Content-Type", "application/json")
-                .header("Content-Disposition", "attachment; filename=\"logs.json\"")
-                .body(json.into())
-                .unwrap())
-        }
-    }
-}
-
-/// Request to update configuration.
-#[derive(Deserialize)]
-pub struct UpdateConfigRequest {
-    /// The configuration as JSON.
-    pub config: serde_json::Value,
-}
-
-/// Response from configuration validation.
-#[derive(Serialize)]
-pub struct ValidateConfigResponse {
-    /// Whether the configuration is valid.
-    pub is_valid: bool,
-    /// Any validation errors found.
-    pub errors: Vec<String>,
-}
-
-/// Gets the current Apicentric configuration.
-#[axum::debug_handler]
-pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, StatusCode> {
-    use crate::config::load_config;
-    use std::path::Path;
-
-    let config_path =
-        std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
-
-    match load_config(Path::new(&config_path)) {
-        Ok(config) => {
-            // Convert to JSON for easier manipulation in the frontend
-            match serde_json::to_value(&config) {
-                Ok(json) => Ok(Json(ApiResponse::success(json))),
-                Err(e) => Ok(Json(ApiResponse::error(format!(
-                    "Failed to serialize configuration: {}",
-                    e
-                )))),
-            }
-        }
-        Err(e) => Ok(Json(ApiResponse::error(format!(
-            "Failed to load configuration: {}",
-            e
-        )))),
-    }
-}
-
-/// Updates the Apicentric configuration.
-///
-/// # Arguments
-///
-/// * `request` - The request containing the updated configuration.
-#[axum::debug_handler]
-pub async fn update_config(
-    Json(request): Json<UpdateConfigRequest>,
-) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    use crate::config::{save_config, ApicentricConfig};
-    use crate::validation::ConfigValidator;
-    use std::path::Path;
-
-    let config_path =
-        std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
-
-    // Parse the JSON into ApicentricConfig
-    let config: ApicentricConfig = match serde_json::from_value(request.config) {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            return Ok(Json(ApiResponse::error(format!(
-                "Invalid configuration format: {}",
-                e
-            ))));
-        }
-    };
-
-    // Validate the configuration
-    if let Err(validation_errors) = config.validate() {
-        let error_messages: Vec<String> = validation_errors
-            .iter()
-            .map(|e| format!("{}: {}", e.field, e.message))
-            .collect();
-        return Ok(Json(ApiResponse::error(format!(
-            "Configuration validation failed:\n{}",
-            error_messages.join("\n")
-        ))));
-    }
-
-    // Save the configuration
-    match save_config(&config, Path::new(&config_path)) {
-        Ok(_) => Ok(Json(ApiResponse::success(
-            "Configuration updated successfully".to_string(),
-        ))),
-        Err(e) => Ok(Json(ApiResponse::error(format!(
-            "Failed to save configuration: {}",
-            e
-        )))),
-    }
-}
-
-/// Validates a configuration without saving it.
-///
-/// # Arguments
-///
-/// * `request` - The request containing the configuration to validate.
-#[axum::debug_handler]
-pub async fn validate_config(
-    Json(request): Json<UpdateConfigRequest>,
-) -> Result<Json<ApiResponse<ValidateConfigResponse>>, StatusCode> {
-    use crate::config::ApicentricConfig;
-    use crate::validation::ConfigValidator;
-
-    // Parse the JSON into ApicentricConfig
-    let config: ApicentricConfig = match serde_json::from_value(request.config) {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            let response = ValidateConfigResponse {
-                is_valid: false,
-                errors: vec![format!("Invalid configuration format: {}", e)],
-            };
-            return Ok(Json(ApiResponse::success(response)));
-        }
-    };
-
-    // Validate the configuration
-    let errors = match config.validate() {
-        Ok(_) => Vec::new(),
-        Err(validation_errors) => validation_errors
-            .iter()
-            .map(|e| format!("{}: {}", e.field, e.message))
-            .collect(),
-    };
-
-    let response = ValidateConfigResponse {
-        is_valid: errors.is_empty(),
-        errors,
-    };
-
-    Ok(Json(ApiResponse::success(response)))
-}
-
-// ============================================================================
-// Legacy Simulator Status Endpoints (for backward compatibility with old frontend)
-// ============================================================================
-
-/// Response for the legacy /status endpoint
-#[derive(Serialize)]
-pub struct LegacySimulatorStatus {
-    pub active_services: Vec<LegacyServiceInfo>,
-    pub is_running: bool,
-}
-
-#[derive(Serialize)]
-pub struct LegacyServiceInfo {
-    pub name: String,
-    pub port: u16,
-    pub is_running: bool,
-    pub endpoints_count: usize,
-}
-
-/// Gets the simulator status (legacy endpoint for old frontend)
-///
-/// GET /status
-#[axum::debug_handler]
-pub async fn get_simulator_status(
-    State(simulator): State<Arc<ApiSimulatorManager>>,
-) -> Result<Json<ApiResponse<LegacySimulatorStatus>>, StatusCode> {
-    // Get simulator status
-    let status = simulator.get_status().await;
-
-    let active_services: Vec<LegacyServiceInfo> = status
-        .active_services
-        .into_iter()
-        .map(|s| LegacyServiceInfo {
-            name: s.name,
-            port: s.port,
-            is_running: s.is_running,
-            endpoints_count: s.endpoints_count,
-        })
-        .collect();
-
-    Ok(Json(ApiResponse::success(LegacySimulatorStatus {
-        active_services,
-        is_running: status.is_active,
-    })))
-}
-
-/// Starts the simulator (legacy endpoint)
-///
-/// POST /start
-#[axum::debug_handler]
-pub async fn start_simulator(
-    State(simulator): State<Arc<ApiSimulatorManager>>,
-) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match simulator.start().await {
-        Ok(_) => Ok(Json(ApiResponse::success(
-            "Simulator started successfully".to_string(),
-        ))),
-        Err(e) => {
-            log::error!("Failed to start simulator: {}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
-}
-
-/// Stops the simulator (legacy endpoint)
-///
-/// POST /stop
-#[axum::debug_handler]
-pub async fn stop_simulator(
-    State(simulator): State<Arc<ApiSimulatorManager>>,
-) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match simulator.stop().await {
-        Ok(_) => Ok(Json(ApiResponse::success(
-            "Simulator stopped successfully".to_string(),
-        ))),
-        Err(e) => {
-            log::error!("Failed to stop simulator: {}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
-}
-
-/// Validates a simulator configuration.
-#[axum::debug_handler]
-pub async fn validate_simulator(
-    Json(_request): Json<serde_json::Value>,
-) -> Result<Json<ApiResponse<serde_json::Value>>, StatusCode> {
-    // Basic validation stub for now - alignment with frontend /api/simulator/validate
-    Ok(Json(ApiResponse::success(serde_json::json!({
-        "valid": true,
-        "message": "Configuration is valid"
-    }))))
-}
-
-/// Runs contract tests for a service.
-#[axum::debug_handler]
-pub async fn run_contract_tests(
-    Json(_service): Json<serde_json::Value>,
-) -> Result<Json<ApiResponse<serde_json::Value>>, StatusCode> {
-    // Contract testing stub for now - alignment with frontend /api/contract-testing
-    Ok(Json(ApiResponse::success(serde_json::json!({
-        "success": true,
-        "results": [],
-        "summary": {
-            "passed": 0,
-            "failed": 0,
-            "total": 0
-        }
-    }))))
 }

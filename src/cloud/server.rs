@@ -15,11 +15,14 @@ use tower_http::services::ServeDir;
 
 use super::ai_handlers;
 use super::codegen_handlers;
-use super::handlers;
+use super::config_handlers;
 use super::iot_handlers;
+use super::legacy_handlers;
+use super::log_handlers;
 use super::marketplace_handlers;
 use super::metrics_handlers;
 use super::recording_handlers;
+use super::service_handlers;
 use crate::auth::jwt::JwtKeys;
 use crate::auth::repository::AuthRepository;
 use crate::auth::{handlers as auth_handlers, handlers::AuthState};
@@ -120,9 +123,9 @@ impl CloudServer {
             // Health check endpoint
             .route("/health", get(health_check))
             // Legacy simulator status endpoints (for backward compatibility)
-            .route("/status", get(handlers::get_simulator_status))
-            .route("/start", post(handlers::start_simulator))
-            .route("/stop", post(handlers::stop_simulator))
+            .route("/status", get(legacy_handlers::get_simulator_status))
+            .route("/start", post(legacy_handlers::start_simulator))
+            .route("/stop", post(legacy_handlers::stop_simulator))
             // Auth endpoints (public by nature)
             .route("/api/auth/register", post(auth_handlers::register))
             .route("/api/auth/login", post(auth_handlers::login));
@@ -138,11 +141,11 @@ impl CloudServer {
             // API routes
             .route(
                 "/api/services",
-                get(handlers::list_services).post(handlers::create_service),
+                get(service_handlers::list_services).post(service_handlers::create_service),
             )
             .route(
                 "/api/services/create-graphql",
-                post(handlers::create_graphql_service),
+                post(service_handlers::create_graphql_service),
             )
             // Marketplace and Import routes
             .route(
@@ -153,31 +156,40 @@ impl CloudServer {
                 "/api/import/url",
                 post(marketplace_handlers::import_from_url),
             )
-            .route("/api/services/load", post(handlers::load_service))
-            .route("/api/services/save", post(handlers::save_service))
-            .route("/api/services/reload", post(handlers::reload_services))
+            .route("/api/services/load", post(service_handlers::load_service))
+            .route("/api/services/save", post(service_handlers::save_service))
+            .route(
+                "/api/services/reload",
+                post(service_handlers::reload_services),
+            )
             .route(
                 "/api/services/:name",
-                get(handlers::get_service)
-                    .put(handlers::update_service)
-                    .delete(handlers::delete_service),
+                get(service_handlers::get_service)
+                    .put(service_handlers::update_service)
+                    .delete(service_handlers::delete_service),
             )
             .route(
                 "/api/services/:name/openapi",
-                get(handlers::get_service_openapi),
+                get(service_handlers::get_service_openapi),
             )
-            .route("/api/services/:name/start", post(handlers::start_service))
-            .route("/api/services/:name/stop", post(handlers::stop_service))
+            .route(
+                "/api/services/:name/start",
+                post(service_handlers::start_service),
+            )
+            .route(
+                "/api/services/:name/stop",
+                post(service_handlers::stop_service),
+            )
             .route(
                 "/api/services/:name/status",
-                get(handlers::get_service_status),
+                get(service_handlers::get_service_status),
             )
             // Log routes
             .route(
                 "/api/logs",
-                get(handlers::query_logs).delete(handlers::clear_logs),
+                get(log_handlers::query_logs).delete(log_handlers::clear_logs),
             )
-            .route("/api/logs/export", get(handlers::export_logs))
+            .route("/api/logs/export", get(log_handlers::export_logs))
             // Recording routes
             .route(
                 "/api/recording/start",
@@ -223,17 +235,23 @@ impl CloudServer {
             // Configuration management routes
             .route(
                 "/api/config",
-                get(handlers::get_config).put(handlers::update_config),
+                get(config_handlers::get_config).put(config_handlers::update_config),
             )
-            .route("/api/config/validate", post(handlers::validate_config))
+            .route(
+                "/api/config/validate",
+                post(config_handlers::validate_config),
+            )
             .route(
                 "/api/simulator/validate",
-                post(handlers::validate_simulator),
+                post(legacy_handlers::validate_simulator),
             )
             // Monitoring and metrics routes
             .route("/api/metrics", get(metrics_handlers::get_metrics))
             // Contract testing routes
-            .route("/api/contract-testing", post(handlers::run_contract_tests));
+            .route(
+                "/api/contract-testing",
+                post(legacy_handlers::run_contract_tests),
+            );
 
         // Apply authentication middleware to protected routes if enabled
         let protected_routes = if self.protect_services {

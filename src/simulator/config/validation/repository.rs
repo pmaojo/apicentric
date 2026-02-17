@@ -131,7 +131,11 @@ impl ConfigRepository for ConfigFileLoader {
 
         fs::write(&safe_path, content).map_err(|e| {
             ApicentricError::fs_error(
-                format!("Failed to write service file {}: {}", safe_path.display(), e),
+                format!(
+                    "Failed to write service file {}: {}",
+                    safe_path.display(),
+                    e
+                ),
                 Some("Check file permissions and disk space"),
             )
         })
