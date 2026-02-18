@@ -14,7 +14,9 @@ use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::config::{
     EndpointDefinition, EndpointKind, ParameterDefinition, ParameterLocation, ResponseDefinition,
 };
+use crate::utils::validate_ssrf_url;
 use hyper::{HeaderMap, Method};
+use reqwest::Url;
 
 /// A recording session that captures HTTP traffic.
 pub struct RecordingSession {
@@ -67,6 +69,11 @@ impl RecordingSessionManager {
             ));
         }
 
+        // Validate SSRF
+        let (url, addr) = validate_ssrf_url(&target_url).await.map_err(|e| {
+            ApicentricError::validation_error(e, Some("target_url"), None::<String>)
+        })?;
+
         let session_id = Uuid::new_v4().to_string();
         let proxy_url = format!("http://0.0.0.0:{}", port);
 
@@ -77,12 +84,18 @@ impl RecordingSessionManager {
 
         // Clone for the task
         let endpoints_clone = endpoints.clone();
-        let target_url_clone = target_url.clone();
+        let target_url_clone = url; // Use the parsed URL
 
         // Start the proxy task
         let task_handle = tokio::spawn(async move {
-            if let Err(e) =
-                run_recording_proxy(target_url_clone, port, endpoints_clone, &mut shutdown_rx).await
+            if let Err(e) = run_recording_proxy(
+                target_url_clone,
+                addr,
+                port,
+                endpoints_clone,
+                &mut shutdown_rx,
+            )
+            .await
             {
                 eprintln!("Recording proxy error: {}", e);
             }
@@ -162,7 +175,8 @@ impl RecordingSessionManager {
 
 /// Runs the recording proxy server.
 async fn run_recording_proxy(
-    target: String,
+    target_url: Url,
+    target_addr: SocketAddr,
     port: u16,
     endpoints: Arc<Mutex<HashMap<(String, String), EndpointDefinition>>>,
     shutdown_rx: &mut tokio::sync::mpsc::Receiver<()>,
@@ -172,18 +186,28 @@ async fn run_recording_proxy(
     use hyper::body::Incoming;
     use hyper::server::conn::http1;
     use hyper::service::service_fn;
-    use hyper::{Request, Response, Uri};
-    use hyper_util::client::legacy::connect::HttpConnector;
-    use hyper_util::client::legacy::Client;
-    use hyper_util::rt::{TokioExecutor, TokioIo};
+    use hyper::{Request, Response};
+    use hyper_util::rt::TokioIo;
     use std::convert::Infallible;
     use tokio::net::TcpListener;
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-    let connector = HttpConnector::new();
-    let client: Client<HttpConnector, Full<Bytes>> =
-        Client::builder(TokioExecutor::new()).build(connector);
+    let host = target_url
+        .host_str()
+        .ok_or_else(|| ApicentricError::runtime_error("Target URL has no host", None::<String>))?;
+
+    // Create reqwest client with pinned IP to prevent DNS rebinding
+    let client = reqwest::Client::builder()
+        .resolve(host, target_addr)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| {
+            ApicentricError::runtime_error(
+                format!("Failed to build proxy client: {}", e),
+                None::<String>,
+            )
+        })?;
 
     let listener = TcpListener::bind(addr).await.map_err(|e| {
         ApicentricError::runtime_error(
@@ -194,7 +218,7 @@ async fn run_recording_proxy(
 
     println!(
         "🔴 Recording proxy listening on http://{} forwarding to {}",
-        addr, target
+        addr, target_url
     );
 
     loop {
@@ -209,13 +233,13 @@ async fn run_recording_proxy(
 
                 let io = TokioIo::new(stream);
                 let client = client.clone();
-                let target = target.clone();
+                let target_url = target_url.clone();
                 let endpoints = endpoints.clone();
 
                 tokio::spawn(async move {
                     let service = service_fn(move |req: Request<Incoming>| {
                         let client = client.clone();
-                        let target = target.clone();
+                        let target_url = target_url.clone();
                         let endpoints = endpoints.clone();
 
                         async move {
@@ -238,16 +262,59 @@ async fn run_recording_proxy(
                                 }
                             };
 
-                            let uri: Uri = format!("{}{}", target, path_and_query)
-                                .parse()
-                                .unwrap();
+                            // Construct target URL using string formatting to preserve path behavior
+                            let base = target_url.to_string().trim_end_matches('/').to_string();
+                            let url_str = format!("{}{}", base, path_and_query);
+                            let url = match Url::parse(&url_str) {
+                                Ok(u) => u,
+                                Err(e) => {
+                                    let mut err_resp: Response<Full<Bytes>> =
+                                        Response::new(Full::from(Bytes::from(e.to_string())));
+                                    *err_resp.status_mut() = hyper::StatusCode::BAD_REQUEST;
+                                    return Ok::<_, Infallible>(err_resp);
+                                }
+                            };
 
-                            let mut fwd_req = Request::new(Full::from(req_body.clone()));
-                            *fwd_req.method_mut() = method.clone();
-                            *fwd_req.uri_mut() = uri;
-                            *fwd_req.headers_mut() = headers.clone();
+                            // Build request with reqwest
+                            // Note: reqwest 0.11 uses http 0.2, but we are using http 1.0 (via hyper 1.0)
+                            // So we need to convert types manually.
+                            let reqwest_method = match reqwest::Method::from_bytes(method.as_str().as_bytes()) {
+                                Ok(m) => m,
+                                Err(_) => {
+                                    let mut err_resp: Response<Full<Bytes>> =
+                                        Response::new(Full::from(Bytes::from("Invalid method")));
+                                    *err_resp.status_mut() = hyper::StatusCode::BAD_REQUEST;
+                                    return Ok::<_, Infallible>(err_resp);
+                                }
+                            };
 
-                            let resp = match client.request(fwd_req).await {
+                            let mut request_builder = client.request(reqwest_method, url);
+
+                            // Copy headers, excluding Host to allow reqwest to set it correctly
+                            for (key, value) in headers.iter() {
+                                if key.as_str().eq_ignore_ascii_case("host") {
+                                    continue;
+                                }
+
+                                // Convert http 1.0 headers to reqwest (http 0.2) headers
+                                let key_bytes = key.as_str().as_bytes();
+                                let reqwest_key = match reqwest::header::HeaderName::from_bytes(key_bytes) {
+                                    Ok(k) => k,
+                                    Err(_) => continue,
+                                };
+
+                                let value_bytes = value.as_bytes();
+                                let reqwest_value = match reqwest::header::HeaderValue::from_bytes(value_bytes) {
+                                    Ok(v) => v,
+                                    Err(_) => continue,
+                                };
+
+                                request_builder = request_builder.header(reqwest_key, reqwest_value);
+                            }
+
+                            request_builder = request_builder.body(req_body.clone());
+
+                            let resp = match request_builder.send().await {
                                 Ok(r) => r,
                                 Err(e) => {
                                     let mut err_resp = Response::new(Full::from(Bytes::from(e.to_string())));
@@ -256,9 +323,24 @@ async fn run_recording_proxy(
                                 }
                             };
 
-                            let (parts, body) = resp.into_parts();
-                            let resp_bytes = match BodyExt::collect(body).await {
-                                Ok(col) => col.to_bytes(),
+                            // Convert reqwest response back to hyper 1.0 types
+                            let status = hyper::StatusCode::from_u16(resp.status().as_u16()).unwrap_or(hyper::StatusCode::INTERNAL_SERVER_ERROR);
+
+                            let mut hyper_headers = hyper::HeaderMap::new();
+                            for (k, v) in resp.headers() {
+                                let key = match hyper::header::HeaderName::from_bytes(k.as_str().as_bytes()) {
+                                    Ok(k) => k,
+                                    Err(_) => continue,
+                                };
+                                let value = match hyper::header::HeaderValue::from_bytes(v.as_bytes()) {
+                                    Ok(v) => v,
+                                    Err(_) => continue,
+                                };
+                                hyper_headers.insert(key, value);
+                            }
+
+                            let resp_bytes = match resp.bytes().await {
+                                Ok(b) => b,
                                 Err(e) => {
                                     let mut err_resp: Response<Full<Bytes>> =
                                         Response::new(Full::from(Bytes::from(e.to_string())));
@@ -267,8 +349,7 @@ async fn run_recording_proxy(
                                 }
                             };
 
-                            let content_type = parts
-                                .headers
+                            let content_type = hyper_headers
                                 .get(hyper::header::CONTENT_TYPE)
                                 .and_then(|v| v.to_str().ok())
                                 .unwrap_or("application/json")
@@ -280,17 +361,17 @@ async fn run_recording_proxy(
                                     &mut map,
                                     &method,
                                     &path,
-                                    parts.status.as_u16(),
+                                    status.as_u16(),
                                     &content_type,
                                     String::from_utf8_lossy(&resp_bytes).into(),
-                                    &parts.headers,
+                                    &hyper_headers,
                                 );
                             }
 
                             let mut client_resp: Response<Full<Bytes>> =
                                 Response::new(Full::from(resp_bytes));
-                            *client_resp.status_mut() = parts.status;
-                            *client_resp.headers_mut() = parts.headers;
+                            *client_resp.status_mut() = status;
+                            *client_resp.headers_mut() = hyper_headers;
                             Ok::<_, Infallible>(client_resp)
                         }
                     });
