@@ -19,6 +19,39 @@ pub struct ApicentricConfig {
     pub simulator: Option<crate::simulator::config::SimulatorConfig>,
 }
 
+impl ApicentricConfig {
+    /// Mask string for sensitive fields
+    pub const REDACTED_MASK: &'static str = "********";
+
+    /// Redacts sensitive fields in the configuration for safe display.
+    pub fn redact_sensitive_fields(&mut self) {
+        if let Some(ai_config) = &mut self.ai {
+            if let Some(api_key) = &mut ai_config.api_key {
+                if !api_key.is_empty() && api_key != Self::REDACTED_MASK {
+                    *api_key = Self::REDACTED_MASK.to_string();
+                }
+            }
+        }
+    }
+
+    /// Merges sensitive fields from the current configuration if they are redacted in the update.
+    pub fn merge_with_current(&mut self, current: &ApicentricConfig) {
+        if let Some(ai_config) = &mut self.ai {
+            // Check if API key is redacted
+            let is_redacted = ai_config.api_key.as_deref() == Some(Self::REDACTED_MASK);
+
+            if is_redacted {
+                // Restore from current config if available
+                if let Some(current_ai) = &current.ai {
+                    if let Some(current_key) = &current_ai.api_key {
+                        ai_config.api_key = Some(current_key.clone());
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ============================================================================
 // AI Configuration
 // ============================================================================
