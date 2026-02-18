@@ -62,6 +62,11 @@ fn create_test_service_definition(name: &str, port: Option<u16>) -> ServiceDefin
 
 #[tokio::test]
 async fn test_recording_start_stop_status() {
+    // Allow private IPs for recording tests
+    unsafe {
+        std::env::set_var("APICENTRIC_ALLOW_PRIVATE_IPS", "true");
+    }
+
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
 
@@ -110,7 +115,7 @@ async fn test_recording_start_stop_status() {
 
     // Test 2: Start recording
     let start_req = serde_json::json!({
-        "target_url": "http://localhost:9876",
+        "target_url": "http://127.0.0.1:9876",
         "port": 9878
     });
 
@@ -178,6 +183,11 @@ async fn test_recording_start_stop_status() {
 
 #[tokio::test]
 async fn test_recording_generate_service() {
+    // Allow private IPs for recording tests
+    unsafe {
+        std::env::set_var("APICENTRIC_ALLOW_PRIVATE_IPS", "true");
+    }
+
     // Create a temporary directory for services
     let services_dir = tempfile::tempdir().unwrap();
 
@@ -216,7 +226,7 @@ async fn test_recording_generate_service() {
 
     // Start recording
     let start_req = serde_json::json!({
-        "target_url": "http://localhost:9880",
+        "target_url": "http://127.0.0.1:9880",
         "port": 9882
     });
 

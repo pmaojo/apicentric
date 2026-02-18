@@ -25,11 +25,16 @@ pub async fn validate_ssrf_url(url_str: &str) -> Result<(Url, SocketAddr), Strin
         .await
         .map_err(|e| format!("Failed to resolve host '{}': {}", host, e))?;
 
+    // Check if private IPs are allowed via environment variable
+    let allow_private_ips = std::env::var("APICENTRIC_ALLOW_PRIVATE_IPS")
+        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+        .unwrap_or(false);
+
     // Check all resolved addresses
     for addr in addrs {
         let ip = addr.ip();
-        if is_global(ip) {
-            // Found a valid public IP
+        if allow_private_ips || is_global(ip) {
+            // Found a valid IP (public or allowed private)
             return Ok((url, addr));
         }
     }
