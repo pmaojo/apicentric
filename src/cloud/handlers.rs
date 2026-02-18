@@ -794,7 +794,10 @@ pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, Status
         std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
 
     match load_config(Path::new(&config_path)) {
-        Ok(config) => {
+        Ok(mut config) => {
+            // Sentinel: Redact sensitive fields before returning to client
+            config.redact_sensitive_fields();
+
             // Convert to JSON for easier manipulation in the frontend
             match serde_json::to_value(&config) {
                 Ok(json) => Ok(Json(ApiResponse::success(json))),
@@ -820,7 +823,7 @@ pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, Status
 pub async fn update_config(
     Json(request): Json<UpdateConfigRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    use crate::config::{save_config, ApicentricConfig};
+    use crate::config::{load_config, save_config, ApicentricConfig};
     use crate::validation::ConfigValidator;
     use std::path::Path;
 
@@ -828,7 +831,7 @@ pub async fn update_config(
         std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
 
     // Parse the JSON into ApicentricConfig
-    let config: ApicentricConfig = match serde_json::from_value(request.config) {
+    let mut config: ApicentricConfig = match serde_json::from_value(request.config) {
         Ok(cfg) => cfg,
         Err(e) => {
             return Ok(Json(ApiResponse::error(format!(
@@ -837,6 +840,11 @@ pub async fn update_config(
             ))));
         }
     };
+
+    // Sentinel: Restore sensitive fields if redacted
+    if let Ok(current_config) = load_config(Path::new(&config_path)) {
+        config.merge_with_current(&current_config);
+    }
 
     // Validate the configuration
     if let Err(validation_errors) = config.validate() {
