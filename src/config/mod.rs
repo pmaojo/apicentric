@@ -69,6 +69,36 @@ pub enum ExecutionMode {
     Debug,
 }
 
+impl ApicentricConfig {
+    /// Redacts sensitive fields (like API keys) to prevent exposure via API
+    pub fn redact_sensitive_fields(&mut self) {
+        if let Some(ai) = &mut self.ai {
+            if ai.api_key.is_some() {
+                ai.api_key = Some("********".to_string());
+            }
+        }
+    }
+
+    /// Merges the current configuration with a new configuration, preserving
+    /// redacted fields from the current configuration if they are present in the new one.
+    pub fn merge_with_current(&mut self, current: &ApicentricConfig) {
+        if let Some(ai) = &mut self.ai {
+            // Check if the API key is redacted in the incoming config
+            if ai.api_key.as_deref() == Some("********") {
+                // Try to restore from current config
+                if let Some(current_ai) = &current.ai {
+                    ai.api_key = current_ai.api_key.clone();
+                } else {
+                    // If no current AI config, but we received redacted key,
+                    // we can't restore it. In this case, we'll keep it as redacted,
+                    // which might fail validation or just be invalid.
+                    // Ideally this shouldn't happen in normal flow.
+                }
+            }
+        }
+    }
+}
+
 /// Generate a default configuration
 pub fn generate_default_config() -> ApicentricConfig {
     ApicentricConfig {

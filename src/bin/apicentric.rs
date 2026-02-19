@@ -89,7 +89,10 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
 
     match cli.command {
         Commands::Simulator { action } => match action {
-            Some(action) => apicentric::commands::simulator::simulator_command(&action, &context, &exec_ctx).await,
+            Some(action) => {
+                apicentric::commands::simulator::simulator_command(&action, &context, &exec_ctx)
+                    .await
+            }
             None => {
                 use colored::Colorize;
                 println!("{}", "APICENTRIC SIMULATOR".bold().green());
@@ -107,7 +110,9 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                 Ok(())
             }
         },
-        Commands::Ai { action } => apicentric::commands::ai::ai_command(&action, &context, &exec_ctx).await,
+        Commands::Ai { action } => {
+            apicentric::commands::ai::ai_command(&action, &context, &exec_ctx).await
+        }
         #[cfg(feature = "tui")]
         Commands::Tui => apicentric::commands::tui::tui_command().await,
         #[cfg(feature = "gui")]
@@ -118,7 +123,9 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
             apicentric::commands::new::new_command(name.clone(), template.clone()).await
         }
         #[cfg(feature = "mcp")]
-        Commands::Mcp(mcp) => apicentric::commands::mcp::mcp_command(&mcp, &context, &exec_ctx).await,
+        Commands::Mcp(mcp) => {
+            apicentric::commands::mcp::mcp_command(&mcp, &context, &exec_ctx).await
+        }
         Commands::Doctor => apicentric::commands::doctor::doctor_command().await,
         Commands::Open { port } => apicentric::commands::open::open_command(port).await,
         #[cfg(feature = "iot")]
