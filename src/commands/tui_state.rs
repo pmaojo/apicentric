@@ -219,6 +219,13 @@ impl DashboardState {
         }
     }
 }
+
+impl Default for DashboardState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MarketplaceState {
     /// Create a new marketplace state with items loaded
     pub fn new() -> Self {

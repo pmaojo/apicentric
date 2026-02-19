@@ -1,5 +1,8 @@
 #![doc = include_str!("../README.md")]
 
+// Ensure that code within the library can refer to the crate as `apicentric`
+extern crate self as apicentric;
+
 // Enhanced error handling and validation
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -12,6 +15,8 @@ pub mod app;
 pub mod auth;
 #[cfg(all(not(target_arch = "wasm32"), feature = "webui"))]
 pub mod cloud;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod commands;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod config;
 #[cfg(not(target_arch = "wasm32"))]

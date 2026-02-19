@@ -9,57 +9,8 @@ use apicentric::context::init;
 pub use apicentric::{ApicentricError, ApicentricResult as _ApicentricResult};
 use apicentric::{ApicentricResult, ContextBuilder, ExecutionContext};
 
-#[path = "../commands/ai.rs"]
-mod ai_cmd;
-#[path = "../commands/shared.rs"]
-mod shared_impl;
-#[path = "../commands/simulator/mod.rs"]
-mod simulator_cmd;
-
-#[cfg(feature = "tui")]
-#[path = "../commands/tui.rs"]
-mod tui_cmd;
-#[cfg(feature = "tui")]
-#[path = "../commands/tui_events.rs"]
-mod tui_events;
-#[cfg(feature = "tui")]
-#[path = "../commands/tui_render.rs"]
-mod tui_render;
-#[cfg(feature = "tui")]
-#[path = "../commands/tui_state.rs"]
-mod tui_state;
-
-#[cfg(feature = "gui")]
-#[path = "../commands/gui/mod.rs"]
-mod gui_cmd;
-
-#[cfg(feature = "webui")]
-#[path = "../commands/cloud.rs"]
-mod cloud_cmd;
-
-#[cfg(feature = "mcp")]
-#[path = "../commands/mcp/mod.rs"]
-mod mcp_cmd;
-
-#[path = "../commands/doctor.rs"]
-mod doctor_cmd;
-#[path = "../commands/new.rs"]
-mod new_cmd;
-#[path = "../commands/open.rs"]
-mod open_cmd;
-
 #[cfg(feature = "iot")]
 use apicentric::cli::args::TwinCommands;
-
-#[cfg(feature = "iot")]
-#[path = "../commands/twin.rs"]
-mod twin_cmd;
-
-mod commands {
-    pub mod shared {
-        pub use crate::shared_impl::*;
-    }
-}
 
 /// The entry point for the `apicentric` CLI.
 #[tokio::main]
@@ -138,7 +89,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
 
     match cli.command {
         Commands::Simulator { action } => match action {
-            Some(action) => simulator_cmd::simulator_command(&action, &context, &exec_ctx).await,
+            Some(action) => apicentric::commands::simulator::simulator_command(&action, &context, &exec_ctx).await,
             None => {
                 use colored::Colorize;
                 println!("{}", "APICENTRIC SIMULATOR".bold().green());
@@ -156,20 +107,20 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                 Ok(())
             }
         },
-        Commands::Ai { action } => ai_cmd::ai_command(&action, &context, &exec_ctx).await,
+        Commands::Ai { action } => apicentric::commands::ai::ai_command(&action, &context, &exec_ctx).await,
         #[cfg(feature = "tui")]
-        Commands::Tui => tui_cmd::tui_command().await,
+        Commands::Tui => apicentric::commands::tui::tui_command().await,
         #[cfg(feature = "gui")]
-        Commands::Gui => gui_cmd::gui_command().await,
+        Commands::Gui => apicentric::commands::gui::gui_command().await,
         #[cfg(feature = "webui")]
-        Commands::Cloud => cloud_cmd::cloud_command().await,
+        Commands::Cloud => apicentric::commands::cloud::cloud_command().await,
         Commands::New { name, template } => {
-            new_cmd::new_command(name.clone(), template.clone()).await
+            apicentric::commands::new::new_command(name.clone(), template.clone()).await
         }
         #[cfg(feature = "mcp")]
-        Commands::Mcp(mcp) => mcp_cmd::mcp_command(&mcp, &context, &exec_ctx).await,
-        Commands::Doctor => doctor_cmd::doctor_command().await,
-        Commands::Open { port } => open_cmd::open_command(port).await,
+        Commands::Mcp(mcp) => apicentric::commands::mcp::mcp_command(&mcp, &context, &exec_ctx).await,
+        Commands::Doctor => apicentric::commands::doctor::doctor_command().await,
+        Commands::Open { port } => apicentric::commands::open::open_command(port).await,
         #[cfg(feature = "iot")]
         Commands::Twin { command } => match command {
             TwinCommands::Run(args) => {
@@ -177,7 +128,7 @@ async fn run(cli: Cli) -> ApicentricResult<()> {
                     println!("🏃 Dry run: Would start Digital Twin from {}", args.device);
                     return Ok(());
                 }
-                twin_cmd::run(args)
+                apicentric::commands::twin::run(args)
                     .await
                     .map_err(|e| ApicentricError::Runtime {
                         message: e.to_string(),
