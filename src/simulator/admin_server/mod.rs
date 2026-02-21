@@ -67,27 +67,39 @@ async fn handle_admin_request(
     req: Request<hyper::body::Incoming>,
     service_registry: Arc<RwLock<ServiceRegistry>>,
 ) -> Response<Full<Bytes>> {
+    // 🛡️ Sentinel: ENFORCE authentication by default.
+    // If APICENTRIC_ADMIN_TOKEN is not set, deny all access to prevent unauthorized exposure.
     let admin_token = env::var("APICENTRIC_ADMIN_TOKEN").ok();
 
-    if let Some(admin_token) = admin_token {
-        let auth_header = req
-            .headers()
-            .get("Authorization")
-            .and_then(|h| h.to_str().ok());
-
-        if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
-            let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));
-            *unauthorized.status_mut() = StatusCode::UNAUTHORIZED;
-            return unauthorized;
-        }
-
-        let token = auth_header.unwrap().trim_start_matches("Bearer ");
-
-        if token != admin_token {
-            let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));
+    let admin_token = match admin_token {
+        Some(token) => token,
+        None => {
+            // Fail Secure: If token is not configured, deny access.
+            let mut forbidden = Response::new(Full::new(Bytes::from(
+                "Forbidden: APICENTRIC_ADMIN_TOKEN not configured",
+            )));
             *forbidden.status_mut() = StatusCode::FORBIDDEN;
             return forbidden;
         }
+    };
+
+    let auth_header = req
+        .headers()
+        .get("Authorization")
+        .and_then(|h| h.to_str().ok());
+
+    if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
+        let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));
+        *unauthorized.status_mut() = StatusCode::UNAUTHORIZED;
+        return unauthorized;
+    }
+
+    let token = auth_header.unwrap().trim_start_matches("Bearer ");
+
+    if token != admin_token {
+        let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));
+        *forbidden.status_mut() = StatusCode::FORBIDDEN;
+        return forbidden;
     }
 
     match (req.method(), req.uri().path()) {
