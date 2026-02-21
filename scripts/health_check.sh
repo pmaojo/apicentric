@@ -23,4 +23,25 @@ cargo test
 echo "🏗️  Verifying full build..."
 cargo build --all-features
 
+# 5. Frontend Verified
+echo "🌐 Verifying frontend..."
+if [ -d "webui" ]; then
+    cd webui
+    # Install dependencies if node_modules doesn't exist
+    if [ ! -d "node_modules" ]; then
+        echo "📦 Installing frontend dependencies..."
+        npm install
+    fi
+
+    echo "🧹 Linting frontend..."
+    npm run lint
+
+    echo "🏗️  Building frontend..."
+    npm run build
+
+    cd ..
+else
+    echo "⚠️  webui directory not found, skipping frontend check."
+fi
+
 echo "✅ Health Check Passed!"
