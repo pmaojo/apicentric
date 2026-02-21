@@ -32,3 +32,8 @@
 **Vulnerability:** The `export_logs` handler generated CSV files by formatting strings directly without sanitization, allowing attackers to inject malicious formulas (Formula Injection) into the logs (e.g., via `User-Agent` or `path`).
 **Learning:** Text-based formats like CSV are deceptively simple. When opened by spreadsheet software (Excel, LibreOffice), fields starting with `=`, `+`, `-`, or `@` are executed as formulas, leading to data exfiltration or RCE on the admin's machine.
 **Prevention:** Implement a dedicated sanitizer for CSV exports that escapes delimiters/quotes AND neutralizes formulas by prepending a single quote (`'`) to dangerous prefixes. Avoid ad-hoc string formatting for CSV generation.
+
+## 2024-05-30 - Sensitive Data Exposure in Config API
+**Vulnerability:** The `get_config` endpoint returned the full `ApicentricConfig` structure serialized to JSON, including the `ai.api_key` field, exposing the OpenAI/Gemini API key to anyone with access to the UI/API.
+**Learning:** Default serialization (#[derive(Serialize)]) is dangerous for configuration objects containing secrets. It's easy to forget that internal config structures might be exposed via API.
+**Prevention:** Implement dedicated `redact_sensitive_fields()` methods for configuration structs and ensure they are called before returning config data to the client. Alternatively, use `#[serde(skip_serializing)]` or custom serializers for secret fields if they never need to be sent back (but here we need to support updates).
