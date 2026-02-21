@@ -31,7 +31,6 @@ impl ScriptingEngine {
             // Register standard functions
             engine.register_fn("log", |s: &str| println!("Script log: {}", s));
             engine.register_fn("console_log", |s: &str| println!("Script console: {}", s));
-            engine.register_fn("print", |s: &str| println!("Script print: {}", s));
             engine.register_fn("now", || chrono::Utc::now().to_rfc3339());
 
             Self {

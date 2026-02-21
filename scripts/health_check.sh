@@ -23,4 +23,21 @@ cargo test
 echo "🏗️  Verifying full build..."
 cargo build --all-features
 
+# 5. WebUI Validation
+if [ -d "webui" ]; then
+    echo "📦 Checking WebUI..."
+    cd webui
+
+    echo "  - Installing dependencies..."
+    npm install
+
+    echo "  - Linting..."
+    npm run lint
+
+    echo "  - Building..."
+    npm run build
+
+    cd ..
+fi
+
 echo "✅ Health Check Passed!"
