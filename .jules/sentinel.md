@@ -37,3 +37,8 @@
 **Vulnerability:** The `get_config` endpoint returned the full `ApicentricConfig` structure serialized to JSON, including the `ai.api_key` field, exposing the OpenAI/Gemini API key to anyone with access to the UI/API.
 **Learning:** Default serialization (#[derive(Serialize)]) is dangerous for configuration objects containing secrets. It's easy to forget that internal config structures might be exposed via API.
 **Prevention:** Implement dedicated `redact_sensitive_fields()` methods for configuration structs and ensure they are called before returning config data to the client. Alternatively, use `#[serde(skip_serializing)]` or custom serializers for secret fields if they never need to be sent back (but here we need to support updates).
+
+## 2024-05-31 - Admin Server Authentication Bypass
+**Vulnerability:** The `AdminServer` allowed unauthenticated access to sensitive endpoints (e.g., `/apicentric-admin/logs`) if the `APICENTRIC_ADMIN_TOKEN` environment variable was not set.
+**Learning:** Checking for an optional configuration value (like an auth token) and proceeding without it if missing can lead to "Fail Open" scenarios where security is disabled by default.
+**Prevention:** Implement "Fail Secure" logic. If a critical security configuration (like an admin token) is missing, deny access or fail to start, rather than disabling the security check.
