@@ -51,6 +51,77 @@ type LogsViewerProps = {
 
 const LOGS_PER_PAGE = 100;
 
+const getStatusColor = (status: number) => {
+  if (status >= 500) return 'bg-red-500/20 text-red-400 border-red-500/30';
+  if (status >= 400) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+  if (status >= 300) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+  if (status >= 200) return 'bg-green-500/20 text-green-400 border-green-500/30';
+  return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+};
+
+const formatTimestamp = (timestamp: string) => {
+  return new Date(timestamp).toLocaleString();
+};
+
+type LogRowProps = {
+  log: RequestLogEntry;
+  onClick: (log: RequestLogEntry) => void;
+  style: React.CSSProperties;
+};
+
+// Optimized: Memoized row component to prevent unnecessary re-renders during scroll
+const LogRow = React.memo(({ log, onClick, style }: LogRowProps) => (
+  <div
+    role="button"
+    tabIndex={0}
+    aria-label={`${log.method} request to ${log.path} returned ${log.status}`}
+    style={style}
+    className="border-b hover:bg-accent/50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+    onClick={() => onClick(log)}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onClick(log);
+      }
+    }}
+  >
+    <div className="flex items-center gap-4 p-4">
+      <div className="flex-shrink-0 w-40 text-xs text-muted-foreground">
+        {formatTimestamp(log.timestamp)}
+      </div>
+      <div className="flex-shrink-0 w-32">
+        <span className="text-sm">{log.service}</span>
+      </div>
+      <div className="flex items-center gap-2 flex-grow min-w-0">
+        <Badge
+          variant="outline"
+          className="w-20 justify-center font-mono flex-shrink-0"
+        >
+          {log.method}
+        </Badge>
+        <span className="font-mono text-sm truncate">
+          {log.path}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {log.duration_ms && (
+          <span className="text-xs text-muted-foreground">
+            {log.duration_ms}ms
+          </span>
+        )}
+        <Badge
+          variant="outline"
+          className={getStatusColor(log.status)}
+        >
+          {log.status}
+        </Badge>
+        <Eye className="h-4 w-4 text-muted-foreground" />
+      </div>
+    </div>
+  </div>
+));
+LogRow.displayName = 'LogRow';
+
 export function LogsViewer({ services }: LogsViewerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -233,10 +304,11 @@ export function LogsViewer({ services }: LogsViewerProps) {
     });
   };
 
-  const handleLogClick = (log: RequestLogEntry) => {
+  // Memoize handleLogClick so it doesn't break React.memo on LogRow
+  const handleLogClick = React.useCallback((log: RequestLogEntry) => {
     setSelectedLog(log);
     setShowDetailDialog(true);
-  };
+  }, []);
 
   const handleClearLogs = async () => {
     try {
@@ -284,18 +356,6 @@ export function LogsViewer({ services }: LogsViewerProps) {
         variant: 'destructive',
       });
     }
-  };
-
-  const getStatusColor = (status: number) => {
-    if (status >= 500) return 'bg-red-500/20 text-red-400 border-red-500/30';
-    if (status >= 400) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-    if (status >= 300) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-    if (status >= 200) return 'bg-green-500/20 text-green-400 border-green-500/30';
-    return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
   };
 
   return (
@@ -483,11 +543,10 @@ export function LogsViewer({ services }: LogsViewerProps) {
                   {virtualizer.getVirtualItems().map((virtualRow) => {
                     const log = paginatedLogs[virtualRow.index];
                     return (
-                      <div
-                        key={virtualRow.index}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${log.method} request to ${log.path} returned ${log.status}`}
+                      <LogRow
+                        key={virtualRow.key}
+                        log={log}
+                        onClick={handleLogClick}
                         style={{
                           position: 'absolute',
                           top: 0,
@@ -496,49 +555,7 @@ export function LogsViewer({ services }: LogsViewerProps) {
                           height: `${virtualRow.size}px`,
                           transform: `translateY(${virtualRow.start}px)`,
                         }}
-                        className="border-b hover:bg-accent/50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                        onClick={() => handleLogClick(log)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleLogClick(log);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-4 p-4">
-                          <div className="flex-shrink-0 w-40 text-xs text-muted-foreground">
-                            {formatTimestamp(log.timestamp)}
-                          </div>
-                          <div className="flex-shrink-0 w-32">
-                            <span className="text-sm">{log.service}</span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-grow min-w-0">
-                            <Badge
-                              variant="outline"
-                              className="w-20 justify-center font-mono flex-shrink-0"
-                            >
-                              {log.method}
-                            </Badge>
-                            <span className="font-mono text-sm truncate">
-                              {log.path}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {log.duration_ms && (
-                              <span className="text-xs text-muted-foreground">
-                                {log.duration_ms}ms
-                              </span>
-                            )}
-                            <Badge
-                              variant="outline"
-                              className={getStatusColor(log.status)}
-                            >
-                              {log.status}
-                            </Badge>
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        </div>
-                      </div>
+                      />
                     );
                   })}
                 </div>
