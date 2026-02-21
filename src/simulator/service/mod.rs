@@ -59,6 +59,7 @@ pub struct ServiceInstance {
     active_scenario: Arc<RwLock<Option<String>>>,
     graphql: Option<Arc<GraphQLMocks>>,
     storage: Arc<dyn Storage>,
+    regex_cache: Arc<StdRwLock<HashMap<String, Regex>>>,
 }
 
 impl ServiceInstance {
@@ -72,6 +73,18 @@ impl ServiceInstance {
         let fixtures = definition.fixtures.clone();
         let bucket = definition.bucket.clone();
         let graphql_cfg = definition.graphql.clone();
+
+        // Pre-compile regexes for all endpoints
+        let mut regex_map = HashMap::new();
+        if let Some(endpoints) = &definition.endpoints {
+            for endpoint in endpoints {
+                let pattern = Self::endpoint_path_to_regex_static(&endpoint.path);
+                if let Ok(re) = Regex::new(&pattern) {
+                    regex_map.insert(endpoint.path.clone(), re);
+                }
+            }
+        }
+        let regex_cache = Arc::new(StdRwLock::new(regex_map));
 
         let definition = Arc::new(StdRwLock::new(definition));
 
@@ -105,6 +118,7 @@ impl ServiceInstance {
             active_scenario: Arc::new(RwLock::new(None)),
             graphql,
             storage,
+            regex_cache,
         })
     }
 
@@ -172,6 +186,7 @@ impl ServiceInstance {
         let active_scenario = Arc::clone(&self.active_scenario);
         let graphql = self.graphql.clone();
         let storage = Arc::clone(&self.storage);
+        let regex_cache = Arc::clone(&self.regex_cache);
 
         // Spawn the HTTP server task
         let server_handle = tokio::spawn(async move {
@@ -199,6 +214,7 @@ impl ServiceInstance {
                         let scenario_cfg_outer = Arc::clone(&active_scenario);
                         let graphql_cfg_outer = graphql.clone();
                         let storage = Arc::clone(&storage);
+                        let regex_cache = Arc::clone(&regex_cache);
 
                         tokio::task::spawn(async move {
                             let service = service_fn(move |req| {
@@ -210,6 +226,7 @@ impl ServiceInstance {
                                 let scenario_cfg = Arc::clone(&scenario_cfg_outer);
                                 let graphql_cfg = graphql_cfg_outer.clone();
                                 let storage = Arc::clone(&storage);
+                                let regex_cache = Arc::clone(&regex_cache);
 
                                 async move {
                                     match Self::handle_request_static(
@@ -221,6 +238,7 @@ impl ServiceInstance {
                                         scenario_cfg,
                                         graphql_cfg,
                                         storage,
+                                        regex_cache,
                                     )
                                     .await
                                     {
@@ -328,6 +346,7 @@ impl ServiceInstance {
             Arc::clone(&self.active_scenario),
             self.graphql.clone(),
             Arc::clone(&self.storage),
+            Arc::clone(&self.regex_cache),
         )
         .await
     }
@@ -597,20 +616,15 @@ impl ServiceInstance {
         headers: &HashMap<String, String>,
     ) -> Option<RouteMatch> {
         let definition = self.definition.read().unwrap();
+        let regex_cache = self.regex_cache.read().unwrap();
         if let Some(endpoints) = &definition.endpoints {
-            for (index, endpoint) in endpoints.iter().enumerate() {
-                if endpoint.method.to_uppercase() == method.to_uppercase()
-                    && Self::headers_match(endpoint, headers)
-                {
-                    if let Some(path_params) = self.extract_path_parameters(&endpoint.path, path) {
-                        return Some(RouteMatch {
-                            endpoint: endpoint.clone(),
-                            endpoint_index: index,
-                            path_params,
-                        });
-                    }
-                }
-            }
+            return Self::find_endpoint_with_params_static(
+                endpoints,
+                method,
+                path,
+                headers,
+                &regex_cache,
+            );
         }
         None
     }
@@ -623,15 +637,16 @@ impl ServiceInstance {
         headers: &HashMap<String, String>,
     ) -> Option<EndpointDefinition> {
         let definition = self.definition.read().unwrap();
+        let regex_cache = self.regex_cache.read().unwrap();
         if let Some(endpoints) = &definition.endpoints {
-            for endpoint in endpoints {
-                if endpoint.method.to_uppercase() == method.to_uppercase()
-                    && Self::headers_match(endpoint, headers)
-                    && self.extract_path_parameters(&endpoint.path, path).is_some()
-                {
-                    return Some(endpoint.clone());
-                }
-            }
+            return Self::find_endpoint_with_params_static(
+                endpoints,
+                method,
+                path,
+                headers,
+                &regex_cache,
+            )
+            .map(|m| m.endpoint);
         }
         None
     }
@@ -647,43 +662,6 @@ impl ServiceInstance {
             }
         }
         true
-    }
-
-    /// Extract path parameters from a request path against an endpoint path pattern
-    fn extract_path_parameters(
-        &self,
-        endpoint_path: &str,
-        request_path: &str,
-    ) -> Option<PathParameters> {
-        // Convert endpoint path pattern to regex
-        let regex_pattern = self.endpoint_path_to_regex(endpoint_path);
-
-        match Regex::new(&regex_pattern) {
-            Ok(regex) => {
-                if let Some(captures) = regex.captures(request_path) {
-                    let mut params = PathParameters::new();
-
-                    // Extract named parameters
-                    for name in regex.capture_names().flatten() {
-                        if let Some(matched) = captures.name(name) {
-                            params.insert(name.to_string(), matched.as_str().to_string());
-                        }
-                    }
-
-                    Some(params)
-                } else {
-                    None
-                }
-            }
-            Err(_) => {
-                // Fallback to exact matching if regex compilation fails
-                if endpoint_path == request_path {
-                    Some(PathParameters::new())
-                } else {
-                    None
-                }
-            }
-        }
     }
 
     /// Convert an endpoint path pattern to a regex pattern
@@ -702,6 +680,7 @@ impl ServiceInstance {
         active_scenario: Arc<RwLock<Option<String>>>,
         graphql: Option<Arc<GraphQLMocks>>,
         storage: Arc<dyn Storage>,
+        regex_cache: Arc<StdRwLock<HashMap<String, Regex>>>,
     ) -> ApicentricResult<Response<Full<Bytes>>> {
         let (service_name, base_path, endpoints, cors_cfg, proxy_base_url, record_unknown) = {
             let def = definition.read().unwrap();
@@ -1008,8 +987,16 @@ impl ServiceInstance {
         }
 
         // Find matching endpoint with parameter extraction
-        let route_match =
-            Self::find_endpoint_with_params_static(&endpoints, method, &relative_path, &headers);
+        let route_match = {
+            let cache_guard = regex_cache.read().unwrap();
+            Self::find_endpoint_with_params_static(
+                &endpoints,
+                method,
+                &relative_path,
+                &headers,
+                &cache_guard,
+            )
+        };
 
         match route_match {
             Some(route_match) => {
@@ -1387,6 +1374,14 @@ impl ServiceInstance {
                     let (placeholder_endpoint, recorded_path) =
                         Self::build_recorded_endpoint(method, &relative_path);
 
+                    // Update regex cache for new endpoint
+                    let pattern = Self::endpoint_path_to_regex_static(&placeholder_endpoint.path);
+                    if let Ok(re) = Regex::new(&pattern) {
+                        if let Ok(mut cache_guard) = regex_cache.write() {
+                            cache_guard.insert(placeholder_endpoint.path.clone(), re);
+                        }
+                    }
+
                     let saved_definition = {
                         let mut def = definition.write().unwrap();
                         match def.endpoints.as_mut() {
@@ -1509,13 +1504,14 @@ impl ServiceInstance {
         method: &str,
         path: &str,
         headers: &HashMap<String, String>,
+        regex_cache: &HashMap<String, Regex>,
     ) -> Option<RouteMatch> {
         for (index, endpoint) in endpoints.iter().enumerate() {
             if endpoint.method.to_uppercase() == method.to_uppercase()
                 && Self::headers_match(endpoint, headers)
             {
                 if let Some(path_params) =
-                    Self::extract_path_parameters_static(&endpoint.path, path)
+                    Self::extract_path_parameters_static(&endpoint.path, path, regex_cache)
                 {
                     return Some(RouteMatch {
                         endpoint: endpoint.clone(),
@@ -1532,8 +1528,27 @@ impl ServiceInstance {
     fn extract_path_parameters_static(
         endpoint_path: &str,
         request_path: &str,
+        regex_cache: &HashMap<String, Regex>,
     ) -> Option<PathParameters> {
-        // Convert endpoint path pattern to regex
+        // Try to get cached regex first
+        if let Some(regex) = regex_cache.get(endpoint_path) {
+            if let Some(captures) = regex.captures(request_path) {
+                let mut params = PathParameters::new();
+
+                // Extract named parameters
+                for name in regex.capture_names().flatten() {
+                    if let Some(matched) = captures.name(name) {
+                        params.insert(name.to_string(), matched.as_str().to_string());
+                    }
+                }
+
+                return Some(params);
+            } else {
+                return None;
+            }
+        }
+
+        // Fallback: compile regex if not in cache (should be rare/initial load only)
         let regex_pattern = Self::endpoint_path_to_regex_static(endpoint_path);
 
         match Regex::new(&regex_pattern) {
