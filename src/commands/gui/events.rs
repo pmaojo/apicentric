@@ -3,6 +3,7 @@
 //! This module handles all GUI messages and coordinates between
 //! the GUI state and the simulator manager.
 
+use super::actions;
 use super::messages::{CapturedRequest, CodeGenTarget, ExportFormat, GuiMessage};
 use super::models::{EndpointInfo, RequestLogEntry, ServiceInfo, ServiceStatus};
 use super::state::GuiAppState;
@@ -219,11 +220,9 @@ impl EventHandler {
     }
 
     async fn handle_refresh_services(&self, state: &mut GuiAppState) -> ApicentricResult<()> {
-        use apicentric::simulator::config::ConfigLoader;
-        use std::collections::HashMap;
-
         // Scan services directory (clone to avoid borrow issues)
         let services_dir = state.config.services_directory.clone();
+        let default_port = state.config.default_port;
 
         if !services_dir.exists() {
             return Err(ApicentricError::runtime_error(
@@ -232,62 +231,20 @@ impl EventHandler {
             ));
         }
 
-        // Load service definitions
-        let config_loader = ConfigLoader::new(services_dir.clone());
-        let service_definitions = match config_loader.load_all_services() {
-            Ok(defs) => defs,
+        match actions::load_and_sync_services(&self.manager, services_dir, default_port).await {
+            Ok(services) => {
+                state.services = services;
+                state.add_log(format!("Discovered {} services", state.services.len()));
+                Ok(())
+            }
             Err(e) => {
                 state.add_log(format!("Error loading services: {}", e));
-                return Err(ApicentricError::runtime_error(
+                Err(ApicentricError::runtime_error(
                     format!("Failed to load services: {}", e),
                     Some("Check service YAML files for errors"),
-                ));
-            }
-        };
-
-        // Keep track of existing running services
-        let mut running_services: HashMap<String, ServiceStatus> = HashMap::new();
-        for service in &state.services {
-            if service.status.is_running() || service.status.is_transitioning() {
-                running_services.insert(service.name.clone(), service.status.clone());
+                ))
             }
         }
-
-        // Clear and rebuild service list
-        state.services.clear();
-
-        // Add discovered services
-        for def in service_definitions {
-            let service_name = def.name.clone();
-            let service_path = services_dir.join(format!("{}.yaml", service_name));
-            let port = def
-                .server
-                .as_ref()
-                .and_then(|s| s.port)
-                .unwrap_or(state.config.default_port);
-
-            let mut service_info = ServiceInfo::new(service_name.clone(), service_path, port);
-
-            // Parse endpoints from definition
-            if let Some(endpoints) = &def.endpoints {
-                for endpoint in endpoints {
-                    service_info.endpoints.push(EndpointInfo {
-                        method: endpoint.method.clone(),
-                        path: endpoint.path.clone(),
-                    });
-                }
-            }
-
-            // Restore status if service was running
-            if let Some(status) = running_services.get(&service_name) {
-                service_info.status = status.clone();
-            }
-
-            state.add_service(service_info);
-        }
-
-        state.add_log(format!("Discovered {} services", state.services.len()));
-        Ok(())
     }
 
     async fn handle_service_status_changed(

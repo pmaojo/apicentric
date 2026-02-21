@@ -10,6 +10,8 @@ use std::sync::Arc;
 use apicentric::simulator::manager::ApiSimulatorManager;
 
 #[cfg(feature = "gui")]
+pub mod actions;
+#[cfg(feature = "gui")]
 pub mod ai;
 #[cfg(feature = "gui")]
 pub mod events;
