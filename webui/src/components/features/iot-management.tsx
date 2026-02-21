@@ -8,6 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Save, Trash2, Upload, RefreshCw } from 'lucide-react';
 import { listTwins, getTwin, saveTwin, deleteTwin, uploadReplayData, getIotGraph, GraphResponse } from '@/services/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ReactFlow, Controls, Background, useNodesState, useEdgesState, type Node, type Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -179,7 +185,18 @@ export function IoTManagement() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Twins</CardTitle>
-                <Button size="sm" onClick={handleCreate}><Plus className="h-4 w-4" /></Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" onClick={handleCreate} aria-label="Create new twin">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Create new twin</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto">
