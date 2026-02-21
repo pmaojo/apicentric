@@ -1,59 +1,65 @@
 //! Admin server for the API simulator.
 use crate::simulator::registry::ServiceRegistry;
-use bytes::Bytes;
-use http_body_util::Full;
-use hyper::server::conn::http1;
-use hyper::service::service_fn;
-use hyper::{Request, Response, StatusCode};
-use hyper_util::rt::TokioIo;
-use std::convert::Infallible;
-use std::env;
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Json},
+    routing::get,
+    Router,
+};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+
+#[derive(Clone)]
+struct AppState {
+    registry: Arc<RwLock<ServiceRegistry>>,
+    admin_token: Option<String>,
+}
 
 pub struct AdminServer {
     service_registry: Arc<RwLock<ServiceRegistry>>,
     server_handle: Option<JoinHandle<()>>,
+    admin_token: Option<String>,
 }
 
 impl AdminServer {
     pub fn new(service_registry: Arc<RwLock<ServiceRegistry>>) -> Self {
+        let admin_token = std::env::var("APICENTRIC_ADMIN_TOKEN").ok();
         Self {
             service_registry,
             server_handle: None,
+            admin_token,
         }
     }
 
     pub async fn start(&mut self, port: u16) {
+        let state = AppState {
+            registry: self.service_registry.clone(),
+            admin_token: self.admin_token.clone(),
+        };
+
+        let app = Router::new()
+            .route("/apicentric-admin/logs", get(get_logs))
+            .with_state(state);
+
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        let listener = TcpListener::bind(addr).await.unwrap();
-        let service_registry = self.service_registry.clone();
+        let listener = match tokio::net::TcpListener::bind(addr).await {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Failed to bind admin server to {}: {}", addr, e);
+                return;
+            }
+        };
 
-        let server_handle = tokio::spawn(async move {
-            loop {
-                let (stream, _) = listener.accept().await.unwrap();
-                let io = TokioIo::new(stream);
-                let service_registry = service_registry.clone();
-
-                tokio::task::spawn(async move {
-                    let service = service_fn(move |req| {
-                        let service_registry = service_registry.clone();
-                        async move {
-                            Ok::<_, Infallible>(handle_admin_request(req, service_registry).await)
-                        }
-                    });
-
-                    if let Err(err) = http1::Builder::new().serve_connection(io, service).await {
-                        eprintln!("Error serving admin connection: {:?}", err);
-                    }
-                });
+        let handle = tokio::spawn(async move {
+            if let Err(e) = axum::serve(listener, app).await {
+                eprintln!("Admin server error: {}", e);
             }
         });
 
-        self.server_handle = Some(server_handle);
+        self.server_handle = Some(handle);
     }
 
     pub async fn stop(&mut self) {
@@ -63,63 +69,43 @@ impl AdminServer {
     }
 }
 
-async fn handle_admin_request(
-    req: Request<hyper::body::Incoming>,
-    service_registry: Arc<RwLock<ServiceRegistry>>,
-) -> Response<Full<Bytes>> {
-    let admin_token = env::var("APICENTRIC_ADMIN_TOKEN").ok();
+async fn get_logs(State(state): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+    // Auth check
+    if let Some(token) = &state.admin_token {
+        let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
 
-    if let Some(admin_token) = admin_token {
-        let auth_header = req
-            .headers()
-            .get("Authorization")
-            .and_then(|h| h.to_str().ok());
-
-        if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
-            let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));
-            *unauthorized.status_mut() = StatusCode::UNAUTHORIZED;
-            return unauthorized;
-        }
-
-        let token = auth_header.unwrap().trim_start_matches("Bearer ");
-
-        if token != admin_token {
-            let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));
-            *forbidden.status_mut() = StatusCode::FORBIDDEN;
-            return forbidden;
+        match auth_header {
+            Some(header_val) if header_val.starts_with("Bearer ") => {
+                let provided_token = header_val.trim_start_matches("Bearer ");
+                if provided_token != token {
+                    return (StatusCode::FORBIDDEN, "Forbidden").into_response();
+                }
+            }
+            _ => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
         }
     }
 
-    match (req.method(), req.uri().path()) {
-        (&hyper::Method::GET, "/apicentric-admin/logs") => {
-            let services = {
-                let registry = service_registry.read().await;
-                registry.list_services().await
-            };
-            let mut all_logs = vec![];
-            for service_info in services {
-                let service = {
-                    let registry = service_registry.read().await;
-                    registry.get_service(&service_info.name).cloned()
-                };
-                if let Some(service) = service {
-                    let logs = service.read().await.get_logs(100).await;
-                    all_logs.extend(logs);
-                }
-            }
-            match serde_json::to_string(&all_logs) {
-                Ok(body) => Response::new(Full::new(Bytes::from(body))),
-                Err(_) => {
-                    let mut error = Response::new(Full::new(Bytes::from("Internal Server Error")));
-                    *error.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-                    error
-                }
-            }
-        }
-        _ => {
-            let mut not_found = Response::new(Full::new(Bytes::from("Not Found")));
-            *not_found.status_mut() = StatusCode::NOT_FOUND;
-            not_found
+    // Step 1: Get list of services
+    let services = {
+        let registry = state.registry.read().await;
+        registry.list_services().await
+    };
+
+    let mut all_logs = vec![];
+
+    // Step 2: Iterate and get logs
+    for service_info in services {
+        let service_opt = {
+            let registry = state.registry.read().await;
+            registry.get_service(&service_info.name).cloned()
+        };
+
+        if let Some(service_arc) = service_opt {
+            let service = service_arc.read().await;
+            let logs = service.get_logs(100).await;
+            all_logs.extend(logs);
         }
     }
+
+    Json(all_logs).into_response()
 }
