@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -10,15 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,31 +22,22 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  MoreHorizontal,
   FilePlus,
   Upload,
-  Download,
-  CheckCircle,
-  XCircle,
   Box,
-  Pencil,
-  ShieldCheck,
   Asterisk,
   Play,
   Square,
-  Trash2,
   Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { CreateServiceDialog } from './create-service-dialog';
 import { CreateGraphQLServiceDialog } from './create-graphql-service-dialog';
 import { EditServiceDialog } from './edit-service-dialog';
+import { ServiceRow } from './service-row';
 import type { Service } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useWebSocketSubscription, type ServiceStatusUpdate } from '@/providers/websocket-provider';
@@ -110,7 +93,7 @@ export function ServiceManagement({
   /**
    * Validates the selected service's definition.
    */
-  const handleValidate = async (service: Service) => {
+  const handleValidate = React.useCallback(async (service: Service) => {
     try {
       await validateService(service.definition);
       toast({
@@ -125,7 +108,7 @@ export function ServiceManagement({
         description: errorMessage,
       });
     }
-  };
+  }, [toast]);
 
   /**
    * Handles adding a new service and displays a toast notification.
@@ -152,7 +135,7 @@ export function ServiceManagement({
   /**
    * Handles starting a service.
    */
-  const handleStartService = async (service: Service) => {
+  const handleStartService = React.useCallback(async (service: Service) => {
     setLoadingServices((prev: Set<string>) => new Set(prev).add(service.name));
     
     try {
@@ -174,12 +157,12 @@ export function ServiceManagement({
         description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
     }
-  };
+  }, [toast]);
 
   /**
    * Handles stopping a service.
    */
-  const handleStopService = async (service: Service) => {
+  const handleStopService = React.useCallback(async (service: Service) => {
     setLoadingServices((prev: Set<string>) => new Set(prev).add(service.name));
     
     try {
@@ -201,12 +184,12 @@ export function ServiceManagement({
         description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
     }
-  };
+  }, [toast]);
 
   /**
    * Handles deleting a service with confirmation.
    */
-  const handleDeleteService = async () => {
+  const handleDeleteService = React.useCallback(async () => {
     if (!deletingService) return;
     
     try {
@@ -225,7 +208,7 @@ export function ServiceManagement({
     } finally {
       setDeletingService(null);
     }
-  };
+  }, [deletingService, onDeleteService, toast]);
 
   /**
    * Handles selecting/deselecting all services.
@@ -241,7 +224,7 @@ export function ServiceManagement({
   /**
    * Handles selecting/deselecting a single service.
    */
-  const handleSelectService = (serviceId: string, checked: boolean) => {
+  const handleSelectService = React.useCallback((serviceId: string, checked: boolean) => {
     setSelectedServices((prev: Set<string>) => {
       const next = new Set(prev);
       if (checked) {
@@ -251,7 +234,15 @@ export function ServiceManagement({
       }
       return next;
     });
-  };
+  }, []);
+
+  const handleEditClick = React.useCallback((service: Service) => {
+    setEditingService(service);
+  }, []);
+
+  const handleDeleteClick = React.useCallback((service: Service) => {
+    setDeletingService(service);
+  }, []);
 
   /**
    * Handles starting all selected services.
@@ -395,127 +386,21 @@ export function ServiceManagement({
                         </TableCell>
                       </TableRow>
                     ) : (
-                      services.map((service) => {
-                      const isLoading = loadingServices.has(service.name);
-                      const isSelected = selectedServices.has(service.id);
-                      
-                      return (
-                        <TableRow key={service.id} data-testid={`service-${service.name}`}>
-                          <TableCell>
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={(checked) => handleSelectService(service.id, checked as boolean)}
-                              aria-label={`Select ${service.name}`}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">{service.name}</TableCell>
-                          <TableCell>
-                              <Badge
-                                variant={service.status === 'running' ? 'default' : 'destructive'}
-                                className={`${
-                                  service.status === 'running'
-                                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                                    : 'bg-red-500/20 text-red-400 border-red-500/30'
-                                }`}
-                              >
-                                  {isLoading ? (
-                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                  ) : service.status === 'running' ? (
-                                    <CheckCircle className="mr-1 h-3 w-3" />
-                                  ) : (
-                                    <XCircle className="mr-1 h-3 w-3" />
-                                  )}
-                                  {isLoading ? 'Loading...' : service.status}
-                              </Badge>
-                          </TableCell>
-                          <TableCell>{service.version}</TableCell>
-                          <TableCell className="font-mono">{service.port}</TableCell>
-                          <TableCell>{service.endpoints.length}</TableCell>
-                          <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {service.status === 'running' ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleStopService(service)}
-                                    disabled={isLoading}
-                                    data-testid="stop-service-button"
-                                    aria-label={`Stop ${service.name}`}
-                                  >
-                                    {isLoading ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Square className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Stop Service</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleStartService(service)}
-                                    disabled={isLoading}
-                                    data-testid="start-service-button"
-                                    aria-label={`Start ${service.name}`}
-                                  >
-                                    {isLoading ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Play className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Start Service</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Open menu</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditingService(service)}>
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleValidate(service)}>
-                                    <ShieldCheck className="mr-2 h-4 w-4" />
-                                    Validate
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Export
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <Box className="mr-2 h-4 w-4" />
-                                    Dockerize
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => setDeletingService(service)}
-                                >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete
-                                </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }))}
+                      services.map((service) => (
+                        <ServiceRow
+                          key={service.id}
+                          service={service}
+                          isLoading={loadingServices.has(service.name)}
+                          isSelected={selectedServices.has(service.id)}
+                          onSelect={handleSelectService}
+                          onStop={handleStopService}
+                          onStart={handleStartService}
+                          onEdit={handleEditClick}
+                          onValidate={handleValidate}
+                          onDelete={handleDeleteClick}
+                        />
+                      ))
+                    )}
                 </TableBody>
                 </Table>
             </div>
