@@ -2,10 +2,10 @@
 //!
 //! This module contains the rendering logic for the `egui` application.
 
+use super::actions;
 use super::messages::GuiSystemEvent;
 use super::models::{EditorState, LogFilter, RequestLogEntry, ServiceStatus};
 use super::state::GuiAppState;
-use apicentric::simulator::config::ConfigLoader;
 use apicentric::simulator::manager::ApiSimulatorManager;
 use egui::{CentralPanel, ScrollArea, SidePanel, TopBottomPanel};
 use rand::Rng;
@@ -202,43 +202,14 @@ pub fn render(ctx: &egui::Context, state: &mut GuiAppState, _manager: &Arc<ApiSi
                             let _ = tx.send(GuiSystemEvent::SimulatorStarted);
 
                             // Reload services to update UI
-                            let config_loader = ConfigLoader::new(services_dir.clone());
-                            match config_loader.load_all_services() {
-                                Ok(defs) => {
-                                    let mut services = Vec::new();
-                                    for def in defs {
-                                        let name = def.name.clone();
-                                        let path = services_dir.join(format!("{}.yaml", name));
-                                        let port = def
-                                            .server
-                                            .as_ref()
-                                            .and_then(|s| s.port)
-                                            .unwrap_or(default_port);
-                                        let mut info =
-                                            super::models::ServiceInfo::new(name, path, port);
-                                        if let Some(endpoints) = def.endpoints {
-                                            for ep in endpoints {
-                                                info.endpoints.push(super::models::EndpointInfo {
-                                                    method: ep.method,
-                                                    path: ep.path,
-                                                });
-                                            }
-                                        }
-                                        // TODO: Check if running using manager.service_registry()
-                                        info.status = ServiceStatus::Stopped; // Default
-                                        services.push(info);
-                                    }
-
-                                    // Check which services are actually running
-                                    let registry = manager.service_registry().read().await;
-                                    for svc in &mut services {
-                                        if let Some(inst) = registry.get_service(&svc.name) {
-                                            if inst.read().await.is_running() {
-                                                svc.mark_running();
-                                            }
-                                        }
-                                    }
-
+                            match actions::load_and_sync_services(
+                                &manager,
+                                services_dir,
+                                default_port,
+                            )
+                            .await
+                            {
+                                Ok(services) => {
                                     let _ = tx.send(GuiSystemEvent::ServicesLoaded(services));
                                 }
                                 Err(e) => {
@@ -312,42 +283,11 @@ pub fn render(ctx: &egui::Context, state: &mut GuiAppState, _manager: &Arc<ApiSi
                             }
                         }
 
-                        // Reload services to update UI (Same logic as above, can be extracted to a helper function if not in different tasks, but here we duplicate for simplicity)
-                        let config_loader = ConfigLoader::new(services_dir.clone());
-                        match config_loader.load_all_services() {
-                            Ok(defs) => {
-                                let mut services = Vec::new();
-                                for def in defs {
-                                    let name = def.name.clone();
-                                    let path = services_dir.join(format!("{}.yaml", name));
-                                    let port = def
-                                        .server
-                                        .as_ref()
-                                        .and_then(|s| s.port)
-                                        .unwrap_or(default_port);
-                                    let mut info =
-                                        super::models::ServiceInfo::new(name, path, port);
-                                    if let Some(endpoints) = def.endpoints {
-                                        for ep in endpoints {
-                                            info.endpoints.push(super::models::EndpointInfo {
-                                                method: ep.method,
-                                                path: ep.path,
-                                            });
-                                        }
-                                    }
-                                    services.push(info);
-                                }
-
-                                // Check which services are actually running
-                                let registry = manager.service_registry().read().await;
-                                for svc in &mut services {
-                                    if let Some(inst) = registry.get_service(&svc.name) {
-                                        if inst.read().await.is_running() {
-                                            svc.mark_running();
-                                        }
-                                    }
-                                }
-
+                        // Reload services to update UI
+                        match actions::load_and_sync_services(&manager, services_dir, default_port)
+                            .await
+                        {
+                            Ok(services) => {
                                 let _ = tx.send(GuiSystemEvent::ServicesRefreshed(services));
                             }
                             Err(e) => {
