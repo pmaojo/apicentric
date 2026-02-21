@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import {
@@ -50,6 +50,93 @@ type LogsViewerProps = {
 };
 
 const LOGS_PER_PAGE = 100;
+
+// Helper functions moved outside component to prevent recreation
+const getStatusColor = (status: number) => {
+  if (status >= 500) return 'bg-red-500/20 text-red-400 border-red-500/30';
+  if (status >= 400) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+  if (status >= 300) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+  if (status >= 200) return 'bg-green-500/20 text-green-400 border-green-500/30';
+  return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+};
+
+const formatTimestamp = (timestamp: string) => {
+  return new Date(timestamp).toLocaleString();
+};
+
+type LogRowProps = {
+  log: RequestLogEntry;
+  virtualRow: VirtualItem;
+  onClick: (log: RequestLogEntry) => void;
+};
+
+// Memoized LogRow component to prevent unnecessary re-renders
+const LogRow = React.memo(({ log, virtualRow, onClick }: LogRowProps) => {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${log.method} request to ${log.path} returned ${log.status}`}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: `${virtualRow.size}px`,
+        transform: `translateY(${virtualRow.start}px)`,
+      }}
+      className="border-b hover:bg-accent/50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      onClick={() => onClick(log)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick(log);
+        }
+      }}
+    >
+      <div className="flex items-center gap-4 p-4">
+        <div className="flex-shrink-0 w-40 text-xs text-muted-foreground">
+          {formatTimestamp(log.timestamp)}
+        </div>
+        <div className="flex-shrink-0 w-32">
+          <span className="text-sm">{log.service}</span>
+        </div>
+        <div className="flex items-center gap-2 flex-grow min-w-0">
+          <Badge
+            variant="outline"
+            className="w-20 justify-center font-mono flex-shrink-0"
+          >
+            {log.method}
+          </Badge>
+          <span className="font-mono text-sm truncate">
+            {log.path}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {log.duration_ms && (
+            <span className="text-xs text-muted-foreground">
+              {log.duration_ms}ms
+            </span>
+          )}
+          <Badge
+            variant="outline"
+            className={getStatusColor(log.status)}
+          >
+            {log.status}
+          </Badge>
+          <Eye className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </div>
+    </div>
+  );
+}, (prev, next) => {
+  // Custom comparison to handle object references
+  return prev.log === next.log &&
+         prev.virtualRow.start === next.virtualRow.start &&
+         prev.virtualRow.size === next.virtualRow.size;
+});
+
+LogRow.displayName = 'LogRow';
 
 export function LogsViewer({ services }: LogsViewerProps) {
   const router = useRouter();
@@ -233,10 +320,11 @@ export function LogsViewer({ services }: LogsViewerProps) {
     });
   };
 
-  const handleLogClick = (log: RequestLogEntry) => {
+  // Memoized click handler for LogRow
+  const handleLogClick = React.useCallback((log: RequestLogEntry) => {
     setSelectedLog(log);
     setShowDetailDialog(true);
-  };
+  }, []);
 
   const handleClearLogs = async () => {
     try {
@@ -284,18 +372,6 @@ export function LogsViewer({ services }: LogsViewerProps) {
         variant: 'destructive',
       });
     }
-  };
-
-  const getStatusColor = (status: number) => {
-    if (status >= 500) return 'bg-red-500/20 text-red-400 border-red-500/30';
-    if (status >= 400) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-    if (status >= 300) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-    if (status >= 200) return 'bg-green-500/20 text-green-400 border-green-500/30';
-    return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
   };
 
   return (
@@ -483,62 +559,12 @@ export function LogsViewer({ services }: LogsViewerProps) {
                   {virtualizer.getVirtualItems().map((virtualRow) => {
                     const log = paginatedLogs[virtualRow.index];
                     return (
-                      <div
+                      <LogRow
                         key={virtualRow.index}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${log.method} request to ${log.path} returned ${log.status}`}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: `${virtualRow.size}px`,
-                          transform: `translateY(${virtualRow.start}px)`,
-                        }}
-                        className="border-b hover:bg-accent/50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                        onClick={() => handleLogClick(log)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleLogClick(log);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-4 p-4">
-                          <div className="flex-shrink-0 w-40 text-xs text-muted-foreground">
-                            {formatTimestamp(log.timestamp)}
-                          </div>
-                          <div className="flex-shrink-0 w-32">
-                            <span className="text-sm">{log.service}</span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-grow min-w-0">
-                            <Badge
-                              variant="outline"
-                              className="w-20 justify-center font-mono flex-shrink-0"
-                            >
-                              {log.method}
-                            </Badge>
-                            <span className="font-mono text-sm truncate">
-                              {log.path}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {log.duration_ms && (
-                              <span className="text-xs text-muted-foreground">
-                                {log.duration_ms}ms
-                              </span>
-                            )}
-                            <Badge
-                              variant="outline"
-                              className={getStatusColor(log.status)}
-                            >
-                              {log.status}
-                            </Badge>
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        </div>
-                      </div>
+                        log={log}
+                        virtualRow={virtualRow}
+                        onClick={handleLogClick}
+                      />
                     );
                   })}
                 </div>
