@@ -41,6 +41,10 @@ impl<R: ConfigRepository + Clone> ConfigLoader<R> {
         Ok(result.services)
     }
 
+    pub fn read_service_file(&self, path: &std::path::Path) -> ApicentricResult<String> {
+        self.repository.read_service_file(path)
+    }
+
     pub fn save_service(&self, path: &std::path::Path, content: &str) -> ApicentricResult<()> {
         self.repository.save_service(path, content)
     }

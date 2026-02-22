@@ -226,12 +226,12 @@ pub async fn generate_service_from_recording(
     }
 
     // Write the service definition to file
-    match simulator.save_service_file(&file_path, &yaml) {
+    match simulator.save_service_file(file_path.clone(), yaml).await {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(service_def).await {
                 // Clean up the file if applying fails
-                let _ = simulator.delete_service_file(&file_path);
+                let _ = simulator.delete_service_file(file_path).await;
                 return Ok(Json(ApiResponse::error(format!(
                     "Failed to apply service: {}",
                     e

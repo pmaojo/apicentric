@@ -163,7 +163,7 @@ pub async fn import_from_url(
         .resolve_service_path(&format!("{}.yaml", definition.name))
         .map_err(|e| ApiError::internal_server_error(format!("Invalid file path: {}", e)))?;
 
-    match simulator.save_service_file(&file_path, &yaml) {
+    match simulator.save_service_file(file_path, yaml.clone()).await {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition.clone()).await {
