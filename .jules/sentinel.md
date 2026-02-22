@@ -42,3 +42,8 @@
 **Vulnerability:** The `AdminServer` allowed unauthenticated access to sensitive endpoints (e.g., `/apicentric-admin/logs`) if the `APICENTRIC_ADMIN_TOKEN` environment variable was not set.
 **Learning:** Checking for an optional configuration value (like an auth token) and proceeding without it if missing can lead to "Fail Open" scenarios where security is disabled by default.
 **Prevention:** Implement "Fail Secure" logic. If a critical security configuration (like an admin token) is missing, deny access or fail to start, rather than disabling the security check.
+
+## 2024-06-01 - Hardcoded Configuration Path in AI Handlers
+**Vulnerability:** The AI handlers (`ai_generate` and `ai_config_status`) hardcoded the configuration file path to "apicentric.json", ignoring the `APICENTRIC_CONFIG_PATH` environment variable used by the rest of the application. This could lead to loading insecure default configurations or failing to load secure production configurations.
+**Learning:** Redundant implementation of core logic (like configuration loading) in feature-specific handlers increases the risk of inconsistencies, where global security settings (like env var overrides) are missed.
+**Prevention:** Centralize configuration loading logic. Ideally, the configuration should be loaded once at startup and passed to handlers via state (e.g., `axum::extract::State`), or a single helper function should handle path resolution consistently across the codebase.
