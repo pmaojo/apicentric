@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 pub trait ConfigRepository {
     fn list_service_files(&self) -> ApicentricResult<Vec<PathBuf>>;
     fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition>;
+    fn read_service_file(&self, path: &Path) -> ApicentricResult<String>;
     fn save_service(&self, path: &Path, content: &str) -> ApicentricResult<()>;
     fn delete_service(&self, path: &Path) -> ApicentricResult<()>;
     fn service_exists(&self, path: &Path) -> bool;
@@ -78,13 +79,17 @@ impl ConfigRepository for ConfigFileLoader {
         Ok(files)
     }
 
-    fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition> {
-        let content = fs::read_to_string(path).map_err(|e| {
+    fn read_service_file(&self, path: &Path) -> ApicentricResult<String> {
+        fs::read_to_string(path).map_err(|e| {
             ApicentricError::fs_error(
                 format!("Cannot read service file {}: {}", path.display(), e),
                 Some("Check file permissions and ensure the file exists"),
             )
-        })?;
+        })
+    }
+
+    fn load_service(&self, path: &Path) -> ApicentricResult<ServiceDefinition> {
+        let content = self.read_service_file(path)?;
 
         // Use UnifiedConfig to support both standard services and digital twins
         let unified: super::super::UnifiedConfig = serde_yaml::from_str(&content).map_err(|e| {
