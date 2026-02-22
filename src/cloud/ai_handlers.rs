@@ -75,13 +75,16 @@ pub async fn ai_generate(
     }
 
     // Load configuration
-    let cfg = match load_config(Path::new("apicentric.json")) {
+    let config_path =
+        std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
+
+    let cfg = match load_config(Path::new(&config_path)) {
         Ok(cfg) => cfg,
         Err(_) => {
             return Err(ApiError::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 ApiErrorCode::ConfigLoadError,
-                "Failed to load configuration file apicentric.json",
+                format!("Failed to load configuration file {}", config_path),
             ));
         }
     };
@@ -125,7 +128,7 @@ pub async fn ai_generate(
             let key = ai_cfg.api_key.clone().ok_or_else(|| {
                 ApiError::bad_request(
                     ApiErrorCode::AiNotConfigured,
-                    "OpenAI API key missing. Set ai.api_key in apicentric.json",
+                    format!("OpenAI API key missing. Set ai.api_key in {}", config_path),
                 )
             })?;
             let model = ai_cfg
@@ -141,7 +144,10 @@ pub async fn ai_generate(
                 .ok_or_else(|| {
                     ApiError::bad_request(
                         ApiErrorCode::AiNotConfigured,
-                        "Gemini API key missing. Set GEMINI_API_KEY environment variable or ai.api_key in apicentric.json",
+                        format!(
+                            "Gemini API key missing. Set GEMINI_API_KEY environment variable or ai.api_key in {}",
+                            config_path
+                        ),
                     )
                 })?;
             let model = ai_cfg
@@ -227,12 +233,16 @@ pub async fn ai_config_status() -> Result<Json<ApiResponse<AiConfigResponse>>, S
     use std::path::Path;
 
     // Load configuration
-    let cfg = match load_config(Path::new("apicentric.json")) {
+    let config_path =
+        std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
+
+    let cfg = match load_config(Path::new(&config_path)) {
         Ok(cfg) => cfg,
         Err(_) => {
-            return Ok(Json(ApiResponse::error(
-                "Failed to load configuration file apicentric.json".to_string(),
-            )));
+            return Ok(Json(ApiResponse::error(format!(
+                "Failed to load configuration file {}",
+                config_path
+            ))));
         }
     };
     let mut issues = Vec::new();
@@ -278,7 +288,7 @@ pub async fn ai_config_status() -> Result<Json<ApiResponse<AiConfigResponse>>, S
             )
         }
         None => {
-            issues.push("AI configuration not found in apicentric.json".to_string());
+            issues.push(format!("AI configuration not found in {}", config_path));
             (false, None, None)
         }
     };
