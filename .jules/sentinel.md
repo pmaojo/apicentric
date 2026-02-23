@@ -42,3 +42,8 @@
 **Vulnerability:** The `AdminServer` allowed unauthenticated access to sensitive endpoints (e.g., `/apicentric-admin/logs`) if the `APICENTRIC_ADMIN_TOKEN` environment variable was not set.
 **Learning:** Checking for an optional configuration value (like an auth token) and proceeding without it if missing can lead to "Fail Open" scenarios where security is disabled by default.
 **Prevention:** Implement "Fail Secure" logic. If a critical security configuration (like an admin token) is missing, deny access or fail to start, rather than disabling the security check.
+
+## 2024-06-01 - DoS Vulnerability in Latency Simulation
+**Vulnerability:** The `BehaviorConfig` validation allowed `latency.max_ms` to be arbitrarily large (e.g., `u64::MAX`). A malicious configuration could cause the simulator to sleep for an extremely long duration, exhausting server resources (threads/connections) and causing a Denial of Service.
+**Learning:** Input validation for time-based parameters (like timeouts, delays) is critical. Unbounded durations can easily lead to resource exhaustion if used in blocking or even async operations that hold resources.
+**Prevention:** Enforce a reasonable upper bound (e.g., 5 minutes) on all user-controlled duration/timeout fields during configuration validation.
