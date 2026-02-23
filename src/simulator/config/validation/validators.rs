@@ -127,6 +127,17 @@ impl ConfigValidator for BehaviorConfig {
                     suggestion: Some("Ensure min_ms <= max_ms".to_string()),
                 });
             }
+
+            // Sentinel: Limit max latency to prevent DoS
+            if latency.max_ms > 300_000 {
+                errors.push(ValidationError {
+                    field: "behavior.latency.max_ms".to_string(),
+                    message: format!("Maximum latency {} ms is too high", latency.max_ms),
+                    suggestion: Some(
+                        "Use a maximum latency of 300000 ms (5 minutes) or less".to_string(),
+                    ),
+                });
+            }
         }
 
         if let Some(ref error_sim) = self.error_simulation {
