@@ -135,6 +135,27 @@ fn is_global(ip: IpAddr) -> bool {
                 return false;
             }
 
+            // Check for Benchmarking (198.18.0.0/15)
+            // 198.18.0.0 - 198.19.255.255
+            // 198 = 11000110
+            // 18 = 00010010
+            // 19 = 00010011
+            // 15 bits match
+            if ipv4.octets()[0] == 198 && (ipv4.octets()[1] & 0xfe) == 18 {
+                return false;
+            }
+
+            // Check for Multicast (224.0.0.0/4)
+            if ipv4.is_multicast() {
+                return false;
+            }
+
+            // Check for Future Use / Reserved (240.0.0.0/4)
+            // 240.0.0.0 to 255.255.255.254 (255.255.255.255 is broadcast)
+            if ipv4.octets()[0] >= 240 {
+                return false;
+            }
+
             true
         }
         IpAddr::V6(ipv6) => {
@@ -169,6 +190,12 @@ fn is_global(ip: IpAddr) -> bool {
 
             // Check for documentation addresses (2001:db8::/32)
             if ipv6.segments()[0] == 0x2001 && ipv6.segments()[1] == 0xdb8 {
+                return false;
+            }
+
+            // Check for Multicast (ff00::/8)
+            // ipv6.is_multicast() is stable
+            if ipv6.is_multicast() {
                 return false;
             }
 
@@ -216,6 +243,18 @@ mod tests {
 
         // Shared Address Space
         assert!(!is_global("100.64.0.1".parse().unwrap()));
+
+        // Benchmarking
+        assert!(!is_global("198.18.0.1".parse().unwrap()));
+        assert!(!is_global("198.19.255.255".parse().unwrap()));
+
+        // Multicast
+        assert!(!is_global("224.0.0.1".parse().unwrap()));
+        assert!(!is_global("239.255.255.255".parse().unwrap()));
+
+        // Reserved / Future Use
+        assert!(!is_global("240.0.0.1".parse().unwrap()));
+        assert!(!is_global("255.255.255.254".parse().unwrap()));
     }
 
     #[test]
@@ -238,6 +277,10 @@ mod tests {
 
         // Documentation
         assert!(!is_global("2001:db8::1".parse().unwrap()));
+
+        // Multicast
+        assert!(!is_global("ff00::1".parse().unwrap()));
+        assert!(!is_global("ff02::1".parse().unwrap()));
     }
 
     #[test]
@@ -256,6 +299,9 @@ mod tests {
 
         // Mapped Public (::ffff:8.8.8.8) - Should be allowed
         assert!(is_global("::ffff:8.8.8.8".parse().unwrap()));
+
+        // Mapped Multicast (::ffff:224.0.0.1)
+        assert!(!is_global("::ffff:224.0.0.1".parse().unwrap()));
     }
 
     #[test]
