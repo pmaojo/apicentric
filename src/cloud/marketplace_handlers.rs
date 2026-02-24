@@ -45,7 +45,15 @@ pub async fn import_from_url(
     // to prevent redirection to internal services after initial check.
     let client = reqwest::Client::builder()
         .redirect(Policy::none())
-        .resolve(url.host_str().unwrap(), socket_addr)
+        .resolve(
+            url.host_str().ok_or_else(|| {
+                ApiError::bad_request(
+                    ApiErrorCode::InvalidParameter,
+                    "URL must have a host".to_string(),
+                )
+            })?,
+            socket_addr,
+        )
         .build()
         .map_err(|e| {
             ApiError::internal_server_error(format!("Failed to build HTTP client: {}", e))

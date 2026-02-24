@@ -753,7 +753,10 @@ pub async fn export_logs(
                 .header("Content-Type", "text/csv")
                 .header("Content-Disposition", "attachment; filename=\"logs.csv\"")
                 .body(csv.into())
-                .unwrap())
+                .map_err(|e| {
+                    log::error!("Failed to build CSV response: {}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?)
         }
         _ => {
             // Default to JSON
@@ -763,7 +766,10 @@ pub async fn export_logs(
                 .header("Content-Type", "application/json")
                 .header("Content-Disposition", "attachment; filename=\"logs.json\"")
                 .body(json.into())
-                .unwrap())
+                .map_err(|e| {
+                    log::error!("Failed to build JSON response: {}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?)
         }
     }
 }
