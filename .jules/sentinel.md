@@ -42,3 +42,8 @@
 **Vulnerability:** The `AdminServer` allowed unauthenticated access to sensitive endpoints (e.g., `/apicentric-admin/logs`) if the `APICENTRIC_ADMIN_TOKEN` environment variable was not set.
 **Learning:** Checking for an optional configuration value (like an auth token) and proceeding without it if missing can lead to "Fail Open" scenarios where security is disabled by default.
 **Prevention:** Implement "Fail Secure" logic. If a critical security configuration (like an admin token) is missing, deny access or fail to start, rather than disabling the security check.
+
+## 2024-06-01 - SSRF Bypass via Multicast and Reserved IP Ranges
+**Vulnerability:** The SSRF protection in `is_global` allowed access to IPv4/IPv6 Multicast addresses (`224.0.0.0/4`, `ff00::/8`) and IPv4 Benchmarking/Future Use ranges (`198.18.0.0/15`, `240.0.0.0/4`). While not typical private networks, these are non-global addresses that could be abused for local network discovery or DoS.
+**Learning:** Standard libraries often define "global" strictly as "not private/loopback/link-local", missing other reserved ranges. Attackers can leverage these gaps to target internal network infrastructure or services listening on non-standard interfaces.
+**Prevention:** Explicitly block Multicast, Benchmarking, and Reserved ranges in the IP validation logic. Maintain a comprehensive list of non-global IANA reserved blocks beyond just RFC 1918.
