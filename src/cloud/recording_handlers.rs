@@ -218,7 +218,7 @@ pub async fn generate_service_from_recording(
     };
 
     // Check if file already exists
-    if simulator.service_file_exists(&file_path) {
+    if simulator.service_file_exists(&file_path).await {
         return Ok(Json(ApiResponse::error(format!(
             "Service file '{}' already exists",
             request.service_name
@@ -226,12 +226,12 @@ pub async fn generate_service_from_recording(
     }
 
     // Write the service definition to file
-    match simulator.save_service_file(&file_path, &yaml) {
+    match simulator.save_service_file(&file_path, &yaml).await {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(service_def).await {
                 // Clean up the file if applying fails
-                let _ = simulator.delete_service_file(&file_path);
+                let _ = simulator.delete_service_file(&file_path).await;
                 return Ok(Json(ApiResponse::error(format!(
                     "Failed to apply service: {}",
                     e
