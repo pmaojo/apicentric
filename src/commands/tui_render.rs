@@ -188,13 +188,13 @@ pub fn render_log_view(f: &mut Frame, area: Rect, state: &TuiAppState, is_focuse
                                 ));
 
                                 let val_str = if val.is_f64() {
-                                    format!("{:.2}", val.as_f64().unwrap())
+                                    format!("{:.2}", val.as_f64().unwrap_or(0.0))
                                 } else if val.is_i64() {
-                                    val.as_i64().unwrap().to_string()
+                                    val.as_i64().unwrap_or(0).to_string()
                                 } else if val.is_boolean() {
-                                    val.as_bool().unwrap().to_string()
+                                    val.as_bool().unwrap_or(false).to_string()
                                 } else if val.is_string() {
-                                    val.as_str().unwrap().to_string()
+                                    val.as_str().unwrap_or("").to_string()
                                 } else {
                                     val.to_string()
                                 };

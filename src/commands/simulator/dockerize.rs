@@ -1,4 +1,4 @@
-use apicentric::{ApicentricResult, ExecutionContext};
+use apicentric::{ApicentricError, ApicentricResult, ExecutionContext};
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -57,7 +57,22 @@ pub async fn handle_dockerize(
         ports.push(service_def.server.port);
         service_names.push(service_def.name.clone());
 
-        let service_filename = Path::new(input).file_name().unwrap().to_str().unwrap();
+        let input_path = Path::new(input);
+        let service_filename = input_path
+            .file_name()
+            .ok_or_else(|| {
+                ApicentricError::fs_error(
+                    format!("Invalid path '{}': no filename found", input),
+                    Some("Ensure the path points to a file, not a directory"),
+                )
+            })?
+            .to_str()
+            .ok_or_else(|| {
+                ApicentricError::fs_error(
+                    format!("Invalid filename in path '{}': not valid UTF-8", input),
+                    Some("Rename the file to use valid UTF-8 characters"),
+                )
+            })?;
         fs::copy(input, services_dir.join(service_filename))?;
     }
 
@@ -110,11 +125,14 @@ target
     println!("✅ Dockerized services successfully to '{}'.", output);
     println!("   - Dockerfile and .dockerignore created.");
     for input in inputs {
-        let service_filename = Path::new(input).file_name().unwrap().to_str().unwrap();
-        println!(
-            "   - Service '{}' copied into 'services/' directory.",
-            service_filename
-        );
+        if let Some(filename) = Path::new(input).file_name() {
+            if let Some(name_str) = filename.to_str() {
+                println!(
+                    "   - Service '{}' copied into 'services/' directory.",
+                    name_str
+                );
+            }
+        }
     }
     println!("\nTo build the image, run:");
     println!(
