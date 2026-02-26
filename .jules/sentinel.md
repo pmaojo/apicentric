@@ -47,3 +47,8 @@
 **Vulnerability:** The SSRF protection in `is_global` allowed access to IPv4/IPv6 Multicast addresses (`224.0.0.0/4`, `ff00::/8`) and IPv4 Benchmarking/Future Use ranges (`198.18.0.0/15`, `240.0.0.0/4`). While not typical private networks, these are non-global addresses that could be abused for local network discovery or DoS.
 **Learning:** Standard libraries often define "global" strictly as "not private/loopback/link-local", missing other reserved ranges. Attackers can leverage these gaps to target internal network infrastructure or services listening on non-standard interfaces.
 **Prevention:** Explicitly block Multicast, Benchmarking, and Reserved ranges in the IP validation logic. Maintain a comprehensive list of non-global IANA reserved blocks beyond just RFC 1918.
+
+## 2024-06-02 - Path Traversal in CLI 'New' Command
+**Vulnerability:** The `apicentric new <service>` command allowed path traversal when creating a service from a template. The service name provided by the user (or via template override) was used directly to construct the output filename, allowing creation of files outside the intended directory (e.g., `apicentric new ../pwned`).
+**Learning:** CLI commands are often overlooked in security reviews compared to web handlers, but they operate with higher privileges (local user permissions) and can be tricked into overwriting critical system files if input isn't sanitized.
+**Prevention:** Sanitize all user-provided names using `Path::file_name()` before using them to construct filesystem paths, even in CLI tools. Treat all external input as untrusted regardless of the interface.
