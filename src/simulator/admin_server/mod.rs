@@ -29,12 +29,24 @@ impl AdminServer {
 
     pub async fn start(&mut self, port: u16) {
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        let listener = TcpListener::bind(addr).await.unwrap();
+        let listener = match TcpListener::bind(addr).await {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Failed to bind admin server to port {}: {}", port, e);
+                return;
+            }
+        };
         let service_registry = self.service_registry.clone();
 
         let server_handle = tokio::spawn(async move {
             loop {
-                let (stream, _) = listener.accept().await.unwrap();
+                let stream = match listener.accept().await {
+                    Ok((s, _)) => s,
+                    Err(e) => {
+                        eprintln!("Failed to accept admin connection: {}", e);
+                        continue;
+                    }
+                };
                 let io = TokioIo::new(stream);
                 let service_registry = service_registry.clone();
 
@@ -88,13 +100,14 @@ async fn handle_admin_request(
         .get("Authorization")
         .and_then(|h| h.to_str().ok());
 
-    if auth_header.is_none() || !auth_header.unwrap().starts_with("Bearer ") {
-        let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));
-        *unauthorized.status_mut() = StatusCode::UNAUTHORIZED;
-        return unauthorized;
-    }
-
-    let token = auth_header.unwrap().trim_start_matches("Bearer ");
+    let token = match auth_header {
+        Some(h) if h.starts_with("Bearer ") => h.trim_start_matches("Bearer "),
+        _ => {
+            let mut unauthorized = Response::new(Full::new(Bytes::from("Unauthorized")));
+            *unauthorized.status_mut() = StatusCode::UNAUTHORIZED;
+            return unauthorized;
+        }
+    };
 
     if token != admin_token {
         let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));

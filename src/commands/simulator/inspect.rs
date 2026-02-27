@@ -407,7 +407,11 @@ pub async fn handle_monitor(
                 "status": status,
                 "logs": logs_map,
             });
-            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+            if let Ok(json_str) = serde_json::to_string_pretty(&output) {
+                println!("{}", json_str);
+            } else {
+                eprintln!("Failed to serialize monitor output");
+            }
         } else {
             println!("📊 API Simulator Status");
             println!(
