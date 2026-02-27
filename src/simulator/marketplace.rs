@@ -1,5 +1,5 @@
 use crate::simulator::openapi::from_openapi;
-use crate::simulator::ServiceDefinition;
+use crate::simulator::{ServiceDefinition, UnifiedConfig};
 use crate::{ApicentricError, ApicentricResult};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
@@ -443,13 +443,14 @@ pub async fn install_template(
             )
         })?
     } else {
-        serde_yaml::from_value::<ServiceDefinition>(value).map_err(|e| {
+        let unified: UnifiedConfig = serde_yaml::from_value(value).map_err(|e| {
             ApicentricError::validation_error(
                 format!("Invalid service definition: {}", e),
                 None::<String>,
                 None::<String>,
             )
-        })?
+        })?;
+        ServiceDefinition::from(unified)
     };
 
     // Override name if provided, otherwise use template name (sanitized)
