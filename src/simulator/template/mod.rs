@@ -5,15 +5,17 @@
 
 use crate::errors::{ApicentricError, ApicentricResult};
 use crate::simulator::service::state::DataBucket;
+use crate::simulator::template::registry::HelperRegistry;
 use handlebars::Handlebars;
 use serde_json::{Map, Value};
 
 pub mod context;
 pub mod helpers;
 pub mod preprocessor;
+pub mod registry;
 
 pub use context::{RequestContext, TemplateContext};
-use helpers::{bucket::register_bucket_helpers, core::register_core_helpers};
+use helpers::bucket::register_bucket_helpers;
 use preprocessor::TemplatePreprocessor;
 
 /// Template engine for rendering dynamic responses
@@ -51,7 +53,7 @@ impl TemplateEngine {
     pub fn new() -> ApicentricResult<Self> {
         let mut handlebars = Handlebars::new();
         // Register built-in helpers
-        Self::register_helpers(&mut handlebars)?;
+        HelperRegistry::register_helpers(&mut handlebars)?;
 
         Ok(Self {
             handlebars,
@@ -62,15 +64,6 @@ impl TemplateEngine {
     /// Register helpers that require access to the service data bucket
     pub fn register_bucket_helpers(&mut self, bucket: DataBucket) -> ApicentricResult<()> {
         register_bucket_helpers(&mut self.handlebars, bucket);
-        Ok(())
-    }
-
-    /// Register built-in template helpers
-    fn register_helpers(handlebars: &mut Handlebars) -> ApicentricResult<()> {
-        helpers::faker::register(handlebars);
-        helpers::math::register(handlebars);
-        helpers::text::register(handlebars);
-        register_core_helpers(handlebars);
         Ok(())
     }
 
