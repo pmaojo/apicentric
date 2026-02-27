@@ -123,7 +123,7 @@ impl ApicentricMcpService {
         let fixtures = if spec.fixtures.is_object() {
             spec.fixtures
                 .as_object()
-                .unwrap()
+                .ok_or_else(|| "Failed to cast fixtures to object".to_string())?
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect()
