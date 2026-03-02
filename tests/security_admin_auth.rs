@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests {
     use apicentric::simulator::admin_server::AdminServer;
+    use apicentric::simulator::config::PortRange;
     use apicentric::simulator::registry::ServiceRegistry;
     use apicentric::storage::sqlite::SqliteStorage;
-    use apicentric::simulator::config::PortRange;
-    use std::sync::Arc;
-    use tokio::sync::{RwLock, broadcast};
-    use std::time::Duration;
     use reqwest::StatusCode;
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::sync::{broadcast, RwLock};
 
     // Run scenarios sequentially to avoid env var race conditions
     #[tokio::test]
@@ -15,7 +15,10 @@ mod tests {
         let (log_sender, _) = broadcast::channel(100);
         let storage = Arc::new(SqliteStorage::init_db(":memory:").unwrap());
         let registry = Arc::new(RwLock::new(ServiceRegistry::new(
-            PortRange { start: 10000, end: 11000 },
+            PortRange {
+                start: 10000,
+                end: 11000,
+            },
             storage,
             log_sender,
         )));
@@ -30,14 +33,18 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         let client = reqwest::Client::new();
-        let resp = client.get(format!("http://127.0.0.1:{}/apicentric-admin/logs", port1))
+        let resp = client
+            .get(format!("http://127.0.0.1:{}/apicentric-admin/logs", port1))
             .send()
             .await
             .expect("Failed to connect");
 
-        assert_eq!(resp.status(), StatusCode::FORBIDDEN, "Should be Forbidden when no token is set");
+        assert_eq!(
+            resp.status(),
+            StatusCode::FORBIDDEN,
+            "Should be Forbidden when no token is set"
+        );
         server.stop().await;
-
 
         // --- Scenario 2: Auth Success (Correct Token) ---
         println!("Running Scenario 2: Correct Token");
@@ -48,15 +55,19 @@ mod tests {
         server.start(port2).await;
         tokio::time::sleep(Duration::from_millis(100)).await;
 
-        let resp = client.get(format!("http://127.0.0.1:{}/apicentric-admin/logs", port2))
+        let resp = client
+            .get(format!("http://127.0.0.1:{}/apicentric-admin/logs", port2))
             .bearer_auth("test-secret-123")
             .send()
             .await
             .expect("Failed to connect");
 
-        assert_eq!(resp.status(), StatusCode::OK, "Should be OK with correct token");
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "Should be OK with correct token"
+        );
         server.stop().await;
-
 
         // --- Scenario 3: Auth Failure (Wrong Token) ---
         println!("Running Scenario 3: Wrong Token");
@@ -67,13 +78,18 @@ mod tests {
         server.start(port3).await;
         tokio::time::sleep(Duration::from_millis(100)).await;
 
-        let resp = client.get(format!("http://127.0.0.1:{}/apicentric-admin/logs", port3))
+        let resp = client
+            .get(format!("http://127.0.0.1:{}/apicentric-admin/logs", port3))
             .bearer_auth("wrong-token")
             .send()
             .await
             .expect("Failed to connect");
 
-        assert_eq!(resp.status(), StatusCode::FORBIDDEN, "Should be Forbidden with wrong token");
+        assert_eq!(
+            resp.status(),
+            StatusCode::FORBIDDEN,
+            "Should be Forbidden with wrong token"
+        );
         server.stop().await;
 
         // Cleanup

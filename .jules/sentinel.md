@@ -47,3 +47,8 @@
 **Vulnerability:** The SSRF protection in `is_global` allowed access to IPv4/IPv6 Multicast addresses (`224.0.0.0/4`, `ff00::/8`) and IPv4 Benchmarking/Future Use ranges (`198.18.0.0/15`, `240.0.0.0/4`). While not typical private networks, these are non-global addresses that could be abused for local network discovery or DoS.
 **Learning:** Standard libraries often define "global" strictly as "not private/loopback/link-local", missing other reserved ranges. Attackers can leverage these gaps to target internal network infrastructure or services listening on non-standard interfaces.
 **Prevention:** Explicitly block Multicast, Benchmarking, and Reserved ranges in the IP validation logic. Maintain a comprehensive list of non-global IANA reserved blocks beyond just RFC 1918.
+
+## 2024-06-02 - Path Traversal in Marketplace Template Installation
+**Vulnerability:** The `install_template` function in `src/simulator/marketplace.rs` wrote service files directly to the filesystem using the `definition.name` derived from the template YAML (or `name_override`) without sanitizing path separators (e.g. `../../../`).
+**Learning:** Functions that download or generate files from external definitions must strictly validate and sanitize the resulting filenames to prevent writing files outside intended directories.
+**Prevention:** Used `std::path::Path::new(input).file_name()` to extract only the final file component, effectively stripping out any directory traversal attempts like `../`. Always sanitize filenames derived from external data before using them in file I/O operations.
