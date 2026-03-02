@@ -120,11 +120,8 @@ impl ApicentricMcpService {
         }
 
         // Convert fixtures from Value to HashMap if it's an object
-        let fixtures = if spec.fixtures.is_object() {
-            spec.fixtures
-                .as_object()
-                .unwrap()
-                .iter()
+        let fixtures = if let Some(obj) = spec.fixtures.as_object() {
+            obj.iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect()
         } else {
