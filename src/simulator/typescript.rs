@@ -25,8 +25,14 @@ pub fn to_typescript(service: &ServiceDefinition) -> ApicentricResult<String> {
 
     // Run openapi-typescript
     let cmd = if cfg!(windows) { "npx.cmd" } else { "npx" };
+    let spec_path_str = spec_path.to_str().ok_or_else(|| {
+        ApicentricError::runtime_error(
+            "Invalid path for temporary OpenAPI spec",
+            Some("Ensure the temporary directory supports UTF-8 paths"),
+        )
+    })?;
     let output = Command::new(cmd)
-        .args(["-y", "openapi-typescript", spec_path.to_str().unwrap()])
+        .args(["-y", "openapi-typescript", spec_path_str])
         .output()
         .map_err(ApicentricError::Io)?;
     if !output.status.success() {

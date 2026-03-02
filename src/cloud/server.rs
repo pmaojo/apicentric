@@ -286,7 +286,7 @@ async fn health_check() -> Json<serde_json::Value> {
 
     let uptime = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs();
 
     Json(serde_json::json!({
