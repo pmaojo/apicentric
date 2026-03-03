@@ -47,3 +47,8 @@
 **Vulnerability:** The SSRF protection in `is_global` allowed access to IPv4/IPv6 Multicast addresses (`224.0.0.0/4`, `ff00::/8`) and IPv4 Benchmarking/Future Use ranges (`198.18.0.0/15`, `240.0.0.0/4`). While not typical private networks, these are non-global addresses that could be abused for local network discovery or DoS.
 **Learning:** Standard libraries often define "global" strictly as "not private/loopback/link-local", missing other reserved ranges. Attackers can leverage these gaps to target internal network infrastructure or services listening on non-standard interfaces.
 **Prevention:** Explicitly block Multicast, Benchmarking, and Reserved ranges in the IP validation logic. Maintain a comprehensive list of non-global IANA reserved blocks beyond just RFC 1918.
+
+## 2024-06-02 - DoS Vulnerability in Uptime Calculation
+**Vulnerability:** The `health_check` endpoint calculated system uptime using `SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()`. A clock skew backwards could cause `duration_since` to return an `Err(SystemTimeError)`, causing `.unwrap()` to panic.
+**Learning:** Functions dealing with system time, notably `duration_since` or calculating elapsed time, are susceptible to clock jumps or manipulations. `.unwrap()` in these scenarios introduces an availability risk (DoS) if triggered.
+**Prevention:** Calls to `SystemTime::duration_since` must gracefully handle the potential for time going backwards. Use `.unwrap_or_default()` to return a duration of 0 or explicitly match the error to prevent application crashes.
