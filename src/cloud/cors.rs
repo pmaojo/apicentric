@@ -16,19 +16,19 @@ use tower_http::cors::CorsLayer;
 ///
 /// # Behavior
 ///
-/// * **Development mode** (default): Permissive CORS allowing all origins
-/// * **Production mode**: Restrictive CORS with specific allowed origins
+/// * **Development mode**: Permissive CORS allowing all origins
+/// * **Production mode** (default): Restrictive CORS with specific allowed origins
 ///
 /// # Returns
 ///
 /// A configured `CorsLayer` for use with Axum.
 pub fn create_cors_layer() -> CorsLayer {
-    let env_mode = env::var("APICENTRIC_ENV").unwrap_or_else(|_| "development".to_string());
+    let env_mode = env::var("APICENTRIC_ENV").unwrap_or_else(|_| "production".to_string());
 
-    if env_mode == "production" {
-        create_production_cors()
-    } else {
+    if env_mode == "development" {
         create_development_cors()
+    } else {
+        create_production_cors()
     }
 }
 
@@ -164,5 +164,12 @@ mod tests {
     fn test_empty_custom_origins() {
         let _cors = create_cors_with_origins(&[]);
         // Should fall back to permissive
+    }
+
+    #[test]
+    fn test_default_cors_is_production() {
+        env::remove_var("APICENTRIC_ENV");
+        let _cors = create_cors_layer();
+        // Without APICENTRIC_ENV, it should default to production.
     }
 }
