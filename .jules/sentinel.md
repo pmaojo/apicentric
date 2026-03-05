@@ -47,3 +47,8 @@
 **Vulnerability:** The SSRF protection in `is_global` allowed access to IPv4/IPv6 Multicast addresses (`224.0.0.0/4`, `ff00::/8`) and IPv4 Benchmarking/Future Use ranges (`198.18.0.0/15`, `240.0.0.0/4`). While not typical private networks, these are non-global addresses that could be abused for local network discovery or DoS.
 **Learning:** Standard libraries often define "global" strictly as "not private/loopback/link-local", missing other reserved ranges. Attackers can leverage these gaps to target internal network infrastructure or services listening on non-standard interfaces.
 **Prevention:** Explicitly block Multicast, Benchmarking, and Reserved ranges in the IP validation logic. Maintain a comprehensive list of non-global IANA reserved blocks beyond just RFC 1918.
+
+## 2024-06-02 - Permissive CORS by Default
+**Vulnerability:** The `create_cors_layer` defaulted to permissive "development" CORS when `APICENTRIC_ENV` was missing, exposing APIs to all origins if deployment misconfiguration occurred.
+**Learning:** Falling back to a permissive development mode when environment configuration is missing violates the "Fail Secure" principle. Security mechanisms should default to their most restrictive state.
+**Prevention:** Always default environment-conditional security settings (like CORS, auth) to their production/restrictive mode if the environment variable is absent or unrecognized.
