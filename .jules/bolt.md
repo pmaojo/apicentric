@@ -1,0 +1,3 @@
+## 2025-05-18 - [Polling Re-renders]
+**Learning:** The `fetchSimulatorStatus` polling mechanism (every 10s) completely regenerates the `active_services` array with new object references. This causes `useEffect` to update the `services` state with new references, bypassing `React.memo` optimizations in child components like `ServiceCard`, leading to expensive re-renders of the entire list.
+**Action:** When handling polled data, implement a reconciliation step (e.g., in `useEffect`) that compares incoming data with existing state. Reuse existing object references for items that haven't changed (by checking unique IDs and content hashes/equality) to preserve referential integrity and allow `React.memo` to work effectively.
