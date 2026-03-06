@@ -458,7 +458,17 @@ pub async fn install_template(
         definition.name = n;
     }
 
-    let file_name = format!("{}.yaml", definition.name.to_lowercase().replace(' ', "-"));
+    // Sentinel: Sanitize name to prevent path traversal
+    let safe_name = Path::new(&definition.name)
+        .file_name()
+        .ok_or_else(|| ApicentricError::Validation {
+            message: "Invalid service name".to_string(),
+            field: Some("name".to_string()),
+            suggestion: Some("Provide a valid service name".to_string()),
+        })?
+        .to_string_lossy();
+
+    let file_name = format!("{}.yaml", safe_name.to_lowercase().replace(' ', "-"));
     let file_path = output_dir.join(&file_name);
 
     // Save
