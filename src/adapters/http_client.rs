@@ -98,14 +98,14 @@ impl ReqwestHttpClientAdapter {
                     return Ok(response);
                 }
                 Err(e) => {
-                    last_error = Some(e);
                     if attempt < self.max_retries {
                         warn!(
                             "Request failed on attempt {}: {}",
                             attempt + 1,
-                            last_error.as_ref().unwrap()
+                            e
                         );
                     }
+                    last_error = Some(e);
                 }
             }
         }
@@ -113,7 +113,7 @@ impl ReqwestHttpClientAdapter {
         Err(HttpClientError::RequestFailed(format!(
             "Request failed after {} attempts: {}",
             self.max_retries + 1,
-            last_error.unwrap()
+            last_error.map(|e| e.to_string()).unwrap_or_else(|| "Unknown error".into())
         )))
     }
 
