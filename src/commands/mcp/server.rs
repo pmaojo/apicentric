@@ -123,9 +123,9 @@ impl ApicentricMcpService {
         let fixtures = if spec.fixtures.is_object() {
             spec.fixtures
                 .as_object()
-                .unwrap()
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
                 .collect()
         } else {
             HashMap::new()

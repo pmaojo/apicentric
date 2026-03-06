@@ -241,7 +241,16 @@ async fn handle_request(
                     .map_err(|never| match never {})
                     .boxed(),
             )
-            .unwrap())
+            .unwrap_or_else(|_| {
+                Response::builder()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(
+                        Full::new(Bytes::from("Internal Server Error"))
+                            .map_err(|never| match never {})
+                            .boxed(),
+                    )
+                    .unwrap() // We can safely unwrap here because the builder is guaranteed to succeed with known safe inputs
+            }))
     } else {
         Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
@@ -250,6 +259,15 @@ async fn handle_request(
                     .map_err(|never| match never {})
                     .boxed(),
             )
-            .unwrap())
+            .unwrap_or_else(|_| {
+                Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(
+                        Full::new(Bytes::from("Not Found"))
+                            .map_err(|never| match never {})
+                            .boxed(),
+                    )
+                    .unwrap()
+            }))
     }
 }
