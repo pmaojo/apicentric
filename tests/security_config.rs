@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use apicentric::config::{ApicentricConfig, AiConfig, AiProviderKind};
+    use apicentric::config::{AiConfig, AiProviderKind, ApicentricConfig};
 
     #[test]
     fn test_redact_sensitive_fields() {
@@ -16,7 +16,10 @@ mod tests {
 
         config.redact_sensitive_fields();
 
-        assert_eq!(config.ai.as_ref().unwrap().api_key, Some("********".to_string()));
+        assert_eq!(
+            config.ai.as_ref().unwrap().api_key,
+            Some("********".to_string())
+        );
     }
 
     #[test]
@@ -43,8 +46,14 @@ mod tests {
 
         new_config.merge_with_current(&current_config);
 
-        assert_eq!(new_config.ai.as_ref().unwrap().api_key, Some("secret-key-123".to_string()));
-        assert_eq!(new_config.ai.as_ref().unwrap().model, Some("gpt-4".to_string()));
+        assert_eq!(
+            new_config.ai.as_ref().unwrap().api_key,
+            Some("secret-key-123".to_string())
+        );
+        assert_eq!(
+            new_config.ai.as_ref().unwrap().model,
+            Some("gpt-4".to_string())
+        );
     }
 
     #[test]
@@ -71,6 +80,9 @@ mod tests {
 
         new_config.merge_with_current(&current_config);
 
-        assert_eq!(new_config.ai.as_ref().unwrap().api_key, Some("new-secret-key".to_string()));
+        assert_eq!(
+            new_config.ai.as_ref().unwrap().api_key,
+            Some("new-secret-key".to_string())
+        );
     }
 }
