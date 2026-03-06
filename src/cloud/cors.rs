@@ -16,19 +16,21 @@ use tower_http::cors::CorsLayer;
 ///
 /// # Behavior
 ///
-/// * **Development mode** (default): Permissive CORS allowing all origins
-/// * **Production mode**: Restrictive CORS with specific allowed origins
+/// * **Development mode**: Permissive CORS allowing all origins
+/// * **Production mode** (default): Restrictive CORS with specific allowed origins
 ///
 /// # Returns
 ///
 /// A configured `CorsLayer` for use with Axum.
 pub fn create_cors_layer() -> CorsLayer {
-    let env_mode = env::var("APICENTRIC_ENV").unwrap_or_else(|_| "development".to_string());
+    // 🛡️ Sentinel: Fail Secure - default to production (restrictive) CORS
+    // if APICENTRIC_ENV is not explicitly set to "development"
+    let env_mode = env::var("APICENTRIC_ENV").unwrap_or_else(|_| "production".to_string());
 
-    if env_mode == "production" {
-        create_production_cors()
-    } else {
+    if env_mode == "development" {
         create_development_cors()
+    } else {
+        create_production_cors()
     }
 }
 
@@ -133,6 +135,20 @@ mod tests {
         let _cors = create_cors_layer();
         // In development, we use permissive CORS
         // This test just ensures it doesn't panic
+    }
+
+    #[test]
+    fn test_default_cors_is_production() {
+        env::remove_var("APICENTRIC_ENV");
+        let _cors = create_cors_layer();
+        // By default, if APICENTRIC_ENV is unset, it should use production CORS
+    }
+
+    #[test]
+    fn test_invalid_env_cors_is_production() {
+        env::set_var("APICENTRIC_ENV", "invalid_mode");
+        let _cors = create_cors_layer();
+        // If an unknown environment is provided, it should fail secure and use production CORS
     }
 
     #[test]
