@@ -15,16 +15,19 @@ use apicentric::cli::args::TwinCommands;
 /// The entry point for the `apicentric` CLI.
 #[tokio::main]
 async fn main() {
+    let cli = parse();
+
     // Skip logging for TUI mode to prevent log bleed into the terminal UI
-    let args: Vec<String> = std::env::args().collect();
-    let is_tui = args.iter().any(|a| a == "tui");
+    let is_tui = match &cli.command {
+        #[cfg(feature = "tui")]
+        Commands::Tui => true,
+        _ => false,
+    };
 
     if !is_tui {
         // Initialize structured logging only for non-TUI commands
         apicentric::logging::init();
     }
-
-    let cli = parse();
 
     if let Err(e) = run(cli).await {
         eprintln!("Error: {}", e);
