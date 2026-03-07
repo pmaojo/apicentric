@@ -23,12 +23,12 @@ use tower_http::cors::CorsLayer;
 ///
 /// A configured `CorsLayer` for use with Axum.
 pub fn create_cors_layer() -> CorsLayer {
-    let env_mode = env::var("APICENTRIC_ENV").unwrap_or_else(|_| "development".to_string());
+    let env_mode = env::var("APICENTRIC_ENV").unwrap_or_else(|_| "production".to_string());
 
-    if env_mode == "production" {
-        create_production_cors()
-    } else {
+    if env_mode == "development" {
         create_development_cors()
+    } else {
+        create_production_cors()
     }
 }
 
@@ -42,10 +42,9 @@ fn create_development_cors() -> CorsLayer {
 /// Creates a restrictive CORS layer for production.
 ///
 /// Only allows specific origins from the `ALLOWED_ORIGINS` environment variable.
-/// If not set, defaults to localhost for safety.
+/// If not set, returns a restrictive default.
 fn create_production_cors() -> CorsLayer {
-    let allowed_origins =
-        env::var("ALLOWED_ORIGINS").unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let allowed_origins = env::var("ALLOWED_ORIGINS").unwrap_or_else(|_| "".to_string());
 
     let origins: Vec<HeaderValue> = allowed_origins
         .split(',')
@@ -60,19 +59,9 @@ fn create_production_cors() -> CorsLayer {
         .collect();
 
     if origins.is_empty() {
-        // Fallback to localhost if no valid origins provided
-        eprintln!("Warning: No valid ALLOWED_ORIGINS configured, defaulting to localhost");
-        return CorsLayer::new()
-            .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
-            .allow_methods([
-                Method::GET,
-                Method::POST,
-                Method::PUT,
-                Method::DELETE,
-                Method::OPTIONS,
-            ])
-            .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::ACCEPT])
-            .allow_credentials(true);
+        // Return restrictive CORS if no valid origins provided
+        eprintln!("Warning: No valid ALLOWED_ORIGINS configured, returning restrictive CORS");
+        return CorsLayer::new();
     }
 
     CorsLayer::new()
@@ -151,7 +140,15 @@ mod tests {
         env::set_var("APICENTRIC_ENV", "production");
         env::remove_var("ALLOWED_ORIGINS");
         let _cors = create_cors_layer();
-        // Should fall back to localhost
+        // Should return a restrictive CorsLayer
+    }
+
+    #[test]
+    fn test_default_env_is_production() {
+        env::remove_var("APICENTRIC_ENV");
+        env::remove_var("ALLOWED_ORIGINS");
+        let _cors = create_cors_layer();
+        // Should default to production and return a restrictive CorsLayer
     }
 
     #[test]
