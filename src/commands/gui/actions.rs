@@ -104,7 +104,9 @@ endpoints:
         let manager = create_test_manager(services_dir.clone());
 
         // Initial load - should be stopped
-        let services = load_and_sync_services(&manager, services_dir.clone(), 8080).await.unwrap();
+        let services = load_and_sync_services(&manager, services_dir.clone(), 8080)
+            .await
+            .unwrap();
         assert_eq!(services.len(), 1);
         assert_eq!(services[0].name, "test-service");
         assert_eq!(services[0].status, ServiceStatus::Stopped);
@@ -115,7 +117,9 @@ endpoints:
         manager.start_service("test-service").await.unwrap();
 
         // Sync again - should be running
-        let services = load_and_sync_services(&manager, services_dir.clone(), 8080).await.unwrap();
+        let services = load_and_sync_services(&manager, services_dir.clone(), 8080)
+            .await
+            .unwrap();
         assert_eq!(services.len(), 1);
         assert_eq!(services[0].name, "test-service");
         assert!(services[0].status.is_running());

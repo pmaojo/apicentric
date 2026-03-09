@@ -16,19 +16,19 @@ use tower_http::cors::CorsLayer;
 ///
 /// # Behavior
 ///
-/// * **Development mode** (default): Permissive CORS allowing all origins
-/// * **Production mode**: Restrictive CORS with specific allowed origins
+/// * **Production mode** (default): Restrictive CORS with specific allowed origins
+/// * **Development mode**: Permissive CORS allowing all origins
 ///
 /// # Returns
 ///
 /// A configured `CorsLayer` for use with Axum.
 pub fn create_cors_layer() -> CorsLayer {
-    let env_mode = env::var("APICENTRIC_ENV").unwrap_or_else(|_| "development".to_string());
+    let env_mode = env::var("APICENTRIC_ENV").unwrap_or_else(|_| "production".to_string());
 
-    if env_mode == "production" {
-        create_production_cors()
-    } else {
+    if env_mode == "development" {
         create_development_cors()
+    } else {
+        create_production_cors()
     }
 }
 
@@ -165,4 +165,7 @@ mod tests {
         let _cors = create_cors_with_origins(&[]);
         // Should fall back to permissive
     }
+
+    // Removing APICENTRIC_ENV modifies global state which can cause test flakiness.
+    // Instead we can test that production is restrictive since it's the fallback.
 }
