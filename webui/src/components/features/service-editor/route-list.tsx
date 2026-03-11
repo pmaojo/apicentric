@@ -8,6 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { RouteConfig } from './layout';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface RouteListProps {
   routes: RouteConfig[];
@@ -36,63 +42,77 @@ export function RouteList({ routes, selectedId, onSelect, onAdd, onDelete }: Rou
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b space-y-4">
-        <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-sm text-muted-foreground">ROUTES</h2>
-            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onAdd}>
-                <Plus className="h-4 w-4" />
-            </Button>
+    <TooltipProvider>
+      <div className="flex flex-col h-full">
+        <div className="p-4 border-b space-y-4">
+          <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-sm text-muted-foreground">ROUTES</h2>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onAdd} aria-label="Add new route">
+                      <Plus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Add Route</TooltipContent>
+              </Tooltip>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Filter routes..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Filter routes"
+            />
+          </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Filter routes..." 
-            className="pl-8" 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
-      
-      <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
-          {filteredRoutes.map(route => (
-            <div
-              key={route.id}
-              className={cn(
-                "group flex items-center justify-between p-3 rounded-md cursor-pointer transition-colors text-sm",
-                selectedId === route.id ? "bg-accent text-accent-foreground" : "hover:bg-muted"
-              )}
-              onClick={() => onSelect(route.id)}
-            >
-              <div className="flex items-center gap-3 overflow-hidden">
-                <span className={cn("font-bold w-12 text-xs", getMethodColor(route.method))}>
-                  {route.method}
-                </span>
-                <span className="truncate font-mono opacity-90">{route.path}</span>
-              </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(route.id);
-                }}
+
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1">
+            {filteredRoutes.map(route => (
+              <div
+                key={route.id}
+                className={cn(
+                  "group flex items-center justify-between p-3 rounded-md cursor-pointer transition-colors text-sm",
+                  selectedId === route.id ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                )}
+                onClick={() => onSelect(route.id)}
               >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
-          ))}
-          
-          {filteredRoutes.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground text-xs">
-              No routes found.
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-    </div>
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <span className={cn("font-bold w-12 text-xs", getMethodColor(route.method))}>
+                    {route.method}
+                  </span>
+                  <span className="truncate font-mono opacity-90">{route.path}</span>
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(route.id);
+                      }}
+                      aria-label="Delete route"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete Route</TooltipContent>
+                </Tooltip>
+              </div>
+            ))}
+
+            {filteredRoutes.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground text-xs">
+                No routes found.
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+    </TooltipProvider>
   );
 }
