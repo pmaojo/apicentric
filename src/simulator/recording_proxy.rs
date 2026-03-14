@@ -158,7 +158,7 @@ impl RecordingProxy for ProxyRecorder {
 
                                 let target_trimmed = target.trim_end_matches('/');
                                 let uri_string = format!("{}{}", target_trimmed, path_and_query);
-                                let uri: Uri = uri_string.parse().unwrap();
+                                let uri: Uri = uri_string.parse().unwrap_or_else(|_| Uri::from_static("http://localhost"));
 
                                 let mut fwd_req = Request::new(Full::from(req_body.clone()));
                                 *fwd_req.method_mut() = method.clone();
