@@ -1,62 +1,100 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
-     Running unittests src/lib.rs (target/debug/deps/apicentric-76be41ab08597006)
+   Compiling ring v0.17.14
+   Compiling rustls v0.21.12
+   Compiling rustls v0.22.4
+   Compiling rustls v0.23.36
+   Compiling sct v0.7.1
+   Compiling rustls-webpki v0.101.7
+   Compiling rustls-webpki v0.103.9
+   Compiling rustls-webpki v0.102.8
+   Compiling jsonwebtoken v9.3.1
+   Compiling tokio-rustls v0.24.1
+   Compiling hyper-rustls v0.24.2
+   Compiling reqwest v0.11.27
+   Compiling tokio-rustls v0.26.4
+   Compiling tokio-rustls v0.25.0
+   Compiling rumqttc v0.24.0
+   Compiling hyper-rustls v0.27.7
+   Compiling apicentric v0.7.0 (/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 06s
+     Running unittests src/lib.rs (target/debug/deps/apicentric-f303098d3748b2d7)
 
-running 152 tests
+running 177 tests
 test adapters::contract_repository::tests::test_in_memory_repository ... ok
 test auth::blacklist::tests::test_blacklist_add_and_check ... ok
 test auth::blacklist::tests::test_blacklist_different_tokens ... ok
 test cli::parser::tests::test_global_flags ... ok
 test cli::parser::tests::test_missing_argument ... ok
 test cli::parser::tests::test_new_command ... ok
-test adapters::contract_repository::tests::test_filesystem_repository ... ok
 test cli::parser::tests::test_open_port ... ok
-test cli::parser::tests::test_simulator_start_short_alias ... ok
 test cli::parser::tests::test_simulator_start ... ok
+test adapters::contract_repository::tests::test_filesystem_repository ... ok
+test cli::parser::tests::test_simulator_start_short_alias ... ok
 test cli::parser::tests::test_unknown_argument ... ok
 test cli::parser::tests::test_twin_run ... ok
 test cli::parser::tests::test_validate_positional ... ok
-test cloud::cors::tests::test_custom_origins ... ok
 test cloud::cors::tests::test_development_cors_is_permissive ... ok
 test cloud::cors::tests::test_empty_custom_origins ... ok
-test cloud::cors::tests::test_production_cors_with_origins ... ok
+test cloud::cors::tests::test_custom_origins ... ok
 test cloud::cors::tests::test_production_cors_without_origins ... ok
+test cloud::cors::tests::test_production_cors_with_origins ... ok
 test cloud::error::tests::test_api_error_status_mapping ... ok
 test cloud::error::tests::test_error_code_display ... ok
 test cloud::error::tests::test_error_response_creation ... ok
-test cloud::error::tests::test_error_response_with_details ... ok
 test cloud::error::tests::test_validate_required_param ... ok
 test cloud::error::tests::test_validate_service_name ... ok
-test cloud::monitoring::tests::test_metrics_collector ... ok
+test cloud::error::tests::test_error_response_with_details ... ok
+test cloud::error::tests::test_validate_yaml_size ... ok
 test cloud::monitoring::tests::test_structured_log ... ok
+test cloud::monitoring::tests::test_metrics_collector ... ok
+test cloud::server::tests::test_jwt_secret_missing_unprotected ... ok
+test cloud::server::tests::test_jwt_secret_provided ... ok
+test commands::simulator::tests::dockerize_runs ... ok
+test commands::simulator::tests::export_runs ... ok
+test adapters::http_client::tests::test_build_request ... ok
+test commands::simulator::tests::import_runs ... ok
+test commands::simulator::tests::new_runs ... ok
+test commands::simulator::tests::start_runs ... ok
+test commands::simulator::tests::new_graphql_runs ... ok
+test commands::simulator::tests::validate_runs ... ok
+test cloud::server::tests::test_jwt_secret_missing_protected - should panic ... ok
+test adapters::http_client::tests::test_http_client_builder ... ok
+test commands::tui_events::tests::test_handle_key_event_help_mode ... ok
+test commands::tui_events::tests::test_handle_key_event_filter_mode ... ok
+test commands::tui_events::tests::test_handle_key_event_quit ... ok
+test commands::tui_events::tests::test_handle_key_event_switch_panel ... ok
+test commands::tui_state::tests::test_log_filter_description ... ok
+test commands::tui_state::tests::test_log_filter_is_active ... ok
+test commands::tui_state::tests::test_log_filter_matches_combined ... ok
+test commands::tui_state::tests::test_log_filter_matches_method ... ok
+test commands::tui_state::tests::test_log_filter_matches_service ... ok
+test commands::tui_state::tests::test_log_filter_matches_status ... ok
+test commands::tui_state::tests::test_log_view_filtered_entries ... ok
 test config::repository::tests::load_nonexistent_config_returns_default ... ok
-test config::repository::tests::repository_load_nonexistent_config_returns_error ... ok
-test config::repository::tests::save_and_load_roundtrip ... ok
 test config::tests::default_config_is_valid ... ok
+test config::repository::tests::repository_load_nonexistent_config_returns_error ... ok
 test config::tests::generate_default_config_works ... ok
 test config::validation::tests::ai_config_validation_gemini ... ok
 test config::validation::tests::ai_config_validation_openai_missing_key ... ok
+test config::repository::tests::save_and_load_roundtrip ... ok
 test contract::executor::tests::detects_status_code_mismatch ... ok
 test contract::result_reporter::tests::delegates_reporting_to_sink ... ok
 test contract::scenario_extractor::tests::extracts_scenarios_from_spec ... ok
-test domain::contract_testing::entities::tests::detects_header_mismatches_with_details ... ok
 test domain::contract_testing::entities::tests::detects_text_body_mismatch ... ok
+test domain::contract_testing::entities::tests::detects_header_mismatches_with_details ... ok
 test domain::contract_testing::entities::tests::ignores_additional_headers_when_policy_allows ... ok
-test env_config::tests::test_env_loading_and_logic ... ok
 test errors::tests::test_all_error_types ... ok
+test env_config::tests::test_env_loading_and_logic ... ok
 test errors::tests::test_error_creation ... ok
 test errors::tests::test_error_display ... ok
 test errors::tests::test_error_formatter_multiple_validation_errors ... ok
 test errors::tests::test_error_formatting ... ok
-test errors::tests::test_error_from_conversions ... ok
 test errors::tests::test_error_suggestion_and_field_getters ... ok
-test errors::tests::test_new_error_display_and_formatting ... ok
 test errors::tests::test_new_error_variants ... ok
+test errors::tests::test_error_from_conversions ... ok
+test errors::tests::test_new_error_display_and_formatting ... ok
 test errors::tests::test_validation_error ... ok
 test errors::tests::test_validation_error_builder ... ok
-test iot::physics::replay::tests::test_replay_strategy ... ok
-test iot::physics::replay::tests::test_replay_strategy_no_loop ... ok
 test logging::tests::test_logging_macros ... ok
-test cloud::error::tests::test_validate_yaml_size ... ok
 test simulator::config::validation::repository::tests::list_service_files_missing_dir ... ok
 test simulator::config::validation::repository::tests::list_service_files_returns_yaml ... ok
 test simulator::config::validation::repository::tests::load_service_parses_yaml ... ok
@@ -65,17 +103,18 @@ test simulator::config::validation::tests::load_all_services_reports_summary ...
 test simulator::config::validation::validators::tests::duplicate_name_validator_fails ... ok
 test simulator::marketplace::tests::test_marketplace_items ... ok
 test simulator::react_query::tests::generates_query_and_mutation ... ok
-test simulator::react_view::tests::generates_view_component ... ok
+test iot::physics::replay::tests::test_replay_strategy ... ok
+test iot::physics::replay::tests::test_replay_strategy_no_loop ... ok
 test simulator::recording_proxy::tests::parameterize_path_detects_dynamic_segments ... ok
-test simulator::recording_proxy::tests::replay_uses_parameterized_template ... ok
+test simulator::react_view::tests::generates_view_component ... ok
 test simulator::recording_proxy::tests::upsert_collapses_similar_paths_into_one_endpoint ... ok
-test simulator::registry::tests::test_port_manager_assignment ... ok
 test simulator::registry::tests::test_port_manager_conflict ... ok
 test simulator::registry::tests::test_port_manager_release ... ok
+test simulator::registry::tests::test_port_manager_assignment ... ok
 test simulator::registry::tests::test_service_registry_duplicate_registration ... ok
 test simulator::registry::tests::test_service_registry_list_services ... ok
-test simulator::registry::tests::test_service_registry_registration ... ok
 test simulator::registry::tests::test_service_registry_unregistration ... ok
+test simulator::registry::tests::test_service_registry_registration ... ok
 test simulator::route_registry::tests::register_and_clear_routes ... ok
 test simulator::router::tests::test_clear_all_routes ... ok
 test simulator::router::tests::test_get_service_routes ... ok
@@ -86,20 +125,19 @@ test simulator::router::tests::test_request_routing ... ok
 test simulator::router::tests::test_route_registration ... ok
 test simulator::router::tests::test_routing_stats ... ok
 test simulator::router::tests::test_service_route_unregistration ... ok
-test simulator::scripting::tests::test_rhai_helpers ... ok
 test simulator::scripting::tests::test_rhai_scripting_basic ... ok
-test simulator::scripting::tests::test_rhai_scripting_context_access ... ok
-test adapters::http_client::tests::test_build_request ... ok
+test simulator::recording_proxy::tests::replay_uses_parameterized_template ... ok
+test simulator::scripting::tests::test_rhai_helpers ... ok
 test simulator::service::router::tests::default_router_returns_ok ... ok
 test simulator::service::scenario::tests::scenario_roundtrip ... ok
 test simulator::service::state_service::tests::state_roundtrip ... ok
+test simulator::scripting::tests::test_rhai_scripting_context_access ... ok
 test simulator::service::tests::test_duplicate_endpoint_validation ... ok
 test simulator::service::tests::test_endpoint_finding ... ok
-test adapters::http_client::tests::test_http_client_builder ... ok
 test simulator::service::tests::test_endpoint_header_matching ... ok
+test simulator::service::tests::test_endpoint_path_to_regex ... ok
 test simulator::service::tests::test_endpoint_path_to_regex_handles_unclosed_brace ... ok
 test simulator::service::tests::test_fixture_array_operations ... ok
-test simulator::service::tests::test_endpoint_path_to_regex ... ok
 test simulator::service::tests::test_fixture_array_operations_by_field ... ok
 test simulator::service::tests::test_fixture_reset ... ok
 test simulator::service::tests::test_path_parameter_extraction ... ok
@@ -117,42 +155,428 @@ test simulator::service::tests::test_side_effects_processing ... ok
 test simulator::service::tests::test_template_processing_with_params ... ok
 test simulator::service::tests::test_proxy_disabled_returns_not_found ... ok
 test simulator::template::preprocessor::tests::converts_bucket_helpers ... ok
-test simulator::template::preprocessor::tests::handles_pipe_expression ... ok
 test simulator::template::preprocessor::tests::converts_simple_fixture_access ... ok
-test simulator::template::tests::test_bucket_helpers ... ok
+test simulator::template::preprocessor::tests::handles_pipe_expression ... ok
 test simulator::template::tests::test_basic_template_rendering ... ok
 test simulator::template::tests::test_faker_helper ... ok
+test simulator::template::tests::test_bucket_helpers ... ok
 test simulator::template::tests::test_find_helper ... ok
 test simulator::template::tests::test_length_helper ... ok
 test simulator::template::tests::test_now_helper ... ok
 test simulator::template::tests::test_path_params_rendering ... ok
+test simulator::service::tests::test_proxy_forwards_unmatched_requests ... ok
 test simulator::template::tests::test_template_engine_creation ... ok
 test simulator::wiremock::tests::parses_multiple_responses_into_sequential_scenarios ... ok
 test simulator::wiremock::tests::parses_single_stub_with_headers_and_body_patterns ... ok
+test utils::security::tests::test_is_global_ipv4 ... ok
+test utils::security::tests::test_is_global_ipv4_mapped_ipv6 ... ok
+test utils::security::tests::test_sanitize_csv_field ... ok
+test utils::security::tests::test_is_global_ipv6 ... ok
 test validation::tests::test_config_validator_trait ... ok
 test validation::tests::test_validate_content_type ... ok
-test simulator::template::tests::test_request_context_rendering ... ok
 test validation::tests::test_validate_directory ... ok
-test validation::tests::test_validate_directory_file_exists ... ok
 test validation::tests::test_validate_file_exists ... ok
+test simulator::template::tests::test_request_context_rendering ... ok
 test validation::tests::test_validate_file_exists_directory ... ok
 test validation::tests::test_validate_file_extension ... ok
+test validation::tests::test_validate_directory_file_exists ... ok
 test validation::tests::test_validate_glob_pattern ... ok
 test validation::tests::test_validate_http_method ... ok
-test validation::tests::test_validate_json_string ... ok
 test validation::tests::test_validate_non_empty_string ... ok
 test validation::tests::test_validate_numeric_range ... ok
+test validation::tests::test_validate_json_string ... ok
 test validation::tests::test_validate_port ... ok
 test validation::tests::test_validate_port_range ... ok
 test validation::tests::test_validate_parent_directory ... ok
-test validation::tests::test_validate_service_name ... ok
 test validation::tests::test_validate_status_code ... ok
 test validation::tests::test_validate_timeout ... ok
+test validation::tests::test_validate_service_name ... ok
 test validation::tests::test_validate_url ... ok
 test validation::tests::test_validate_url_error_messages ... ok
 test validation::tests::test_validate_yaml_string ... ok
 test validation::tests::test_validation_context ... ok
-test simulator::service::tests::test_proxy_forwards_unmatched_requests ... ok
 test simulator::axios_client::tests::generates_axios_client_methods ... ok
 
-test result: ok. 152 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.36s
+test result: ok. 177 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.46s
+
+     Running unittests src/bin/apicentric.rs (target/debug/deps/apicentric-6ca5c879acb1a132)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/apicentric-minimal.rs (target/debug/deps/apicentric_minimal-c09bde52e230a6f4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/admin_api.rs (target/debug/deps/admin_api-48d3f72838f93ebf)
+
+running 1 test
+test test_admin_server_log_retrieval ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+     Running tests/auth_api.rs (target/debug/deps/auth_api-4e10190214b7bd9d)
+
+running 6 tests
+test test_duplicate_user_registration_fails ... ok
+test test_jwt_token_validation_fails_with_wrong_secret ... ok
+test test_jwt_token_generation_and_validation ... ok
+test test_token_blacklist_functionality ... ok
+test test_user_registration_and_retrieval ... ok
+test test_password_hashing_and_verification ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.17s
+
+     Running tests/cli_output.rs (target/debug/deps/cli_output-5b188750148b4b4e)
+
+running 1 test
+test test_simulator_start_output ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/cloud_command_test.rs (target/debug/deps/cloud_command_test-e663ff398a94a5f8)
+
+running 1 test
+   Compiling ring v0.17.14
+   Compiling rustls v0.21.12
+   Compiling rustls v0.22.4
+   Compiling rustls v0.23.36
+   Compiling rustls-webpki v0.101.7
+   Compiling sct v0.7.1
+   Compiling rustls-webpki v0.102.8
+   Compiling rustls-webpki v0.103.9
+   Compiling jsonwebtoken v9.3.1
+   Compiling tokio-rustls v0.24.1
+   Compiling hyper-rustls v0.24.2
+   Compiling tokio-rustls v0.25.0
+   Compiling rumqttc v0.24.0
+   Compiling tokio-rustls v0.26.4
+   Compiling hyper-rustls v0.27.7
+   Compiling reqwest v0.11.27
+   Compiling apicentric v0.7.0 (/app)
+test test_cloud_command_starts_server has been running for over 60 seconds
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 04s
+  [2m2026-03-16T20:29:06.375925Z[0m [32m INFO[0m [1;32mapicentric::logging[0m[32m: [32mLogging initialized, [1;32mformat[0m[32m: pretty[0m
+    [2;3mat[0m src/logging.rs:71
+
+⚠️  WARNING: APICENTRIC_JWT_SECRET not set. Using a random secret. Sessions will not persist across restarts.
+🚀 Starting Apicentric Cloud Server on port 8080...
+📝 API Documentation: http://localhost:8080/health
+🔐 Authentication is optional (set APICENTRIC_PROTECT_SERVICES=true to require auth)
+🚀 Apicentric Cloud Server listening on http://0.0.0.0:8080
+test test_cloud_command_starts_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.94s
+
+     Running tests/codegen_api.rs (target/debug/deps/codegen_api-055d67a9e42e208c)
+
+running 4 tests
+test test_codegen_service_not_found ... ok
+test test_react_query_generation ... ok
+test test_typescript_generation ... ok
+test test_axios_generation ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.16s
+
+     Running tests/config_api.rs (target/debug/deps/config_api-be96e9a69bbde31d)
+
+running 4 tests
+test test_ai_config_validation_missing_key ... ok
+test test_default_config_validation ... ok
+test test_config_with_ai_settings ... ok
+test test_config_save_and_load ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/contract_use_cases.rs (target/debug/deps/contract_use_cases-b299bd1ab220b5c7)
+
+running 5 tests
+test loads_contract_from_repository ... ok
+test publishes_reports_in_multiple_formats ... ok
+test validates_spec_and_extracts_scenarios ... ok
+test executes_scenarios_and_returns_results ... ok
+test assigns_scenario_path_to_issues ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/dockerize.rs (target/debug/deps/dockerize-d367367704565b4c)
+
+running 1 test
+test test_dockerize_command ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/fault_injection.rs (target/debug/deps/fault_injection-cde5d9c6b6be851a)
+
+running 9 tests
+test test_cli_missing_subcommand ... ok
+test test_cli_unknown_argument ... ok
+test test_dockerize_missing_files ... ok
+test test_contract_testing_quiet ... ok
+test test_start_missing_service_file ... ok
+test test_twin_run_missing_device ... ok
+test test_import_corrupt_csv ... ok
+test test_validate_corrupt_yaml ... ok
+test test_validate_missing_required_fields ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/feature_flags.rs (target/debug/deps/feature_flags-0a6e5511770ae3bf)
+
+running 12 tests
+test test_cli_tools_build_works ... ok
+test test_contract_testing_feature_enabled ... ok
+test test_database_feature_enabled ... ok
+test test_core_features_available ... ok
+test test_full_build_works ... ok
+test test_file_watch_feature_enabled ... ok
+test test_linux_platform ... ok
+test test_minimal_build_works ... ok
+test test_scripting_feature_enabled ... ok
+test test_mock_data_feature_enabled ... ok
+test test_tui_feature_enabled ... ok
+test test_websockets_feature_enabled ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fs_utils.rs (target/debug/deps/fs_utils-b9fb594582e58e03)
+
+running 11 tests
+test test_resolve_glob_pattern_invalid_syntax ... ok
+test test_ensure_directory_exists ... ok
+test test_count_files_in_directory ... ok
+test test_safe_read_file ... ok
+test test_safe_write_file ... ok
+test test_resolve_glob_pattern_no_matches ... ok
+test test_resolve_glob_pattern_success ... ok
+test test_directory_scanner ... ok
+test test_validate_directory_access ... ok
+test test_validate_single_test_file_posix ... ok
+test test_validate_test_files ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/gui_tests.rs (target/debug/deps/gui_tests-4be2fc6b88ecdb35)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/helpers_faker.rs (target/debug/deps/helpers_faker-c6f76c550e337c96)
+
+running 2 tests
+test now_generates_timestamp ... ok
+test random_string_length ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/helpers_math.rs (target/debug/deps/helpers_math-8a89a99f2a9165f3)
+
+running 2 tests
+test length_helper_counts ... ok
+test eq_helper_evaluates ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/helpers_text.rs (target/debug/deps/helpers_text-258561f62c784880)
+
+running 1 test
+test upper_and_contains_helpers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/import_export.rs (target/debug/deps/import_export-9149df1a5f11faaa)
+
+running 2 tests
+test test_large_url_import_repro ... ignored
+test test_openapi_round_trip ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/mcp.rs (target/debug/deps/mcp-ba81911cbf56194d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/openapi_conversion.rs (target/debug/deps/openapi_conversion-18d21724947f296e)
+
+running 6 tests
+test import_openapi_to_service ... ok
+test export_service_to_openapi ... ok
+test response_examples::prefers_openapi2_examples_over_description ... ok
+test response_examples::generates_payload_when_only_schema_available ... ok
+test response_examples::supports_openapi3_examples_and_content ... ok
+test response_examples::supports_openapi3_schema_generation ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/plugin_loading.rs (target/debug/deps/plugin_loading-f430dbe6f87e89da)
+
+running 1 test
+   Compiling apicentric v0.7.0 (/app)
+   Compiling logger_plugin v0.1.0 (/app/examples/plugins/logger)
+test loads_plugins_from_directory has been running for over 60 seconds
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 29s
+test loads_plugins_from_directory ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 89.87s
+
+     Running tests/plugin_system.rs (target/debug/deps/plugin_system-2554122d8ad330b8)
+
+running 2 tests
+test plugin_hooks_execute_and_mutate_response ... ok
+test missing_create_plugin_symbol_is_reported ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/react_query_generation.rs (target/debug/deps/react_query_generation-5e301fa8fdf67246)
+
+running 1 test
+test generated_hooks_compile_and_call_endpoints ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/react_view_generation.rs (target/debug/deps/react_view_generation-50f846ec55cf043e)
+
+running 1 test
+test generated_view_compiles_and_composes_with_hooks ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/recording_api.rs (target/debug/deps/recording_api-f3080464408bd65f)
+
+running 2 tests
+test test_recording_generate_service ... ok
+test test_recording_start_stop_status ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.28s
+
+     Running tests/recording_proxy_test.rs (target/debug/deps/recording_proxy_test-586fe85fa61bdbbc)
+
+running 1 test
+test test_recording_proxy_functionality ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests/report_sink.rs (target/debug/deps/report_sink-ce04ed155e63c5a9)
+
+running 2 tests
+test writes_html_report_with_summary ... ok
+test writes_junit_report_with_failures ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/security.rs (target/debug/deps/security-ecfe2b3627b9edb6)
+
+running 1 test
+test test_path_traversal_prevention ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/security_admin_auth.rs (target/debug/deps/security_admin_auth-0f89a1ede30053fb)
+
+running 1 test
+test tests::test_admin_server_security_scenarios ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+
+     Running tests/security_config.rs (target/debug/deps/security_config-8b6fbaafaa0d196c)
+
+running 3 tests
+test tests::test_merge_with_current_restores_secret ... ok
+test tests::test_merge_with_current_allows_update ... ok
+test tests::test_redact_sensitive_fields ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/security_iot_traversal.rs (target/debug/deps/security_iot_traversal-023c10a7f2f7f7d5)
+
+running 1 test
+test test_iot_security_traversal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/security_iot_upload.rs (target/debug/deps/security_iot_upload-3832cc9e22d61be4)
+
+running 1 test
+test test_upload_security_vulnerability ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+
+     Running tests/security_iot_upload_limit.rs (target/debug/deps/security_iot_upload_limit-90f43245d60e8fe9)
+
+running 1 test
+test test_upload_scenarios ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/security_ssrf.rs (target/debug/deps/security_ssrf-dbbe97fd89199dd9)
+
+running 1 test
+test test_validate_ssrf_url_private_ip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/service_instance.rs (target/debug/deps/service_instance-ab14b1ca73aac2b0)
+
+running 3 tests
+test scenario_management_roundtrip ... ok
+test cors_preflight_returns_no_content ... ok
+test get_request_returns_response ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running tests/service_spec_loader.rs (target/debug/deps/service_spec_loader-cca1c51a8563ab34)
+
+running 4 tests
+test test_validate_missing_fields ... ok
+test load_with_mock_reader ... ok
+test test_load_invalid_yaml ... ok
+test test_load_valid_yaml_spec ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/simulator_integration.rs (target/debug/deps/simulator_integration-e01a6f7745910e43)
+
+running 5 tests
+test simulator_can_load_simple_yaml ... ok
+test simulator_validates_yaml_structure ... ok
+test simulator_status_reflects_state ... ok
+test simulator_manager_initializes_successfully ... ok
+test simulator_can_set_db_path ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/tui_state.rs (target/debug/deps/tui_state-652ed15912663961)
+
+running 5 tests
+test test_keyboard_navigation ... ok
+test test_log_filter_basic ... ok
+test test_view_mode_transitions ... ok
+test test_service_status_update ... ok
+test test_log_buffer_limit ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/websocket_api.rs (target/debug/deps/websocket_api-c716223e1c0e5875)
+
+running 7 tests
+test test_websocket_connection_establishment ... ok
+test test_websocket_ping_pong ... ok
+test test_websocket_log_streaming ... ok
+test test_websocket_multiple_clients ... ok
+test test_websocket_reconnection ... ok
+test test_websocket_service_status_updates ... ok
+test test_websocket_connection_cleanup ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.77s
+
+   Doc-tests apicentric
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
