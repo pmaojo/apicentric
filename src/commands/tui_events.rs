@@ -684,7 +684,7 @@ async fn download_marketplace_item(item_id: &str, url: &str) -> Result<String, S
                 // Generate random port (8000-9000)
                 let now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_nanos();
                 let port = 8000 + (now % 1000) as u16;
 
