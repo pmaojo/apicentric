@@ -89,7 +89,7 @@ impl ServiceInstance {
             None
         };
 
-        let saved_definition = { definition.read().unwrap().clone() };
+        let saved_definition = { definition.read().unwrap_or_else(|e| e.into_inner()).clone() };
         let _ = storage.save_service(&saved_definition);
 
         Ok(Self {
@@ -114,7 +114,7 @@ impl ServiceInstance {
             return Err(ApicentricError::runtime_error(
                 format!(
                     "Service '{}' is already running",
-                    self.definition.read().unwrap().name
+                    self.definition.read().unwrap_or_else(|e| e.into_inner()).name
                 ),
                 None::<String>,
             ));
@@ -122,14 +122,14 @@ impl ServiceInstance {
 
         #[cfg(feature = "iot")]
         {
-            let twin_def = self.definition.read().unwrap().twin.clone();
+            let twin_def = self.definition.read().unwrap_or_else(|e| e.into_inner()).twin.clone();
             if let Some(twin_def) = twin_def {
                 self.start_twin_runner(twin_def).await?;
             }
         }
 
         let (server_cfg, service_name) = {
-            let definition_guard = self.definition.read().unwrap();
+            let definition_guard = self.definition.read().unwrap_or_else(|e| e.into_inner());
             (
                 definition_guard.server.clone(),
                 definition_guard.name.clone(),
@@ -298,7 +298,7 @@ impl ServiceInstance {
 
         println!(
             "🛑 Stopped service '{}'",
-            self.definition.read().unwrap().name
+            self.definition.read().unwrap_or_else(|e| e.into_inner()).name
         );
 
         Ok(())
@@ -313,7 +313,7 @@ impl ServiceInstance {
             return Err(ApicentricError::runtime_error(
                 format!(
                     "Service '{}' is not running",
-                    self.definition.read().unwrap().name
+                    self.definition.read().unwrap_or_else(|e| e.into_inner()).name
                 ),
                 Some("Start the service before handling requests"),
             ));
@@ -355,7 +355,7 @@ impl ServiceInstance {
 
     /// Get the service name
     pub fn name(&self) -> String {
-        self.definition.read().unwrap().name.clone()
+        self.definition.read().unwrap_or_else(|e| e.into_inner()).name.clone()
     }
 
     /// Get the number of endpoints defined for this service
@@ -381,7 +381,7 @@ impl ServiceInstance {
 
     /// Get the service definition
     pub fn definition(&self) -> ServiceDefinition {
-        self.definition.read().unwrap().clone()
+        self.definition.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Set the active scenario for this service
@@ -572,7 +572,7 @@ impl ServiceInstance {
 
     /// Get service information for status reporting
     pub fn get_info(&self) -> crate::simulator::ServiceInfo {
-        let def = self.definition.read().unwrap();
+        let def = self.definition.read().unwrap_or_else(|e| e.into_inner());
         crate::simulator::ServiceInfo {
             name: def.name.clone(),
             port: self.port,
@@ -596,7 +596,7 @@ impl ServiceInstance {
         path: &str,
         headers: &HashMap<String, String>,
     ) -> Option<RouteMatch> {
-        let definition = self.definition.read().unwrap();
+        let definition = self.definition.read().unwrap_or_else(|e| e.into_inner());
         if let Some(endpoints) = &definition.endpoints {
             for (index, endpoint) in endpoints.iter().enumerate() {
                 if endpoint.method.to_uppercase() == method.to_uppercase()
@@ -622,7 +622,7 @@ impl ServiceInstance {
         path: &str,
         headers: &HashMap<String, String>,
     ) -> Option<EndpointDefinition> {
-        let definition = self.definition.read().unwrap();
+        let definition = self.definition.read().unwrap_or_else(|e| e.into_inner());
         if let Some(endpoints) = &definition.endpoints {
             for endpoint in endpoints {
                 if endpoint.method.to_uppercase() == method.to_uppercase()
@@ -704,7 +704,7 @@ impl ServiceInstance {
         storage: Arc<dyn Storage>,
     ) -> ApicentricResult<Response<Full<Bytes>>> {
         let (service_name, base_path, endpoints, cors_cfg, proxy_base_url, record_unknown) = {
-            let def = definition.read().unwrap();
+            let def = definition.read().unwrap_or_else(|e| e.into_inner());
             let (base_path, cors_cfg, proxy_cfg, record_unknown) = if let Some(server) = &def.server
             {
                 (
@@ -1134,7 +1134,7 @@ impl ServiceInstance {
 
                     let response_body = if let Some(body_v) = script_body_override {
                         if body_v.is_string() {
-                            body_v.as_str().unwrap().to_string()
+                            body_v.as_str().unwrap_or("").to_string()
                         } else {
                             serde_json::to_string(&body_v)
                                 .unwrap_or_else(|_| response_def.body.clone())
@@ -1388,7 +1388,7 @@ impl ServiceInstance {
                         Self::build_recorded_endpoint(method, &relative_path);
 
                     let saved_definition = {
-                        let mut def = definition.write().unwrap();
+                        let mut def = definition.write().unwrap_or_else(|e| e.into_inner());
                         match def.endpoints.as_mut() {
                             Some(endpoints) => endpoints.push(placeholder_endpoint),
                             None => def.endpoints = Some(vec![placeholder_endpoint]),
@@ -1893,7 +1893,7 @@ impl ServiceInstance {
 
     /// Get service behavior configuration
     pub fn behavior(&self) -> Option<crate::simulator::config::BehaviorConfig> {
-        self.definition.read().unwrap().behavior.clone()
+        self.definition.read().unwrap_or_else(|e| e.into_inner()).behavior.clone()
     }
 
     /// Get CORS configuration
@@ -1913,7 +1913,7 @@ impl ServiceInstance {
 
     /// Validate that the service definition is consistent
     pub fn validate_consistency(&self) -> ApicentricResult<()> {
-        let definition = self.definition.read().unwrap();
+        let definition = self.definition.read().unwrap_or_else(|e| e.into_inner());
         // Check for duplicate endpoint paths with same method
         let mut seen_endpoints = std::collections::HashSet::new();
 
