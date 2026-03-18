@@ -50,8 +50,18 @@ impl ScriptingEngine {
     pub fn execute(&self, script: &str, context: &Value) -> ApicentricResult<Value> {
         #[cfg(feature = "scripting")]
         {
-            let engine = self.engine.lock().unwrap();
-            let mut cache = self.cache.lock().unwrap();
+            let engine = self.engine.lock().map_err(|_| {
+                crate::ApicentricError::runtime_error(
+                    "Failed to acquire engine lock".to_string(),
+                    None::<String>,
+                )
+            })?;
+            let mut cache = self.cache.lock().map_err(|_| {
+                crate::ApicentricError::runtime_error(
+                    "Failed to acquire cache lock".to_string(),
+                    None::<String>,
+                )
+            })?;
 
             // Compile or retrieve from cache
             let ast = if let Some(ast) = cache.get(script) {
