@@ -52,3 +52,8 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+
+## 2024-06-03 - Fail Open CORS Policy and Potential Panic
+**Vulnerability:** The `create_cors_with_origins` function fell back to a permissive CORS layer (`CorsLayer::permissive()`) if an empty origin list was provided. In addition, the `create_production_cors` function used `.unwrap()` on `.parse::<HeaderValue>()` when setting up localhost fallback, creating a risk of runtime panics.
+**Learning:** Defaulting to permissive access mechanisms ("Fail Open") puts applications at risk, particularly when configurations are unexpectedly empty or malformed. Using `.unwrap()` on string parsing for static headers is also an unnecessary risk for denial of service.
+**Prevention:** Always implement "Fail Secure" by defaulting to a restrictive access layer (e.g., `CorsLayer::new()`). Use `HeaderValue::from_static(...)` when constructing static HTTP header values to eliminate parsing panics.
