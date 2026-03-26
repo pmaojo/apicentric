@@ -52,3 +52,7 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+## 2024-06-03 - Overly Permissive CORS Defaults for Custom Origins
+**Vulnerability:** The CORS configuration in `create_cors_with_origins` defaulted to a permissive state (`CorsLayer::permissive()`) when the provided list of origins was empty or invalid, allowing any origin to make cross-origin requests.
+**Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk. If a caller intends to restrict CORS but provides an empty list by mistake or due to a configuration error, the application should not silently fail open.
+**Prevention:** Implement "Fail Secure" by defaulting to a restrictive `CorsLayer::new()` if the origin list is empty or invalid.
