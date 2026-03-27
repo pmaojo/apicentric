@@ -107,7 +107,8 @@ pub fn create_cors_with_origins(origins: &[&str]) -> CorsLayer {
         .collect();
 
     if origin_values.is_empty() {
-        return CorsLayer::permissive();
+        // 🛡️ Sentinel: Fail Secure - do not default to permissive if origins are invalid/empty
+        return CorsLayer::new();
     }
 
     CorsLayer::new()
@@ -163,7 +164,7 @@ mod tests {
     #[test]
     fn test_empty_custom_origins() {
         let _cors = create_cors_with_origins(&[]);
-        // Should fall back to permissive
+        // Should fall back to restrictive
     }
 
     // Removing APICENTRIC_ENV modifies global state which can cause test flakiness.
