@@ -63,7 +63,7 @@ fn create_production_cors() -> CorsLayer {
         // Fallback to localhost if no valid origins provided
         eprintln!("Warning: No valid ALLOWED_ORIGINS configured, defaulting to localhost");
         return CorsLayer::new()
-            .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+            .allow_origin(HeaderValue::from_static("http://localhost:3000"))
             .allow_methods([
                 Method::GET,
                 Method::POST,
@@ -107,7 +107,8 @@ pub fn create_cors_with_origins(origins: &[&str]) -> CorsLayer {
         .collect();
 
     if origin_values.is_empty() {
-        return CorsLayer::permissive();
+        // Fail Secure: Do not allow permissive CORS if no valid origins are provided
+        return CorsLayer::new();
     }
 
     CorsLayer::new()
@@ -163,7 +164,7 @@ mod tests {
     #[test]
     fn test_empty_custom_origins() {
         let _cors = create_cors_with_origins(&[]);
-        // Should fall back to permissive
+        // Should fall back to restrictive (Fail Secure)
     }
 
     // Removing APICENTRIC_ENV modifies global state which can cause test flakiness.
