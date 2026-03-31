@@ -63,7 +63,7 @@ fn create_production_cors() -> CorsLayer {
         // Fallback to localhost if no valid origins provided
         eprintln!("Warning: No valid ALLOWED_ORIGINS configured, defaulting to localhost");
         return CorsLayer::new()
-            .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+            .allow_origin(HeaderValue::from_static("http://localhost:3000"))
             .allow_methods([
                 Method::GET,
                 Method::POST,
