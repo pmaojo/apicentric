@@ -9,6 +9,7 @@ pub mod handlers;
 pub mod iot_handlers;
 pub mod monitoring;
 pub mod recording_session;
+pub mod security_headers;
 pub mod server;
 pub mod websocket;
 
