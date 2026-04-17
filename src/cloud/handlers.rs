@@ -890,7 +890,7 @@ pub async fn validate_config(
     use crate::validation::ConfigValidator;
 
     // Parse the JSON into ApicentricConfig
-    let config: ApicentricConfig = match serde_json::from_value(request.config) {
+    let mut config: ApicentricConfig = match serde_json::from_value(request.config) {
         Ok(cfg) => cfg,
         Err(e) => {
             let response = ValidateConfigResponse {
@@ -900,6 +900,15 @@ pub async fn validate_config(
             return Ok(Json(ApiResponse::success(response)));
         }
     };
+
+    let config_path =
+        std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
+
+    // Load current config to restore redacted secrets
+    // We ignore errors here (e.g. if file doesn't exist yet) as merge_with_current handles it gracefully
+    if let Ok(current_config) = crate::config::load_config(std::path::Path::new(&config_path)) {
+        config.merge_with_current(&current_config);
+    }
 
     // Validate the configuration
     let errors = match config.validate() {
