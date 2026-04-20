@@ -28,7 +28,7 @@ import { SystemMetrics } from './system-metrics';
 import type { Service } from '@/lib/types';
 import { startService, stopService, reloadServices } from '@/services/api';
 import Link from 'next/link';
-import { CheckCircle, ExternalLink, Play, Power, Square, XCircle, RefreshCw, Loader2, Edit } from 'lucide-react';
+import { CheckCircle, ExternalLink, Play, Power, Square, XCircle, RefreshCw, Loader2, Edit, Clipboard, Check } from 'lucide-react';
 import * as React from 'react';
 
 type DashboardProps = {
@@ -337,6 +337,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApiDocs } from "./api-docs"
 
 function ServiceDetailsDialog({ service }: { service: Service }) {
+  const { toast } = useToast();
+  const [isCopied, setIsCopied] = React.useState(false);
+
+  const handleCopy = () => {
+    if (service.definition) {
+      navigator.clipboard.writeText(service.definition);
+      setIsCopied(true);
+      toast({ title: 'Copied to clipboard!' });
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -395,11 +407,26 @@ function ServiceDetailsDialog({ service }: { service: Service }) {
             </TabsContent>
             
             <TabsContent value="definition" className="mt-0 h-full">
-              <div className="rounded-md border bg-muted/50 p-4 h-full overflow-auto">
+              <div className="rounded-md border bg-muted/50 p-4 h-full overflow-auto relative group">
                 {service.definition ? (
-                  <pre className="text-xs font-mono">
-                    <code>{service.definition}</code>
-                  </pre>
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-2 h-8 w-8 z-10 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity bg-background/80 hover:bg-background backdrop-blur-sm"
+                      onClick={handleCopy}
+                    >
+                      {isCopied ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Clipboard className="h-4 w-4" />
+                      )}
+                      <span className="sr-only">Copy to clipboard</span>
+                    </Button>
+                    <pre className="text-xs font-mono">
+                      <code>{service.definition}</code>
+                    </pre>
+                  </>
                 ) : (
                   <p className="text-xs text-muted-foreground italic">No definition available.</p>
                 )}
