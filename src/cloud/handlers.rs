@@ -143,7 +143,10 @@ pub async fn save_service(
             let def = ServiceDefinition::from(unified);
             // Re-serialize to ensure valid YAML structure
             match serde_yaml::to_string(&def) {
-                Ok(yaml_content) => match simulator.save_service_file(&safe_path, &yaml_content) {
+                Ok(yaml_content) => match simulator
+                    .save_service_file(&safe_path, &yaml_content)
+                    .await
+                {
                     Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
                     Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
                 },
@@ -429,17 +432,17 @@ pub async fn create_service(
     };
 
     // Check if file already exists
-    if simulator.service_file_exists(&file_path) {
+    if simulator.service_file_exists(&file_path).await {
         return Err(ErrorResponse::service_already_exists(&filename).into());
     }
 
     // Write the service definition to file
-    match simulator.save_service_file(&file_path, &request.yaml) {
+    match simulator.save_service_file(&file_path, &request.yaml).await {
         Ok(_) => {
             // Apply the service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition).await {
                 // Clean up the file if applying fails
-                let _ = simulator.delete_service_file(&file_path);
+                let _ = simulator.delete_service_file(&file_path).await;
                 return Err(ApiError::new(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ApiErrorCode::ServiceStartFailed,
@@ -505,6 +508,7 @@ graphql:
 
     simulator
         .save_service_file(&schema_path, "type Query {\n  hello: String\n}")
+        .await
         .map_err(|e| ApiError::internal_server_error(format!("Failed to write schema: {}", e)))?;
 
     simulator
@@ -512,10 +516,12 @@ graphql:
             &mock_path,
             "{\n  \"data\": {\n    \"hello\": \"world\"\n  }\n}",
         )
+        .await
         .map_err(|e| ApiError::internal_server_error(format!("Failed to write mock: {}", e)))?;
 
     simulator
         .save_service_file(&service_path, &yaml_content)
+        .await
         .map_err(|e| ApiError::internal_server_error(format!("Failed to write service: {}", e)))?;
 
     // Apply the service
@@ -587,12 +593,12 @@ pub async fn update_service(
         }
     };
 
-    if !simulator.service_file_exists(&file_path) {
+    if !simulator.service_file_exists(&file_path).await {
         return Err(ErrorResponse::service_not_found(&name).into());
     }
 
     // Write the updated definition
-    match simulator.save_service_file(&file_path, &request.yaml) {
+    match simulator.save_service_file(&file_path, &request.yaml).await {
         Ok(_) => {
             // Apply the updated service to the running simulator
             if let Err(e) = simulator.apply_service_definition(definition).await {
@@ -644,11 +650,11 @@ pub async fn delete_service(
         }
     };
 
-    if !simulator.service_file_exists(&file_path) {
+    if !simulator.service_file_exists(&file_path).await {
         return Err(ErrorResponse::service_not_found(&name).into());
     }
 
-    match simulator.delete_service_file(&file_path) {
+    match simulator.delete_service_file(&file_path).await {
         Ok(_) => Ok(Json(ApiResponse::success(format!(
             "Service '{}' deleted successfully",
             name
