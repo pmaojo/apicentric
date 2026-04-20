@@ -30,11 +30,11 @@ fn is_truthy(value: &Value) -> bool {
     if let Some(n) = value.as_f64() {
         return n != 0.0;
     }
-    if value.is_array() {
-        return !value.as_array().unwrap().is_empty();
+    if let Some(arr) = value.as_array() {
+        return !arr.is_empty();
     }
-    if value.is_object() {
-        return !value.as_object().unwrap().is_empty();
+    if let Some(obj) = value.as_object() {
+        return !obj.is_empty();
     }
     true
 }
