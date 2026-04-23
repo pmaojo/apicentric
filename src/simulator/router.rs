@@ -205,7 +205,7 @@ pub async fn handle_websocket_connection(
             Response::builder()
                 .status(StatusCode::BAD_REQUEST)
                 .body(Full::new(Bytes::new()))
-                .unwrap()
+                .unwrap_or_default()
         });
 
     let upgrade = hyper::upgrade::on(Request::from_parts(parts, body));
@@ -249,7 +249,7 @@ pub async fn handle_websocket_connection(
     Response::builder()
         .status(StatusCode::NOT_IMPLEMENTED)
         .body(Full::new(Bytes::from("WebSockets not enabled")))
-        .unwrap()
+        .unwrap_or_default()
 }
 
 /// Create a Server-Sent Events response with optional periodic messages
@@ -295,7 +295,10 @@ pub fn handle_sse_connection(
         .status(StatusCode::OK)
         .header("content-type", "text/event-stream")
         .body(body)
-        .unwrap()
+        .unwrap_or_else(|_| {
+            let (_, empty_rx) = mpsc::unbounded_channel();
+            Response::new(StreamBody::new(UnboundedReceiverStream::new(empty_rx)))
+        })
 }
 
 /// Statistics about the current routing configuration
