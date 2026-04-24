@@ -81,7 +81,7 @@ pub async fn ai_generate(
             return Err(ApiError::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 ApiErrorCode::ConfigLoadError,
-                "Failed to load configuration file apicentric.json",
+                "Failed to load configuration file",
             ));
         }
     };
@@ -231,7 +231,7 @@ pub async fn ai_config_status() -> Result<Json<ApiResponse<AiConfigResponse>>, S
         Ok(cfg) => cfg,
         Err(_) => {
             return Ok(Json(ApiResponse::error(
-                "Failed to load configuration file apicentric.json".to_string(),
+                "Failed to load configuration file".to_string(),
             )));
         }
     };

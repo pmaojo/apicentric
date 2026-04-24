@@ -813,10 +813,12 @@ pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, Status
                 )))),
             }
         }
-        Err(e) => Ok(Json(ApiResponse::error(format!(
-            "Failed to load configuration: {}",
-            e
-        )))),
+        Err(e) => {
+            log::error!("Failed to load configuration: {}", e);
+            Ok(Json(ApiResponse::error(
+                "Failed to load configuration".to_string(),
+            )))
+        }
     }
 }
 
@@ -870,10 +872,12 @@ pub async fn update_config(
         Ok(_) => Ok(Json(ApiResponse::success(
             "Configuration updated successfully".to_string(),
         ))),
-        Err(e) => Ok(Json(ApiResponse::error(format!(
-            "Failed to save configuration: {}",
-            e
-        )))),
+        Err(e) => {
+            log::error!("Failed to save configuration: {}", e);
+            Ok(Json(ApiResponse::error(
+                "Failed to save configuration".to_string(),
+            )))
+        }
     }
 }
 
