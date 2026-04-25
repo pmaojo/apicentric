@@ -52,3 +52,8 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+
+## 2024-06-03 - Information Disclosure in Config API Error Messages
+**Vulnerability:** The `get_config` and `update_config` endpoints returned detailed internal error messages directly to the user when `load_config` or `save_config` failed. These error messages contained full filesystem paths, exposing server-side structure to potential attackers.
+**Learning:** Detailed error messages, especially those originating from filesystem or database operations, often include sensitive context like paths, connection strings, or query details. Returning these directly in API responses is an Information Disclosure vulnerability.
+**Prevention:** Catch and log detailed errors on the server side using a logging framework (e.g., `log::error!`). Return generic, non-revealing error messages (e.g., "Failed to load configuration") to the client.
