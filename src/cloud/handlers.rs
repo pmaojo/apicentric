@@ -807,16 +807,21 @@ pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, Status
             // Convert to JSON for easier manipulation in the frontend
             match serde_json::to_value(&config) {
                 Ok(json) => Ok(Json(ApiResponse::success(json))),
-                Err(e) => Ok(Json(ApiResponse::error(format!(
-                    "Failed to serialize configuration: {}",
-                    e
-                )))),
+                Err(e) => {
+                    log::error!("Failed to serialize configuration: {}", e);
+                    Ok(Json(ApiResponse::error(
+                        "Failed to serialize configuration. Check server logs for details."
+                            .to_string(),
+                    )))
+                }
             }
         }
-        Err(e) => Ok(Json(ApiResponse::error(format!(
-            "Failed to load configuration: {}",
-            e
-        )))),
+        Err(e) => {
+            log::error!("Failed to load configuration: {}", e);
+            Ok(Json(ApiResponse::error(
+                "Failed to load configuration. Check server logs for details.".to_string(),
+            )))
+        }
     }
 }
 
@@ -870,10 +875,12 @@ pub async fn update_config(
         Ok(_) => Ok(Json(ApiResponse::success(
             "Configuration updated successfully".to_string(),
         ))),
-        Err(e) => Ok(Json(ApiResponse::error(format!(
-            "Failed to save configuration: {}",
-            e
-        )))),
+        Err(e) => {
+            log::error!("Failed to save configuration: {}", e);
+            Ok(Json(ApiResponse::error(
+                "Failed to save configuration. Check server logs for details.".to_string(),
+            )))
+        }
     }
 }
 
