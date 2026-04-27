@@ -52,3 +52,7 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+## 2024-05-18 - [Fix path disclosure in config endpoints]
+**Vulnerability:** Information Exposure (CWE-209). Path of configuration file returned to the client in config API endpoints.
+**Learning:** Returning filesystem errors directly in API endpoints can inadvertently disclose sensitive server environment configurations.
+**Prevention:** Catch inner application or file system errors securely; use server-side logging for diagnostics and respond with generic, sanitized error messages.
