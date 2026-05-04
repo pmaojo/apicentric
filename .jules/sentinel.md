@@ -52,3 +52,12 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+## 2026-05-04 - Information Disclosure in Config Handlers
+**Vulnerability:** The `get_config` and `update_config` handlers returned raw underlying errors (including the full server file path) directly to the client if loading or saving the configuration failed.
+**Learning:** Raw errors from filesystem operations or serialization often contain sensitive internal state or paths. Exposing them violates CWE-209 and can aid attackers in reconnaissance.
+**Prevention:** Always log detailed, raw errors internally using `log::error!` and return sanitized, generic error messages to API consumers.
+
+## 2026-05-04 - Validation Failure of Redacted Config Secrets
+**Vulnerability:** The `validate_config` handler falsely rejected configuration updates containing redacted secrets (e.g., API keys masked as `********`) because it did not merge the incoming config with the existing server config.
+**Learning:** When validating partial or redacted configuration updates from a client, the server must restore any masked secrets from its existing state before running validation logic, or the validation will incorrectly fail.
+**Prevention:** Ensure that handlers validating configuration updates call `merge_with_current` (or equivalent logic) to restore known secrets before running validators.
