@@ -458,8 +458,25 @@ pub async fn install_template(
         definition.name = n;
     }
 
-    let file_name = format!("{}.yaml", definition.name.to_lowercase().replace(' ', "-"));
-    let file_path = output_dir.join(&file_name);
+    let raw_file_name = format!("{}.yaml", definition.name.to_lowercase().replace(' ', "-"));
+    let safe_file_name = std::path::Path::new(&raw_file_name)
+        .file_name()
+        .ok_or_else(|| {
+            ApicentricError::validation_error(
+                "Invalid template name: results in empty file name",
+                Some("template_name"),
+                None::<String>,
+            )
+        })?
+        .to_str()
+        .ok_or_else(|| {
+            ApicentricError::validation_error(
+                "Invalid template name encoding",
+                Some("template_name"),
+                None::<String>,
+            )
+        })?;
+    let file_path = output_dir.join(safe_file_name);
 
     // Save
     let yaml = serde_yaml::to_string(&definition).map_err(|e| {

@@ -52,3 +52,7 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+## 2025-05-18 - Prevent Path Traversal in Template Installation
+**Vulnerability:** The `install_template` function directly joined user-provided template names (`name_override`) to the output directory path, allowing path traversal (`../`) when writing downloaded YAML files.
+**Learning:** Using simple string replacement (`replace(' ', "-")`) is insufficient to sanitize file paths. An attacker could provide a name like `../../etc/passwd` that bypasses the replace check.
+**Prevention:** Always extract only the final file name segment using `Path::file_name()` and handle parsing errors gracefully (e.g., returning validation errors) before writing files.
