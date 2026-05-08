@@ -407,7 +407,7 @@ pub async fn handle_monitor(
                 "status": status,
                 "logs": logs_map,
             });
-            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_else(|_| String::from("{}")));
         } else {
             println!("📊 API Simulator Status");
             println!(
