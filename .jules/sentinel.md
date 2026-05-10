@@ -52,3 +52,8 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+
+## 2024-06-03 - Timing Attack Vulnerability in Admin Token Comparison
+**Vulnerability:** The `AdminServer` compared the incoming authorization token with the configured `admin_token` using the standard string inequality operator (`!=`). This allows a timing attack where an attacker can determine the token byte-by-byte because standard string comparisons short-circuit as soon as a mismatch is found.
+**Learning:** Standard equality operators should never be used for cryptographic secrets or authentication tokens. The time taken to compare strings leaks information about the contents of the string.
+**Prevention:** Always use constant-time comparison functions for secrets. In Rust, the `subtle` crate provides the `ConstantTimeEq` trait, which guarantees that comparisons take a constant amount of time regardless of the input data, thus mitigating timing attacks.
