@@ -10,6 +10,7 @@ use std::convert::Infallible;
 use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use subtle::ConstantTimeEq;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -112,7 +113,7 @@ async fn handle_admin_request(
         }
     };
 
-    if token != admin_token {
+    if token.as_bytes().ct_eq(admin_token.as_bytes()).unwrap_u8() == 0 {
         let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));
         *forbidden.status_mut() = StatusCode::FORBIDDEN;
         return forbidden;
