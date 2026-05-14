@@ -928,6 +928,10 @@ impl ServiceInstance {
                     map.insert(k.to_string(), Value::String(v.into_owned()));
                 }
                 Some(Value::Object(map))
+            } else if crate::simulator::soap::is_xml_content_type(&content_type) {
+                // Parse SOAP / XML body so templates can access
+                // `request.body.Envelope.Body.<Op>.<field>` like JSON.
+                crate::simulator::soap::xml_to_value(&body_str).ok()
             } else {
                 // Try to parse as JSON
                 serde_json::from_str::<Value>(&body_str).ok()

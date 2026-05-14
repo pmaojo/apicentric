@@ -5,6 +5,7 @@
 
 # Documentation
 *.md
+!README.md
 docs/
 Formula/
 
@@ -36,7 +37,9 @@ webui/e2e/
 
 # Local data
 data/
-services/
+services/*
+!services/amadeus.yaml
+!services/amadeus-soap.yaml
 *.db
 *.log
 

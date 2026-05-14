@@ -20,6 +20,7 @@ pub mod route_registry;
 pub mod router;
 pub mod scripting;
 pub mod service;
+pub mod soap;
 pub mod template;
 pub mod typescript;
 #[cfg(feature = "file-watch")]

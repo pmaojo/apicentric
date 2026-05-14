@@ -1,0 +1,753 @@
+name: Amadeus Self-Service Mock
+version: "1.0"
+description: |
+  Mock of Amadeus for Developers Self-Service APIs (https://developers.amadeus.com/self-service/apis-docs).
+  Covers OAuth2, Flight (inspiration/cheapest-dates/offers/pricing/orders/delay-prediction/price-metrics),
+  Hotel (list/search/offers/booking/ratings), Reference Data (locations, airports, POIs, recommendations),
+  Travel Predictions (trip-purpose), Duty of Care, plus a Traveler Profiles CRUD extension
+  (create/list/search/get/update/delete) for testing CRM-style flows.
+server:
+  port: 9100
+  base_path: /
+  cors:
+    enabled: true
+    origins: ["*"]
+
+fixtures:
+  # Airports & cities -----------------------------------------------------
+  locations:
+    - id: "ALOPPAR4"
+      type: "location"
+      subType: "AIRPORT"
+      name: "Paris Charles De Gaulle"
+      detailedName: "Paris/FR:Charles De Gaulle"
+      iataCode: "CDG"
+      address:
+        cityName: "PARIS"
+        cityCode: "PAR"
+        countryName: "FRANCE"
+        countryCode: "FR"
+        regionCode: "EUROP"
+      geoCode:
+        latitude: 49.01278
+        longitude: 2.55
+      timeZoneOffset: "+02:00"
+    - id: "ALOPMAD4"
+      type: "location"
+      subType: "AIRPORT"
+      name: "Madrid Adolfo Suarez Barajas"
+      detailedName: "Madrid/ES:Adolfo Suarez Barajas"
+      iataCode: "MAD"
+      address:
+        cityName: "MADRID"
+        cityCode: "MAD"
+        countryName: "SPAIN"
+        countryCode: "ES"
+        regionCode: "EUROP"
+      geoCode:
+        latitude: 40.49361
+        longitude: -3.56667
+      timeZoneOffset: "+02:00"
+    - id: "ALOPNYC4"
+      type: "location"
+      subType: "AIRPORT"
+      name: "John F Kennedy International"
+      detailedName: "New York/US:John F Kennedy International"
+      iataCode: "JFK"
+      address:
+        cityName: "NEW YORK"
+        cityCode: "NYC"
+        countryName: "UNITED STATES OF AMERICA"
+        countryCode: "US"
+        regionCode: "NAMER"
+      geoCode:
+        latitude: 40.63972
+        longitude: -73.77889
+      timeZoneOffset: "-04:00"
+
+  # Hotels ----------------------------------------------------------------
+  hotels:
+    - hotelId: "MCLONGHM"
+      chainCode: "MC"
+      name: "JW Marriott Grosvenor House London"
+      iataCode: "LON"
+      address:
+        countryCode: "GB"
+        cityName: "LONDON"
+      geoCode:
+        latitude: 51.50853
+        longitude: -0.15406
+    - hotelId: "HLPAR123"
+      chainCode: "HL"
+      name: "Hilton Paris Opera"
+      iataCode: "PAR"
+      address:
+        countryCode: "FR"
+        cityName: "PARIS"
+      geoCode:
+        latitude: 48.876
+        longitude: 2.327
+    - hotelId: "MAMAD456"
+      chainCode: "MA"
+      name: "Marriott Madrid Auditorium"
+      iataCode: "MAD"
+      address:
+        countryCode: "ES"
+        cityName: "MADRID"
+      geoCode:
+        latitude: 40.4831
+        longitude: -3.6298
+
+  # Points of Interest ----------------------------------------------------
+  pois:
+    - id: "9CB40CB5D0"
+      type: "location"
+      subType: "POINT_OF_INTEREST"
+      name: "Eiffel Tower"
+      geoCode: { latitude: 48.85837, longitude: 2.294481 }
+      category: "SIGHTS"
+      rank: 5
+      tags: ["sightseeing", "tour", "monument"]
+    - id: "AB1230CB3F"
+      type: "location"
+      subType: "POINT_OF_INTEREST"
+      name: "Louvre Museum"
+      geoCode: { latitude: 48.860611, longitude: 2.337644 }
+      category: "SIGHTS"
+      rank: 5
+      tags: ["museum", "art"]
+
+  # Hotel sentiments ------------------------------------------------------
+  hotel_sentiments:
+    - hotelId: "MCLONGHM"
+      overallRating: 87
+      numberOfReviews: 1542
+      numberOfRatings: 1240
+      sentiments:
+        sleep: 91
+        service: 88
+        facilities: 84
+        roomComforts: 89
+        valueForMoney: 78
+        catering: 85
+        location: 95
+
+# In-memory mutable storage for Traveler Profiles CRUD ------------------
+bucket:
+  profiles_seq: 1000
+  profiles:
+    - id: "P-1001"
+      firstName: "Ada"
+      lastName: "Lovelace"
+      email: "ada@example.com"
+      phone: "+44 20 1234 5678"
+      dateOfBirth: "1985-12-10"
+      nationality: "GB"
+      frequentFlyerNumbers:
+        - airline: "BA"
+          number: "BA123456"
+      loyaltyTier: "GOLD"
+      createdAt: "2026-01-15T10:00:00Z"
+    - id: "P-1002"
+      firstName: "Hiro"
+      lastName: "Tanaka"
+      email: "hiro@example.com"
+      phone: "+81 3 1234 5678"
+      dateOfBirth: "1990-04-22"
+      nationality: "JP"
+      frequentFlyerNumbers: []
+      loyaltyTier: "SILVER"
+      createdAt: "2026-02-03T08:30:00Z"
+
+endpoints:
+  # ---------------------------------------------------------------------
+  # 1) OAuth2 — POST /v1/security/oauth2/token
+  # ---------------------------------------------------------------------
+  - method: POST
+    path: /v1/security/oauth2/token
+    description: OAuth2 client_credentials token endpoint
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "type": "amadeusOAuth2Token",
+            "username": "mock-client",
+            "application_name": "apicentric-amadeus-mock",
+            "client_id": "MOCK_CLIENT_ID",
+            "token_type": "Bearer",
+            "access_token": "mock_access_token_{{random "uuid"}}",
+            "expires_in": 1799,
+            "state": "approved",
+            "scope": ""
+          }
+
+  # ---------------------------------------------------------------------
+  # 2) Airport & City Search
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v1/reference-data/locations
+    description: Search airports & cities by keyword / subType
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "meta": { "count": {{ length fixtures.locations }}, "links": { "self": "/v1/reference-data/locations" } },
+            "data": {{ json fixtures.locations }}
+          }
+
+  - method: GET
+    path: /v1/reference-data/locations/{locationId}
+    description: Get a specific location by ID
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          { "data": {{ json (find fixtures.locations "id" params.locationId) }} }
+
+  - method: GET
+    path: /v1/reference-data/locations/airports
+    description: Nearest relevant airports for given lat/lon
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "meta": { "count": {{ length fixtures.locations }} },
+            "data": {{ json fixtures.locations }}
+          }
+
+  # ---------------------------------------------------------------------
+  # 3) Hotel List (by-city / by-geocode / by-hotels)
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v1/reference-data/locations/hotels/by-city
+    description: Hotels for a city code
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          { "data": {{ json fixtures.hotels }} }
+
+  - method: GET
+    path: /v1/reference-data/locations/hotels/by-geocode
+    description: Hotels near coordinates
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          { "data": {{ json fixtures.hotels }} }
+
+  - method: GET
+    path: /v1/reference-data/locations/hotels/by-hotels
+    description: Hotels by Amadeus hotel IDs
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          { "data": {{ json fixtures.hotels }} }
+
+  # ---------------------------------------------------------------------
+  # 4) Hotel Search & Offers (v3)
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v3/shopping/hotel-offers
+    description: Search hotel offers
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": [
+              {{#each fixtures.hotels}}
+              {
+                "type": "hotel-offers",
+                "hotel": {
+                  "type": "hotel",
+                  "hotelId": "{{this.hotelId}}",
+                  "chainCode": "{{this.chainCode}}",
+                  "name": "{{this.name}}",
+                  "cityCode": "{{this.iataCode}}",
+                  "latitude": {{this.geoCode.latitude}},
+                  "longitude": {{this.geoCode.longitude}}
+                },
+                "available": true,
+                "offers": [{
+                  "id": "OFFER-{{this.hotelId}}-001",
+                  "checkInDate": "{{../query.checkInDate}}",
+                  "checkOutDate": "{{../query.checkOutDate}}",
+                  "rateCode": "RAC",
+                  "room": { "type": "A1K", "typeEstimated": { "category": "STANDARD_ROOM", "beds": 1, "bedType": "KING" } },
+                  "guests": { "adults": 2 },
+                  "price": { "currency": "EUR", "base": "180.00", "total": "210.00" },
+                  "policies": { "paymentType": "guarantee", "cancellation": { "deadline": "2026-06-01T00:00:00Z" } }
+                }]
+              }{{#unless @last}},{{/unless}}
+              {{/each}}
+            ]
+          }
+
+  - method: GET
+    path: /v3/shopping/hotel-offers/{offerId}
+    description: Get hotel offer by ID
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "type": "hotel-offer",
+              "id": "{{params.offerId}}",
+              "checkInDate": "2026-06-10",
+              "checkOutDate": "2026-06-12",
+              "rateCode": "RAC",
+              "room": { "type": "A1K", "typeEstimated": { "category": "STANDARD_ROOM", "beds": 1, "bedType": "KING" } },
+              "guests": { "adults": 2 },
+              "price": { "currency": "EUR", "base": "180.00", "total": "210.00" }
+            }
+          }
+
+  # ---------------------------------------------------------------------
+  # 5) Hotel Booking (v2)
+  # ---------------------------------------------------------------------
+  - method: POST
+    path: /v2/booking/hotel-orders
+    description: Confirm a hotel booking
+    responses:
+      201:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "type": "hotel-order",
+              "id": "HO-{{random "uuid"}}",
+              "associatedRecords": [{ "reference": "PNR{{faker "datatype.number" min=10000 max=99999}}", "originSystemCode": "AM" }],
+              "hotelBookings": {{ json request.body.data.hotelBookings }}
+            }
+          }
+
+  # ---------------------------------------------------------------------
+  # 6) Hotel Ratings / Sentiments
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v2/e-reputation/hotel-sentiments
+    description: Hotel sentiments / e-reputation scores
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          { "data": {{ json fixtures.hotel_sentiments }} }
+
+  # ---------------------------------------------------------------------
+  # 7) Flight Inspiration & Cheapest Date Search
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v1/shopping/flight-destinations
+    description: Flight Inspiration Search
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "meta": { "currency": "EUR", "links": { "self": "/v1/shopping/flight-destinations" } },
+            "data": [
+              { "type": "flight-destination", "origin": "{{query.origin}}", "destination": "MAD",
+                "departureDate": "2026-06-10", "returnDate": "2026-06-20", "price": { "total": "89.30" } },
+              { "type": "flight-destination", "origin": "{{query.origin}}", "destination": "NYC",
+                "departureDate": "2026-07-15", "returnDate": "2026-07-29", "price": { "total": "412.50" } },
+              { "type": "flight-destination", "origin": "{{query.origin}}", "destination": "CDG",
+                "departureDate": "2026-08-01", "returnDate": "2026-08-08", "price": { "total": "145.00" } }
+            ]
+          }
+
+  - method: GET
+    path: /v1/shopping/flight-dates
+    description: Flight Cheapest Date Search
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "meta": { "currency": "EUR" },
+            "data": [
+              { "type": "flight-date", "origin": "{{query.origin}}", "destination": "{{query.destination}}",
+                "departureDate": "2026-06-10", "returnDate": "2026-06-17", "price": { "total": "143.50" } },
+              { "type": "flight-date", "origin": "{{query.origin}}", "destination": "{{query.destination}}",
+                "departureDate": "2026-07-01", "returnDate": "2026-07-08", "price": { "total": "210.00" } }
+            ]
+          }
+
+  # ---------------------------------------------------------------------
+  # 8) Flight Offers Search (v2)
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v2/shopping/flight-offers
+    description: Flight Offers Search
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "meta": { "count": 2, "links": { "self": "/v2/shopping/flight-offers" } },
+            "data": [
+              {
+                "type": "flight-offer", "id": "1", "source": "GDS",
+                "instantTicketingRequired": false, "nonHomogeneous": false, "oneWay": false,
+                "lastTicketingDate": "2026-06-09", "numberOfBookableSeats": 9,
+                "itineraries": [{
+                  "duration": "PT2H10M",
+                  "segments": [{
+                    "departure": { "iataCode": "{{query.originLocationCode}}", "at": "{{query.departureDate}}T09:30:00" },
+                    "arrival": { "iataCode": "{{query.destinationLocationCode}}", "at": "{{query.departureDate}}T11:40:00" },
+                    "carrierCode": "IB", "number": "3170", "aircraft": { "code": "320" },
+                    "duration": "PT2H10M", "id": "1", "numberOfStops": 0
+                  }]
+                }],
+                "price": { "currency": "EUR", "total": "189.50", "base": "152.00", "grandTotal": "189.50" },
+                "validatingAirlineCodes": ["IB"],
+                "travelerPricings": [{
+                  "travelerId": "1", "fareOption": "STANDARD", "travelerType": "ADULT",
+                  "price": { "currency": "EUR", "total": "189.50", "base": "152.00" },
+                  "fareDetailsBySegment": [{ "segmentId": "1", "cabin": "ECONOMY", "class": "Y" }]
+                }]
+              },
+              {
+                "type": "flight-offer", "id": "2", "source": "GDS",
+                "instantTicketingRequired": false, "nonHomogeneous": false, "oneWay": false,
+                "lastTicketingDate": "2026-06-09", "numberOfBookableSeats": 4,
+                "itineraries": [{
+                  "duration": "PT2H30M",
+                  "segments": [{
+                    "departure": { "iataCode": "{{query.originLocationCode}}", "at": "{{query.departureDate}}T18:00:00" },
+                    "arrival": { "iataCode": "{{query.destinationLocationCode}}", "at": "{{query.departureDate}}T20:30:00" },
+                    "carrierCode": "AF", "number": "1700", "aircraft": { "code": "318" },
+                    "duration": "PT2H30M", "id": "1", "numberOfStops": 0
+                  }]
+                }],
+                "price": { "currency": "EUR", "total": "245.00", "base": "200.00", "grandTotal": "245.00" },
+                "validatingAirlineCodes": ["AF"],
+                "travelerPricings": [{
+                  "travelerId": "1", "fareOption": "STANDARD", "travelerType": "ADULT",
+                  "price": { "currency": "EUR", "total": "245.00", "base": "200.00" },
+                  "fareDetailsBySegment": [{ "segmentId": "1", "cabin": "ECONOMY", "class": "M" }]
+                }]
+              }
+            ]
+          }
+
+  # ---------------------------------------------------------------------
+  # 9) Flight Offers Price
+  # ---------------------------------------------------------------------
+  - method: POST
+    path: /v1/shopping/flight-offers/pricing
+    description: Confirm pricing of selected flight offers
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "type": "flight-offers-pricing",
+              "flightOffers": {{ json request.body.data.flightOffers }},
+              "bookingRequirements": {
+                "emailAddressRequired": true,
+                "mobilePhoneNumberRequired": true,
+                "travelerRequirements": [{ "travelerId": "1", "documentRequired": true, "dateOfBirthRequired": true }]
+              }
+            }
+          }
+
+  # ---------------------------------------------------------------------
+  # 10) Flight Create Orders / Order Management
+  # ---------------------------------------------------------------------
+  - method: POST
+    path: /v1/booking/flight-orders
+    description: Create a flight order (booking)
+    responses:
+      201:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "type": "flight-order",
+              "id": "FO-{{random "uuid"}}",
+              "queuingOfficeId": "NCE4D31SB",
+              "associatedRecords": [{ "reference": "PNR{{faker "datatype.number" min=100000 max=999999}}", "originSystemCode": "GDS" }],
+              "flightOffers": {{ json request.body.data.flightOffers }},
+              "travelers": {{ json request.body.data.travelers }}
+            }
+          }
+
+  - method: GET
+    path: /v1/booking/flight-orders/{orderId}
+    description: Retrieve a flight order
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "type": "flight-order",
+              "id": "{{params.orderId}}",
+              "queuingOfficeId": "NCE4D31SB",
+              "associatedRecords": [{ "reference": "PNRABC123", "originSystemCode": "GDS" }]
+            }
+          }
+
+  - method: DELETE
+    path: /v1/booking/flight-orders/{orderId}
+    description: Cancel a flight order
+    responses:
+      204:
+        content_type: application/json
+        body: ""
+
+  # ---------------------------------------------------------------------
+  # 11) Travel Predictions
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v1/travel/predictions/trip-purpose
+    description: Predict trip purpose (LEISURE / BUSINESS)
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "id": "{{query.originLocationCode}}{{query.destinationLocationCode}}{{query.departureDate}}",
+              "probability": "0.92",
+              "result": "LEISURE",
+              "subType": "trip-purpose-prediction"
+            }
+          }
+
+  - method: GET
+    path: /v1/travel/predictions/flight-delay
+    description: Predict probability of flight delay
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": [
+              { "id": "1", "probability": "0.18", "result": "LESS_THAN_30_MINUTES", "subType": "flight-delay-prediction" },
+              { "id": "2", "probability": "0.65", "result": "BETWEEN_30_AND_60_MINUTES", "subType": "flight-delay-prediction" },
+              { "id": "3", "probability": "0.12", "result": "BETWEEN_60_AND_120_MINUTES", "subType": "flight-delay-prediction" },
+              { "id": "4", "probability": "0.05", "result": "OVER_120_MINUTES_OR_CANCELLED", "subType": "flight-delay-prediction" }
+            ]
+          }
+
+  # ---------------------------------------------------------------------
+  # 12) Flight Price Analysis
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v1/analytics/itinerary-price-metrics
+    description: Flight price metrics (quartiles) for a given route/date
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": [{
+              "type": "itinerary-price-metric",
+              "origin": { "iataCode": "{{query.originIataCode}}" },
+              "destination": { "iataCode": "{{query.destinationIataCode}}" },
+              "departureDate": "{{query.departureDate}}",
+              "transportType": "FLIGHT",
+              "currencyCode": "EUR",
+              "oneWay": false,
+              "priceMetrics": [
+                { "amount": "121.00", "quartileRanking": "MINIMUM" },
+                { "amount": "168.00", "quartileRanking": "FIRST" },
+                { "amount": "210.00", "quartileRanking": "MEDIUM" },
+                { "amount": "275.00", "quartileRanking": "THIRD" },
+                { "amount": "412.00", "quartileRanking": "MAXIMUM" }
+              ]
+            }]
+          }
+
+  # ---------------------------------------------------------------------
+  # 13) Points of Interest & Recommendations
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v1/reference-data/locations/pois
+    description: Points of Interest in a circle around lat/lon
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          { "meta": { "count": {{ length fixtures.pois }} }, "data": {{ json fixtures.pois }} }
+
+  - method: GET
+    path: /v1/reference-data/locations/pois/by-square
+    description: Points of Interest in a bounded box
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          { "meta": { "count": {{ length fixtures.pois }} }, "data": {{ json fixtures.pois }} }
+
+  - method: GET
+    path: /v1/reference-data/locations/pois/{poiId}
+    description: Get a Point of Interest by ID
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          { "data": {{ json (find fixtures.pois "id" params.poiId) }} }
+
+  - method: GET
+    path: /v1/reference-data/recommended-locations
+    description: Travel Recommendations
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": [
+              { "subtype": "city", "name": "Barcelona", "iataCode": "BCN", "geoCode": { "latitude": 41.39, "longitude": 2.16 }, "relevance": 9.5 },
+              { "subtype": "city", "name": "Lisbon",    "iataCode": "LIS", "geoCode": { "latitude": 38.71, "longitude": -9.13 }, "relevance": 8.7 },
+              { "subtype": "city", "name": "Rome",      "iataCode": "ROM", "geoCode": { "latitude": 41.90, "longitude": 12.49 }, "relevance": 8.2 }
+            ]
+          }
+
+  # ---------------------------------------------------------------------
+  # 14) Duty of Care — Travel Restrictions (legacy COVID endpoint)
+  # ---------------------------------------------------------------------
+  - method: GET
+    path: /v1/duty-of-care/diseases/covid19-area-report
+    description: Travel restrictions / area report (legacy mock)
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "type": "covid19-area-report",
+              "summary": "Mock travel restrictions data.",
+              "areaRestricted": { "text": "No restrictions in mock data.", "isoCode": "{{query.countryCode}}" },
+              "diseaseInfection": { "text": "Mock infection data." },
+              "diseaseRiskLevel": "LOW",
+              "areaAccessRestriction": { "transportation": { "text": "Open." } }
+            }
+          }
+
+  # =====================================================================
+  # Traveler Profiles CRUD (apicentric extension — not in real Amadeus)
+  # =====================================================================
+  - method: GET
+    path: /v1/profiles
+    description: List all traveler profiles
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "meta": { "count": {{ length (bucket.get "profiles") }} },
+            "data": {{ json (bucket.get "profiles") }}
+          }
+
+  - method: GET
+    path: /v1/profiles/search
+    description: Search traveler profiles by email or lastName (?q=)
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "meta": { "query": "{{query.q}}" },
+            "data": {{ json (bucket.get "profiles") }}
+          }
+
+  - method: GET
+    path: /v1/profiles/{id}
+    description: Retrieve a single traveler profile
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          { "data": {{ json (find (bucket.get "profiles") "id" params.id) }} }
+      404:
+        condition: "{{not (find (bucket.get \"profiles\") \"id\" params.id)}}"
+        content_type: application/json
+        body: |
+          { "errors": [{ "status": 404, "code": 1797, "title": "NOT FOUND", "detail": "Profile {{params.id}} not found" }] }
+
+  - method: POST
+    path: /v1/profiles
+    description: Create a new traveler profile
+    responses:
+      201:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "id": "P-{{faker "datatype.number" min=2000 max=9999}}",
+              "firstName": "{{request.body.firstName}}",
+              "lastName": "{{request.body.lastName}}",
+              "email": "{{request.body.email}}",
+              "phone": "{{request.body.phone}}",
+              "dateOfBirth": "{{request.body.dateOfBirth}}",
+              "nationality": "{{request.body.nationality}}",
+              "loyaltyTier": "{{request.body.loyaltyTier}}",
+              "createdAt": "{{now}}"
+            }
+          }
+      400:
+        condition: "{{or (not request.body.firstName) (not request.body.email)}}"
+        content_type: application/json
+        body: |
+          { "errors": [{ "status": 400, "code": 477, "title": "INVALID FORMAT", "detail": "firstName and email are required" }] }
+
+  - method: PUT
+    path: /v1/profiles/{id}
+    description: Update an existing traveler profile
+    responses:
+      200:
+        content_type: application/json
+        body: |
+          {
+            "data": {
+              "id": "{{params.id}}",
+              "firstName": "{{request.body.firstName}}",
+              "lastName": "{{request.body.lastName}}",
+              "email": "{{request.body.email}}",
+              "phone": "{{request.body.phone}}",
+              "loyaltyTier": "{{request.body.loyaltyTier}}",
+              "updatedAt": "{{now}}"
+            }
+          }
+
+  - method: DELETE
+    path: /v1/profiles/{id}
+    description: Delete a traveler profile
+    responses:
+      204:
+        content_type: application/json
+        body: ""
+
+scenarios:
+  - name: "rate_limited"
+    description: "Simulate Amadeus 429 Too Many Requests"
+    endpoints: ["GET /v2/shopping/flight-offers"]
+    response:
+      status: 429
+      headers:
+        Retry-After: "30"
+      body: |
+        { "errors": [{ "status": 429, "code": 38194, "title": "Too many requests", "detail": "The request count exceeded the allowed limit." }] }
+
+  - name: "auth_expired"
+    description: "Simulate expired bearer token (401)"
+    endpoints: ["GET /v2/shopping/flight-offers", "POST /v1/shopping/flight-offers/pricing"]
+    response:
+      status: 401
+      body: |
+        { "errors": [{ "status": 401, "code": 38191, "title": "Access token expired" }] }
+
+behavior:
+  request_logging: true
+  response_delays:
+    min_ms: 30
+    max_ms: 150

@@ -1,0 +1,468 @@
+name: Amadeus SOAP Mock
+version: "1.0"
+description: |
+  Mock of Amadeus Web Services SOAP/EDIFACT operations. Mirrors the upstream that
+  `amadeus-mcp/amadeus-service` (Java Spring Boot) consumes. Routes by `SOAPAction`
+  header on a single endpoint (`POST /1ASIWMOCK`), the same convention as 1A GDS.
+
+  Covered operations:
+    - Security_Authenticate / Security_SignOut
+    - Fare_MasterPricerTravelBoardSearch
+    - Fare_MasterPricerCalendar
+    - Fare_InformativePricingWithoutPNR
+    - Fare_GetFareFamilyDescription
+    - Air_SellFromRecommendation
+    - PNR_AddMultiElement
+    - PNR_Retrieve
+    - PNR_Cancel
+    - Fare_PricePNRWithBookingClass
+    - DocIssuance_IssueTicket
+    - Ticket_CancelDocument
+    - Queue_PlacePNR
+    - Profile_Create / Profile_Read
+    - MiniRule_GetFromPricingRec
+
+  Naming convention: the request `SOAPAction` header is matched against the
+  operation name with a `contains` check (Amadeus appends version suffixes
+  like `_25.1` to action values).
+server:
+  port: 9101
+  base_path: /
+  cors:
+    enabled: true
+    origins: ["*"]
+
+fixtures:
+  session:
+    sequenceNumber: 1
+    sessionId: "MOCK-SESSION-{{faker \"datatype.uuid\"}}"
+    securityToken: "MOCK_SECURITY_TOKEN_ABC123"
+
+endpoints:
+  # =====================================================================
+  # Single SOAP endpoint routed by SOAPAction header.
+  # =====================================================================
+  - method: POST
+    path: /1ASIWMOCK
+    description: Amadeus SOAP entrypoint (routes by SOAPAction header)
+    responses:
+      # ---------- Security_Authenticate ---------------------------------
+      200:
+        condition: "{{contains request.headers.soapaction \"Security_Authenticate\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+                         xmlns:awsse="http://xml.amadeus.com/2010/06/Session_v3">
+            <soap:Header>
+              <awsse:Session TransactionStatusCode="Start">
+                <awsse:SessionId>SESS-{{faker "datatype.number" min=1000 max=99999}}</awsse:SessionId>
+                <awsse:SequenceNumber>1</awsse:SequenceNumber>
+                <awsse:SecurityToken>MOCK_TOKEN_{{faker "datatype.uuid"}}</awsse:SecurityToken>
+              </awsse:Session>
+            </soap:Header>
+            <soap:Body>
+              <Security_AuthenticateReply xmlns="http://xml.amadeus.com/VLSSLR_06_1_1A">
+                <processStatus><statusCode>O</statusCode></processStatus>
+              </Security_AuthenticateReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Security_SignOut --------------------------------------
+      201:
+        condition: "{{contains request.headers.soapaction \"Security_SignOut\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+                         xmlns:awsse="http://xml.amadeus.com/2010/06/Session_v3">
+            <soap:Header>
+              <awsse:Session TransactionStatusCode="End"/>
+            </soap:Header>
+            <soap:Body>
+              <Security_SignOutReply xmlns="http://xml.amadeus.com/VLSSOR_04_1_1A">
+                <processStatus><statusCode>O</statusCode></processStatus>
+              </Security_SignOutReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Fare_MasterPricerTravelBoardSearch --------------------
+      202:
+        condition: "{{contains request.headers.soapaction \"Fare_MasterPricerTravelBoardSearch\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Fare_MasterPricerTravelBoardSearchReply xmlns="http://xml.amadeus.com/2010/06/Fare_MasterPricerTravelBoardSearchReply_25.1">
+                <replyStatus><statusCode>OK</statusCode></replyStatus>
+                <numberOfSolutions>2</numberOfSolutions>
+                <conversionRate>
+                  <conversionRateDetail><currency>EUR</currency></conversionRateDetail>
+                </conversionRate>
+                <flightIndex>
+                  <requestedSegmentRef><segRef>1</segRef></requestedSegmentRef>
+                  <groupOfFlights>
+                    <propFlightGrDetail><flightProposal><ref>1</ref></flightProposal></propFlightGrDetail>
+                    <flightDetails>
+                      <flightInformation>
+                        <productDateTime><dateOfDeparture>{{request.body.Envelope.Body.Fare_MasterPricerTravelBoardSearch.itinerary.timeDetails.firstDateTimeDetail.date}}</dateOfDeparture><timeOfDeparture>0930</timeOfDeparture></productDateTime>
+                        <location order="1"><locationId>MAD</locationId></location>
+                        <location order="2"><locationId>CDG</locationId></location>
+                        <companyId><marketingCarrier>IB</marketingCarrier></companyId>
+                        <flightOrderInformation><flightNumber>3170</flightNumber></flightOrderInformation>
+                      </flightInformation>
+                    </flightDetails>
+                  </groupOfFlights>
+                </flightIndex>
+                <recommendation>
+                  <itemNumber><itemNumberDetails><number>1</number></itemNumberDetails></itemNumber>
+                  <recPriceInfo>
+                    <monetaryDetail><amount>189.50</amount><currency>EUR</currency></monetaryDetail>
+                  </recPriceInfo>
+                  <paxFareProduct>
+                    <paxFareDetail><totalFareAmount>189.50</totalFareAmount></paxFareDetail>
+                    <fare><pricingMessage><freeTextQualification><freeTextDetails><source>S</source><encoding>03</encoding></freeTextDetails></freeTextQualification><description>STANDARD ECONOMY</description></pricingMessage></fare>
+                  </paxFareProduct>
+                </recommendation>
+                <recommendation>
+                  <itemNumber><itemNumberDetails><number>2</number></itemNumberDetails></itemNumber>
+                  <recPriceInfo>
+                    <monetaryDetail><amount>245.00</amount><currency>EUR</currency></monetaryDetail>
+                  </recPriceInfo>
+                </recommendation>
+              </Fare_MasterPricerTravelBoardSearchReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Fare_MasterPricerCalendar -----------------------------
+      203:
+        condition: "{{contains request.headers.soapaction \"Fare_MasterPricerCalendar\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Fare_MasterPricerCalendarReply xmlns="http://xml.amadeus.com/2010/06/Fare_MasterPricerCalendarReply_25.1">
+                <replyStatus><statusCode>OK</statusCode></replyStatus>
+                <numberOfSolutions>3</numberOfSolutions>
+                <calendarSolution>
+                  <departureDate>20260610</departureDate>
+                  <returnDate>20260617</returnDate>
+                  <totalAmount>143.50</totalAmount>
+                  <currency>EUR</currency>
+                </calendarSolution>
+                <calendarSolution>
+                  <departureDate>20260615</departureDate>
+                  <returnDate>20260622</returnDate>
+                  <totalAmount>168.00</totalAmount>
+                  <currency>EUR</currency>
+                </calendarSolution>
+                <calendarSolution>
+                  <departureDate>20260620</departureDate>
+                  <returnDate>20260627</returnDate>
+                  <totalAmount>210.00</totalAmount>
+                  <currency>EUR</currency>
+                </calendarSolution>
+              </Fare_MasterPricerCalendarReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Fare_InformativePricingWithoutPNR ---------------------
+      204:
+        condition: "{{contains request.headers.soapaction \"Fare_InformativePricingWithoutPNR\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Fare_InformativePricingWithoutPNRReply xmlns="http://xml.amadeus.com/2010/06/Fare_InformativePricingWithoutPNRReply_25.1">
+                <mainGroup>
+                  <pricingGroupLevelGroup>
+                    <fareInfoGroup>
+                      <fareAmount>189.50</fareAmount>
+                      <currency>EUR</currency>
+                      <validatingCarrier>IB</validatingCarrier>
+                    </fareInfoGroup>
+                  </pricingGroupLevelGroup>
+                </mainGroup>
+              </Fare_InformativePricingWithoutPNRReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Fare_GetFareFamilyDescription -------------------------
+      205:
+        condition: "{{contains request.headers.soapaction \"Fare_GetFareFamilyDescription\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Fare_GetFareFamilyDescriptionReply xmlns="http://xml.amadeus.com/2010/06/Fare_GetFareFamilyDescriptionReply_25.1">
+                <familyInformation>
+                  <name>BASIC</name>
+                  <description>Hand baggage only</description>
+                </familyInformation>
+                <familyInformation>
+                  <name>FLEX</name>
+                  <description>Flexible fare with checked baggage</description>
+                </familyInformation>
+              </Fare_GetFareFamilyDescriptionReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Air_SellFromRecommendation ----------------------------
+      206:
+        condition: "{{contains request.headers.soapaction \"Air_SellFromRecommendation\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Air_SellFromRecommendationReply xmlns="http://xml.amadeus.com/2010/06/Air_SellFromRecommendationReply_25.1">
+                <messageActionDetails><functionDetails><message>OK</message></functionDetails></messageActionDetails>
+                <itineraryDetails>
+                  <segmentInformation>
+                    <action>SS</action>
+                    <flightDetails><flightDate><departureDate>{{request.body.Envelope.Body.Air_SellFromRecommendation.itineraryDetails.message.messageFunctionDetails.businessFunction}}</departureDate></flightDate></flightDetails>
+                  </segmentInformation>
+                </itineraryDetails>
+              </Air_SellFromRecommendationReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- PNR_AddMultiElement -----------------------------------
+      207:
+        condition: "{{contains request.headers.soapaction \"PNR_AddMultiElement\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <PNR_Reply xmlns="http://xml.amadeus.com/PNRACC_21_1_1A">
+                <pnrHeader>
+                  <reservationInfo>
+                    <reservation>
+                      <controlNumber>MOCK{{faker "datatype.number" min=10000 max=99999}}</controlNumber>
+                      <companyId>1A</companyId>
+                      <date>{{now}}</date>
+                    </reservation>
+                  </reservationInfo>
+                </pnrHeader>
+                <originDestinationDetails>
+                  <originDestination><origin>MAD</origin><destination>CDG</destination></originDestination>
+                </originDestinationDetails>
+              </PNR_Reply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- PNR_Retrieve ------------------------------------------
+      208:
+        condition: "{{contains request.headers.soapaction \"PNR_Retrieve\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <PNR_Reply xmlns="http://xml.amadeus.com/PNRACC_21_1_1A">
+                <pnrHeader>
+                  <reservationInfo>
+                    <reservation>
+                      <controlNumber>MOCKABC123</controlNumber>
+                      <companyId>1A</companyId>
+                    </reservation>
+                  </reservationInfo>
+                </pnrHeader>
+                <travellerInfo>
+                  <elementManagementPassenger><reference><number>1</number></reference></elementManagementPassenger>
+                  <passengerData>
+                    <travellerInformation>
+                      <traveller><surname>DOE</surname></traveller>
+                      <passenger><firstName>JOHN</firstName><type>ADT</type></passenger>
+                    </travellerInformation>
+                  </passengerData>
+                </travellerInfo>
+              </PNR_Reply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- PNR_Cancel --------------------------------------------
+      209:
+        condition: "{{contains request.headers.soapaction \"PNR_Cancel\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <PNR_Reply xmlns="http://xml.amadeus.com/PNRACC_21_1_1A">
+                <pnrHeader>
+                  <reservationInfo>
+                    <reservation>
+                      <controlNumber>MOCKABC123</controlNumber>
+                      <date>{{now}}</date>
+                    </reservation>
+                  </reservationInfo>
+                </pnrHeader>
+                <generalErrorInfo>
+                  <messageErrorInformation>
+                    <errorDetails><errorCode>0</errorCode></errorDetails>
+                  </messageErrorInformation>
+                </generalErrorInfo>
+              </PNR_Reply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Fare_PricePNRWithBookingClass -------------------------
+      210:
+        condition: "{{contains request.headers.soapaction \"Fare_PricePNRWithBookingClass\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Fare_PricePNRWithBookingClassReply xmlns="http://xml.amadeus.com/2010/06/Fare_PricePNRWithBookingClassReply_25.1">
+                <fareList>
+                  <fareReference><uniqueReference>1</uniqueReference></fareReference>
+                  <segmentInformation><fareQualifier><fareBasisDetails><rateClass>YOWAP</rateClass></fareBasisDetails></fareQualifier></segmentInformation>
+                  <fareDataInformation>
+                    <fareDataSupInformation>
+                      <fareDataQualifier>712</fareDataQualifier>
+                      <fareAmount>189.50</fareAmount>
+                      <fareCurrency>EUR</fareCurrency>
+                    </fareDataSupInformation>
+                  </fareDataInformation>
+                </fareList>
+              </Fare_PricePNRWithBookingClassReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- DocIssuance_IssueTicket -------------------------------
+      211:
+        condition: "{{contains request.headers.soapaction \"DocIssuance_IssueTicket\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <DocIssuance_IssueTicketReply xmlns="http://xml.amadeus.com/2010/06/DocIssuance_IssueTicketReply_25.1">
+                <processingStatus><statusCode>OK</statusCode></processingStatus>
+                <ticketDetails>
+                  <ticketNumber>075{{faker "datatype.number" min=1000000 max=9999999}}</ticketNumber>
+                </ticketDetails>
+              </DocIssuance_IssueTicketReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Ticket_CancelDocument ---------------------------------
+      212:
+        condition: "{{contains request.headers.soapaction \"Ticket_CancelDocument\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Ticket_CancelDocumentReply xmlns="http://xml.amadeus.com/2010/06/Ticket_CancelDocumentReply_25.1">
+                <processingStatus><statusCode>OK</statusCode></processingStatus>
+              </Ticket_CancelDocumentReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Queue_PlacePNR ----------------------------------------
+      213:
+        condition: "{{contains request.headers.soapaction \"Queue_PlacePNR\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Queue_PlacePNRReply xmlns="http://xml.amadeus.com/2010/06/Queue_PlacePNRReply_11_1_1A">
+                <ackEndOfMessage>
+                  <feedbackInformation><freeTextDetails><message>QUEUED</message></freeTextDetails></feedbackInformation>
+                </ackEndOfMessage>
+              </Queue_PlacePNRReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Profile_Create ----------------------------------------
+      214:
+        condition: "{{contains request.headers.soapaction \"Profile_Create\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Profile_CreateReply xmlns="http://xml.amadeus.com/2010/06/Profile_CreateReply_18_1_1A">
+                <profileSummary>
+                  <profileIdentification>
+                    <profileId>PRF{{faker "datatype.number" min=100000 max=999999}}</profileId>
+                    <profileType>TR</profileType>
+                  </profileIdentification>
+                </profileSummary>
+              </Profile_CreateReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Profile_Read ------------------------------------------
+      215:
+        condition: "{{contains request.headers.soapaction \"Profile_Read\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <Profile_ReadReply xmlns="http://xml.amadeus.com/2010/06/Profile_ReadReply_18_1_1A">
+                <profileData>
+                  <profileIdentification><profileId>PRF123456</profileId><profileType>TR</profileType></profileIdentification>
+                  <profileDetails>
+                    <traveller><surname>DOE</surname><firstName>JOHN</firstName></traveller>
+                  </profileDetails>
+                </profileData>
+              </Profile_ReadReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- MiniRule_GetFromPricingRec ----------------------------
+      216:
+        condition: "{{contains request.headers.soapaction \"MiniRule_GetFromPricingRec\"}}"
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <MiniRule_GetFromPricingRecReply xmlns="http://xml.amadeus.com/2010/06/MiniRule_GetFromPricingRecReply_25.1">
+                <responseDetails>
+                  <miniRules>
+                    <miniRuleType>REFUND</miniRuleType>
+                    <miniRuleApplication>NOT PERMITTED</miniRuleApplication>
+                  </miniRules>
+                  <miniRules>
+                    <miniRuleType>CHANGES</miniRuleType>
+                    <miniRuleApplication>PERMITTED WITH FEE</miniRuleApplication>
+                    <feeAmount>50.00</feeAmount>
+                    <feeCurrency>EUR</feeCurrency>
+                  </miniRules>
+                </responseDetails>
+              </MiniRule_GetFromPricingRecReply>
+            </soap:Body>
+          </soap:Envelope>
+
+      # ---------- Default fallback (unknown SOAPAction) -----------------
+      500:
+        content_type: text/xml; charset=utf-8
+        body: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <soap:Fault>
+                <faultcode>soap:Client</faultcode>
+                <faultstring>Unknown SOAPAction: {{request.headers.soapaction}}</faultstring>
+                <detail><message>This operation is not mocked. Add a matching condition in services/amadeus-soap.yaml.</message></detail>
+              </soap:Fault>
+            </soap:Body>
+          </soap:Envelope>
+
+behavior:
+  request_logging: true
+  response_delays:
+    min_ms: 40
+    max_ms: 200

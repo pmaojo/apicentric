@@ -69,6 +69,14 @@ pub fn get_marketplace_items() -> Vec<MarketplaceItem> {
             definition_url: "https://raw.githubusercontent.com/sendgrid/sendgrid-oai/master/oai_stoplight.json".to_string(),
         },
         MarketplaceItem {
+            id: "amadeus".to_string(),
+            name: "Amadeus Self-Service".to_string(),
+            description: "Mock of Amadeus Self-Service APIs (flights, hotels, locations, predictions) + traveler profiles CRUD.".to_string(),
+            category: "SaaS".to_string(),
+            logo_url: None,
+            definition_url: "https://raw.githubusercontent.com/pmaojo/apicentric/main/services/amadeus.yaml".to_string(),
+        },
+        MarketplaceItem {
             id: "digitalocean".to_string(),
             name: "DigitalOcean API".to_string(),
             description: "Mock DigitalOcean Public API for droplets and volumes.".to_string(),

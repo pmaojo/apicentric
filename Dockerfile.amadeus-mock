@@ -1,0 +1,65 @@
+# syntax=docker/dockerfile:1
+# ============================================================
+# Amadeus Self-Service Mock — packaged as a portable container.
+# Builds apicentric and preloads the services/amadeus.yaml mock.
+#
+# Usage:
+#   docker build -f Dockerfile.amadeus-mock -t apicentric/amadeus-mock:1.0.0 .
+#   docker run --rm -p 9100:9100 apicentric/amadeus-mock:1.0.0
+#
+# Then:
+#   curl http://localhost:9100/v1/reference-data/locations?keyword=PAR
+#   curl -X POST http://localhost:9100/v1/security/oauth2/token \
+#        -d 'grant_type=client_credentials&client_id=x&client_secret=y'
+# ============================================================
+
+# ---------- Stage 1: build apicentric (backend only, no webui) ----------
+FROM rust:1.92-bookworm AS backend-builder
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      pkg-config libssl-dev ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY Cargo.toml Cargo.lock README.md ./
+COPY src/ ./src/
+COPY examples/ ./examples/
+
+# Backend-only build (no webui feature) keeps the image lean.
+RUN cargo build --release --bin apicentric \
+      --no-default-features \
+      --features "simulator,contract-testing,mock-data,database,scripting"
+
+# ---------- Stage 2: minimal runtime ------------------------------------
+FROM debian:bookworm-slim
+LABEL org.opencontainers.image.title="Amadeus Self-Service Mock"
+LABEL org.opencontainers.image.description="Portable mock of Amadeus Self-Service APIs powered by apicentric."
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.source="https://github.com/pmaojo/apicentric"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates libssl3 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+RUN mkdir -p /app/services /app/data
+
+COPY --from=backend-builder /app/target/release/apicentric /usr/local/bin/apicentric
+COPY services/amadeus.yaml /app/services/amadeus.yaml
+COPY services/amadeus-soap.yaml /app/services/amadeus-soap.yaml
+
+ENV APICENTRIC_PORT=9100 \
+    APICENTRIC_HOST=0.0.0.0 \
+    APICENTRIC_DATA_DIR=/app/data \
+    APICENTRIC_SERVICES_DIR=/app/services \
+    APICENTRIC_SIMULATOR_ENABLED=true \
+    APICENTRIC_DB_PATH=/app/data/apicentric.db \
+    RUST_LOG=info,apicentric=info
+
+EXPOSE 9100 9101
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -fsS http://localhost:9100/v1/reference-data/locations || exit 1
+
+ENTRYPOINT ["apicentric"]
+CMD ["--db-path", "/app/data/apicentric.db", "simulator", "start", "--services-dir", "/app/services"]
