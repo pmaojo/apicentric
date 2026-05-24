@@ -813,10 +813,12 @@ pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, Status
                 )))),
             }
         }
-        Err(e) => Ok(Json(ApiResponse::error(format!(
-            "Failed to load configuration: {}",
-            e
-        )))),
+        Err(e) => {
+            log::error!("Failed to load configuration: {}", e);
+            Ok(Json(ApiResponse::error(
+                "Failed to load configuration".to_string(),
+            )))
+        }
     }
 }
 
@@ -870,10 +872,12 @@ pub async fn update_config(
         Ok(_) => Ok(Json(ApiResponse::success(
             "Configuration updated successfully".to_string(),
         ))),
-        Err(e) => Ok(Json(ApiResponse::error(format!(
-            "Failed to save configuration: {}",
-            e
-        )))),
+        Err(e) => {
+            log::error!("Failed to save configuration: {}", e);
+            Ok(Json(ApiResponse::error(
+                "Failed to save configuration".to_string(),
+            )))
+        }
     }
 }
 
@@ -886,11 +890,15 @@ pub async fn update_config(
 pub async fn validate_config(
     Json(request): Json<UpdateConfigRequest>,
 ) -> Result<Json<ApiResponse<ValidateConfigResponse>>, StatusCode> {
-    use crate::config::ApicentricConfig;
+    use crate::config::{load_config, ApicentricConfig};
     use crate::validation::ConfigValidator;
+    use std::path::Path;
+
+    let config_path =
+        std::env::var("APICENTRIC_CONFIG_PATH").unwrap_or_else(|_| "apicentric.json".to_string());
 
     // Parse the JSON into ApicentricConfig
-    let config: ApicentricConfig = match serde_json::from_value(request.config) {
+    let mut config: ApicentricConfig = match serde_json::from_value(request.config) {
         Ok(cfg) => cfg,
         Err(e) => {
             let response = ValidateConfigResponse {
@@ -900,6 +908,12 @@ pub async fn validate_config(
             return Ok(Json(ApiResponse::success(response)));
         }
     };
+
+    // Load current config to restore redacted secrets
+    // We ignore errors here (e.g. if file doesn't exist yet) as merge_with_current handles it gracefully
+    if let Ok(current_config) = load_config(Path::new(&config_path)) {
+        config.merge_with_current(&current_config);
+    }
 
     // Validate the configuration
     let errors = match config.validate() {
