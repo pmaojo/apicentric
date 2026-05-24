@@ -77,6 +77,11 @@ fn add_attributes(start: &BytesStart, obj: &mut Map<String, Value>) {
         let key_full = std::str::from_utf8(attr.key.as_ref())
             .unwrap_or("")
             .to_string();
+
+        if key_full == "xmlns" || key_full.starts_with("xmlns:") {
+            continue;
+        }
+
         let key_local = match key_full.split_once(':') {
             Some((_, local)) => local.to_string(),
             None => key_full,
