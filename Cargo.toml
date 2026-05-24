@@ -58,6 +58,7 @@ full = ["gui", "webui", "simulator", "contract-testing", "tui", "mock-data", "da
 
 [dependencies]
 indexmap = "2.12.0"
+quick-xml = "0.36.1"
 subtle = "2.6.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
