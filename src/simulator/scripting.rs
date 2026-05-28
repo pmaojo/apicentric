@@ -50,8 +50,8 @@ impl ScriptingEngine {
     pub fn execute(&self, script: &str, context: &Value) -> ApicentricResult<Value> {
         #[cfg(feature = "scripting")]
         {
-            let engine = self.engine.lock().unwrap();
-            let mut cache = self.cache.lock().unwrap();
+            let engine = self.engine.lock().unwrap_or_else(|e| e.into_inner());
+            let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
 
             // Compile or retrieve from cache
             let ast = if let Some(ast) = cache.get(script) {
