@@ -466,8 +466,20 @@ pub async fn install_template(
         definition.name = n;
     }
 
-    let file_name = format!("{}.yaml", definition.name.to_lowercase().replace(' ', "-"));
-    let file_path = output_dir.join(&file_name);
+    let raw_file_name = format!("{}.yaml", definition.name.to_lowercase().replace(' ', "-"));
+
+    // Sentinel: Sanitize file_name to prevent path traversal
+    let safe_file_name = Path::new(&raw_file_name)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| ApicentricError::Validation {
+            message: "Invalid characters in service name. Please avoid path separators."
+                .to_string(),
+            field: Some("name".to_string()),
+            suggestion: Some("Use alphanumeric characters and hyphens".to_string()),
+        })?;
+
+    let file_path = output_dir.join(safe_file_name);
 
     // Save
     let yaml = serde_yaml::to_string(&definition).map_err(|e| {
