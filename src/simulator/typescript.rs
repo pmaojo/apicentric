@@ -25,8 +25,12 @@ pub fn to_typescript(service: &ServiceDefinition) -> ApicentricResult<String> {
 
     // Run openapi-typescript
     let cmd = if cfg!(windows) { "npx.cmd" } else { "npx" };
+    let spec_path_str = spec_path.to_str().ok_or_else(|| ApicentricError::Runtime {
+        message: "Temporary file path is not valid UTF-8".to_string(),
+        suggestion: Some("Ensure the system temporary directory path contains only valid UTF-8 characters".to_string()),
+    })?;
     let output = Command::new(cmd)
-        .args(["-y", "openapi-typescript", spec_path.to_str().unwrap()])
+        .args(["-y", "openapi-typescript", spec_path_str])
         .output()
         .map_err(ApicentricError::Io)?;
     if !output.status.success() {
