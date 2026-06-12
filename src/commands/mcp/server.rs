@@ -35,7 +35,20 @@ pub struct ServiceName {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ServiceLogsParams {
+    pub service_name: String,
+    #[schemars(description = "Maximum number of log entries to return (default: 50)")]
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct YamlDefinition {
+    pub yaml_definition: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct UpdateServiceParams {
+    pub service_name: String,
     pub yaml_definition: String,
 }
 
@@ -251,16 +264,66 @@ impl ApicentricMcpService {
         }
     }
 
-    /// Retrieves the latest logs for a service.
+    /// Retrieves the latest request logs for a service.
     #[tool]
     pub async fn get_service_logs(
         &self,
-        Parameters(ServiceName { service_name }): Parameters<ServiceName>,
+        Parameters(ServiceLogsParams {
+            service_name,
+            limit,
+        }): Parameters<ServiceLogsParams>,
     ) -> Result<CallToolResult, McpError> {
         tracing::info!("Tool called: get_service_logs for {}", service_name);
-        // For now, return dummy logs since the logging system is not fully integrated
-        let dummy_logs = format!("Service '{}' logs:\n[INFO] Service started at 2025-11-17T14:40:00Z\n[INFO] Ready to accept connections", service_name);
-        Ok(CallToolResult::success(vec![Content::text(dummy_logs)]))
+        let limit = limit.unwrap_or(50);
+        if let Some(manager) = self.context.api_simulator() {
+            let registry = manager.service_registry().read().await;
+
+            if !registry.has_service(&service_name) {
+                return Err(McpError::new(
+                    ErrorCode(-32603),
+                    format!("Service '{}' not found", service_name),
+                    None,
+                ));
+            }
+
+            let entries = registry
+                .storage()
+                .query_logs(Some(&service_name), None, None, None, limit)
+                .unwrap_or_default();
+
+            if entries.is_empty() {
+                let response = format!("Service '{}' logs:\n(no requests recorded yet)", service_name);
+                return Ok(CallToolResult::success(vec![Content::text(response)]));
+            }
+
+            let log_lines: Vec<String> = entries
+                .iter()
+                .map(|e| {
+                    format!(
+                        "[{}] {} {} -> {}",
+                        e.timestamp.format("%Y-%m-%dT%H:%M:%SZ"),
+                        e.method,
+                        e.path,
+                        e.status
+                    )
+                })
+                .collect();
+
+            let response = format!(
+                "Service '{}' logs ({} entries):\n{}",
+                service_name,
+                log_lines.len(),
+                log_lines.join("\n")
+            );
+            Ok(CallToolResult::success(vec![Content::text(response)]))
+        } else {
+            Err(McpError::new(
+                ErrorCode(-32603),
+                "API Simulator not available - ensure the 'simulator' feature is enabled"
+                    .to_string(),
+                None,
+            ))
+        }
     }
 
     /// Reloads all services from the services directory.
@@ -463,6 +526,123 @@ impl ApicentricMcpService {
                             }
                         } else {
                             Err(McpError::new(ErrorCode(-32603), "API Simulator not available - ensure the 'simulator' feature is enabled".to_string(), None))
+                        }
+                    }
+                    Err(e) => Err(McpError::new(
+                        ErrorCode(-32603),
+                        format!("Failed to convert service spec: {}", e),
+                        None,
+                    )),
+                }
+            }
+            Err(e) => Err(McpError::new(
+                ErrorCode(-32603),
+                format!("Invalid YAML definition: {}", e),
+                None,
+            )),
+        }
+    }
+
+    /// Updates an existing service with a new YAML definition.
+    #[tool]
+    pub async fn update_service(
+        &self,
+        Parameters(UpdateServiceParams {
+            service_name,
+            yaml_definition,
+        }): Parameters<UpdateServiceParams>,
+    ) -> Result<CallToolResult, McpError> {
+        tracing::info!("Tool called: update_service for {}", service_name);
+        match YamlServiceSpecLoader::load_from_string(&yaml_definition) {
+            Ok(spec) => {
+                match Self::convert_service_spec_to_definition(spec) {
+                    Ok(new_def) => {
+                        if let Some(manager) = self.context.api_simulator() {
+                            // Stop the existing service if running, then unregister it
+                            let _ = manager.stop_service(&service_name).await;
+                            {
+                                let mut registry = manager.service_registry().write().await;
+                                if registry.has_service(&service_name) {
+                                    if let Err(e) =
+                                        registry.unregister_service(&service_name).await
+                                    {
+                                        return Err(McpError::new(
+                                            ErrorCode(-32603),
+                                            format!(
+                                                "Failed to unregister service '{}': {}",
+                                                service_name, e
+                                            ),
+                                            None,
+                                        ));
+                                    }
+                                }
+                            }
+
+                            // Register the updated definition
+                            let mut registry = manager.service_registry().write().await;
+                            match registry.register_service(new_def.clone()).await {
+                                Ok(_) => {
+                                    let services_dir =
+                                        if let Some(config) = &self.context.config().simulator {
+                                            config.services_dir.clone()
+                                        } else {
+                                            std::path::PathBuf::from("services")
+                                        };
+
+                                    if let Err(e) = fs::create_dir_all(&services_dir) {
+                                        return Err(McpError::new(
+                                            ErrorCode(-32603),
+                                            format!("Failed to create services directory: {}", e),
+                                            None,
+                                        ));
+                                    }
+
+                                    let file_path =
+                                        services_dir.join(format!("{}.yaml", new_def.name));
+
+                                    match serde_yaml::to_string(&new_def) {
+                                        Ok(yaml_content) => {
+                                            match fs::write(&file_path, yaml_content) {
+                                                Ok(_) => {
+                                                    let response = format!(
+                                                        "Service '{}' updated and saved to {}.",
+                                                        new_def.name,
+                                                        file_path.display()
+                                                    );
+                                                    Ok(CallToolResult::success(vec![
+                                                        Content::text(response),
+                                                    ]))
+                                                }
+                                                Err(e) => Err(McpError::new(
+                                                    ErrorCode(-32603),
+                                                    format!("Failed to write service file: {}", e),
+                                                    None,
+                                                )),
+                                            }
+                                        }
+                                        Err(e) => Err(McpError::new(
+                                            ErrorCode(-32603),
+                                            format!(
+                                                "Failed to serialize service definition: {}",
+                                                e
+                                            ),
+                                            None,
+                                        )),
+                                    }
+                                }
+                                Err(e) => Err(McpError::new(
+                                    ErrorCode(-32603),
+                                    format!("Failed to register updated service: {}", e),
+                                    None,
+                                )),
+                            }
+                        } else {
+                            Err(McpError::new(
+                                ErrorCode(-32603),
+                                "API Simulator not available - ensure the 'simulator' feature is enabled"
+                                    .to_string(),
+                                None,
+                            ))
                         }
                     }
                     Err(e) => Err(McpError::new(
