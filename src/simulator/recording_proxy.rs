@@ -158,7 +158,15 @@ impl RecordingProxy for ProxyRecorder {
 
                                 let target_trimmed = target.trim_end_matches('/');
                                 let uri_string = format!("{}{}", target_trimmed, path_and_query);
-                                let uri: Uri = uri_string.parse().unwrap();
+                                let uri: Uri = match uri_string.parse() {
+                                    Ok(u) => u,
+                                    Err(_) => {
+                                        let mut err_resp: Response<Full<Bytes>> =
+                                            Response::new(Full::from(Bytes::from("Invalid URI")));
+                                        *err_resp.status_mut() = hyper::StatusCode::BAD_REQUEST;
+                                        return Ok::<_, Infallible>(err_resp);
+                                    }
+                                };
 
                                 let mut fwd_req = Request::new(Full::from(req_body.clone()));
                                 *fwd_req.method_mut() = method.clone();
