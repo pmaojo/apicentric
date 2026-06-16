@@ -25,6 +25,7 @@ use crate::auth::repository::AuthRepository;
 use crate::auth::{handlers as auth_handlers, handlers::AuthState};
 use crate::cloud::cors::create_cors_layer;
 use crate::cloud::recording_session::RecordingSessionManager;
+use crate::cloud::security_headers::add_security_headers;
 use crate::cloud::websocket::{ws_handler, WebSocketState};
 use crate::simulator::ApiSimulatorManager;
 use std::env;
@@ -269,6 +270,7 @@ impl CloudServer {
             // Middleware with environment-based CORS configuration
             .layer(
                 ServiceBuilder::new()
+                    .layer(axum::middleware::from_fn(add_security_headers))
                     .layer(create_cors_layer())
                     .into_inner(),
             )

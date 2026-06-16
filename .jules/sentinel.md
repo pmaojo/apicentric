@@ -52,3 +52,8 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+
+## 2024-06-03 - Missing Security Headers
+**Vulnerability:** Missing essential HTTP security headers like `X-Content-Type-Options`, `X-Frame-Options`, and `Strict-Transport-Security`. This exposes the application to MIME-type sniffing, clickjacking, and man-in-the-middle attacks respectively.
+**Learning:** Frameworks like Axum don't append security headers by default. It's the developer's responsibility to set them globally via middleware to ensure defense-in-depth, especially for APIs facing the public internet.
+**Prevention:** Implemented `add_security_headers` middleware using `axum::middleware::from_fn` and attached it globally in the `ApiCloudServer`'s router configuration to inject these essential headers to every response.
