@@ -113,7 +113,7 @@ async fn handle_admin_request(
         }
     };
 
-    if token.as_bytes().ct_eq(admin_token.as_bytes()).unwrap_u8() == 0 {
+    if !bool::from(token.as_bytes().ct_eq(admin_token.as_bytes())) {
         let mut forbidden = Response::new(Full::new(Bytes::from("Forbidden")));
         *forbidden.status_mut() = StatusCode::FORBIDDEN;
         return forbidden;
