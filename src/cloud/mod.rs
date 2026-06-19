@@ -18,6 +18,7 @@ pub mod codegen_handlers;
 pub mod marketplace_handlers;
 pub mod metrics_handlers;
 pub mod recording_handlers;
+pub mod security;
 pub mod types;
 
 pub use cors::create_cors_layer;

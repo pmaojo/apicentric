@@ -270,6 +270,9 @@ impl CloudServer {
             .layer(
                 ServiceBuilder::new()
                     .layer(create_cors_layer())
+                    .layer(axum::middleware::from_fn(
+                        crate::cloud::security::add_security_headers,
+                    ))
                     .into_inner(),
             )
             // Share the simulator manager state across all handlers
