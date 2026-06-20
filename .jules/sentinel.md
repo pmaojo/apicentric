@@ -52,3 +52,8 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+
+## 2024-06-03 - Sensitive Data Exposure in Configuration and Service Errors
+**Vulnerability:** The `ApicentricError::fs_error` and `config_error` variants embed the full file path (e.g., via `path.display()`). Handlers in `src/cloud/handlers.rs` (like `load_service` and `save_service`) returned these error messages directly to the client via `e.to_string()`, leaking internal server paths.
+**Learning:** Returning unhandled runtime or standard errors directly to users is a common source of sensitive information leakage. `Display` implementations for error types often include context useful for debugging but unsafe for public consumption.
+**Prevention:** Never format raw underlying errors directly into API responses. Log detailed errors internally (using `log::error!`) for observability, and return sanitized, generic messages to the client (e.g., "Failed to load configuration" instead of "Cannot read /opt/app/services/my-service.yaml").
