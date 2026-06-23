@@ -28,7 +28,7 @@ import { SystemMetrics } from './system-metrics';
 import type { Service } from '@/lib/types';
 import { startService, stopService, reloadServices } from '@/services/api';
 import Link from 'next/link';
-import { CheckCircle, ExternalLink, Play, Power, Square, XCircle, RefreshCw, Loader2, Edit } from 'lucide-react';
+import { CheckCircle, ExternalLink, Play, Power, Square, XCircle, RefreshCw, Loader2, Edit, Copy, Check } from 'lucide-react';
 import * as React from 'react';
 
 type DashboardProps = {
@@ -335,8 +335,24 @@ const ServiceCard = React.memo(function ServiceCard({
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApiDocs } from "./api-docs"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 function ServiceDetailsDialog({ service }: { service: Service }) {
+  const { toast } = useToast();
+  const [hasCopied, setHasCopied] = React.useState(false);
+
+  const handleCopy = () => {
+    if (service.definition) {
+      navigator.clipboard.writeText(service.definition);
+      setHasCopied(true);
+      toast({
+        title: "Copied to clipboard",
+        description: "The service definition has been copied to your clipboard.",
+      });
+      setTimeout(() => setHasCopied(false), 2000);
+    }
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -395,11 +411,35 @@ function ServiceDetailsDialog({ service }: { service: Service }) {
             </TabsContent>
             
             <TabsContent value="definition" className="mt-0 h-full">
-              <div className="rounded-md border bg-muted/50 p-4 h-full overflow-auto">
+              <div className="rounded-md border bg-muted/50 p-4 h-full overflow-auto relative">
                 {service.definition ? (
-                  <pre className="text-xs font-mono">
-                    <code>{service.definition}</code>
-                  </pre>
+                  <>
+                    <div className="absolute top-2 right-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8 bg-background/50 hover:bg-background/80"
+                            onClick={handleCopy}
+                            aria-label="Copy definition"
+                          >
+                            {hasCopied ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{hasCopied ? "Copied!" : "Copy to clipboard"}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <pre className="text-xs font-mono">
+                      <code>{service.definition}</code>
+                    </pre>
+                  </>
                 ) : (
                   <p className="text-xs text-muted-foreground italic">No definition available.</p>
                 )}
