@@ -15,9 +15,7 @@ use serde_json::{Map, Value};
 /// Returns `true` if the given content-type header indicates XML / SOAP.
 pub fn is_xml_content_type(content_type: &str) -> bool {
     let ct = content_type.to_ascii_lowercase();
-    ct.contains("application/soap+xml")
-        || ct.contains("text/xml")
-        || ct.contains("application/xml")
+    ct.contains("application/soap+xml") || ct.contains("text/xml") || ct.contains("application/xml")
 }
 
 /// Parses an XML document into a `serde_json::Value`.
@@ -96,10 +94,7 @@ fn add_attributes(start: &BytesStart, obj: &mut Map<String, Value>) {
 
 /// Parse the contents of an open element (already consumed `Start`) until
 /// matching `End`. Returns the element's value as a JSON Value.
-fn parse_element(
-    reader: &mut Reader<&[u8]>,
-    open: &BytesStart,
-) -> Result<Value, String> {
+fn parse_element(reader: &mut Reader<&[u8]>, open: &BytesStart) -> Result<Value, String> {
     let mut obj = Map::new();
     add_attributes(open, &mut obj);
 
@@ -142,12 +137,7 @@ fn parse_element(
                 // `parse_element` call which exits on its matching End.
                 break;
             }
-            Ok(Event::Eof) => {
-                return Err(format!(
-                    "unexpected EOF inside <{}>",
-                    local_name(open)
-                ))
-            }
+            Ok(Event::Eof) => return Err(format!("unexpected EOF inside <{}>", local_name(open))),
             Ok(_) => {}
             Err(e) => return Err(format!("XML parse error: {e}")),
         }
@@ -203,10 +193,7 @@ mod tests {
 
     #[test]
     fn parses_nested_with_attributes() {
-        let v = xml_to_value(
-            r#"<root id="1"><child name="x">v</child></root>"#,
-        )
-        .unwrap();
+        let v = xml_to_value(r#"<root id="1"><child name="x">v</child></root>"#).unwrap();
         assert_eq!(
             v,
             json!({"root": {"@id": "1", "child": {"@name": "x", "#text": "v"}}})
