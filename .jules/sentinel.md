@@ -52,3 +52,8 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+
+## 2024-03-24 - DoS vector via `unwrap_u8()` in timing attack mitigation
+**Vulnerability:** In `src/simulator/admin_server/mod.rs`, token comparison logic utilized `.unwrap_u8()` on the result of `.ct_eq()`. The result of `.ct_eq()` is `Choice` from the `subtle` crate. Calling `.unwrap_u8()` is an unsafe API that returns the underlying `u8` value directly, which could lead to panics or bypass type safety in newer versions of the subtle crate. The proper way to convert a `Choice` to a boolean is by using `.into()` or by utilizing `.is_false()`.
+**Learning:** Avoid using `.unwrap_u8()` from the `subtle` crate's `Choice` type. It defeats the purpose of the abstraction and is an unsafe escape hatch. Converting to a standard `bool` using `bool::from(choice)` or calling `choice.into()` is the safe and idiomatic pattern.
+**Prevention:** Always convert `Choice` values to `bool` safely using `.into()` or by utilizing methods like `bool::from(...)` to ensure standard boolean operations apply securely without exposing raw byte values.
