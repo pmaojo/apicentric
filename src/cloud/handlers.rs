@@ -104,7 +104,12 @@ pub async fn load_service(
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     let safe_path = match simulator.resolve_service_path(&request.path) {
         Ok(path) => path,
-        Err(e) => return Ok(Json(ApiResponse::error(e.to_string()))),
+        Err(e) => {
+            log::error!("Failed to resolve service path: {}", e);
+            return Ok(Json(ApiResponse::error(
+                "Failed to load service".to_string(),
+            )));
+        }
     };
 
     match std::fs::read_to_string(&safe_path) {
@@ -113,12 +118,27 @@ pub async fn load_service(
                 let def = ServiceDefinition::from(unified);
                 match serde_yaml::to_string(&def) {
                     Ok(yaml) => Ok(Json(ApiResponse::success(yaml))),
-                    Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+                    Err(e) => {
+                        log::error!("Failed to serialize service definition: {}", e);
+                        Ok(Json(ApiResponse::error(
+                            "Failed to load service".to_string(),
+                        )))
+                    }
                 }
             }
-            Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+            Err(e) => {
+                log::error!("Failed to parse unified config: {}", e);
+                Ok(Json(ApiResponse::error(
+                    "Failed to load service".to_string(),
+                )))
+            }
         },
-        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+        Err(e) => {
+            log::error!("Failed to read service file: {}", e);
+            Ok(Json(ApiResponse::error(
+                "Failed to load service".to_string(),
+            )))
+        }
     }
 }
 
@@ -135,7 +155,12 @@ pub async fn save_service(
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     let safe_path = match simulator.resolve_service_path(&request.path) {
         Ok(path) => path,
-        Err(e) => return Ok(Json(ApiResponse::error(e.to_string()))),
+        Err(e) => {
+            log::error!("Failed to resolve service path: {}", e);
+            return Ok(Json(ApiResponse::error(
+                "Failed to save service".to_string(),
+            )));
+        }
     };
 
     match serde_yaml::from_str::<UnifiedConfig>(&request.yaml) {
@@ -145,12 +170,27 @@ pub async fn save_service(
             match serde_yaml::to_string(&def) {
                 Ok(yaml_content) => match simulator.save_service_file(&safe_path, &yaml_content) {
                     Ok(_) => Ok(Json(ApiResponse::success("Service saved".to_string()))),
-                    Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+                    Err(e) => {
+                        log::error!("Failed to save service file: {}", e);
+                        Ok(Json(ApiResponse::error(
+                            "Failed to save service".to_string(),
+                        )))
+                    }
                 },
-                Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+                Err(e) => {
+                    log::error!("Failed to serialize service definition: {}", e);
+                    Ok(Json(ApiResponse::error(
+                        "Failed to save service".to_string(),
+                    )))
+                }
             }
         }
-        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+        Err(e) => {
+            log::error!("Failed to parse unified config: {}", e);
+            Ok(Json(ApiResponse::error(
+                "Failed to save service".to_string(),
+            )))
+        }
     }
 }
 
@@ -235,7 +275,12 @@ pub async fn reload_services(
         Ok(_) => Ok(Json(ApiResponse::success(
             "Services reloaded successfully".to_string(),
         ))),
-        Err(e) => Ok(Json(ApiResponse::error(e.to_string()))),
+        Err(e) => {
+            log::error!("Failed to reload services: {}", e);
+            Ok(Json(ApiResponse::error(
+                "Failed to reload services".to_string(),
+            )))
+        }
     }
 }
 
@@ -809,13 +854,17 @@ pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, Status
                 Ok(json) => Ok(Json(ApiResponse::success(json))),
                 Err(e) => {
                     log::error!("Failed to serialize configuration: {}", e);
-                    Ok(Json(ApiResponse::error("Failed to serialize configuration".to_string())))
+                    Ok(Json(ApiResponse::error(
+                        "Failed to serialize configuration".to_string(),
+                    )))
                 }
             }
         }
         Err(e) => {
             log::error!("Failed to load configuration: {}", e);
-            Ok(Json(ApiResponse::error("Failed to load configuration".to_string())))
+            Ok(Json(ApiResponse::error(
+                "Failed to load configuration".to_string(),
+            )))
         }
     }
 }
@@ -872,7 +921,9 @@ pub async fn update_config(
         ))),
         Err(e) => {
             log::error!("Failed to save configuration: {}", e);
-            Ok(Json(ApiResponse::error("Failed to save configuration".to_string())))
+            Ok(Json(ApiResponse::error(
+                "Failed to save configuration".to_string(),
+            )))
         }
     }
 }

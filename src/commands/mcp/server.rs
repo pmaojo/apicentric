@@ -292,7 +292,10 @@ impl ApicentricMcpService {
                 .unwrap_or_default();
 
             if entries.is_empty() {
-                let response = format!("Service '{}' logs:\n(no requests recorded yet)", service_name);
+                let response = format!(
+                    "Service '{}' logs:\n(no requests recorded yet)",
+                    service_name
+                );
                 return Ok(CallToolResult::success(vec![Content::text(response)]));
             }
 
@@ -563,8 +566,7 @@ impl ApicentricMcpService {
                             {
                                 let mut registry = manager.service_registry().write().await;
                                 if registry.has_service(&service_name) {
-                                    if let Err(e) =
-                                        registry.unregister_service(&service_name).await
+                                    if let Err(e) = registry.unregister_service(&service_name).await
                                     {
                                         return Err(McpError::new(
                                             ErrorCode(-32603),
