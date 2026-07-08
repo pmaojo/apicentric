@@ -52,3 +52,8 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+
+## 2025-07-08 - DoS via Unhandled URI Parsing Panic
+**Vulnerability:** The proxy logic in `RecordingProxy` used a hard `.unwrap()` when parsing target URIs. An attacker could send a malformed request or specify an invalid target that would cause the URI parser to fail, crashing the entire server (Denial of Service).
+**Learning:** `unwrap()` is inherently dangerous when processing user-supplied or external input, especially in server applications that must remain highly available. The proxy logic is on the hot path for network requests.
+**Prevention:** Always use safe error handling (e.g., `match` or `?`) for operations that can fail, like string parsing, and return appropriate HTTP error responses (e.g., 400 Bad Request) instead of panicking.
