@@ -130,16 +130,14 @@ impl EventHandler {
     ) -> ApicentricResult<()> {
         // Check if service exists and can be started
         {
-            let service = state.find_service_mut(name);
-            if service.is_none() {
-                return Err(ApicentricError::runtime_error(
+            let service = state.find_service_mut(name).ok_or_else(|| {
+                ApicentricError::runtime_error(
                     format!("Service not found: {}", name),
                     None::<String>,
-                ));
-            }
+                )
+            })?;
 
             // Update state to Starting
-            let service = service.unwrap();
             service
                 .start()
                 .map_err(|e| ApicentricError::runtime_error(e, None::<String>))?;
@@ -178,16 +176,14 @@ impl EventHandler {
     ) -> ApicentricResult<()> {
         // Check if service exists and can be stopped
         {
-            let service = state.find_service_mut(name);
-            if service.is_none() {
-                return Err(ApicentricError::runtime_error(
+            let service = state.find_service_mut(name).ok_or_else(|| {
+                ApicentricError::runtime_error(
                     format!("Service not found: {}", name),
                     None::<String>,
-                ));
-            }
+                )
+            })?;
 
             // Update state to Stopping
-            let service = service.unwrap();
             service
                 .stop()
                 .map_err(|e| ApicentricError::runtime_error(e, None::<String>))?;
