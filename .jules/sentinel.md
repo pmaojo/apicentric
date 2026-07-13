@@ -52,3 +52,8 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+
+## 2024-06-03 - Information Disclosure in File Handlers (CWE-209)
+**Vulnerability:** Raw underlying errors (`e.to_string()`), which might contain sensitive filesystem paths or serialization context, were returned directly in HTTP responses via `ApiResponse::error` in several cloud API handlers (`load_service`, `save_service`, `reload_services`).
+**Learning:** Defaulting to returning `e.to_string()` directly to the client is a common pattern that leaks implementation details and environment state, assisting attackers in profiling the backend structure (Information Exposure Through an Error Message).
+**Prevention:** Handlers must log detailed errors internally (using `log::error!`) for debugging and return generic, sanitized error messages (e.g., "Failed to load service file") to the client.
