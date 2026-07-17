@@ -354,7 +354,7 @@ impl ServiceListState {
             if let Some(service) = self.items.iter_mut().find(|s| s.name == log.service) {
                 service.request_count += 1;
                 if service.last_request.is_none()
-                    || service.last_request.as_ref().unwrap() < &log.timestamp
+                    || service.last_request.is_some_and(|ts| ts < log.timestamp)
                 {
                     service.last_request = Some(log.timestamp);
                 }

@@ -180,7 +180,10 @@ fn test_mcp_create_service_tool() {
     if !found {
         println!("MCP Response (Accumulated): {}", accumulated_response);
     }
-    assert!(found, "Did not find expected success message in MCP response");
+    assert!(
+        found,
+        "Did not find expected success message in MCP response"
+    );
 }
 
 #[test]
@@ -252,8 +255,7 @@ fn test_mcp_get_service_status_tool() {
         )
     );
 
-    let (found, accumulated) =
-        send_and_expect(&mut child, &input, "Service 'test-service' status");
+    let (found, accumulated) = send_and_expect(&mut child, &input, "Service 'test-service' status");
 
     if !found {
         println!("MCP get_service_status response: {}", accumulated);
