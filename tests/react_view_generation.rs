@@ -81,6 +81,9 @@ fn generated_view_compiles_and_composes_with_hooks() {
             "commonjs",
             "--esModuleInterop",
             "--skipLibCheck",
+            // TypeScript 6 enables strict by default; the stub typings above are not strict.
+            "--strict",
+            "false",
         ])
         .current_dir(dir.path())
         .status();

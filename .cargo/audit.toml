@@ -1,0 +1,19 @@
+# cargo-audit configuration (also read by rustsec/audit-check in CI).
+# Only advisories whose vulnerable code is not reachable in apicentric are
+# ignored here. Review this list on every dependency upgrade.
+
+[advisories]
+ignore = [
+    # quick-xml 0.38 (quadratic duplicate-attribute check, NsReader allocation).
+    # Only used by wayland-scanner, a build-time proc-macro (winit -> eframe, the
+    # `gui` feature) that parses the Wayland protocol files bundled with the
+    # crate. No runtime or user-supplied XML reaches it. apicentric's own XML
+    # parsing uses quick-xml 0.42, which is patched.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+    # rmcp 0.8: DNS rebinding in the Streamable HTTP server transport. That
+    # transport is behind rmcp's `transport-streamable-http-server` feature,
+    # which apicentric does not enable (`features = ["server"]`, stdio only).
+    # Drop this entry when upgrading rmcp to >= 1.4.
+    "RUSTSEC-2026-0189",
+]

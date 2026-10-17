@@ -8,16 +8,16 @@
 //! Attributes are stored under `@name`. Mixed text content under `#text`.
 //! Repeated children with the same name collapse to an array.
 
-use quick_xml::events::{BytesStart, Event};
+use quick_xml::escape::resolve_predefined_entity;
+use quick_xml::events::{BytesRef, BytesStart, Event};
 use quick_xml::reader::Reader;
+use quick_xml::XmlVersion;
 use serde_json::{Map, Value};
 
 /// Returns `true` if the given content-type header indicates XML / SOAP.
 pub fn is_xml_content_type(content_type: &str) -> bool {
     let ct = content_type.to_ascii_lowercase();
-    ct.contains("application/soap+xml")
-        || ct.contains("text/xml")
-        || ct.contains("application/xml")
+    ct.contains("application/soap+xml") || ct.contains("text/xml") || ct.contains("application/xml")
 }
 
 /// Parses an XML document into a `serde_json::Value`.
@@ -26,8 +26,9 @@ pub fn is_xml_content_type(content_type: &str) -> bool {
 /// element name, namespace-stripped). This mirrors how `request.body`
 /// looks for JSON bodies.
 pub fn xml_to_value(xml: &str) -> Result<Value, String> {
+    // Text is trimmed per run in `parse_element`; trimming each event would also
+    // strip the spaces around entity references (`a &amp; b`).
     let mut reader = Reader::from_str(xml);
-    reader.config_mut().trim_text(true);
 
     // Skip prolog / comments / declarations until we hit the root element.
     let mut buf = Vec::new();
@@ -62,9 +63,7 @@ pub fn xml_to_value(xml: &str) -> Result<Value, String> {
 }
 
 fn local_name(start: &BytesStart) -> String {
-    let full = std::str::from_utf8(start.name().as_ref())
-        .unwrap_or("")
-        .to_string();
+    let full = start.name().as_ref().to_string();
     match full.split_once(':') {
         Some((_, local)) => local.to_string(),
         None => full,
@@ -74,9 +73,7 @@ fn local_name(start: &BytesStart) -> String {
 fn add_attributes(start: &BytesStart, obj: &mut Map<String, Value>) {
     for attr_res in start.attributes() {
         let Ok(attr) = attr_res else { continue };
-        let key_full = std::str::from_utf8(attr.key.as_ref())
-            .unwrap_or("")
-            .to_string();
+        let key_full = attr.key.as_ref().to_string();
 
         if key_full == "xmlns" || key_full.starts_with("xmlns:") {
             continue;
@@ -87,7 +84,7 @@ fn add_attributes(start: &BytesStart, obj: &mut Map<String, Value>) {
             None => key_full,
         };
         let val = attr
-            .unescape_value()
+            .normalized_value(XmlVersion::Implicit1_0)
             .map(|c| c.into_owned())
             .unwrap_or_default();
         obj.insert(format!("@{key_local}"), Value::String(val));
@@ -96,18 +93,26 @@ fn add_attributes(start: &BytesStart, obj: &mut Map<String, Value>) {
 
 /// Parse the contents of an open element (already consumed `Start`) until
 /// matching `End`. Returns the element's value as a JSON Value.
-fn parse_element(
-    reader: &mut Reader<&[u8]>,
-    open: &BytesStart,
-) -> Result<Value, String> {
+fn parse_element(reader: &mut Reader<&[u8]>, open: &BytesStart) -> Result<Value, String> {
     let mut obj = Map::new();
     add_attributes(open, &mut obj);
 
     let mut text_accum = String::new();
+    // Contiguous text, entity references and CDATA, trimmed as a whole when an
+    // element boundary ends it. Whitespace-only runs (indentation) are dropped.
+    let mut run = String::new();
     let mut buf = Vec::new();
 
     loop {
-        match reader.read_event_into(&mut buf) {
+        let event = reader.read_event_into(&mut buf);
+        if !matches!(
+            event,
+            Ok(Event::Text(_) | Event::GeneralRef(_) | Event::CData(_))
+        ) {
+            text_accum.push_str(run.trim());
+            run.clear();
+        }
+        match event {
             Ok(Event::Start(e)) => {
                 let child_name = local_name(&e);
                 let child_value = parse_element(reader, &e)?;
@@ -124,30 +129,16 @@ fn parse_element(
                 };
                 insert_child(&mut obj, child_name, child_value);
             }
-            Ok(Event::Text(t)) => {
-                let txt = t.unescape().map(|c| c.into_owned()).unwrap_or_default();
-                if !txt.trim().is_empty() {
-                    text_accum.push_str(&txt);
-                }
-            }
-            Ok(Event::CData(c)) => {
-                let bytes = c.into_inner();
-                if let Ok(s) = std::str::from_utf8(&bytes) {
-                    text_accum.push_str(s);
-                }
-            }
+            Ok(Event::Text(t)) => run.push_str(&t.xml10_content()),
+            Ok(Event::GeneralRef(r)) => push_reference(&mut run, &r),
+            Ok(Event::CData(c)) => run.push_str(&c.xml10_content()),
             Ok(Event::End(_)) => {
                 // Recursion guarantees this End corresponds to `open`,
                 // because each nested element is consumed by its own
                 // `parse_element` call which exits on its matching End.
                 break;
             }
-            Ok(Event::Eof) => {
-                return Err(format!(
-                    "unexpected EOF inside <{}>",
-                    local_name(open)
-                ))
-            }
+            Ok(Event::Eof) => return Err(format!("unexpected EOF inside <{}>", local_name(open))),
             Ok(_) => {}
             Err(e) => return Err(format!("XML parse error: {e}")),
         }
@@ -168,6 +159,20 @@ fn parse_element(
             obj.insert("#text".to_string(), Value::String(text_accum));
         }
         Ok(Value::Object(obj))
+    }
+}
+
+/// Appends the text an entity or character reference stands for. Unknown
+/// entities (no DTD support) are kept verbatim.
+fn push_reference(out: &mut String, r: &BytesRef) {
+    if let Ok(Some(ch)) = r.resolve_char_ref() {
+        out.push(ch);
+    } else if let Some(text) = resolve_predefined_entity(&r.xml10_content()) {
+        out.push_str(text);
+    } else {
+        out.push('&');
+        out.push_str(&r.xml10_content());
+        out.push(';');
     }
 }
 
@@ -203,10 +208,7 @@ mod tests {
 
     #[test]
     fn parses_nested_with_attributes() {
-        let v = xml_to_value(
-            r#"<root id="1"><child name="x">v</child></root>"#,
-        )
-        .unwrap();
+        let v = xml_to_value(r#"<root id="1"><child name="x">v</child></root>"#).unwrap();
         assert_eq!(
             v,
             json!({"root": {"@id": "1", "child": {"@name": "x", "#text": "v"}}})
@@ -226,6 +228,27 @@ mod tests {
     fn repeated_children_become_array() {
         let v = xml_to_value("<list><item>a</item><item>b</item></list>").unwrap();
         assert_eq!(v, json!({"list": {"item": ["a", "b"]}}));
+    }
+
+    #[test]
+    fn resolves_entities_in_text_and_attributes() {
+        let v = xml_to_value(
+            r#"<r a="x &quot;y&quot; &amp; z"><t> Tom &amp; Jerry &lt;3 &#65;&#x42; </t></r>"#,
+        )
+        .unwrap();
+        assert_eq!(
+            v,
+            json!({"r": {"@a": "x \"y\" & z", "t": "Tom & Jerry <3 AB"}})
+        );
+    }
+
+    #[test]
+    fn keeps_cdata_and_ignores_whitespace_between_elements() {
+        let v = xml_to_value(
+            "<Envelope>\n  <Body>\n    <Op><![CDATA[a < b]]></Op>\n  </Body>\n</Envelope>",
+        )
+        .unwrap();
+        assert_eq!(v, json!({"Envelope": {"Body": {"Op": "a < b"}}}));
     }
 
     #[test]

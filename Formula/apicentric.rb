@@ -1,7 +1,7 @@
 class Apicentric < Formula
   desc "CLI tool and API simulator platform for developers"
   homepage "https://github.com/pmaojo/apicentric"
-  version "0.1.1"
+  version "1.0.0"
   license "MIT"
 
   on_macos do

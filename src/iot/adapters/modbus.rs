@@ -85,13 +85,7 @@ impl ProtocolAdapter for ModbusAdapter {
                 let val_u16 = match value {
                     VariableValue::Integer(i) => *i as u16,
                     VariableValue::Float(f) => *f as u16,
-                    VariableValue::Boolean(b) => {
-                        if *b {
-                            1
-                        } else {
-                            0
-                        }
-                    }
+                    VariableValue::Boolean(b) => u16::from(*b),
                     _ => 0,
                 };
                 let mut store = self.store.lock().map_err(|_| ApicentricError::Data {
