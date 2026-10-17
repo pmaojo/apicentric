@@ -75,7 +75,9 @@ impl RecordingSessionManager {
         })?;
 
         let session_id = Uuid::new_v4().to_string();
-        let proxy_url = format!("http://0.0.0.0:{}", port);
+        // The proxy binds 0.0.0.0, but clients must connect to a concrete address
+        // (Windows refuses connections to 0.0.0.0).
+        let proxy_url = format!("http://127.0.0.1:{}", port);
 
         let endpoints: Arc<Mutex<HashMap<(String, String), EndpointDefinition>>> =
             Arc::new(Mutex::new(HashMap::new()));
@@ -162,7 +164,7 @@ impl RecordingSessionManager {
             (
                 true,
                 Some(session.session_id.clone()),
-                Some(format!("http://0.0.0.0:{}", session.proxy_port)),
+                Some(format!("http://127.0.0.1:{}", session.proxy_port)),
                 Some(session.proxy_port),
                 Some(session.target_url.clone()),
                 count,
