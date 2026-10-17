@@ -124,20 +124,32 @@ mod tests {
 
         let (tx, mut rx) = mpsc::channel(64);
         let _watcher = ConfigWatcher::new(dir.path().to_path_buf(), tx).unwrap();
-        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        // Some backends (FSEvents on macOS) report the setup write after the watcher
+        // starts; let those arrive and discard them.
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        while rx.try_recv().is_ok() {}
 
         // What a reload does: open and read every service file.
         for _ in 0..20 {
             let _ = std::fs::read_to_string(&file).unwrap();
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
-        assert!(rx.try_recv().is_err(), "reads were reported as changes");
+        if let Ok(change) = rx.try_recv() {
+            panic!("reads were reported as a change: {change:?}");
+        }
 
-        // A real write is still reported.
+        // A real write is still reported (as Added or Modified, depending on the backend).
         std::fs::write(&file, "name: hiring-lab\nversion: 2\n").unwrap();
         let change = tokio::time::timeout(Duration::from_secs(5), rx.recv())
             .await
             .expect("no change reported for a write");
-        assert!(matches!(change, Some(ConfigChange::ServiceModified(_))));
+        assert!(
+            matches!(
+                change,
+                Some(ConfigChange::ServiceModified(_) | ConfigChange::ServiceAdded(_))
+            ),
+            "{change:?}"
+        );
     }
 }

@@ -78,6 +78,15 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    env:
+      TARGET: ${{ matrix.target }}
+      ARTIFACT: ${{ matrix.artifact }}
+      FEATURES: ${{ matrix.features }}
+
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v4
 
@@ -92,33 +101,32 @@ jobs:
           key: ${{ matrix.artifact }}
 
       - name: Build release binary
-        run: cargo build --release --locked --target ${{ matrix.target }} --bin apicentric ${{ matrix.features }}
+        # FEATURES is unquoted on purpose: it holds several flags.
+        run: cargo build --release --locked --target "$TARGET" --bin apicentric $FEATURES
 
       - name: Check binary
-        shell: bash
         run: |
-          BIN=target/${{ matrix.target }}/release/apicentric
-          [ "${{ runner.os }}" = "Windows" ] && BIN="${BIN}.exe"
+          BIN="target/${TARGET}/release/apicentric"
+          [ "$RUNNER_OS" = "Windows" ] && BIN="${BIN}.exe"
           if command -v file > /dev/null; then file "$BIN"; fi
-          case "${{ matrix.target }}" in
+          case "$TARGET" in
             x86_64-apple-darwin) file "$BIN" | grep -q x86_64 ;;
             aarch64-apple-darwin) file "$BIN" | grep -q arm64 ;;
           esac
           # The x64 macOS binary is cross-compiled and may not run on the ARM runner.
-          if [ "${{ matrix.target }}" != "x86_64-apple-darwin" ]; then
+          if [ "$TARGET" != "x86_64-apple-darwin" ]; then
             "$BIN" --version
           fi
 
       - name: Package (Unix)
         if: matrix.ext == 'tar.gz'
-        run: tar czf ${{ matrix.artifact }}.tar.gz -C target/${{ matrix.target }}/release apicentric
+        run: tar czf "${ARTIFACT}.tar.gz" -C "target/${TARGET}/release" apicentric
 
       - name: Package (Windows)
         if: matrix.ext == 'zip'
-        shell: bash
         run: |
-          cd target/${{ matrix.target }}/release
-          7z a ../../../${{ matrix.artifact }}.zip apicentric.exe
+          cd "target/${TARGET}/release"
+          7z a "../../../${ARTIFACT}.zip" apicentric.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -146,10 +154,11 @@ jobs:
       - name: Generate checksums
         working-directory: dist
         run: |
-          for f in *.tar.gz *.zip; do
-            sha256sum "$f" > "$f.sha256"
+          for f in ./*.tar.gz ./*.zip; do
+            f="${f#./}"
+            sha256sum -- "$f" > "$f.sha256"
           done
-          sha256sum *.tar.gz *.zip > checksums.txt
+          sha256sum -- *.tar.gz *.zip > checksums.txt
           cat checksums.txt
           # Every archive must be present before publishing.
           for a in apicentric-linux-x64.tar.gz apicentric-simulator-linux-x64.tar.gz \
@@ -190,7 +199,7 @@ jobs:
           EOF
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           name: Release ${{ github.ref_name }}
           body_path: release_notes.md
