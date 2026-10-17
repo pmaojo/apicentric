@@ -8,6 +8,6 @@ Installers:
   - Architecture: x64
     InstallerType: zip
     InstallerUrl: https://github.com/pmaojo/apicentric/releases/download/v1.0.0/apicentric-windows-x64.zip
-    InstallerSha256: REPLACE_WITH_SHA256
+    InstallerSha256: 7C2D3BE128E29342FEEE8B9B5B1C357F89171842DE4A9A3C154FB0D94F0F99B0
     Commands:
       - apicentric
