@@ -6,7 +6,13 @@ use assert_cmd::Command;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command as StdCommand, Stdio};
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 use tempfile::{tempdir, NamedTempFile};
+
+/// How long a test waits for the expected response before failing. The first
+/// test to run also builds the binary through `cargo run`.
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(300);
 
 const TEST_SERVICE_YAML: &str =
     "name: test-service\nport: 9090\nendpoints:\n  - path: /test\n    method: GET\n    response:\n      status: 200\n      body: OK";
@@ -68,8 +74,12 @@ fn spawn_mcp(config_path: &std::path::Path) -> std::process::Child {
         .unwrap()
 }
 
-/// Write `input` to the child process's stdin, then read stdout until a line
+/// Send each line of `input` to the child process, then read stdout until a line
 /// containing `expected` is found. Returns `(found, accumulated_output)`.
+///
+/// The server handles requests concurrently, so a request is only sent once the
+/// response to the previous one has arrived; otherwise a call that depends on an
+/// earlier one (e.g. a status check after `create_service`) can run first.
 fn send_and_expect(child: &mut std::process::Child, input: &str, expected: &str) -> (bool, String) {
     let mut stdin = child.stdin.take().unwrap();
     let stdout = child.stdout.take().unwrap();
@@ -82,26 +92,53 @@ fn send_and_expect(child: &mut std::process::Child, input: &str, expected: &str)
         }
     });
 
-    stdin.write_all(input.as_bytes()).unwrap();
-    stdin.flush().unwrap();
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        for l in BufReader::new(stdout).lines().map_while(Result::ok) {
+            if tx.send(l).is_err() {
+                break;
+            }
+        }
+    });
 
-    let mut reader = BufReader::new(stdout);
+    let deadline = Instant::now() + RESPONSE_TIMEOUT;
     let mut found = false;
     let mut accumulated = String::new();
-    let mut line = String::new();
 
-    while let Ok(n) = reader.read_line(&mut line) {
-        if n == 0 {
-            break;
+    'requests: for request in input.lines().filter(|l| !l.trim().is_empty()) {
+        stdin.write_all(request.as_bytes()).unwrap();
+        stdin.write_all(b"\n").unwrap();
+        stdin.flush().unwrap();
+
+        // Notifications have no id and get no response.
+        let Some(id) = serde_json::from_str::<serde_json::Value>(request)
+            .ok()
+            .and_then(|v| v.get("id").cloned())
+        else {
+            continue;
+        };
+
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let Ok(line) = rx.recv_timeout(remaining) else {
+                break 'requests;
+            };
+            accumulated.push_str(&line);
+            accumulated.push('\n');
+            if line.contains(expected) {
+                found = true;
+                break 'requests;
+            }
+            let response_id = serde_json::from_str::<serde_json::Value>(&line)
+                .ok()
+                .and_then(|v| v.get("id").cloned());
+            if response_id.as_ref() == Some(&id) {
+                break;
+            }
         }
-        accumulated.push_str(&line);
-        if line.contains(expected) {
-            found = true;
-            break;
-        }
-        line.clear();
     }
 
+    drop(stdin);
     let _ = child.kill();
     let _ = child.wait();
 
