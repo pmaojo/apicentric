@@ -1,0 +1,47 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and the project follows [Semantic Versioning](https://semver.org/).
+
+## [1.0.0] - 2026-10-17
+
+First stable release. Changes since v0.7.0.1:
+
+### Added
+- SOAP/XML support in the simulator: XML request bodies (`text/xml`,
+  `application/xml`, `application/soap+xml`) are parsed into the same tree as
+  JSON, so templates can read `{{request.body.Envelope.Body.<Op>.<Param>}}`.
+  Namespace prefixes are stripped, attributes are exposed as `@name`.
+- Amadeus REST and SOAP mock services (`services/amadeus.yaml`,
+  `services/amadeus-soap.yaml`) in the marketplace, plus
+  `Dockerfile.amadeus-mock`.
+- MCP `update_service` tool: replaces a running service with an updated YAML
+  definition and persists it to disk.
+- Release asset `apicentric-simulator-linux-x64.tar.gz`: a Linux x64 binary
+  built with only the `simulator`, `scripting` and `file-watch` features, for
+  CI pipelines and other projects that only need the simulator.
+- A `.sha256` file for every release archive, alongside `checksums.txt`.
+
+### Fixed
+- File watcher reload loop (`file-watch` feature): on Linux, reading a service
+  YAML was reported as a modification, so each reload triggered the next one
+  and services kept restarting and refusing connections. Read events are now
+  ignored, and a burst of events from a single save causes one reload.
+- MCP `get_service_logs` returns the real request logs from SQLite instead of
+  placeholder data, takes an optional `limit` (default 50) and returns an error
+  for unknown services.
+- Security: the admin server compares tokens in constant time (timing attack
+  fix), using `subtle::Choice` without unwrapping to a raw `u8`.
+- Security: the cloud config handlers no longer leak file paths in error
+  responses, and `validate_config` restores redacted secrets before validating.
+
+### Changed
+- MCP integration tests cover list, status, logs, delete and update of
+  services.
+- Release workflow: binaries are built with `--locked`, the GitHub release is
+  created only after every platform build succeeds, and assets are uploaded
+  with `softprops/action-gh-release` instead of the archived
+  `actions/upload-release-asset`.
+
+[1.0.0]: https://github.com/pmaojo/apicentric/compare/v0.7.0.1...v1.0.0

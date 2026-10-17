@@ -809,13 +809,17 @@ pub async fn get_config() -> Result<Json<ApiResponse<serde_json::Value>>, Status
                 Ok(json) => Ok(Json(ApiResponse::success(json))),
                 Err(e) => {
                     log::error!("Failed to serialize configuration: {}", e);
-                    Ok(Json(ApiResponse::error("Failed to serialize configuration".to_string())))
+                    Ok(Json(ApiResponse::error(
+                        "Failed to serialize configuration".to_string(),
+                    )))
                 }
             }
         }
         Err(e) => {
             log::error!("Failed to load configuration: {}", e);
-            Ok(Json(ApiResponse::error("Failed to load configuration".to_string())))
+            Ok(Json(ApiResponse::error(
+                "Failed to load configuration".to_string(),
+            )))
         }
     }
 }
@@ -872,7 +876,9 @@ pub async fn update_config(
         ))),
         Err(e) => {
             log::error!("Failed to save configuration: {}", e);
-            Ok(Json(ApiResponse::error("Failed to save configuration".to_string())))
+            Ok(Json(ApiResponse::error(
+                "Failed to save configuration".to_string(),
+            )))
         }
     }
 }

@@ -1,3 +1,5 @@
+#![cfg(feature = "webui")]
+
 use apicentric::cloud::recording_session::RecordingSessionManager;
 use bytes::Bytes;
 use http_body_util::Full;

@@ -15,7 +15,7 @@ use crate::simulator::{
 };
 
 #[cfg(feature = "file-watch")]
-use crate::simulator::watcher::ConfigWatcher;
+use crate::simulator::watcher::{ConfigWatcher, RELOAD_DEBOUNCE};
 use tracing::info;
 
 /// Trait for managing simulator lifecycle.
@@ -139,6 +139,9 @@ impl<R: RouteRegistry + Send + Sync + 'static> Lifecycle for SimulatorLifecycle<
             let manager_clone = self.clone();
             tokio::spawn(async move {
                 while let Some(change) = rx.recv().await {
+                    // A reload re-reads every file, so collapse a burst into one.
+                    tokio::time::sleep(RELOAD_DEBOUNCE).await;
+                    while rx.try_recv().is_ok() {}
                     if let Err(e) = manager_clone.handle_config_change(change).await {
                         eprintln!("Error handling config change: {}", e);
                     }
