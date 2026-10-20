@@ -52,3 +52,13 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+
+## 2024-06-03 - Information Exposure via Error Messages
+**Vulnerability:** The configuration handlers (`get_config` and `update_config`) returned raw underlying error messages to the client. This exposed internal server file paths (`apicentric.json`) in API responses when configuration failed to load or save.
+**Learning:** Returning detailed system errors (like file system paths) to end users can inadvertently leak sensitive information about the server environment, aiding attackers in discovering system architecture.
+**Prevention:** Catch and log underlying errors internally (using `log::error!`), and return sanitized, generic error messages (e.g., "Failed to load configuration") to the client.
+
+## 2024-06-04 - Configuration Validation Bypassed Due to Secret Redaction
+**Vulnerability:** The `validate_config` handler did not restore redacted secrets (like API keys) from the current configuration before running validation. As a result, users updating non-secret fields would receive validation errors because the redacted placeholder (e.g., `***`) failed API key validation checks.
+**Learning:** When APIs use redaction for sensitive fields, updates must carefully merge incoming data with the existing state to prevent false validation failures or accidental overwriting of real secrets with redacted placeholders.
+**Prevention:** Always load the current configuration and merge it with the incoming request data (restoring any unchanged, redacted fields) before performing validation checks.
