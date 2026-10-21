@@ -334,7 +334,16 @@ const ServiceCard = React.memo(function ServiceCard({
 });
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ApiDocs } from "./api-docs"
+import dynamic from 'next/dynamic'
+
+const ApiDocs = dynamic(() => import('./api-docs').then((mod) => mod.ApiDocs), {
+  loading: () => (
+    <div className="flex items-center justify-center p-8">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  ),
+  ssr: false,
+})
 
 function ServiceDetailsDialog({ service }: { service: Service }) {
   return (
