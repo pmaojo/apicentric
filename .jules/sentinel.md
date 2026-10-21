@@ -52,3 +52,7 @@
 **Vulnerability:** The CORS configuration in `create_cors_layer` defaulted to a permissive `development` mode when `APICENTRIC_ENV` was missing or not explicitly set to `production`, allowing any origin to make cross-origin requests.
 **Learning:** Defaulting to a permissive state (Fail Open) is a significant security risk, especially in cloud or production environments where environment variables might be accidentally omitted or misconfigured.
 **Prevention:** Implement "Fail Secure" by defaulting to a restrictive `production` mode if configuration is missing, falling back to a known safe baseline (e.g., localhost) if specific allowed origins aren't provided.
+## 2026-03-17 - DoS Vulnerability via Time Calculation Panic
+**Vulnerability:** The application used `.unwrap()` when calculating the duration since `SystemTime::UNIX_EPOCH`, which would panic and crash the thread if the system clock was skewed to before 1970.
+**Learning:** Operations on system time can fail (e.g., `SystemTimeError`) if the clock is misconfigured, manipulated, or during extreme time drifts. Panicking in such scenarios provides a vector for Denial of Service.
+**Prevention:** Always use safe fallbacks like `.unwrap_or_default()` for `SystemTime::duration_since()` to ensure robust error handling and prevent crashes.
