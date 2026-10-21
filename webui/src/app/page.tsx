@@ -45,6 +45,34 @@ const queryClient = new QueryClient({
 
 let newServiceIdCounter = 0;
 
+// Helper functions for service reconciliation to optimize rendering performance
+function mapApiServiceToService(apiService: ApiService): Service {
+  return {
+    id: apiService.id || `service-${apiService.name}`,
+    name: apiService.name,
+    status: (apiService.is_running ? 'running' : 'stopped') as 'running' | 'stopped',
+    port: apiService.port,
+    version: apiService.version || '1.0.0',
+    definition: apiService.definition || '',
+    endpoints: apiService.endpoints?.map(ep => ({
+      ...ep,
+      method: ep.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+    })) || [],
+  };
+}
+
+function areServicesEqual(prev: Service, next: Service): boolean {
+  return (
+    prev.id === next.id &&
+    prev.name === next.name &&
+    prev.status === next.status &&
+    prev.port === next.port &&
+    prev.version === next.version &&
+    prev.definition === next.definition &&
+    prev.endpoints.length === next.endpoints.length
+  );
+}
+
 /**
  * Renders the main content of the application, including the layout and active view.
  * This component fetches the initial service data and handles all top-level state management,
@@ -61,28 +89,32 @@ function AppContent() {
   const [services, setServices] = useState<Service[]>([]);
   const { toast } = useToast();
 
-  // Memoize the mapped services to avoid unnecessary recalculations
-  const mappedServices = useMemo(() => {
-    if (!simulatorStatus || !simulatorStatus.active_services) return [];
-    return simulatorStatus.active_services.map((apiService): Service => ({
-      id: apiService.id || `service-${apiService.name}`,
-      name: apiService.name,
-      status: (apiService.is_running ? 'running' : 'stopped') as 'running' | 'stopped',
-      port: apiService.port,
-      version: apiService.version || '1.0.0',
-      definition: apiService.definition || '',
-      endpoints: apiService.endpoints?.map(ep => ({
-        ...ep,
-        method: ep.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
-      })) || [],
-    }));
-  }, [simulatorStatus]);
-
   useEffect(() => {
-    if (simulatorStatus) {
-        setServices(mappedServices);
+    if (simulatorStatus && simulatorStatus.active_services) {
+      setServices(prevServices => {
+        // Map new services from API
+        const newServices = simulatorStatus.active_services.map(mapApiServiceToService);
+
+        // Optimistic check: if lengths differ, we know things changed
+        let hasChanges = prevServices.length !== newServices.length;
+
+        // Reconcile with previous services to preserve object references
+        const reconciledServices = newServices.map(newService => {
+          const prevService = prevServices.find(s => s.id === newService.id);
+
+          if (prevService && areServicesEqual(prevService, newService)) {
+            return prevService; // Keep the old object reference
+          }
+
+          hasChanges = true; // Mark as changed if we couldn't reuse an object
+          return newService;
+        });
+
+        // If nothing changed, return the exact same array reference to skip render
+        return hasChanges ? reconciledServices : prevServices;
+      });
     }
-  }, [mappedServices, simulatorStatus]);
+  }, [simulatorStatus]);
 
   // Mutations and toggle logic removed as per UI cleanup
 
