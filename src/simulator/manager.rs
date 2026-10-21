@@ -41,6 +41,7 @@ pub struct ApiSimulatorManager {
     recorder: ProxyRecorder,
     admin_server: Arc<RwLock<AdminServer>>,
     start_time: Instant,
+    http_client: reqwest::Client,
 }
 
 impl ApiSimulatorManager {
@@ -76,6 +77,10 @@ impl ApiSimulatorManager {
         );
         let recorder = ProxyRecorder;
         let admin_server = Arc::new(RwLock::new(AdminServer::new(service_registry.clone())));
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .expect("Failed to create HTTP client");
 
         Self {
             config,
@@ -88,6 +93,7 @@ impl ApiSimulatorManager {
             recorder,
             admin_server,
             start_time,
+            http_client,
         }
     }
 
@@ -321,16 +327,6 @@ impl ApiSimulatorManager {
         method: &str,
         path: &str,
     ) -> ApicentricResult<TestResult> {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .map_err(|e| {
-                ApicentricError::runtime_error(
-                    format!("Failed to create client: {}", e),
-                    None::<String>,
-                )
-            })?;
-
         let url = format!("http://localhost:{}{}", port, path);
         let start = Instant::now();
 
@@ -342,7 +338,8 @@ impl ApiSimulatorManager {
             )
         })?;
 
-        let response = client
+        let response = self
+            .http_client
             .request(method_enum, &url)
             .send()
             .await
@@ -371,7 +368,16 @@ impl ApiSimulatorManager {
 
     /// Load services from the configured directory
     pub async fn load_services(&self) -> ApicentricResult<()> {
-        let services = self.config_loader.load_all_services()?;
+        let loader = self.config_loader.clone();
+        let services = tokio::task::spawn_blocking(move || loader.load_all_services())
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to join blocking task: {}", e),
+                    None::<String>,
+                )
+            })??;
+
         let mut registry = self.service_registry.write().await;
         for service in services {
             registry.register_service(service).await?;
@@ -380,18 +386,48 @@ impl ApiSimulatorManager {
     }
 
     /// Save a service definition to a file
-    pub fn save_service_file(&self, path: &std::path::Path, content: &str) -> ApicentricResult<()> {
-        self.config_loader.save_service(path, content)
+    pub async fn save_service_file(
+        &self,
+        path: &std::path::Path,
+        content: &str,
+    ) -> ApicentricResult<()> {
+        let loader = self.config_loader.clone();
+        let path = path.to_path_buf();
+        let content = content.to_string();
+
+        tokio::task::spawn_blocking(move || loader.save_service(&path, &content))
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to join blocking task: {}", e),
+                    None::<String>,
+                )
+            })?
     }
 
     /// Delete a service definition file
-    pub fn delete_service_file(&self, path: &std::path::Path) -> ApicentricResult<()> {
-        self.config_loader.delete_service(path)
+    pub async fn delete_service_file(&self, path: &std::path::Path) -> ApicentricResult<()> {
+        let loader = self.config_loader.clone();
+        let path = path.to_path_buf();
+
+        tokio::task::spawn_blocking(move || loader.delete_service(&path))
+            .await
+            .map_err(|e| {
+                ApicentricError::runtime_error(
+                    format!("Failed to join blocking task: {}", e),
+                    None::<String>,
+                )
+            })?
     }
 
     /// Check if a service definition file exists
-    pub fn service_file_exists(&self, path: &std::path::Path) -> bool {
-        self.config_loader.service_exists(path)
+    pub async fn service_file_exists(&self, path: &std::path::Path) -> bool {
+        let loader = self.config_loader.clone();
+        let path = path.to_path_buf();
+
+        tokio::task::spawn_blocking(move || loader.service_exists(&path))
+            .await
+            .unwrap_or(false)
     }
 
     /// Get the configured services directory
