@@ -1,0 +1,3 @@
+## 2026-02-01 - React.memo broken by Object Mappers
+**Learning:** When `useQuery` or `useMemo` returns mapped arrays of objects (e.g. `simulatorStatus.active_services.map(...)`), the resulting objects are new references every time, even if the data is identical. This breaks `React.memo` on child components (like `ServiceCard`) that rely on shallow comparison, causing unnecessary re-renders of the entire list.
+**Action:** When mapping data for lists, either ensure referential stability of the items (difficult with API data) or implement custom comparison functions for `React.memo` in list items that compare by value/ID rather than reference.
