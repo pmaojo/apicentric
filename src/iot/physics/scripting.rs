@@ -82,14 +82,14 @@ impl SimulationStrategy for RhaiScriptStrategy {
 
         match result {
             Ok(val) => {
-                let var_val = if val.is_int() {
-                    VariableValue::Integer(val.as_int().unwrap())
-                } else if val.is_float() {
-                    VariableValue::Float(val.as_float().unwrap())
-                } else if val.is_bool() {
-                    VariableValue::Boolean(val.as_bool().unwrap())
-                } else if val.is_string() {
-                    VariableValue::String(val.into_string().unwrap())
+                let var_val = if let Ok(i) = val.as_int() {
+                    VariableValue::Integer(i)
+                } else if let Ok(f) = val.as_float() {
+                    VariableValue::Float(f)
+                } else if let Ok(b) = val.as_bool() {
+                    VariableValue::Boolean(b)
+                } else if let Ok(s) = val.into_string() {
+                    VariableValue::String(s)
                 } else if val.is_map() {
                     match serde_json::to_string(&val) {
                         Ok(s) => VariableValue::String(s),

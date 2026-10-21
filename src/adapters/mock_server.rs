@@ -241,7 +241,7 @@ async fn handle_request(
                     .map_err(|never| match never {})
                     .boxed(),
             )
-            .unwrap())
+            .unwrap_or_else(|_| Response::new(Full::new(Bytes::from("Internal Server Error")).map_err(|never| match never {}).boxed())))
     } else {
         Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
@@ -250,6 +250,6 @@ async fn handle_request(
                     .map_err(|never| match never {})
                     .boxed(),
             )
-            .unwrap())
+            .unwrap_or_else(|_| Response::new(Full::new(Bytes::from("Internal Server Error")).map_err(|never| match never {}).boxed())))
     }
 }
