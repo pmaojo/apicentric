@@ -41,6 +41,7 @@ pub struct ApiSimulatorManager {
     recorder: ProxyRecorder,
     admin_server: Arc<RwLock<AdminServer>>,
     start_time: Instant,
+    http_client: reqwest::Client,
 }
 
 impl ApiSimulatorManager {
@@ -77,6 +78,12 @@ impl ApiSimulatorManager {
         let recorder = ProxyRecorder;
         let admin_server = Arc::new(RwLock::new(AdminServer::new(service_registry.clone())));
 
+        // Initialize shared HTTP client for internal requests
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .expect("Failed to create HTTP client");
+
         Self {
             config,
             service_registry,
@@ -88,6 +95,7 @@ impl ApiSimulatorManager {
             recorder,
             admin_server,
             start_time,
+            http_client,
         }
     }
 
@@ -321,16 +329,6 @@ impl ApiSimulatorManager {
         method: &str,
         path: &str,
     ) -> ApicentricResult<TestResult> {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .map_err(|e| {
-                ApicentricError::runtime_error(
-                    format!("Failed to create client: {}", e),
-                    None::<String>,
-                )
-            })?;
-
         let url = format!("http://localhost:{}{}", port, path);
         let start = Instant::now();
 
@@ -342,17 +340,20 @@ impl ApiSimulatorManager {
             )
         })?;
 
-        let response = client
+        let response = self
+            .http_client
             .request(method_enum, &url)
             .send()
             .await
-            .map_err(|e| {
-                ApicentricError::runtime_error(format!("Request failed: {}", e), None::<String>)
-            })?;
+            .map_err(|_| ApicentricError::network_connection_failed(&url))?;
 
         let status = response.status().as_u16();
         let body = response.text().await.map_err(|e| {
-            ApicentricError::runtime_error(format!("Failed to read body: {}", e), None::<String>)
+            ApicentricError::network_error(
+                format!("Failed to read body: {}", e),
+                Some(&url),
+                Some("Check if the response body is valid UTF-8"),
+            )
         })?;
 
         // Truncate body if too long
