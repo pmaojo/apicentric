@@ -24,9 +24,14 @@ pub fn to_typescript(service: &ServiceDefinition) -> ApicentricResult<String> {
     let spec_path = spec_file.path().to_path_buf();
 
     // Run openapi-typescript
+    let spec_path_str = spec_path.to_str().ok_or_else(|| ApicentricError::Runtime {
+        message: "Failed to convert temp file path to string".to_string(),
+        suggestion: Some("Ensure the OS uses UTF-8 file paths".to_string()),
+    })?;
+
     let cmd = if cfg!(windows) { "npx.cmd" } else { "npx" };
     let output = Command::new(cmd)
-        .args(["-y", "openapi-typescript", spec_path.to_str().unwrap()])
+        .args(["-y", "openapi-typescript", spec_path_str])
         .output()
         .map_err(ApicentricError::Io)?;
     if !output.status.success() {
