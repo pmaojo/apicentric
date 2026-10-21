@@ -8,6 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Save, Trash2, Upload, RefreshCw } from 'lucide-react';
 import { listTwins, getTwin, saveTwin, deleteTwin, uploadReplayData, getIotGraph, GraphResponse } from '@/services/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ReactFlow, Controls, Background, useNodesState, useEdgesState, type Node, type Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -165,24 +171,34 @@ export function IoTManagement() {
   };
 
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <TabsList>
-            <TabsTrigger value="twins">Twin Management</TabsTrigger>
-            <TabsTrigger value="graph">System Map</TabsTrigger>
-          </TabsList>
-        </div>
+    <TooltipProvider>
+      <div className="h-[calc(100vh-120px)] flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <div className="flex justify-between items-center mb-4">
+            <TabsList>
+              <TabsTrigger value="twins">Twin Management</TabsTrigger>
+              <TabsTrigger value="graph">System Map</TabsTrigger>
+            </TabsList>
+          </div>
 
-        <TabsContent value="twins" className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden">
-          <Card className="md:col-span-1 flex flex-col">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Twins</CardTitle>
-                <Button size="sm" onClick={handleCreate}><Plus className="h-4 w-4" /></Button>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto">
+          <TabsContent value="twins" className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden">
+            <Card className="md:col-span-1 flex flex-col">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Twins</CardTitle>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" onClick={handleCreate} aria-label="Create new twin">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Create new twin</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto">
               {loading && !selectedTwin ? (
                 <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
               ) : (
@@ -245,6 +261,7 @@ export function IoTManagement() {
                   className="absolute inset-0 w-full h-full font-mono p-4 border-0 focus-visible:ring-0 resize-none rounded-b-lg"
                   value={yamlContent}
                   onChange={(e) => setYamlContent(e.target.value)}
+                  aria-label="Twin configuration YAML"
                 />
               ) : (
                  <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -275,5 +292,6 @@ export function IoTManagement() {
         </TabsContent>
       </Tabs>
     </div>
+    </TooltipProvider>
   );
 }
