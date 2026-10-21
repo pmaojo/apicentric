@@ -25,8 +25,16 @@ pub fn to_typescript(service: &ServiceDefinition) -> ApicentricResult<String> {
 
     // Run openapi-typescript
     let cmd = if cfg!(windows) { "npx.cmd" } else { "npx" };
+
+    let spec_path_str = spec_path.to_str().ok_or_else(|| {
+        ApicentricError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Temp file path contains invalid UTF-8 characters",
+        ))
+    })?;
+
     let output = Command::new(cmd)
-        .args(["-y", "openapi-typescript", spec_path.to_str().unwrap()])
+        .args(["-y", "openapi-typescript", spec_path_str])
         .output()
         .map_err(ApicentricError::Io)?;
     if !output.status.success() {
