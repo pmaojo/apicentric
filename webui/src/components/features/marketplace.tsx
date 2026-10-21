@@ -94,6 +94,7 @@ export function Marketplace({ onAddService }: MarketplaceProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="max-w-sm"
+              aria-label="Search services"
             />
           </div>
 
