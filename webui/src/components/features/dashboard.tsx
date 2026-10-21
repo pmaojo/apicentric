@@ -131,8 +131,8 @@ export function Dashboard({ services, onServiceUpdate }: DashboardProps) {
     }
   };
 
-  const runningServices = services.filter(s => s.status === 'running');
-  const stoppedServices = services.filter(s => s.status === 'stopped');
+  const runningServices = React.useMemo(() => services.filter(s => s.status === 'running'), [services]);
+  const stoppedServices = React.useMemo(() => services.filter(s => s.status === 'stopped'), [services]);
   const isSimulatorRunning = runningServices.length > 0;
 
   return (
@@ -334,7 +334,17 @@ const ServiceCard = React.memo(function ServiceCard({
 });
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ApiDocs } from "./api-docs"
+import dynamic from 'next/dynamic';
+
+const ApiDocs = dynamic(() => import('./api-docs').then(mod => mod.ApiDocs), {
+  loading: () => (
+    <div className="flex h-64 items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <span className="ml-2 text-sm text-muted-foreground">Loading documentation viewer...</span>
+    </div>
+  ),
+  ssr: false,
+});
 
 function ServiceDetailsDialog({ service }: { service: Service }) {
   return (
