@@ -127,6 +127,13 @@ impl ConfigValidator for BehaviorConfig {
                     suggestion: Some("Ensure min_ms <= max_ms".to_string()),
                 });
             }
+            if latency.max_ms > 300_000 {
+                errors.push(ValidationError {
+                    field: "behavior.latency.max_ms".to_string(),
+                    message: "Maximum latency cannot exceed 300,000ms (5 minutes)".to_string(),
+                    suggestion: Some("Ensure max_ms is 300,000 or less to prevent resource exhaustion".to_string()),
+                });
+            }
         }
 
         if let Some(ref error_sim) = self.error_simulation {
